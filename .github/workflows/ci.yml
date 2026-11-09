@@ -1,19 +1,18 @@
 # The commit hook runs `pnpm check` on the laptop; CI runs it again, and the production build, on
-# a clean Linux machine on every push to main and every pull request. `pnpm e2e` runs on pull
-# requests and from the "Run workflow" button, and on a push to main only once the repository is
-# public: a private repository's minutes are counted, a public one's are not. `pnpm e2e:visual`
-# stays local: its baseline is the owner's Mac (`e2e/visual/__screenshots__/darwin`), and Linux
-# draws text differently (docs/harness.md).
+# a clean Linux machine on every push to develop or main and every pull request. `pnpm e2e` runs on
+# pull requests, on pushes to main, which take only releases, and from the "Run workflow" button.
+# `pnpm e2e:visual` stays local: its baseline is the owner's Mac
+# (`e2e/visual/__screenshots__/darwin`), and Linux draws text differently (docs/harness.md).
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [develop, main]
   pull_request:
   workflow_dispatch:
 
 # A newer run of the same kind on the same branch or pull request makes the older one's answer
-# moot. The event is in the group so a push to main does not cancel an e2e started by hand.
+# moot. The event is in the group so a push does not cancel an e2e started by hand.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
@@ -66,14 +65,15 @@ jobs:
       # where Cache Components refuses a page that reads the clock or the request outside a
       # boundary; neither `pnpm check` nor the e2e's dev server renders pages so. No keys: neither
       # reads any, and LIVE_GENERATION stays unset. In this job rather than one of its own, which
-      # would install everything again on counted minutes.
+      # would install everything again.
       - run: pnpm build:check
 
   e2e:
     name: E2E
-    # Pull requests and the "Run workflow" button always; a push to main only in a public
-    # repository, where the minutes are free.
-    if: github.event_name != 'push' || github.event.repository.private == false
+    # Pull requests, pushes to main and the "Run workflow" button. A push to develop runs the check
+    # alone: `pnpm e2e` runs on the laptop before a merge that changes UI (CLAUDE.md, "Definition
+    # of done"), and here again when a release reaches main.
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
