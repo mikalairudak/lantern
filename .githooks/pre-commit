@@ -1,0 +1,12 @@
+#!/bin/sh
+# Commit gate: runs `pnpm check` before every commit, from any session or person.
+# `pnpm install` turns it on (the prepare script points core.hooksPath here); an install
+# that is already up to date skips prepare, so run `pnpm run prepare` once.
+# It checks the working tree, not only the staged changes.
+
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "pre-commit: pnpm is not on PATH. Switch to the Node version in .nvmrc (nvm use), run corepack enable, then commit again." >&2
+  exit 1
+fi
+
+exec pnpm check

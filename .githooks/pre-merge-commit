@@ -1,0 +1,5 @@
+#!/bin/sh
+# A merge that commits without conflicts runs this hook instead of pre-commit,
+# so it runs the same gate.
+
+exec "$(dirname "$0")/pre-commit"

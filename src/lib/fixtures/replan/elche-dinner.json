@@ -1,0 +1,1208 @@
+{
+  "request": {
+    "city": "Elx / Elche",
+    "date": "2026-11-05",
+    "timezone": "Europe/Madrid",
+    "citySource": "chosen",
+    "energy": "balanced",
+    "energySource": "assumed",
+    "travel": null,
+    "start": "early",
+    "dinner": null,
+    "end": null,
+    "company": "family"
+  },
+  "itinerary": {
+    "dek": "Coffee on Plaça de Baix at 07:45, the Palmeral d'Elx, the Museu Arqueològic and the Carrer Major walk, a set lunch on Carrer Major de la Vila, the Basílica de Santa Maria, Huerto del Cura, an early rice dinner on Passeig de l'Estació and Plaça de Baix at dusk.",
+    "city": "Elx / Elche",
+    "date": "2026-11-05",
+    "facts": {
+      "end": {
+        "value": "early",
+        "source": "assumed"
+      },
+      "start": {
+        "value": "early",
+        "source": "chosen"
+      },
+      "dinner": {
+        "value": "early",
+        "source": "assumed"
+      },
+      "energy": {
+        "value": "balanced",
+        "source": "assumed"
+      },
+      "travel": {
+        "value": "on-foot",
+        "source": "assumed"
+      },
+      "company": {
+        "value": "family",
+        "source": "chosen"
+      }
+    },
+    "stops": [
+      {
+        "id": "stop-0",
+        "primary": {
+          "id": "stop-0:p",
+          "kind": "coffee",
+          "name": "Coffee on Plaça de Baix",
+          "light": {
+            "note": "The sun clears the rooftops around half past eight; before that the square sits in even shade, after it the terrace tables warm up.",
+            "exposure": "open",
+            "bestWindow": "morning",
+            "orientation": null
+          },
+          "sensory": {
+            "crowd": "steady",
+            "energy": "balanced",
+            "texture": "Shutters going up, cups on terrace tables, shopkeepers greeting each other across the square.",
+            "acoustic": "murmur"
+          },
+          "summary": "Elche starts early: by eight the square's terraces are full of locals having cortado and tostada with tomato and oil, which is a better start for a family than any hotel buffet.",
+          "aesthetic": ["stone facades", "terrace awnings"],
+          "coordinates": {
+            "lat": 38.2653,
+            "lng": -0.6985
+          },
+          "neighborhood": "Centre"
+        },
+        "dependsOn": ["energy", "company"],
+        "startTime": "07:45",
+        "alternatives": [
+          {
+            "id": "stop-0:a1",
+            "kind": "coffee",
+            "name": "Coffee on Carrer Sant Joan",
+            "light": {
+              "note": "Shop-front light stays even and soft from opening to noon.",
+              "exposure": "interior",
+              "bestWindow": "morning",
+              "orientation": null
+            },
+            "reason": "The same cortado and tostada, on a narrower street with fewer tables, trading the square's terrace buzz for a quieter start.",
+            "sensory": {
+              "crowd": "sparse",
+              "energy": "calm",
+              "texture": "Few voices, a spoon on a saucer, a newspaper turning.",
+              "acoustic": "hushed"
+            },
+            "summary": "A side street a few steps from the square where the morning coffee is quieter and the tostadas arrive without a crowd.",
+            "aesthetic": ["stone", "tiled bar tops"],
+            "coordinates": {
+              "lat": 38.2648,
+              "lng": -0.6992
+            },
+            "neighborhood": "Centre"
+          },
+          {
+            "id": "stop-0:a2",
+            "kind": "coffee",
+            "name": "Churros on Plaça de Baix",
+            "light": {
+              "note": "Terrace tables are in full sun once it clears the rooftops after half past eight.",
+              "exposure": "open",
+              "bestWindow": "morning",
+              "orientation": null
+            },
+            "reason": "The same square and hour, trading a quiet coffee for a livelier family breakfast of chocolate and churros.",
+            "sensory": {
+              "crowd": "busy",
+              "energy": "lively",
+              "texture": "Frying oil, loud morning greetings, children and grandparents at shared tables.",
+              "acoustic": "chatter"
+            },
+            "summary": "Hot chocolate and churros are the busier morning choice in the same square, popular with families before school and work.",
+            "aesthetic": ["terrace awnings", "stone facades"],
+            "coordinates": {
+              "lat": 38.2654,
+              "lng": -0.6984
+            },
+            "neighborhood": "Centre"
+          }
+        ],
+        "durationMinutes": 40,
+        "selectedPlaceId": "stop-0:p"
+      },
+      {
+        "id": "stop-1",
+        "primary": {
+          "id": "stop-1:p",
+          "kind": "garden",
+          "name": "Palmeral d'Elx",
+          "light": {
+            "note": "Low morning sun comes in sideways under the fronds and lights the trunks in stripes; by midday the light is flatter and the shade deeper.",
+            "exposure": "dappled",
+            "bestWindow": "morning",
+            "orientation": null
+          },
+          "sensory": {
+            "crowd": "sparse",
+            "energy": "calm",
+            "texture": "Irrigation water running in channels, birds in the fronds, gravel and packed earth underfoot.",
+            "acoustic": "hushed"
+          },
+          "summary": "The old palm groves in the middle of town are quietest in the first hour or two after opening, when you can walk the shaded paths between the date palms without queueing. Children can look for the tied-up white palms and the ripening dates.",
+          "aesthetic": ["palm trunks", "irrigation channels", "packed earth"],
+          "coordinates": {
+            "lat": 38.2635,
+            "lng": -0.7005
+          },
+          "neighborhood": "Palmeral"
+        },
+        "dependsOn": ["energy", "travel", "start", "company"],
+        "startTime": "08:45",
+        "alternatives": [
+          {
+            "id": "stop-1:a1",
+            "kind": "garden",
+            "name": "Hort de Baix",
+            "light": {
+              "note": "Morning sun slips through the fronds in narrow beams until about ten.",
+              "exposure": "dappled",
+              "bestWindow": "morning",
+              "orientation": null
+            },
+            "reason": "The same date palms and irrigation channels, in a smaller plot that trades the main park's wider paths for near silence.",
+            "sensory": {
+              "crowd": "empty",
+              "energy": "reflective",
+              "texture": "Dripping water, a single gardener's rake, soil underfoot.",
+              "acoustic": "silent"
+            },
+            "summary": "A smaller palm garden in the same grove with fewer paths and almost no one on it early.",
+            "aesthetic": ["palm trunks", "bare earth"],
+            "coordinates": {
+              "lat": 38.263,
+              "lng": -0.7012
+            },
+            "neighborhood": "Palmeral"
+          },
+          {
+            "id": "stop-1:a2",
+            "kind": "garden",
+            "name": "Parc Municipal d'Elx",
+            "light": {
+              "note": "Lawns and paths get full sun from nine, with shade only under the larger trees.",
+              "exposure": "open",
+              "bestWindow": "morning",
+              "orientation": null
+            },
+            "reason": "Still green and still shaded in places, but trading the groves' calm for open lawns and a children's playground.",
+            "sensory": {
+              "crowd": "busy",
+              "energy": "lively",
+              "texture": "Children running on paths, ducks on the pond, bicycle bells.",
+              "acoustic": "chatter"
+            },
+            "summary": "The town's park is the livelier option for the same hour, with a duck pond and open lawns where children can run.",
+            "aesthetic": ["lawns", "pond", "gravel paths"],
+            "coordinates": {
+              "lat": 38.264,
+              "lng": -0.702
+            },
+            "neighborhood": "Centre"
+          }
+        ],
+        "durationMinutes": 120,
+        "selectedPlaceId": "stop-1:p"
+      },
+      {
+        "id": "stop-2",
+        "primary": {
+          "id": "stop-2:p",
+          "kind": "museum",
+          "name": "Museu Arqueològic i d'Història d'Elx (Alcúdia / Palau d'Altamira)",
+          "light": {
+            "note": "Thick walls and small windows keep the rooms at the same dim, cool light all day, which makes it a good pause when the sun is high.",
+            "exposure": "interior",
+            "bestWindow": null,
+            "orientation": null
+          },
+          "sensory": {
+            "crowd": "sparse",
+            "energy": "calm",
+            "texture": "Echoing stone rooms, a few footsteps, a guide's low voice.",
+            "acoustic": "hushed"
+          },
+          "summary": "A cool, compact stop in the old part of town between the groves and lunch, housed in the Altamira palace beside the old city wall. Short enough for children and shaded from the late-morning sun.",
+          "aesthetic": ["thick stone walls", "dim interiors"],
+          "coordinates": {
+            "lat": 38.2644,
+            "lng": -0.6983
+          },
+          "neighborhood": "Centre"
+        },
+        "dependsOn": ["energy", "company"],
+        "startTime": "11:00",
+        "alternatives": [
+          {
+            "id": "stop-2:a1",
+            "kind": "sacred",
+            "name": "Església de Sant Joan Baptista",
+            "light": {
+              "note": "Small high windows keep the light dim and even all day.",
+              "exposure": "interior",
+              "bestWindow": null,
+              "orientation": null
+            },
+            "reason": "Like the museum it is cool, indoors and unhurried, but it trades exhibits for stillness.",
+            "sensory": {
+              "crowd": "empty",
+              "energy": "reflective",
+              "texture": "Cool stone air, a candle flicker, no voices.",
+              "acoustic": "silent"
+            },
+            "summary": "A quiet church within a few minutes' walk where an hour passes in silence and cool air.",
+            "aesthetic": ["stone", "candlelight"],
+            "coordinates": {
+              "lat": 38.266,
+              "lng": -0.6975
+            },
+            "neighborhood": "Centre"
+          },
+          {
+            "id": "stop-2:a2",
+            "kind": "market",
+            "name": "Mercat Central d'Elx",
+            "light": {
+              "note": "Skylights keep the hall evenly lit from opening to closing at about two.",
+              "exposure": "covered",
+              "bestWindow": "morning",
+              "orientation": null
+            },
+            "reason": "Still indoors and shaded, but trading the museum's quiet rooms for a busy market hall with food to look at.",
+            "sensory": {
+              "crowd": "packed",
+              "energy": "social",
+              "texture": "Stallholders calling prices, plastic crates, the smell of fish and oranges.",
+              "acoustic": "loud"
+            },
+            "summary": "The covered market is at its fullest before noon, with stalls of dates, fruit and fish and local families shopping for lunch.",
+            "aesthetic": ["stalls", "tile", "steel roof"],
+            "coordinates": {
+              "lat": 38.2658612,
+              "lng": -0.6984499
+            },
+            "neighborhood": "Centre"
+          }
+        ],
+        "durationMinutes": 70,
+        "selectedPlaceId": "stop-2:p"
+      },
+      {
+        "id": "stop-3",
+        "primary": {
+          "id": "stop-3:p",
+          "kind": "walk",
+          "name": "Passeig de l'Estació and Carrer Major de la Vila",
+          "light": {
+            "note": "Narrow streets keep a strip of shade along the north side even at noon.",
+            "exposure": "open",
+            "bestWindow": "midday",
+            "orientation": null
+          },
+          "sensory": {
+            "crowd": "steady",
+            "energy": "balanced",
+            "texture": "Shop shutters, bicycle bells and slow footsteps on paving.",
+            "acoustic": "murmur"
+          },
+          "summary": "A short stroll toward the river side of town keeps the legs moving between the museum and a late lunch without any transport.",
+          "aesthetic": ["paving stones", "shop fronts"],
+          "coordinates": {
+            "lat": 38.2641,
+            "lng": -0.6992
+          },
+          "neighborhood": "Centre"
+        },
+        "dependsOn": ["energy", "travel"],
+        "startTime": "12:30",
+        "alternatives": [
+          {
+            "id": "stop-3:a1",
+            "kind": "walk",
+            "name": "Carrer Corredora",
+            "light": {
+              "note": "Narrow facades throw a long strip of shade across the street.",
+              "exposure": "open",
+              "bestWindow": "midday",
+              "orientation": null
+            },
+            "reason": "The same short walk toward lunch on a quieter street, trading shop windows for shuttered doors.",
+            "sensory": {
+              "crowd": "sparse",
+              "energy": "calm",
+              "texture": "A few footsteps on paving, shutters half-closed for lunch.",
+              "acoustic": "hushed"
+            },
+            "summary": "A quieter street through the old town with half the shops already closing for lunch.",
+            "aesthetic": ["stone", "shutters"],
+            "coordinates": {
+              "lat": 38.2661995,
+              "lng": -0.6960941
+            },
+            "neighborhood": "Centre"
+          },
+          {
+            "id": "stop-3:a2",
+            "kind": "walk",
+            "name": "Plaça de la Fruita",
+            "light": {
+              "note": "Open square in full sun, with shade only under the awnings.",
+              "exposure": "open",
+              "bestWindow": "midday",
+              "orientation": null
+            },
+            "reason": "The same walk to lunch, passing through a lively square instead of a quiet street.",
+            "sensory": {
+              "crowd": "busy",
+              "energy": "lively",
+              "texture": "Cafe terraces, scooters passing, people hurrying to lunch.",
+              "acoustic": "chatter"
+            },
+            "summary": "A busier square on the way to lunch, with terraces already filling at noon.",
+            "aesthetic": ["terrace awnings", "paving"],
+            "coordinates": {
+              "lat": 38.2657601,
+              "lng": -0.6983297
+            },
+            "neighborhood": "Centre"
+          }
+        ],
+        "durationMinutes": 20,
+        "selectedPlaceId": "stop-3:p"
+      },
+      {
+        "id": "stop-4",
+        "startTime": "13:15",
+        "durationMinutes": 75,
+        "primary": {
+          "name": "Menú del día on Carrer Major de la Vila",
+          "kind": "food",
+          "neighborhood": "Centre",
+          "coordinates": {
+            "lat": 38.2641,
+            "lng": -0.6992
+          },
+          "sensory": {
+            "energy": "calm",
+            "acoustic": "murmur",
+            "crowd": "steady",
+            "texture": "Quiet dining rooms, cutlery, a television low in the corner."
+          },
+          "light": {
+            "exposure": "interior",
+            "orientation": null,
+            "bestWindow": null,
+            "note": "Indoor dining rooms, so the light stays the same through lunch."
+          },
+          "summary": "Set lunch menus served in small dining rooms for workers and neighbours, with soup or salad, a main and a dessert.",
+          "aesthetic": ["tiled floors", "wooden chairs", "painted walls"],
+          "id": "stop-4:p"
+        },
+        "alternatives": [
+          {
+            "name": "Menú del día on Carrer Major de la Vila",
+            "kind": "food",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.2641,
+              "lng": -0.6992
+            },
+            "sensory": {
+              "energy": "calm",
+              "acoustic": "murmur",
+              "crowd": "steady",
+              "texture": "Quiet dining rooms, cutlery, a television low in the corner."
+            },
+            "light": {
+              "exposure": "interior",
+              "orientation": null,
+              "bestWindow": null,
+              "note": "Indoor dining rooms, so the light stays the same through lunch."
+            },
+            "summary": "Set lunch menus served in small dining rooms for workers and neighbours, with soup or salad, a main and a dessert.",
+            "aesthetic": ["tiled floors", "wooden chairs", "painted walls"],
+            "id": "stop-4:a1",
+            "reason": "The same lunch hour on a nearby street, with a quieter indoor room instead of the terrace under the trees."
+          },
+          {
+            "name": "Tapas in Plaça de Baix",
+            "kind": "food",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.2653,
+              "lng": -0.6985
+            },
+            "sensory": {
+              "energy": "lively",
+              "acoustic": "chatter",
+              "crowd": "busy",
+              "texture": "Terrace talk, plates on small tables, pigeons crossing the stone."
+            },
+            "light": {
+              "exposure": "open",
+              "orientation": null,
+              "bestWindow": "midday",
+              "note": "Full sun on the square at midday, with shade along the north side."
+            },
+            "summary": "Shared plates and rice dishes at terrace tables on the main square at the start of the lunch hour.",
+            "aesthetic": ["stone paving", "terrace chairs", "open square"],
+            "id": "stop-4:a2",
+            "reason": "The same lunch hour and the same food, in a livelier square with more noise and less shade."
+          }
+        ],
+        "selectedPlaceId": "stop-4:p",
+        "dependsOn": ["energy", "dinner"]
+      },
+      {
+        "id": "stop-5",
+        "primary": {
+          "id": "stop-5:p",
+          "kind": "sacred",
+          "name": "Basílica de Santa Maria",
+          "light": {
+            "note": "Afternoon sun pushes through the upper windows and lays a slow, moving patch of light across the nave floor.",
+            "exposure": "interior",
+            "bestWindow": "afternoon",
+            "orientation": null
+          },
+          "sensory": {
+            "crowd": "sparse",
+            "energy": "reflective",
+            "texture": "Cool stone air, soft footsteps, the occasional low murmur from a side chapel.",
+            "acoustic": "hushed"
+          },
+          "summary": "The baroque basilica sits a couple of minutes from the square, and its blue-tiled domes show above the roofs. In the afternoon, while shops are closed for the siesta, the interior is quiet and cool.",
+          "aesthetic": ["baroque stone", "blue tile"],
+          "coordinates": {
+            "lat": 38.2671266,
+            "lng": -0.6974635
+          },
+          "neighborhood": "Centre"
+        },
+        "dependsOn": ["energy", "travel", "company"],
+        "startTime": "15:00",
+        "alternatives": [
+          {
+            "id": "stop-5:a1",
+            "kind": "sacred",
+            "name": "Església de Sant Joan Baptista",
+            "light": {
+              "note": "Small windows keep the interior dim and steady all day.",
+              "exposure": "interior",
+              "bestWindow": null,
+              "orientation": null
+            },
+            "reason": "The same cool, quiet interior in a smaller church, trading the basilica's blue domes for near silence.",
+            "sensory": {
+              "crowd": "empty",
+              "energy": "reflective",
+              "texture": "Cool air, flickering candles, no voices.",
+              "acoustic": "silent"
+            },
+            "summary": "A smaller church nearby that is almost always empty during the afternoon siesta.",
+            "aesthetic": ["stone", "candlelight"],
+            "coordinates": {
+              "lat": 38.266,
+              "lng": -0.6975
+            },
+            "neighborhood": "Centre"
+          },
+          {
+            "id": "stop-5:a2",
+            "kind": "walk",
+            "name": "Plaça de Baix",
+            "light": {
+              "note": "Afternoon sun hits the square's west side and warms the terraces.",
+              "exposure": "open",
+              "bestWindow": "afternoon",
+              "orientation": null
+            },
+            "reason": "Same neighbourhood and hour, trading the basilica's stillness for the square's life as the town reopens.",
+            "sensory": {
+              "crowd": "busy",
+              "energy": "lively",
+              "texture": "Terrace chatter, scooters, people resuming errands after the siesta.",
+              "acoustic": "chatter"
+            },
+            "summary": "The square wakes again around five, with people returning to the terraces after the siesta.",
+            "aesthetic": ["stone facades", "terrace awnings"],
+            "coordinates": {
+              "lat": 38.2652865,
+              "lng": -0.6986781
+            },
+            "neighborhood": "Centre"
+          }
+        ],
+        "durationMinutes": 75,
+        "selectedPlaceId": "stop-5:p"
+      },
+      {
+        "id": "stop-6",
+        "startTime": "16:30",
+        "durationMinutes": 60,
+        "primary": {
+          "name": "Huerto del Cura",
+          "kind": "garden",
+          "neighborhood": "Palmeral",
+          "coordinates": {
+            "lat": 38.2616,
+            "lng": -0.7019
+          },
+          "sensory": {
+            "energy": "calm",
+            "acoustic": "hushed",
+            "crowd": "sparse",
+            "texture": "Gravel paths, palm fronds rustling, a few voices between the cacti."
+          },
+          "light": {
+            "exposure": "dappled",
+            "orientation": null,
+            "bestWindow": "afternoon",
+            "note": "Low afternoon sun slants through the palm crowns and lights the cactus beds from the side, before the garden closes at dusk."
+          },
+          "summary": "A slow walk among palms and cactus beds while the afternoon light is still warm, and a quiet pause before the long wait for a late dinner. Check the closing time, which falls early in November.",
+          "aesthetic": ["palm shade", "gravel paths", "terracotta pots"],
+          "id": "stop-6:p"
+        },
+        "alternatives": [
+          {
+            "name": "Parc Municipal d'Elx",
+            "kind": "garden",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.265,
+              "lng": -0.7003
+            },
+            "sensory": {
+              "energy": "reflective",
+              "acoustic": "hushed",
+              "crowd": "empty",
+              "texture": "Gravel, birds in the pines, a bench creaking."
+            },
+            "light": {
+              "exposure": "dappled",
+              "orientation": null,
+              "bestWindow": "afternoon",
+              "note": "Pine shade breaks the afternoon sun into patches along the paths."
+            },
+            "summary": "A quiet park beside the palm grove where the afternoon is slow and the paths are mostly empty.",
+            "aesthetic": ["pine shade", "gravel paths", "wooden benches"],
+            "id": "stop-6:a1",
+            "reason": "The same afternoon green, a short walk from the garden, with fewer visitors and no cactus beds to look at."
+          },
+          {
+            "name": "Plaça de la Fruita",
+            "kind": "walk",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.2657601,
+              "lng": -0.6983297
+            },
+            "sensory": {
+              "energy": "lively",
+              "acoustic": "chatter",
+              "crowd": "busy",
+              "texture": "Café chairs, children running, bicycles crossing the stone."
+            },
+            "light": {
+              "exposure": "open",
+              "orientation": null,
+              "bestWindow": "afternoon",
+              "note": "Afternoon sun lights the square until the buildings throw shade from the west."
+            },
+            "summary": "A small square near the old town where families gather in the late afternoon.",
+            "aesthetic": ["stone paving", "terrace chairs", "old facades"],
+            "id": "stop-6:a2",
+            "reason": "The same late-afternoon hour out of doors, trading the garden's quiet for a livelier square."
+          }
+        ],
+        "selectedPlaceId": "stop-6:p",
+        "dependsOn": ["energy", "dinner"]
+      },
+      {
+        "id": "stop-7",
+        "startTime": "18:15",
+        "durationMinutes": 90,
+        "primary": {
+          "name": "Rice dinner on Passeig de l'Estació",
+          "kind": "food",
+          "neighborhood": "Centre",
+          "coordinates": {
+            "lat": 38.2638,
+            "lng": -0.6996
+          },
+          "sensory": {
+            "energy": "balanced",
+            "acoustic": "chatter",
+            "crowd": "busy",
+            "texture": "Plates and cutlery, families calling to waiters, traffic hushed under the plane trees."
+          },
+          "light": {
+            "exposure": "covered",
+            "orientation": null,
+            "bestWindow": "midday",
+            "note": "Dappled under the trees at midday, with the terrace tables turning to shade as the sun drops."
+          },
+          "summary": "Spanish lunch hour starts after 14:00, so a table at 13:15 is easy to get before the dining rooms fill. Rice dishes cooked in the pan are what this stretch serves at this hour.",
+          "aesthetic": ["plane trees", "terrace tables", "whitewashed facades"],
+          "id": "stop-7:p"
+        },
+        "alternatives": [
+          {
+            "name": "Menú del día on Carrer Major de la Vila",
+            "kind": "food",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.2641,
+              "lng": -0.6992
+            },
+            "sensory": {
+              "energy": "calm",
+              "acoustic": "murmur",
+              "crowd": "steady",
+              "texture": "Quiet dining rooms, cutlery, a television low in the corner."
+            },
+            "light": {
+              "exposure": "interior",
+              "orientation": null,
+              "bestWindow": null,
+              "note": "Indoor dining rooms, so the light stays the same through lunch."
+            },
+            "summary": "Set lunch menus served in small dining rooms for workers and neighbours, with soup or salad, a main and a dessert.",
+            "aesthetic": ["tiled floors", "wooden chairs", "painted walls"],
+            "id": "stop-7:a1",
+            "reason": "The same lunch hour on a nearby street, with a quieter indoor room instead of the terrace under the trees."
+          },
+          {
+            "name": "Tapas in Plaça de Baix",
+            "kind": "food",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.2653,
+              "lng": -0.6985
+            },
+            "sensory": {
+              "energy": "lively",
+              "acoustic": "chatter",
+              "crowd": "busy",
+              "texture": "Terrace talk, plates on small tables, pigeons crossing the stone."
+            },
+            "light": {
+              "exposure": "open",
+              "orientation": null,
+              "bestWindow": "midday",
+              "note": "Full sun on the square at midday, with shade along the north side."
+            },
+            "summary": "Shared plates and rice dishes at terrace tables on the main square at the start of the lunch hour.",
+            "aesthetic": ["stone paving", "terrace chairs", "open square"],
+            "id": "stop-7:a2",
+            "reason": "The same lunch hour and the same food, in a livelier square with more noise and less shade."
+          }
+        ],
+        "selectedPlaceId": "stop-7:p",
+        "dependsOn": ["energy", "dinner", "company"]
+      },
+      {
+        "id": "stop-8",
+        "startTime": "20:00",
+        "durationMinutes": 45,
+        "primary": {
+          "name": "Plaça de Baix at dusk",
+          "kind": "walk",
+          "neighborhood": "Centre",
+          "coordinates": {
+            "lat": 38.2653,
+            "lng": -0.6985
+          },
+          "sensory": {
+            "energy": "calm",
+            "acoustic": "murmur",
+            "crowd": "sparse",
+            "texture": "Footsteps on stone, a last terrace closing, the lit facades quiet."
+          },
+          "light": {
+            "exposure": "open",
+            "orientation": null,
+            "bestWindow": "after-dark",
+            "note": "Only lamps and lit windows after eleven, so the square reads as warm pools of light on dark stone."
+          },
+          "summary": "A short turn around the square after dinner, when the terraces thin out and the lamps stay on.",
+          "aesthetic": ["stone paving", "lamplight", "quiet facades"],
+          "id": "stop-8:p"
+        },
+        "alternatives": [
+          {
+            "name": "Carrer Major de la Vila at night",
+            "kind": "walk",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.2641,
+              "lng": -0.6992
+            },
+            "sensory": {
+              "energy": "reflective",
+              "acoustic": "hushed",
+              "crowd": "empty",
+              "texture": "Footsteps, shutters coming down, a cat on a doorstep."
+            },
+            "light": {
+              "exposure": "open",
+              "orientation": null,
+              "bestWindow": "after-dark",
+              "note": "Pools of lamplight and shuttered shops, with the street nearly empty after eleven."
+            },
+            "summary": "The same street where dinner was, after it has emptied, quiet and lit by a few lamps.",
+            "aesthetic": ["shuttered shops", "lamplight", "narrow street"],
+            "id": "stop-8:a1",
+            "reason": "The same night hour in a quieter street, a few minutes from the square and with almost no people."
+          },
+          {
+            "name": "Gin tonic in Plaça de Baix",
+            "kind": "bar",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.2653,
+              "lng": -0.6985
+            },
+            "sensory": {
+              "energy": "lively",
+              "acoustic": "chatter",
+              "crowd": "busy",
+              "texture": "Ice in glasses, music from a doorway, talk at outdoor tables."
+            },
+            "light": {
+              "exposure": "open",
+              "orientation": null,
+              "bestWindow": "after-dark",
+              "note": "Bar lights and streetlamps keep the square warm and bright late into the night."
+            },
+            "summary": "A last drink at outdoor tables on the square, where bars stay open past midnight.",
+            "aesthetic": ["stone paving", "bar lights", "terrace chairs"],
+            "id": "stop-8:a2",
+            "reason": "The same square and hour, trading the quiet walk for a last drink in a livelier crowd."
+          }
+        ],
+        "selectedPlaceId": "stop-8:p",
+        "dependsOn": ["energy", "end"]
+      }
+    ],
+    "timezone": "Europe/Madrid"
+  },
+  "replan": {
+    "stops": [
+      {
+        "startTime": "13:15",
+        "durationMinutes": 90,
+        "place": {
+          "name": "Arròs on Passeig de l'Estació",
+          "kind": "food",
+          "neighborhood": "Centre",
+          "coordinates": {
+            "lat": 38.2638,
+            "lng": -0.6996
+          },
+          "sensory": {
+            "energy": "balanced",
+            "acoustic": "chatter",
+            "crowd": "busy",
+            "texture": "Plates and cutlery, families calling to waiters, traffic hushed under the plane trees."
+          },
+          "light": {
+            "exposure": "covered",
+            "orientation": "none",
+            "bestWindow": "midday",
+            "note": "Dappled under the trees at midday, with the terrace tables turning to shade as the sun drops."
+          },
+          "summary": "Spanish lunch hour starts after 14:00, so a table at 13:15 is easy to get before the dining rooms fill. Rice dishes cooked in the pan are what this stretch serves at this hour.",
+          "aesthetic": ["plane trees", "terrace tables", "whitewashed facades"]
+        },
+        "dependsOn": ["dinner"]
+      },
+      {
+        "startTime": "16:30",
+        "durationMinutes": 60,
+        "place": {
+          "name": "Huerto del Cura",
+          "kind": "garden",
+          "neighborhood": "Palmeral",
+          "coordinates": {
+            "lat": 38.2616,
+            "lng": -0.7019
+          },
+          "sensory": {
+            "energy": "calm",
+            "acoustic": "hushed",
+            "crowd": "sparse",
+            "texture": "Gravel paths, palm fronds rustling, a few voices between the cacti."
+          },
+          "light": {
+            "exposure": "dappled",
+            "orientation": "none",
+            "bestWindow": "afternoon",
+            "note": "Low afternoon sun slants through the palm crowns and lights the cactus beds from the side, before the garden closes at dusk."
+          },
+          "summary": "A slow walk among palms and cactus beds while the afternoon light is still warm, and a quiet pause before the long wait for a late dinner. Check the closing time, which falls early in November.",
+          "aesthetic": ["palm shade", "gravel paths", "terracotta pots"]
+        },
+        "dependsOn": ["dinner"]
+      },
+      {
+        "startTime": "18:30",
+        "durationMinutes": 45,
+        "place": {
+          "name": "Coffee on Plaça de Baix",
+          "kind": "coffee",
+          "neighborhood": "Centre",
+          "coordinates": {
+            "lat": 38.2653,
+            "lng": -0.6985
+          },
+          "sensory": {
+            "crowd": "steady",
+            "energy": "balanced",
+            "texture": "Shutters going up, cups on terrace tables, shopkeepers greeting each other across the square.",
+            "acoustic": "murmur"
+          },
+          "light": {
+            "exposure": "open",
+            "orientation": "none",
+            "bestWindow": "morning",
+            "note": "The sun clears the rooftops around half past eight; before that the square sits in even shade, after it the terrace tables warm up."
+          },
+          "summary": "Elche starts early: by eight the square's terraces are full of locals having cortado and tostada with tomato and oil, which is a better start for a family than any hotel buffet.",
+          "aesthetic": ["stone facades", "terrace awnings"]
+        },
+        "dependsOn": ["dinner"]
+      },
+      {
+        "startTime": "21:00",
+        "durationMinutes": 105,
+        "place": {
+          "name": "Tapas along Carrer Major de la Vila",
+          "kind": "food",
+          "neighborhood": "Centre",
+          "coordinates": {
+            "lat": 38.2641,
+            "lng": -0.6992
+          },
+          "sensory": {
+            "energy": "lively",
+            "acoustic": "chatter",
+            "crowd": "busy",
+            "texture": "Plates on marble counters, talk across tables, the street full until late."
+          },
+          "light": {
+            "exposure": "covered",
+            "orientation": "none",
+            "bestWindow": "after-dark",
+            "note": "Lit by shop signs and warm bulbs over the doors, and the street stays bright long after dark."
+          },
+          "summary": "Dinner here starts around nine, when the families come out and the street fills. Small plates, shared fried fish and local rice dishes are what most doors serve at this hour.",
+          "aesthetic": ["marble counters", "warm bulbs", "narrow street"]
+        },
+        "dependsOn": ["dinner", "end", "company"]
+      },
+      {
+        "startTime": "23:15",
+        "durationMinutes": 30,
+        "place": {
+          "name": "Plaça de Baix at night",
+          "kind": "walk",
+          "neighborhood": "Centre",
+          "coordinates": {
+            "lat": 38.2653,
+            "lng": -0.6985
+          },
+          "sensory": {
+            "energy": "calm",
+            "acoustic": "murmur",
+            "crowd": "sparse",
+            "texture": "Footsteps on stone, a last terrace closing, the lit facades quiet."
+          },
+          "light": {
+            "exposure": "open",
+            "orientation": "none",
+            "bestWindow": "after-dark",
+            "note": "Only lamps and lit windows after eleven, so the square reads as warm pools of light on dark stone."
+          },
+          "summary": "A short turn around the square after dinner, when the terraces thin out and the lamps stay on.",
+          "aesthetic": ["stone paving", "lamplight", "quiet facades"]
+        },
+        "dependsOn": ["end"]
+      }
+    ],
+    "alternatives": [
+      {
+        "stopIndex": 0,
+        "options": [
+          {
+            "name": "Menú del día on Carrer Major de la Vila",
+            "kind": "food",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.2641,
+              "lng": -0.6992
+            },
+            "sensory": {
+              "energy": "calm",
+              "acoustic": "murmur",
+              "crowd": "steady",
+              "texture": "Quiet dining rooms, cutlery, a television low in the corner."
+            },
+            "light": {
+              "exposure": "interior",
+              "orientation": "none",
+              "bestWindow": "none",
+              "note": "Indoor dining rooms, so the light stays the same through lunch."
+            },
+            "summary": "Set lunch menus served in small dining rooms for workers and neighbours, with soup or salad, a main and a dessert.",
+            "aesthetic": ["tiled floors", "wooden chairs", "painted walls"],
+            "reason": "The same lunch hour on a nearby street, with a quieter indoor room instead of the terrace under the trees."
+          },
+          {
+            "name": "Tapas in Plaça de Baix",
+            "kind": "food",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.2653,
+              "lng": -0.6985
+            },
+            "sensory": {
+              "energy": "lively",
+              "acoustic": "chatter",
+              "crowd": "busy",
+              "texture": "Terrace talk, plates on small tables, pigeons crossing the stone."
+            },
+            "light": {
+              "exposure": "open",
+              "orientation": "none",
+              "bestWindow": "midday",
+              "note": "Full sun on the square at midday, with shade along the north side."
+            },
+            "summary": "Shared plates and rice dishes at terrace tables on the main square at the start of the lunch hour.",
+            "aesthetic": ["stone paving", "terrace chairs", "open square"],
+            "reason": "The same lunch hour and the same food, in a livelier square with more noise and less shade."
+          }
+        ]
+      },
+      {
+        "stopIndex": 1,
+        "options": [
+          {
+            "name": "Parc Municipal d'Elx",
+            "kind": "garden",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.265,
+              "lng": -0.7003
+            },
+            "sensory": {
+              "energy": "reflective",
+              "acoustic": "hushed",
+              "crowd": "empty",
+              "texture": "Gravel, birds in the pines, a bench creaking."
+            },
+            "light": {
+              "exposure": "dappled",
+              "orientation": "none",
+              "bestWindow": "afternoon",
+              "note": "Pine shade breaks the afternoon sun into patches along the paths."
+            },
+            "summary": "A quiet park beside the palm grove where the afternoon is slow and the paths are mostly empty.",
+            "aesthetic": ["pine shade", "gravel paths", "wooden benches"],
+            "reason": "The same afternoon green, a short walk from the garden, with fewer visitors and no cactus beds to look at."
+          },
+          {
+            "name": "Plaça de la Fruita",
+            "kind": "walk",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.2657601,
+              "lng": -0.6983297
+            },
+            "sensory": {
+              "energy": "lively",
+              "acoustic": "chatter",
+              "crowd": "busy",
+              "texture": "Café chairs, children running, bicycles crossing the stone."
+            },
+            "light": {
+              "exposure": "open",
+              "orientation": "none",
+              "bestWindow": "afternoon",
+              "note": "Afternoon sun lights the square until the buildings throw shade from the west."
+            },
+            "summary": "A small square near the old town where families gather in the late afternoon.",
+            "aesthetic": ["stone paving", "terrace chairs", "old facades"],
+            "reason": "The same late-afternoon hour out of doors, trading the garden's quiet for a livelier square."
+          }
+        ]
+      },
+      {
+        "stopIndex": 2,
+        "options": [
+          {
+            "name": "Coffee on Carrer Sant Joan",
+            "kind": "coffee",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.2648,
+              "lng": -0.6992
+            },
+            "sensory": {
+              "crowd": "sparse",
+              "energy": "calm",
+              "texture": "Few voices, a spoon on a saucer, a newspaper turning.",
+              "acoustic": "hushed"
+            },
+            "light": {
+              "exposure": "interior",
+              "orientation": "none",
+              "bestWindow": "morning",
+              "note": "Shop-front light stays even and soft from opening to noon."
+            },
+            "summary": "A side street a few steps from the square where the morning coffee is quieter and the tostadas arrive without a crowd.",
+            "aesthetic": ["stone", "tiled bar tops"],
+            "reason": "The same cortado and tostada, on a narrower street with fewer tables, trading the square's terrace buzz for a quieter start."
+          },
+          {
+            "name": "Churros on Plaça de Baix",
+            "kind": "coffee",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.2654,
+              "lng": -0.6984
+            },
+            "sensory": {
+              "crowd": "busy",
+              "energy": "lively",
+              "texture": "Frying oil, loud morning greetings, children and grandparents at shared tables.",
+              "acoustic": "chatter"
+            },
+            "light": {
+              "exposure": "open",
+              "orientation": "none",
+              "bestWindow": "morning",
+              "note": "Terrace tables are in full sun once it clears the rooftops after half past eight."
+            },
+            "summary": "Hot chocolate and churros are the busier morning choice in the same square, popular with families before school and work.",
+            "aesthetic": ["terrace awnings", "stone facades"],
+            "reason": "The same square and hour, trading a quiet coffee for a livelier family breakfast of chocolate and churros."
+          }
+        ]
+      },
+      {
+        "stopIndex": 3,
+        "options": [
+          {
+            "name": "Rice dishes on Passeig de l'Estació",
+            "kind": "food",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.2638,
+              "lng": -0.6996
+            },
+            "sensory": {
+              "energy": "calm",
+              "acoustic": "murmur",
+              "crowd": "steady",
+              "texture": "Quiet tables, rice pans carried through, low talk."
+            },
+            "light": {
+              "exposure": "interior",
+              "orientation": "none",
+              "bestWindow": "after-dark",
+              "note": "Warm indoor lamps, with the trees outside lit by streetlamps."
+            },
+            "summary": "A slower dinner of rice dishes cooked to order, served in dining rooms that are quieter than the tapas street.",
+            "aesthetic": ["white tablecloths", "warm lamps", "plane trees"],
+            "reason": "The same late dinner hour and the same town, trading the shared small plates for one slow rice dish in a calmer room."
+          },
+          {
+            "name": "Tapas and beer in Plaça de Baix",
+            "kind": "bar",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.2653,
+              "lng": -0.6985
+            },
+            "sensory": {
+              "energy": "social",
+              "acoustic": "loud",
+              "crowd": "packed",
+              "texture": "Packed terraces, glasses clinking, music from open doors."
+            },
+            "light": {
+              "exposure": "open",
+              "orientation": "none",
+              "bestWindow": "after-dark",
+              "note": "Streetlamps and bar signs light the square well after dark."
+            },
+            "summary": "Standing and terrace tapas with beer at the square, busiest around ten when the families stay out.",
+            "aesthetic": ["stone paving", "bar signs", "lamplight"],
+            "reason": "The same late dinner hour, trading the narrow street for a louder square with more people standing."
+          }
+        ]
+      },
+      {
+        "stopIndex": 4,
+        "options": [
+          {
+            "name": "Carrer Major de la Vila at night",
+            "kind": "walk",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.2641,
+              "lng": -0.6992
+            },
+            "sensory": {
+              "energy": "reflective",
+              "acoustic": "hushed",
+              "crowd": "empty",
+              "texture": "Footsteps, shutters coming down, a cat on a doorstep."
+            },
+            "light": {
+              "exposure": "open",
+              "orientation": "none",
+              "bestWindow": "after-dark",
+              "note": "Pools of lamplight and shuttered shops, with the street nearly empty after eleven."
+            },
+            "summary": "The same street where dinner was, after it has emptied, quiet and lit by a few lamps.",
+            "aesthetic": ["shuttered shops", "lamplight", "narrow street"],
+            "reason": "The same night hour in a quieter street, a few minutes from the square and with almost no people."
+          },
+          {
+            "name": "Gin tonic in Plaça de Baix",
+            "kind": "bar",
+            "neighborhood": "Centre",
+            "coordinates": {
+              "lat": 38.2653,
+              "lng": -0.6985
+            },
+            "sensory": {
+              "energy": "lively",
+              "acoustic": "chatter",
+              "crowd": "busy",
+              "texture": "Ice in glasses, music from a doorway, talk at outdoor tables."
+            },
+            "light": {
+              "exposure": "open",
+              "orientation": "none",
+              "bestWindow": "after-dark",
+              "note": "Bar lights and streetlamps keep the square warm and bright late into the night."
+            },
+            "summary": "A last drink at outdoor tables on the square, where bars stay open past midnight.",
+            "aesthetic": ["stone paving", "bar lights", "terrace chairs"],
+            "reason": "The same square and hour, trading the quiet walk for a last drink in a livelier crowd."
+          }
+        ]
+      }
+    ],
+    "dek": "Coffee on Plaça de Baix at 07:45, the Palmeral d'Elx, the Museu Arqueològic and the Carrer Major de la Vila walk, then rice on Passeig de l'Estació, the Basílica de Santa Maria, Huerto del Cura, coffee on the square again, tapas along Carrer Major at nine and a last turn around Plaça de Baix."
+  }
+}

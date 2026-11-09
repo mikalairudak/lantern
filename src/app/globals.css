@@ -1,0 +1,442 @@
+@import "tailwindcss";
+
+/* Tests name the classes lint must refuse, "bg-(--color-ink)" among them, and specs read
+   classes back: neither is the product's, so neither is read for the stylesheet. */
+@source not "../**/*.test.ts";
+@source not "../**/*.test.tsx";
+@source not "../../e2e";
+
+/* A box that holds a word's open panel, a list or a field, which stands over what follows
+   by design: a gliding row never clips it. Keyed on the word's own state, so any panel a
+   word opens counts. */
+@custom-variant panel-open (&:has([aria-expanded="true"]));
+
+/* The theme the visitor chose, as <html> notes it: the head script sets data-theme-choice
+   before the first paint, so the theme's icon is the choice from the first frame, and the
+   server's page and that frame agree. The choice, not the theme it resolves to: System on a dark
+   device is System. With no note, as without script, the choice is the system's. */
+@custom-variant chose-system (:root:not([data-theme-choice="light"], [data-theme-choice="dark"]) &);
+@custom-variant chose-light (:root[data-theme-choice="light"] &);
+@custom-variant chose-dark (:root[data-theme-choice="dark"] &);
+/* The day's view the visitor chose, as <html> notes it: the head script sets data-day-view
+   before the first paint, the chart unless the list was chosen (view-choice.ts). With no
+   note, as without script, the list shows, once the page's first HTML holds the day. */
+@custom-variant view-chart (:root[data-day-view="chart"] &);
+@custom-variant view-read (:root:not([data-day-view="chart"]) &);
+/* No view noted: no script has run, and the switch between the two could do nothing. */
+@custom-variant view-unset (:root:not([data-day-view]) &);
+/* A written day drawn whole in the page's HTML that this device has not watched to its end:
+   unseen until the page's script plays it from its empty frame (seen-days.ts). */
+@custom-variant unseen (:root[data-day-seen="no"] &);
+
+/*
+ * Design tokens: every value the interface may use (decisions.md, "Tokens are enforced, not
+ * documented"). One face, Fira Sans in one weight ("One sans in one weight: Fira Sans"), and
+ * the Night market palette below, its day ground an unbleached paper.
+ * The theme is closed: `--*: initial` drops every Tailwind default, so color, type, spacing,
+ * width and radius utilities exist only for the values below, and lint rejects any class
+ * Tailwind does not know. Utilities that need no theme (opacity, z-index, border width) stay
+ * open. Motion springs live in src/lib/tokens/motion.ts, because Motion reads them from
+ * JavaScript; src/lib/tokens/catalog.ts lists the tokens for /lab/tokens.
+ */
+@theme {
+  --*: initial;
+
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+
+  /*
+   * Sizes carry their own line height and tracking; family and case belong to text roles.
+   * Display and title grow with the width they are set in: `cqi` reads the nearest
+   * `@container`, and with none the small viewport, which is the screen's width. The header's
+   * room is a container, so its title follows the header's column: the screen's width on a
+   * phone and from about 1100 px wide, up to a pixel smaller between. The matrix's phone
+   * cells are containers too, so a header in one reads as on a phone.
+   */
+  --text-display: clamp(2.5rem, 1.75rem + 2.5cqi, 3.375rem);
+  --text-display--line-height: 1.02;
+  --text-display--letter-spacing: -0.015em;
+  --text-title: clamp(1.75rem, 1.4rem + 1.2cqi, 2.125rem);
+  --text-title--line-height: 1.08;
+  --text-title--letter-spacing: -0.01em;
+  --text-heading: 1.375rem;
+  --text-heading--line-height: 1.15;
+  --text-dek: 1.25rem;
+  --text-dek--line-height: 1.45;
+  --text-quote: 1.0625rem;
+  --text-quote--line-height: 1.4;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.55;
+  --text-small: 0.8125rem;
+  --text-small--line-height: 1.5;
+  --text-meta: 0.75rem;
+  --text-meta--line-height: 1.4;
+  --text-caption: 0.6875rem;
+  --text-caption--line-height: 1.4;
+
+  /* For uppercase metadata only. */
+  --tracking-caps: 0.08em;
+
+  /* A 4px grid with named steps only: off-scale spacing has no utility at all. */
+  --spacing-0: 0;
+  --spacing-0_5: 0.125rem;
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-10: 2.5rem;
+  --spacing-12: 3rem;
+  --spacing-14: 3.5rem;
+  --spacing-16: 4rem;
+  --spacing-20: 5rem;
+  --spacing-24: 6rem;
+  /*
+   * The height of a whole day in the abacus chart where it cannot fill the screen. It lost
+   * the 36 px band the light's caption held above the energy scale, so the time
+   * scale runs at the pace it had and every row stands where it stood, 36 px higher.
+   */
+  --spacing-day: 33.75rem;
+  /* A phone's screen height, paired with --container-phone. */
+  --spacing-phone-height: 52.75rem;
+
+  /* Widths: a text column, the page, and the key column of a label–value list. */
+  --container-measure: 34rem;
+  --container-page: 72rem;
+  --container-label: 10rem;
+  /* The request, title and standfirst beside the day on a wide screen. */
+  --container-intro: 20rem;
+  /*
+   * A word's open list: as wide as the intro's column, never wider than the room between a
+   * phone's 16 px gutters (its container's, or the screen's where it has none), so on a
+   * 320 px screen a long row wraps rather than taking the page sideways.
+   */
+  --container-list: min(20rem, calc(100cqi - 2rem));
+  /* A phone's screen, for showing the day as a phone shows it inside a wider page. */
+  --container-phone: 24.375rem;
+  /* The abacus chart beside the list on a wide screen. */
+  --container-chart: 28rem;
+  /* The day as rows of the abacus, each name at its bead, on a wide screen. */
+  --container-abacus: 48rem;
+
+  /*
+   * The page grows on a large screen. From a viewport `grows-from` rems wide, 1440 px at the
+   * browser's default 16 px, the root's size grows in step with the width to `grows-by`
+   * times the browser's own at `grows-to` rems, 2560 px, and no further; every rem grows
+   * with it, and the chart's drawing by the same factor (`useDrawing`). Counted in the
+   * browser's own rems, as the breakpoints are, so a visitor's own text size multiplies with
+   * it; unitless, so the root's formula divides by a number.
+   */
+  --root-grows-from: 90;
+  --root-grows-to: 160;
+  --root-grows-by: 1.25;
+
+  /* Paper corners: tags and insets are barely rounded. */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+
+  /* CSS transitions (hover, focus). Anything that moves uses the Motion springs. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --default-transition-duration: 160ms;
+  --default-transition-timing-function: var(--ease-out);
+
+  /*
+   * One of two loops, with `pass-steady` below: the waiting line's light, shown while the
+   * model is silent. A spring
+   * settles, a loop does not, so it is a CSS animation; use it behind `motion-safe:`. A
+   * real model's silences last 0.3–1 s, so each cycle reads from its first frame: one light
+   * crosses the screen, then rests. It moves a background fixed to the viewport, so the
+   * chart's ruled line and the list's words show the same light at the same moment. Size
+   * the light with `bg-size-pass`.
+   */
+  --animate-pass: pass 3.2s infinite;
+
+  /*
+   * The start screen's light while Lantern reads a visitor's words and opens their day: a pass
+   * about every second, at one pace across the screen, so the seconds of that wait, four to eight
+   * of them on a cold start, never stand still (`docs/decisions.md`, "The first screen asks one
+   * question, and no day is drawn until a press").
+   */
+  --animate-pass-steady: pass-steady 1.2s linear infinite;
+
+  /*
+   * One crossing of that light, and no more: over a new row's name as a re-plan lands it, the
+   * light that ran through the wait arriving with the stop. A row's words move with their bead,
+   * so a light fixed to the screen would stand still on them (a fixed background inside a moved
+   * box is the box's own): this one crosses the name itself, as wide as half of it
+   * (`bg-size-pass-across`), at the steady light's pace, upright through both lines of a name
+   * that wraps, in Chromium and WebKit alike.
+   * It waits the moment a row takes to fade most of the way in, so it crosses words already
+   * seen, and rests past the name's ends before and after, so the name stands in its own ink.
+   */
+  --animate-pass-once: pass-across 0.9s linear 0.3s both;
+
+  @keyframes pass-across {
+    0% {
+      background-position-x: -100%;
+    }
+    100% {
+      background-position-x: 200%;
+    }
+  }
+
+  @keyframes pass-steady {
+    0% {
+      background-position-x: -24vw;
+    }
+    75%,
+    100% {
+      background-position-x: 100vw;
+    }
+  }
+
+  /* Decelerating: the light reaches the chart in about 0.2 s and lingers over the list. */
+  @keyframes pass {
+    0% {
+      background-position-x: -24vw;
+      animation-timing-function: cubic-bezier(0.2, 0.6, 0.35, 1);
+    }
+    55%,
+    100% {
+      background-position-x: 100vw;
+    }
+  }
+}
+
+/* Inline: utilities carry these values instead of reading a variable from :root. */
+@theme inline {
+  /*
+   * Colors carry both themes. light-dark() resolves against the color-scheme of the
+   * element it styles, so a [data-theme] subtree switches palettes with no per-class
+   * dark overrides. They must stay inline: a --color-* variable on :root would resolve
+   * once there (Lightning CSS compiles light-dark() to variables) and freeze one theme.
+   * The palette is Night market (docs/decisions.md, "Tokens are enforced, not documented"): by day
+   * a sunlit wall with petrol-shade ink, by night a petrol sky where whatever a lamp touches is
+   * warm. The day ground is an unbleached paper, warm enough that a laptop's margins do not read as
+   * white, with its sheet and rules. Accents have one job each, and are named for it: amber and
+   * lamp are light, energy and curve are energy, swap and swap-drawn are the other versions. Each
+   * has two tokens, one says it in words and one draws it: amber and lamp (the mark's bead, the
+   * sun, lit beads, best-light marks, the time axis through golden hour), energy and curve (the
+   * curve and the rings on it), swap and swap-drawn (the hollow beads and the rings that name one).
+   * Lamp-glow and lamp-haze are the mark's two steps of light, solid so they stay warm over a
+   * ground of another hue. Every text color keeps at least 5:1 on both the ground and the surface,
+   * what is drawn 3:1 (the bar for graphics); palette.test.ts holds these bars.
+   */
+  --color-ground: light-dark(#fbf5ea, #011d27);
+  --color-surface: light-dark(#fffdf8, #0c272c);
+  --color-ink: light-dark(#001924, #f7eddf);
+  --color-ink-soft: light-dark(#193a47, #d0c3b1);
+  --color-muted: light-dark(#405b64, #a39686);
+  --color-line: light-dark(#e0d9cc, #1e3338);
+  /* The abacus wires: the chart's structure, 2:1 on the ground, between a rule and text. */
+  --color-wire: light-dark(#9aafb5, #405253);
+  --color-amber: light-dark(#8b4800, #edad60);
+  --color-lamp: light-dark(#bb660a, #ffba4d);
+  --color-lamp-glow: light-dark(#ffe2b3, #543109);
+  --color-lamp-haze: light-dark(#fff1d0, #3b220e);
+  --color-energy: light-dark(#07775c, #34b7b1);
+  /*
+   * Energy drawn: the curve and the rings on it, 3:1 as the lamp; by night it is the words'.
+   * By day it is the energy words' own green, drawn brighter, so "calm" and its line are one.
+   */
+  --color-curve: light-dark(#209c7b, #34b7b1);
+  --color-swap: light-dark(#005d8e, #8dccf8);
+  /* The versions drawn: 3:1 as the lamp, so the rings stand back from the ink beads chosen. */
+  --color-swap-drawn: light-dark(#4086bd, #4381aa);
+
+  /*
+   * next/font sets --family-sans on <html>. Fira Sans is the one face (`docs/decisions.md`,
+   * "One sans in one weight: Fira Sans").
+   */
+  --font-sans: var(--family-sans), system-ui, sans-serif;
+  --default-font-family: var(--font-sans);
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+/*
+ * The root's size: the browser's own up to a viewport `--root-grows-from` rems wide, then
+ * growing with the width to `--root-grows-by` times it at `--root-grows-to`. On the root, a
+ * percentage and a rem are both the browser's own size, and `vw` is the viewport's, so no
+ * term reads the size it sets. Relative, never pixels: the visitor's own text size scales
+ * the whole of it.
+ */
+html {
+  font-size: clamp(
+    100%,
+    100% + (100vw - --theme(--root-grows-from) * 1rem) * (--theme(--root-grows-by) - 1) /
+      (--theme(--root-grows-to) - --theme(--root-grows-from)),
+    --theme(--root-grows-by) * 100%
+  );
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/*
+ * Text roles: what a piece of text is, rather than how it is set. One sans in one weight
+ * sets every role, and size and ink tell them apart: Fira Sans (`docs/decisions.md`, "One
+ * sans in one weight: Fira Sans"). A role reads the family where it is used,
+ * so an element that sets its own --family-sans re-sets every role inside it.
+ */
+
+/* The visitor's request and the product's own words: the request sentence, its choices. */
+@utility type-voice {
+  font-family: --theme(--font-sans);
+}
+
+/*
+ * A sentence the model wrote: the day's line, an alternative's reason, a place's summary.
+ * In italic, so the day's second voice is the model's, inside the one face.
+ */
+@utility type-prose {
+  font-family: --theme(--font-sans);
+  font-style: italic;
+}
+
+/* A place's name: in the one weight like every role, set apart by its size and ink. */
+@utility type-name {
+  font-family: --theme(--font-sans);
+}
+
+/* What sits beside a name or a scale: a kind and a neighbourhood, a tag, the facts line. */
+@utility type-note {
+  font-family: --theme(--font-sans);
+  font-size: --theme(--text-small);
+  line-height: --theme(--text-small--line-height);
+}
+
+/* A clock time, with figures of one width so the times line up. */
+@utility type-time {
+  font-family: --theme(--font-sans);
+  font-size: --theme(--text-small);
+  line-height: --theme(--text-small--line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The browser's own text size, which the root grows from: `medium` is the size the visitor's
+ * browser is set to, whatever the root is. One unseen element in the root layout carries it,
+ * so the chart's drawing can grow with the root's growth alone (`rootGrowth`).
+ */
+@utility browser-text-size {
+  font-size: medium;
+}
+
+/*
+ * The waiting line's light: a quarter of the screen wide, whatever it lights, so on a
+ * laptop it is narrower than the chart and visibly moves across it.
+ */
+@utility bg-size-pass {
+  background-size: 24vw 100%;
+}
+
+/*
+ * The light crossing one name once (`--animate-pass-once`): half the name wide, so from -100%
+ * to 200% it comes in past its start and leaves past its end.
+ */
+@utility bg-size-pass-across {
+  background-size: 50% 100%;
+}
+
+/*
+ * The waiting line's light through a line whose words set their own colours, as a day's
+ * headline (decisions.md, "A row's words go where its bead comes to rest, and rows ease rather than
+ * jump"): the waiting line's pass, as the start screen had it before its light was quickened
+ * (2026-11-05), its band as wide as `bg-size-pass` sets it, fixed to the screen and passing, over
+ * the words in muted, every word but the energy's, which keeps its colour. A word's own colour, one
+ * class, gives way to this rule's two. Each word carries the line's light itself, so the band is
+ * one across them: WebKit clips a line's light to none of the words in its buttons, the city's
+ * among them. Both layers are images, not a colour, so a word whose colours ease, as a button's do,
+ * never shows a box as the light leaves it. With reduced motion the words stand muted.
+ */
+@utility words-lit {
+  color: transparent;
+  background-image:
+    linear-gradient(100deg in oklab, transparent, --theme(--color-ink), transparent),
+    linear-gradient(--theme(--color-muted), --theme(--color-muted));
+  background-size:
+    24vw 100%,
+    100% 100%;
+  background-repeat: no-repeat, repeat;
+  background-attachment: fixed, scroll;
+  background-clip: text;
+  & *:not(.text-energy, .text-energy *) {
+    color: transparent;
+    background-image: inherit;
+    background-size: inherit;
+    background-repeat: inherit;
+    background-attachment: inherit;
+    background-position: inherit;
+    background-clip: text;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    animation: --theme(--animate-pass);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    background-image: linear-gradient(--theme(--color-muted), --theme(--color-muted));
+    background-size: 100% 100%;
+    background-repeat: repeat;
+    background-attachment: scroll;
+  }
+}
+
+/*
+ * The steady light through one word, as a fork's proposed answer carries it while Lantern
+ * writes it: the start screen's band (`--animate-pass-steady`, `bg-size-pass`'s width), amber,
+ * through the word's own colour, the versions' blue. The colour is an image under the band,
+ * not a background colour, and the letters are left unfilled rather than coloured
+ * transparent, so as the light leaves a word whose colours ease, as a button's do, neither a
+ * box of colour nor a word fading in from nothing shows: its colour is its own throughout.
+ * Its letters still drying and its comma, which set their own colours, keep them. With
+ * reduced motion the word stands in its colour.
+ */
+@utility word-lit {
+  @media (prefers-reduced-motion: no-preference) {
+    -webkit-text-fill-color: transparent;
+    background-image:
+      linear-gradient(90deg in oklab, transparent, --theme(--color-amber), transparent),
+      linear-gradient(currentColor, currentColor);
+    background-size:
+      24vw 100%,
+      100% 100%;
+    background-repeat: no-repeat, repeat;
+    background-attachment: fixed, scroll;
+    background-clip: text;
+    animation: --theme(--animate-pass-steady);
+    & * {
+      -webkit-text-fill-color: currentColor;
+    }
+  }
+}
+
+/*
+ * The ring the keyboard's focus draws on a link or a button: ink, 2 px, 2 px outside its
+ * box, only on `:focus-visible`, so a press with the pointer draws none.
+ */
+@utility focus-ring {
+  @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
+}
+
+/*
+ * The same ring 2 px inside the box, where what stands around it would cut it or crowd it:
+ * the theme's icon at the masthead's edge, a list's rows and the field in a word's list.
+ *
+ * A few rings keep their own shape and are written where they are drawn: a field marks its
+ * focus by its line, its outline clear for forced colours; a bead on the chart rings in the
+ * curve's colour; a word's list wears a hairline in the rules' colour, and its active option
+ * the inset ring only while the list has the focus; the lab's bench controls sit 1 px out.
+ */
+@utility focus-ring-inset {
+  @apply focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink;
+}

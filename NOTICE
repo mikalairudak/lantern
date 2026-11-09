@@ -1,0 +1,47 @@
+Lantern
+Copyright (c) 2026 Mikalai Rudak
+
+The code is licensed under the MIT License, in LICENSE. This notice lists what in the
+repository is not the project's own work, and the terms it comes under.
+
+
+Map data from OpenStreetMap, through Geoapify
+---------------------------------------------
+
+Some test fixtures keep small extracts of map data, so that the tests can check places
+without calling a live service:
+
+- src/lib/fixtures/places/coverage-run.ts holds Geoapify's geocoding answers for the 66
+  places of three hand-written days, recorded on 2026-10-28: each candidate's names, its
+  distance, its result type and its category.
+  src/lib/fixtures/places/coverage-responses.ts rebuilds geocoding responses from them.
+- src/lib/days/written/checks.ts holds the place checks recorded when each of the six
+  written days was generated, on 2026-10-31: Geoapify's point and place id for each place
+  confirmed by name, and how many places it found around each area checked.
+- src/lib/fixtures/curated/kyoto.ts and src/lib/fixtures/curated/lisbon.ts are days
+  written by hand whose coordinates come mostly or wholly from OpenStreetMap.
+
+- docs/place-match-audit.md and docs/grounding.md quote some of the same recorded answers
+  as evidence: candidate names, distances and match results from the place rounds run
+  between 2026-10-28 and 2026-10-31.
+
+This data is © OpenStreetMap contributors and is available under the Open Database
+License (ODbL) 1.0: https://opendatacommons.org/licenses/odbl/1-0/
+See https://www.openstreetmap.org/copyright for the data's sources and licence.
+The recorded answers were provided by Geoapify (https://www.geoapify.com), whose services
+serve OpenStreetMap data. The MIT License covers the code around this data, not the data.
+
+These look alike but are not recordings: src/lib/fixtures/places/meal-areas.ts,
+src/lib/fixtures/intake/places.ts and the samples in src/lib/quality/lost-accents.test.ts
+are written by hand in the shapes Geoapify documents,
+with made-up ids and, around the meals, made-up businesses.
+
+The site itself credits the same sources on every day: "© OpenStreetMap contributors ·
+Powered by Geoapify".
+
+
+Fonts
+-----
+
+assets/fonts/ holds Fira Sans, regular and italic, cut to Latin for the link card. It is
+licensed under the SIL Open Font License 1.1, in assets/fonts/OFL.txt beside the fonts.

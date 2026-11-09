@@ -1,0 +1,12 @@
+{"city":"Kyoto","date":"2026-11-21","timezone":"Asia/Tokyo","citySource":"chosen","energy":"calm","energySource":"chosen","travel":null,"start":null,"dinner":null,"end":null,"company":null}
+{"city":"Kyoto","date":"2026-11-21","timezone":"Asia/Tokyo","citySource":"chosen","energy":"social","energySource":"chosen","travel":null,"start":"slow","dinner":null,"end":null,"company":"friends"}
+{"city":"Lisbon","date":"2026-11-21","timezone":"Europe/Lisbon","citySource":"chosen","energy":"lively","energySource":"chosen","travel":null,"start":null,"dinner":"late","end":"late","company":"friends"}
+{"city":"Alicante","date":"2026-11-21","timezone":"Europe/Madrid","citySource":"chosen","energy":"calm","energySource":"chosen","travel":null,"start":"early","dinner":null,"end":null,"company":"partner"}
+{"city":"Stockholm","date":"2026-12-10","timezone":"Europe/Stockholm","citySource":"chosen","energy":"reflective","energySource":"chosen","travel":null,"start":null,"dinner":null,"end":null,"company":null}
+{"city":"Óbidos","date":"2026-11-21","timezone":"Europe/Lisbon","citySource":"chosen","energy":"balanced","energySource":"assumed","travel":"taxi","start":null,"dinner":null,"end":null,"company":null}
+{"city":"Mexico City","date":"2026-11-21","timezone":"America/Mexico_City","citySource":"chosen","energy":"balanced","energySource":"assumed","travel":"transit","start":null,"dinner":null,"end":null,"company":null}
+{"city":"Buenos Aires","date":"2026-12-26","timezone":"America/Argentina/Buenos_Aires","citySource":"chosen","energy":"lively","energySource":"chosen","travel":null,"start":null,"dinner":"late","end":null,"company":null}
+{"city":"Istanbul","date":"2026-11-21","timezone":"Europe/Istanbul","citySource":"chosen","energy":"calm","energySource":"chosen","travel":null,"start":null,"dinner":null,"end":null,"company":"family"}
+{"city":"Belgrade","date":"2026-11-21","timezone":"Europe/Belgrade","citySource":"chosen","energy":"social","energySource":"chosen","travel":null,"start":null,"dinner":null,"end":"late","company":null}
+{"city":"Kyoto","date":"2026-07-18","timezone":"Asia/Tokyo","citySource":"chosen","energy":"calm","energySource":"chosen","travel":null,"start":"early","dinner":null,"end":null,"company":null}
+{"city":"Lisbon","date":"2026-12-20","timezone":"Europe/Lisbon","citySource":"chosen","energy":"reflective","energySource":"chosen","travel":null,"start":null,"dinner":null,"end":null,"company":"alone"}

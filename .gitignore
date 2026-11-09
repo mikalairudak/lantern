@@ -1,0 +1,62 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+# `pnpm eval:live`'s rounds (scripts/live-eval.ts): model output, kept for rescoring
+/eval-runs/
+# Playwright MCP's screenshots and scripts while a UI review runs
+/.playwright-mcp/
+# JetBrains IDE settings, the owner's own
+/.idea/
+
+# next.js
+/.next/
+/.next-e2e/
+# `pnpm build:check`'s production build (scripts/build-check.mts)
+/.next-build/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files; the example lists required keys without values
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# Claude Code: worktrees for parallel sessions, and each person's local settings and scheduler lock
+/.claude/worktrees/
+/.claude/settings.local.json
+/.claude/scheduled_tasks.lock
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

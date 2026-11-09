@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="96" height="96" role="img" aria-label="Lantern">
+  <style>
+    .ink { stroke: #001924; }
+    .lamp { fill: #bb660a; }
+    .glow { fill: #ffe2b3; }
+    .haze { fill: #fff1d0; }
+    @media (prefers-color-scheme: dark) {
+      .ink { stroke: #f7eddf; }
+      .lamp { fill: #ffba4d; }
+      .glow { fill: #543109; }
+      .haze { fill: #3b220e; }
+    }
+  </style>
+  <circle cx="12" cy="12" r="8" class="haze"/>
+  <circle cx="12" cy="12" r="5.75" class="glow"/>
+  <path d="M1 10.5 Q4 11.32 7 11.69" class="ink" fill="none" stroke-width="1" stroke-linecap="round"/>
+  <path d="M17 11.69 Q20 11.32 23 10.5" class="ink" fill="none" stroke-width="1" stroke-linecap="round"/>
+  <ellipse cx="12" cy="12" rx="3.25" ry="3.5" class="lamp"/>
+</svg>

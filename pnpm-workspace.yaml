@@ -1,0 +1,15 @@
+allowBuilds:
+  unrs-resolver: true
+
+# Supply chain (docs/security.md, S10). A version published less than a day ago is never
+# installed, the window in which a hijacked publish is usually found and pulled; written down
+# here the rule is strict, so resolution fails rather than fall back to a newer version.
+# `trustPolicy: no-downgrade` was tried and left out: on this tree it refused six packages
+# whose publishers changed pipelines, Vercel's own among them, with nothing wrong in any.
+minimumReleaseAge: 1440
+
+# The one copy of zod older than its memory-exhaustion fix (GHSA-mrhx-c7xc-m3w5) came through
+# @vercel/functions → @vercel/oidc → @vercel/cli-config, on no request's path; lifted so that
+# `pnpm audit` reads clean.
+overrides:
+  "zod@<4.6.6": 4.6.7

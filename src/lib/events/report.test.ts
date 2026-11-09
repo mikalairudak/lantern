@@ -1,0 +1,263 @@
+// @vitest-environment node
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { MigrationSession } from "@/lib/db/migrate";
+import { migratedDatabase, type TestDatabase } from "@/lib/fixtures/db/pglite";
+import type { ProductEvent } from "./event.schema";
+import { columnsOf } from "./postgres-event-store";
+import { runEventsReport, type ReportCommand } from "./report";
+
+const NEON_URL = "postgresql://lantern:p%40ss@ep-test-1234.us-east-1.aws.neon.tech/neondb";
+const NOW = new Date("2026-10-30T12:00:00Z");
+const A = "a".repeat(64);
+const B = "b".repeat(64);
+
+let database: TestDatabase;
+
+beforeAll(async () => {
+  database = await migratedDatabase();
+});
+
+beforeEach(async () => {
+  await database.empty();
+});
+
+afterAll(async () => {
+  await database.close();
+});
+
+async function seed(
+  visitor: string,
+  event: ProductEvent,
+  { day = "2026-10-30", environment = "production" } = {},
+): Promise<void> {
+  const { city, via, written, outcome, stage, word } = columnsOf(event);
+  await database.session.query(
+    `INSERT INTO product_events
+      (id, environment, utc_day, visitor_key, kind, city, via, written, outcome, stage, word)
+     VALUES ($1::uuid, $2, $3::date, $4, $5, $6, $7, $8, $9, $10, $11)`,
+    [
+      crypto.randomUUID(),
+      environment,
+      day,
+      visitor,
+      event.kind,
+      city,
+      via,
+      written,
+      outcome,
+      stage,
+      word,
+    ],
+  );
+}
+
+async function seedCall(
+  role: "day" | "intake",
+  outcome: string,
+  {
+    request = null,
+    output = null,
+    environment = "production",
+  }: {
+    request?: unknown;
+    output?: unknown;
+    environment?: string;
+  },
+): Promise<void> {
+  await database.session.query(
+    `INSERT INTO generation_log (id, environment, role, model, prompt_version, started_at,
+       ms_to_finish, outcome, request, output_text, output, warnings)
+     VALUES ($1::uuid, $2, $3, 'claude-sonnet-5-5', 'v0', $4::timestamptz, 1000, $5,
+       $6::jsonb, '', $7::jsonb, '[]'::jsonb)`,
+    [
+      crypto.randomUUID(),
+      environment,
+      role,
+      NOW.toISOString(),
+      outcome,
+      request === null ? null : JSON.stringify(request),
+      output === null ? null : JSON.stringify(output),
+    ],
+  );
+}
+
+interface Run {
+  code: number;
+  out: string[];
+  err: string[];
+}
+
+async function report(
+  args: string[] = [],
+  env: Record<string, string> = { DATABASE_URL: NEON_URL },
+  connect: ReportCommand["connect"] = () =>
+    Promise.resolve({ session: database.session, close: () => Promise.resolve() }),
+): Promise<Run> {
+  const out: string[] = [];
+  const err: string[] = [];
+  const code = await runEventsReport({
+    env,
+    args,
+    connect,
+    now: NOW,
+    out: (line) => out.push(line),
+    err: (line) => err.push(line),
+  });
+  return { code, out, err };
+}
+
+describe("pnpm events:report", () => {
+  it("prints the counts of one environment over the last 30 days", async () => {
+    const pressedKyoto = {
+      kind: "day-opened",
+      city: "kyoto",
+      via: "pressed",
+      written: true,
+    } as const;
+    await seed(A, pressedKyoto);
+    await seed(A, pressedKyoto);
+    await seed(B, { ...pressedKyoto, via: "link" });
+    await seed(B, { kind: "day-opened", city: "sao-paulo", via: "typed", written: false });
+    await seed(A, { ...pressedKyoto, kind: "day-ended", outcome: "complete" });
+    await seed(B, {
+      kind: "day-left",
+      city: "sao-paulo",
+      via: "typed",
+      written: false,
+      stage: "before-first-stop",
+    });
+    await seed(A, { kind: "intake-ended", outcome: "request" });
+    await seed(B, { kind: "intake-ended", outcome: "unavailable" });
+    await seed(A, { kind: "curve-dragged", city: "kyoto" });
+    await seed(A, { kind: "word-changed", city: "kyoto", word: "energy" });
+    await seed(A, { kind: "word-changed", city: "kyoto", word: "energy" });
+    await seed(A, { kind: "route-opened", city: "kyoto" });
+    await seed(B, { kind: "route-opened", city: "sao-paulo" });
+    await seed(A, { kind: "calendar-saved", city: "kyoto" });
+    // Another environment, and a day before the span: neither is counted.
+    await seed(A, { ...pressedKyoto, city: "lisbon" }, { environment: "preview" });
+    await seed(A, { ...pressedKyoto, city: "lisbon" }, { day: "2026-09-30" });
+    await seedCall("day", "invalid", { request: { city: "Porto" } });
+    await seedCall("day", "complete", { request: { city: "Kyoto" } });
+    await seedCall("day", "aborted", { request: { city: "Bergen" } });
+    await seedCall("day", "invalid", { request: { city: "Bergen" }, environment: "preview" });
+    await seedCall("intake", "unavailable", { output: { city: "Oslo" } });
+    await seedCall("intake", "unavailable", { output: { city: null } });
+    await seedCall("intake", "request", { output: { city: "Kyoto" } });
+
+    const { code, out, err } = await report();
+
+    expect(err).toEqual([]);
+    expect(code).toBe(0);
+    expect(out).toEqual([
+      "Target: ep-test-1234.us-east-1.aws.neon.tech/neondb (DATABASE_URL)",
+      "production, 2026-10-01 to 2026-10-30, in UTC",
+      "",
+      "Days opened, by city (a visitor counts once a UTC day)",
+      "  city       opened  visitors",
+      "  kyoto      3       2",
+      "  sao-paulo  1       1",
+      "",
+      "How days were reached",
+      "  via      day      opened",
+      "  pressed  written  2",
+      "  link     written  1",
+      "  typed    model    1",
+      "",
+      "How attempts ended",
+      "  attempt    outcome      times",
+      "  day        complete     1",
+      "  text read  request      1",
+      "  text read  unavailable  1",
+      "",
+      "Whether visitors waited",
+      "  day      wait                    days",
+      "  model    left before-first-stop  1",
+      "  written  stayed to the end       1",
+      "",
+      "Gestures",
+      "  gesture        word    times",
+      "  word-changed   energy  2",
+      "  curve-dragged          1",
+      "",
+      "Days taken along (each way counts once a day opened)",
+      "  way             days",
+      "  route-opened    2",
+      "  calendar-saved  1",
+      "",
+      "Days opened again by the same visitor on the same UTC day",
+      "  city   visitors",
+      "  kyoto  1",
+      "",
+      "Cities Lantern could not do (from the generation log)",
+      "  city   times",
+      "  oslo   1",
+      "  porto  1",
+    ]);
+  });
+
+  it("says none for a section with nothing to count, and reads the span asked for", async () => {
+    await seed(A, { kind: "curve-dragged", city: "kyoto" }, { day: "2026-10-29" });
+
+    const { out } = await report(["--environment", "production", "--days", "1"]);
+
+    expect(out[1]).toBe("production, 2026-10-30 to 2026-10-30, in UTC");
+    expect(out).toContain("  none");
+    expect(out).not.toContain("  curve-dragged          1");
+  });
+
+  it("reads inside a read-only transaction, and ends it", async () => {
+    const statements: string[] = [];
+    const recording: MigrationSession = {
+      exec: (text) => {
+        statements.push(text);
+        return database.session.exec(text);
+      },
+      query: (text, params) => {
+        statements.push(text.trim().split(/\s+/)[0] ?? "");
+        return database.session.query(text, params);
+      },
+    };
+
+    await report([], { DATABASE_URL: NEON_URL }, () =>
+      Promise.resolve({ session: recording, close: () => Promise.resolve() }),
+    );
+
+    expect(statements[0]).toBe("BEGIN READ ONLY");
+    expect(statements.at(-1)).toBe("ROLLBACK");
+    expect(new Set(statements.slice(1, -1))).toEqual(new Set(["SELECT"]));
+  });
+
+  it.each([
+    [["--days", "0"], "--days is a whole number from 1 to 3650."],
+    [["--days", "a week"], "--days is a whole number from 1 to 3650."],
+    [
+      ["--environment", "prod; DROP TABLE product_events"],
+      "--environment names one, such as production, preview or development.",
+    ],
+  ])("refuses %j", async (args, message) => {
+    const { code, err } = await report(args);
+
+    expect(code).toBe(1);
+    expect(err).toEqual([message]);
+  });
+
+  it("asks for a connection string, and refuses one that is not a URL", async () => {
+    expect((await report([], {})).err).toEqual([
+      "Set DATABASE_URL_UNPOOLED, or DATABASE_URL, to the database to read.",
+    ]);
+    expect((await report([], { DATABASE_URL: "p@ss, pasted where the URL goes" })).err).toEqual([
+      "DATABASE_URL is not a valid URL.",
+    ]);
+  });
+
+  it("never prints the password when the database fails", async () => {
+    const refused = (): Promise<never> =>
+      Promise.reject(new Error('password "p@ss" (p%40ss) was refused'));
+
+    const { code, err } = await report([], { DATABASE_URL: NEON_URL }, refused);
+
+    expect(code).toBe(1);
+    expect(err).toEqual(['Not read: password "[DATABASE_URL]" ([DATABASE_URL]) was refused']);
+  });
+});

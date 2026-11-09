@@ -1,0 +1,6 @@
+/* Applied only while `pnpm e2e:visual` takes a screenshot (`stylePath` in playwright.config.ts). */
+
+/* Next's dev indicator floats over the page in development, never in the product. */
+nextjs-portal {
+  display: none !important;
+}

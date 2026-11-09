@@ -1,0 +1,250 @@
+{
+  "stops": [
+    {
+      "startTime": "17:00",
+      "durationMinutes": 75,
+      "place": {
+        "name": "Nagamachi Samurai District",
+        "kind": "walk",
+        "neighborhood": "Nagamachi",
+        "coordinates": {
+          "lat": 36.5626,
+          "lng": 136.6484
+        },
+        "sensory": {
+          "energy": "calm",
+          "acoustic": "hushed",
+          "crowd": "sparse",
+          "texture": "River running below, footsteps on stone, a few lamps."
+        },
+        "light": {
+          "exposure": "open",
+          "orientation": "none",
+          "bestWindow": "after-dark",
+          "note": "Lamps along the lattice fronts after dark give the lane a warm glow."
+        },
+        "summary": "A quiet row of teahouses along the Asano River, lit softly after dark. It is a short, calm walk from Katamachi before heading home.",
+        "aesthetic": ["lattice timber", "river stone"]
+      },
+      "dependsOn": ["dinner"]
+    },
+    {
+      "startTime": "18:30",
+      "durationMinutes": 90,
+      "place": {
+        "name": "Asanogawa riverbank at dusk",
+        "kind": "walk",
+        "neighborhood": "Higashiyama",
+        "coordinates": {
+          "lat": 36.5705,
+          "lng": 136.6672
+        },
+        "sensory": {
+          "energy": "calm",
+          "acoustic": "hushed",
+          "crowd": "sparse",
+          "texture": "River running below, footsteps on stone, a few lamps."
+        },
+        "light": {
+          "exposure": "open",
+          "orientation": "none",
+          "bestWindow": "after-dark",
+          "note": "Lamps along the lattice fronts after dark give the lane a warm glow."
+        },
+        "summary": "A quiet row of teahouses along the Asano River, lit softly after dark. It is a short, calm walk from Katamachi before heading home.",
+        "aesthetic": ["lattice timber", "river stone"]
+      },
+      "dependsOn": ["dinner"]
+    },
+    {
+      "startTime": "20:45",
+      "durationMinutes": 105,
+      "place": {
+        "name": "Oden in Katamachi",
+        "kind": "food",
+        "neighborhood": "Katamachi",
+        "coordinates": {
+          "lat": 36.5612,
+          "lng": 136.6523
+        },
+        "sensory": {
+          "energy": "balanced",
+          "acoustic": "murmur",
+          "crowd": "steady",
+          "texture": "Pots simmering, chopsticks on bowls, low conversation."
+        },
+        "light": {
+          "exposure": "interior",
+          "orientation": "none",
+          "bestWindow": "after-dark",
+          "note": "Lantern light after sundown; by 17:30 it is just turning dark outside."
+        },
+        "summary": "Katamachi's side streets have small counters serving oden, simmered daikon, tofu and eggs in light broth, and Kanazawa's local styles with it. By half past five the counters are warm and seats are easy to find.",
+        "aesthetic": ["wood counters", "paper lanterns"]
+      },
+      "dependsOn": ["dinner", "end"]
+    }
+  ],
+  "alternatives": [
+    {
+      "stopIndex": 0,
+      "options": [
+        {
+          "name": "Asano River Bank Path",
+          "kind": "walk",
+          "neighborhood": "Kazue-machi",
+          "summary": "A path along the river with few people after dark and views of the lit bridges.",
+          "aesthetic": ["river stone", "iron bridges"],
+          "coordinates": {
+            "lat": 36.5675,
+            "lng": 136.664
+          },
+          "sensory": {
+            "energy": "reflective",
+            "acoustic": "silent",
+            "crowd": "empty",
+            "texture": "Water, footsteps, nothing else."
+          },
+          "light": {
+            "exposure": "open",
+            "orientation": "none",
+            "bestWindow": "after-dark",
+            "note": "Bridge lamps reflect on the water after dark."
+          },
+          "reason": "It shares the river and the evening hour but trades the lit teahouse lane for a quieter riverbank."
+        },
+        {
+          "name": "Korinbo Shopping Street",
+          "kind": "walk",
+          "neighborhood": "Korinbo",
+          "summary": "Lit shop fronts and cafés stay open into the evening and the street is busy on a Saturday.",
+          "aesthetic": ["neon", "glass", "concrete"],
+          "coordinates": {
+            "lat": 36.563,
+            "lng": 136.656
+          },
+          "sensory": {
+            "energy": "lively",
+            "acoustic": "chatter",
+            "crowd": "busy",
+            "texture": "Shoppers, shutters, café doors."
+          },
+          "light": {
+            "exposure": "open",
+            "orientation": "none",
+            "bestWindow": "after-dark",
+            "note": "Shop signs and street lamps light the street after dark."
+          },
+          "reason": "It shares the evening walk but trades the quiet teahouse lane for a busy shopping street."
+        }
+      ]
+    },
+    {
+      "stopIndex": 1,
+      "options": [
+        {
+          "name": "Asano River Bank Path",
+          "kind": "walk",
+          "neighborhood": "Kazue-machi",
+          "summary": "A path along the river with few people after dark and views of the lit bridges.",
+          "aesthetic": ["river stone", "iron bridges"],
+          "coordinates": {
+            "lat": 36.5675,
+            "lng": 136.664
+          },
+          "sensory": {
+            "energy": "reflective",
+            "acoustic": "silent",
+            "crowd": "empty",
+            "texture": "Water, footsteps, nothing else."
+          },
+          "light": {
+            "exposure": "open",
+            "orientation": "none",
+            "bestWindow": "after-dark",
+            "note": "Bridge lamps reflect on the water after dark."
+          },
+          "reason": "It shares the river and the evening hour but trades the lit teahouse lane for a quieter riverbank."
+        },
+        {
+          "name": "Korinbo Shopping Street",
+          "kind": "walk",
+          "neighborhood": "Korinbo",
+          "summary": "Lit shop fronts and cafés stay open into the evening and the street is busy on a Saturday.",
+          "aesthetic": ["neon", "glass", "concrete"],
+          "coordinates": {
+            "lat": 36.563,
+            "lng": 136.656
+          },
+          "sensory": {
+            "energy": "lively",
+            "acoustic": "chatter",
+            "crowd": "busy",
+            "texture": "Shoppers, shutters, café doors."
+          },
+          "light": {
+            "exposure": "open",
+            "orientation": "none",
+            "bestWindow": "after-dark",
+            "note": "Shop signs and street lamps light the street after dark."
+          },
+          "reason": "It shares the evening walk but trades the quiet teahouse lane for a busy shopping street."
+        }
+      ]
+    },
+    {
+      "stopIndex": 2,
+      "options": [
+        {
+          "name": "Soba in Katamachi",
+          "kind": "food",
+          "neighborhood": "Katamachi",
+          "summary": "Small soba counters in Katamachi open early for dinner, with warm broth and tempura. Quieter than oden counters.",
+          "aesthetic": ["wood counters", "noren"],
+          "coordinates": {
+            "lat": 36.5615,
+            "lng": 136.653
+          },
+          "sensory": {
+            "energy": "calm",
+            "acoustic": "hushed",
+            "crowd": "sparse",
+            "texture": "Steam, soft slurping, quiet orders."
+          },
+          "light": {
+            "exposure": "interior",
+            "orientation": "none",
+            "bestWindow": "after-dark",
+            "note": "Warm indoor light as evening falls."
+          },
+          "reason": "It shares the early dinner and the district but trades oden for soba and a quieter counter."
+        },
+        {
+          "name": "Izakaya Alley in Katamachi",
+          "kind": "bar",
+          "neighborhood": "Katamachi",
+          "summary": "Lantern-lit alleys of small izakaya serving sake and grilled skewers. Busier as evening goes on.",
+          "aesthetic": ["lanterns", "wood", "neon"],
+          "coordinates": {
+            "lat": 36.5608,
+            "lng": 136.6518
+          },
+          "sensory": {
+            "energy": "social",
+            "acoustic": "loud",
+            "crowd": "packed",
+            "texture": "Laughter, glasses, skewers on the grill."
+          },
+          "light": {
+            "exposure": "covered",
+            "orientation": "none",
+            "bestWindow": "after-dark",
+            "note": "Lanterns and neon take over once the sun is down."
+          },
+          "reason": "It shares the district and the evening but trades a quiet counter meal for a louder drinking street."
+        }
+      ]
+    }
+  ],
+  "dek": "A calm Saturday in Kanazawa that starts with the garden at opening and the Higashi Chaya lanes before the tour groups, then moves through Omicho for lunch, the castle grounds and a museum in the afternoon, the samurai lanes and the Asanogawa at dusk, and ends with late oden in Katamachi."
+}

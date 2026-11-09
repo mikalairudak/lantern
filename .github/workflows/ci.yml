@@ -1,0 +1,138 @@
+# The commit hook runs `pnpm check` on the laptop; CI runs it again, and the production build, on
+# a clean Linux machine on every push to main and every pull request. `pnpm e2e` runs on pull
+# requests and from the "Run workflow" button, and on a push to main only once the repository is
+# public: a private repository's minutes are counted, a public one's are not. `pnpm e2e:visual`
+# stays local: its baseline is the owner's Mac (`e2e/visual/__screenshots__/darwin`), and Linux
+# draws text differently (docs/harness.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer run of the same kind on the same branch or pull request makes the older one's answer
+# moot. The event is in the group so a push to main does not cancel an e2e started by hand.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# No secrets: tests run on mock models and recorded responses, and LIVE_GENERATION stays unset.
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  # Corepack fetches the pnpm that package.json's `packageManager` pins without asking.
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      # pnpm through Corepack, as on the laptop. pnpm/action-setup is for pnpm 10 and older,
+      # and setup-node's own pnpm cache needs pnpm on PATH before Corepack can put it there.
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          pnpm --version
+
+      - name: Find the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-store-
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm check
+
+      # The production build Vercel runs, then the build served by `next start` and asked for the
+      # pages a visitor opens, a kept day's id the build never saw among them. Both prerender, the
+      # build every page it knows and the server an unlisted address on its first visit, which is
+      # where Cache Components refuses a page that reads the clock or the request outside a
+      # boundary; neither `pnpm check` nor the e2e's dev server renders pages so. No keys: neither
+      # reads any, and LIVE_GENERATION stays unset. In this job rather than one of its own, which
+      # would install everything again on counted minutes.
+      - run: pnpm build:check
+
+  e2e:
+    name: E2E
+    # Pull requests and the "Run workflow" button always; a push to main only in a public
+    # repository, where the minutes are free.
+    if: github.event_name != 'push' || github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          pnpm --version
+
+      - name: Find the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-store-
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Read the Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # The desktop and phone projects are both Chromium, so Chromium is the only browser.
+      - uses: actions/cache@v6
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-${{ steps.playwright.outputs.version }}
+
+      - name: Install Chromium and its system libraries
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      # The cache holds the browser, not the system libraries it needs.
+      - name: Install Chromium's system libraries
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+
+      # The desktop and phone projects only: the visual project is `default: false` in
+      # playwright.config.ts. The HTML report joins the config's GitHub annotations, so a
+      # failure's traces open from the artifact.
+      - run: pnpm e2e --add-reporter=html
+        env:
+          PLAYWRIGHT_HTML_OPEN: never
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14

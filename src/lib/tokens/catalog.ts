@@ -1,0 +1,87 @@
+/**
+ * The color, type, spacing, radius and root tokens globals.css defines, and its focus rings,
+ * listed for /lab. A test keeps these lists and the stylesheet in step, so /lab shows every
+ * one of them and nothing that is gone.
+ */
+
+export const COLOR_TOKENS = [
+  { name: "ground", role: "Page background" },
+  { name: "surface", role: "A raised sheet, such as an opened stop" },
+  { name: "ink", role: "Primary text and filled meter segments" },
+  { name: "ink-soft", role: "Secondary text" },
+  { name: "muted", role: "Metadata and collapsed notes" },
+  { name: "line", role: "Hairline rules and empty meter segments" },
+  { name: "wire", role: "Abacus wires: the chart's structure, between a rule and text" },
+  {
+    name: "amber",
+    role: "Light in words: sunrise and sunset, and a stop's time in golden hour",
+  },
+  { name: "lamp", role: "Light drawn: the mark's bead, the sun, the time axis in golden hour" },
+  { name: "lamp-glow", role: "The mark's inner step of light" },
+  { name: "lamp-haze", role: "The mark's outer step of light" },
+  { name: "energy", role: 'Energy in words: the energy word and clause, "drag the curve"' },
+  { name: "curve", role: "Energy drawn: the curve and the rings on it" },
+  { name: "swap", role: 'Versions in words: alternatives, their controls, "instead of …"' },
+  { name: "swap-drawn", role: "Versions drawn: the hollow beads and the ring that names one" },
+] as const;
+
+export const TEXT_TOKENS = [
+  "display",
+  "title",
+  "heading",
+  "dek",
+  "quote",
+  "body",
+  "small",
+  "meta",
+  "caption",
+] as const;
+
+export const SPACING_TOKENS = [
+  "0",
+  "0.5",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "8",
+  "10",
+  "12",
+  "14",
+  "16",
+  "20",
+  "24",
+  "day",
+  "phone-height",
+] as const;
+
+export const RADIUS_TOKENS = ["sm", "md"] as const;
+
+/**
+ * How the page grows on a large screen: the root's size, and every rem with it, from the
+ * browser's own at the first width to a quarter more at the second. Counted in the browser's
+ * own rems, so at its default 16 px they are 1440 and 2560 px.
+ */
+export const ROOT_TOKENS = [
+  { name: "grows-from", role: "The viewport's width, in rems, where the root starts to grow" },
+  { name: "grows-to", role: "The width, in rems, where it stops growing" },
+  { name: "grows-by", role: "How much larger the root is from there on" },
+] as const;
+
+/** The rings the keyboard's focus draws, each a `@utility` in globals.css. */
+export const FOCUS_RING_TOKENS = [
+  { name: "focus-ring", role: "Ink, 2 px outside the box: a link or a button" },
+  {
+    name: "focus-ring-inset",
+    role: "Ink, 2 px inside the box, where what stands around it would cut the ring",
+  },
+] as const;
+
+export type ColorToken = (typeof COLOR_TOKENS)[number]["name"];
+export type TextToken = (typeof TEXT_TOKENS)[number];
+export type SpacingToken = (typeof SPACING_TOKENS)[number];
+export type RadiusToken = (typeof RADIUS_TOKENS)[number];
+export type RootToken = (typeof ROOT_TOKENS)[number]["name"];
+export type FocusRingToken = (typeof FOCUS_RING_TOKENS)[number]["name"];
