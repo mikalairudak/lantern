@@ -46,7 +46,7 @@ Instructions that point at things that do not exist are a harness defect; when y
 - **The dates hold and scope gets cut,** in the order `docs/roadmap.md` lists. Harness work takes the same weeks as the product. Every proposal names its cost in hours, what mistake it catches or what time it saves, when it pays back, and what it displaces. To argue for changing the cut order, give reasons.
 - The owner's rules prefer simplicity and YAGNI. No new dependencies without a reason the owner accepts.
 - Claude Code changes fast. Verify any claim about its features (hooks, skills, subagents, settings, plugins) against current docs or `claude --help` before recommending it.
-- `~/.claude/` belongs to the owner and affects every project. Report findings there and show the exact change you propose; edit it only after the owner says yes in that conversation.
+- `~/.claude/` belongs to the owner and affects every project. Report findings there and show the exact change you propose; edit it only on the owner's word in that conversation.
 
 # How you work with the owner
 
