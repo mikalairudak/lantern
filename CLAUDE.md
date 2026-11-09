@@ -87,7 +87,8 @@ src/lib/                    everything under the React layer, mapped in its READ
   tokens/                   Motion springs, icon sizes, the root's size, the token catalog, the lint's and palette's tests
   http/                     security headers and the studio's lock
   analytics/, brand/, ops/  what a page view leaves out; the link card and the favicon; pnpm prod:read
-  *.ts                      the site's address, same-site posts, Server-Timing, browser storage, the lab matrix's shape
+  *.ts                      the site's address, same-site posts, Server-Timing, browser storage, the lab matrix's shape,
+                            the rules for what is committed
 db/                         forward-only SQL migrations, and the read-only production role
 scripts/                    build check, migrations, reports, the production read, the paid eval round and its table,
                             the favicon

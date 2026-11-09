@@ -63,6 +63,7 @@ flowchart TD
 | `src/lib/server-timing.ts`   | The `Server-Timing` header the intake, day and re-plan routes answer with                                                                                  |
 | `src/lib/browser-storage.ts` | Every key Lantern keeps in a visitor's browser, with what the privacy page says of it                                                                      |
 | `src/lib/lab-matrix.ts`      | `labMatrix` and the types every `/lab` matrix entry is written in                                                                                          |
+| `src/lib/repo-hygiene.ts`    | The rules for what may be committed: its test holds every tracked file to them, and the `commit-msg` hook each message                                     |
 | `db/migrations/`             | Forward-only, checksummed SQL migrations                                                                                                                   |
 | `db/roles/`                  | The read-only production role                                                                                                                              |
 | `e2e/`                       | Playwright specs; `e2e/visual/` holds the pixel baseline of the `/lab` matrices                                                                            |
@@ -180,7 +181,7 @@ A day may run past midnight: `runningStart` and `runningSpans` in `src/lib/time/
 
 ## How the harness keeps quality
 
-- **The commit gate.** `.githooks/pre-commit` runs `pnpm check` on every commit: format, lint, typecheck, and unit tests with an 80% coverage gate (`vitest.config.mts`). A `commit-msg` hook checks the message against the rules in `CLAUDE.md`, "Everything committed is public", as a unit test checks the files. `.github/workflows/ci.yml` runs `pnpm check` again with `pnpm build:check` on every push to `develop` or `main` and every pull request, and `pnpm e2e` in a second job on pull requests, on pushes to `main` and by hand. Work lands on `develop`; `main` takes only releases, each tagged.
+- **The commit gate.** `.githooks/pre-commit` runs `pnpm check` on every commit: format, lint, typecheck, and unit tests with an 80% coverage gate (`vitest.config.mts`). A `commit-msg` hook checks the message against the rules in `CLAUDE.md`, "Everything committed is public", as `src/lib/repo-hygiene.test.ts` checks the files. `.github/workflows/ci.yml` runs `pnpm check` again with `pnpm build:check` on every push to `develop` or `main` and every pull request, and `pnpm e2e` in a second job on pull requests, on pushes to `main` and by hand. Work lands on `develop`; `main` takes only releases, each tagged.
 - **No live service in tests.**
   - Written and fixture days stream through the real AI SDK path on its mock model (`src/lib/stream/simulate-day-stream.ts`), with seeded uneven pacing (`src/lib/stream/uneven-pace.ts`) and every ending the outcome protocol lists.
   - A fake Claude API sits behind the real provider (`src/lib/fixtures/live/mock-claude.ts`), and Postgres runs in WASM (`src/lib/fixtures/db/pglite.ts`).
