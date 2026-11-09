@@ -11,11 +11,16 @@ const COVERAGE_THRESHOLD = 80;
  * failing in each.
  */
 const MAX_WORKERS = "50%";
+const isCI = Boolean(process.env.CI);
 /**
- * The slowest tests take under 3 s alone, so Vitest's 5 s left them less than twice that,
- * and a shared machine slows them two to five times. A test that hangs still fails, later.
+ * The slowest tests take under 3 s alone on the laptop, so Vitest's 5 s left them less than
+ * twice that, and a shared laptop slows them two to five times. CI's runner runs the suite
+ * about eight times slower than the laptop, in about 17 minutes against 2, which puts the
+ * slowest near 24 s, past the laptop's 15; 60 s leaves them more than twice that. A test that
+ * hangs still fails, later.
  */
-const TEST_TIMEOUT_MS = 15_000;
+const LAPTOP_TEST_TIMEOUT_MS = 15_000;
+const CI_TEST_TIMEOUT_MS = 60_000;
 
 export default defineConfig({
   plugins: [react()],
@@ -26,7 +31,7 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     maxWorkers: MAX_WORKERS,
-    testTimeout: TEST_TIMEOUT_MS,
+    testTimeout: isCI ? CI_TEST_TIMEOUT_MS : LAPTOP_TEST_TIMEOUT_MS,
     include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
