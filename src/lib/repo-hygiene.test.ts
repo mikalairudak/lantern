@@ -1,13 +1,21 @@
 // @vitest-environment node
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
-import { describeFileFault, findFileFaults, HYGIENE_RULES } from "./repo-hygiene";
+import { afterAll, describe, expect, it } from "vitest";
+import {
+  describeFileFault,
+  findFileFaults,
+  findMessageFaults,
+  HYGIENE_RULES,
+  runCommitMessageCheck,
+} from "./repo-hygiene";
 
 /**
  * Everything committed is public, so every tracked text file is held to the rules a pattern
- * can see (`CLAUDE.md`, "Everything committed is public").
+ * can see (`CLAUDE.md`, "Everything committed is public"), and the `commit-msg` hook holds each
+ * message to them through the same module.
  */
 
 const ROOT = join(__dirname, "..", "..");
@@ -49,6 +57,10 @@ function ruleNamed(name: string) {
 
 function rulesFoundIn(path: string, text: string): string[] {
   return findFileFaults(path, text).map(({ rule }) => rule);
+}
+
+function rulesFoundInMessage(message: string): string[] {
+  return findMessageFaults(message).map(({ rule }) => rule);
 }
 
 /** Built from parts, so no scanner of this public file takes a planted key for a real one. */
@@ -216,6 +228,100 @@ describe("the rules for what is committed", () => {
       expect.objectContaining({ line: 5, found: "1c1c734f" }),
     ]);
     expect(rulesFoundIn("src/lib/example.ts", "// see 2276e6bf")).toEqual([]);
+  });
+});
+
+describe("the commit message check", () => {
+  const CLEAN = [
+    "fix: keep the fork's line under the headline",
+    "",
+    "A phone shows the fork below the screen, so the line says where it is.",
+    "",
+    "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+  ].join("\n");
+
+  it("passes a clean message and prints nothing", () => {
+    const printed: string[] = [];
+
+    expect(runCommitMessageCheck(CLEAN, (line) => printed.push(line))).toBe(0);
+    expect(printed).toEqual([]);
+  });
+
+  it("fails a message that breaks a rule, naming each line and rule", () => {
+    const message = [
+      "fix: fold the row",
+      "",
+      "The owner said yes; see https://claude.ai/chat/0b1c.",
+      "\u0413\u043e\u0442\u043e\u0432\u043e.",
+    ].join("\n");
+    const printed: string[] = [];
+
+    expect(runCommitMessageCheck(message, (line) => printed.push(line))).toBe(1);
+    expect(printed.join("\n")).toContain('line 3, Record of approval: "owner said"');
+    expect(printed.join("\n")).toContain("line 3, Link to a chat or session");
+    expect(printed.join("\n")).toContain("line 4, Cyrillic letters");
+  });
+
+  it("skips git's comment lines and counts them in the line numbers", () => {
+    const message = [
+      "# Please enter the commit message for your changes.",
+      "# On branch worktree-agent-a1b2, from /Users/someone/lantern",
+      "fix: fold the row, as the owner asked",
+    ].join("\n");
+
+    expect(findMessageFaults(message)).toEqual([
+      expect.objectContaining({ line: 3, rule: "Record of approval" }),
+    ]);
+  });
+
+  it("reads nothing below the scissors line", () => {
+    const message = [
+      CLEAN,
+      "# ------------------------ >8 ------------------------",
+      "# Do not modify or remove the line above.",
+      "+// The owner said yes at /Users/someone/lantern, \u0434\u0430.",
+    ].join("\n");
+
+    expect(rulesFoundInMessage(message)).toEqual([]);
+  });
+
+  it("holds a message to every rule but the hash's, which git's own messages cite", () => {
+    expect(rulesFoundInMessage("Revert 2276e6bf: it broke the fold.")).toEqual([]);
+    expect(rulesFoundInMessage(`Rotate ${FAKE_KEYS[0]}.`)).toEqual(["API key"]);
+    expect(rulesFoundInMessage("Claude-Session: 0b1c2d3e")).toEqual(["Session trailer"]);
+  });
+
+  describe("as the hook runs it", () => {
+    const directory = mkdtempSync(join(tmpdir(), "commit-msg-"));
+    afterAll(() => rmSync(directory, { recursive: true, force: true }));
+
+    /** Runs `.githooks/commit-msg` on a message, as git would: from the root, with the file. */
+    function hookOn(message: string): { status: number; stderr: string } {
+      const file = join(directory, "COMMIT_EDITMSG");
+      writeFileSync(file, message);
+      try {
+        execFileSync(join(ROOT, ".githooks", "commit-msg"), [file], {
+          cwd: ROOT,
+          encoding: "utf8",
+          stdio: "pipe",
+        });
+        return { status: 0, stderr: "" };
+      } catch (error) {
+        const { status, stderr } = error as { status: number; stderr: string };
+        return { status, stderr };
+      }
+    }
+
+    it("lets a clean message through", () => {
+      expect(hookOn(`${CLEAN}\n# On branch develop\n`)).toEqual({ status: 0, stderr: "" });
+    });
+
+    it("keeps a bad message back and says why", () => {
+      const { status, stderr } = hookOn("fix: fold the row\n\nThe owner said yes.\n");
+
+      expect(status).toBe(1);
+      expect(stderr).toContain('line 3, Record of approval: "owner said"');
+    });
   });
 });
 

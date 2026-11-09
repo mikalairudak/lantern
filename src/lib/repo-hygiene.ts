@@ -1,7 +1,9 @@
 /**
  * The rules for what may be committed that a pattern can see (`CLAUDE.md`, "Everything
  * committed is public", and `docs/decisions.md`, "Everything committed is written for a reader
- * of the code"). `repo-hygiene.test.ts` holds every tracked text file to them.
+ * of the code"). `repo-hygiene.test.ts` holds every tracked text file to them, and
+ * `.githooks/commit-msg` holds each commit's message, through `scripts/check-commit-message.mts`.
+ * The module imports nothing, so that script runs it on plain Node at every commit.
  */
 
 export interface HygieneRule {
@@ -11,6 +13,8 @@ export interface HygieneRule {
   readonly pattern: RegExp;
   /** Why it stays out of the repository. */
   readonly reason: string;
+  /** Whether a commit's message is held to it as well as the files. */
+  readonly inMessages: boolean;
   /** Whether it reads Markdown alone, and only outside fenced code. */
   readonly markdownProseOnly?: boolean;
   /** A match that passes wherever it stands. */
@@ -37,6 +41,10 @@ const TEST_FILE = /\.(?:test|spec)\.tsx?$|^e2e\/|^src\/lib\/fixtures\//;
 const MARKDOWN_FILE = /\.md$/;
 /** A line that opens or closes a fenced code block. */
 const FENCE = /^ {0,3}(?:```|~~~)/;
+/** Git's comment lines in a message it hands the hook. */
+const COMMENT_MARK = "#";
+/** Git's scissors line: everything below it, such as `git commit -v`'s diff, is not the message. */
+const SCISSORS = "# ------------------------ >8 ------------------------";
 
 /**
  * Lantern's own addresses, GitHub's no-reply ones, the co-author trailer's, and the names
@@ -50,6 +58,7 @@ export const HYGIENE_RULES: readonly HygieneRule[] = [
     name: "Cyrillic letters",
     pattern: /\p{Script=Cyrillic}+/gu,
     reason: "Everything committed is in English; test data in Cyrillic is listed here, with why.",
+    inMessages: true,
     allowedFiles: {
       "src/app/lab/type/candidates/page.tsx":
         "A type candidate's probe: the Cyrillic letters a fallback face gives away first.",
@@ -62,28 +71,33 @@ export const HYGIENE_RULES: readonly HygieneRule[] = [
     name: "Link to a chat or session",
     pattern: /\bclaude\.ai\/\S*/gi,
     reason: "A chat or session page is private, so a reader of the code cannot open it.",
+    inMessages: true,
   },
   {
     name: "Session trailer",
     pattern: /^\s*Claude-Session:.*/gi,
     reason: "A commit records what changed, not the session that wrote it.",
+    inMessages: true,
   },
   {
     name: "Local path",
     pattern:
       /(?<![\w.-])\/(?:Users|home)\/[^/\s]+\/|\b[A-Za-z]:\\Users\\|\/private\/tmp\/|\/tmp\/(?:claude|cc-socks)/g,
     reason: "A path on one machine names its account and leads nowhere on another.",
+    inMessages: true,
   },
   {
     name: "Agent machinery",
     pattern: /\bworktree-agent-[\w-]*|\.claude\/worktrees\/agent-[\w-]*|\buds:\S*/g,
     reason: "An auto-made branch or a socket address is how the work ran, not what the code is.",
+    inMessages: true,
   },
   {
     name: "Record of approval",
     pattern:
       /\b(?:said|says) yes\b|\bowner['’]s yes\b|\bsigned off\b|\bowner (?:said|asked)\b|\basked by the owner\b|\bat the owner['’]s request\b|\((?:the )?owner, \d{4}-/gi,
     reason: "State a call with its reason: how it was agreed, and who asked, is not what is true.",
+    inMessages: true,
   },
   {
     name: "Email address",
@@ -93,6 +107,7 @@ export const HYGIENE_RULES: readonly HygieneRule[] = [
       /(?:\b[a-z][a-z\d+.-]*:\/\/[^\s/@:]*:)?(?<![\w.%+-])[\w.%+-]+@[a-z\d-]+(?:\.[a-z\d-]+)*\.[a-z]{2,}\b/gi,
     reason:
       "An address names a person or an account; Lantern's own, GitHub's no-reply ones and reserved test domains are written.",
+    inMessages: true,
     allowedMatch: ALLOWED_ADDRESS,
     allowedMatchInTests: /^[a-z][a-z\d+.-]*:\/\//i,
   },
@@ -100,6 +115,7 @@ export const HYGIENE_RULES: readonly HygieneRule[] = [
     name: "API key",
     pattern: /\bsk-ant-[\w-]{8,}|\bghp_[A-Za-z\d]{36}\b|\bgithub_pat_\w{22,}|\bAKIA[A-Z\d]{16}\b/g,
     reason: "A key in a public repository is a leaked key; keys live in .env.local and Vercel.",
+    inMessages: true,
   },
   {
     name: "Commit hash",
@@ -107,6 +123,7 @@ export const HYGIENE_RULES: readonly HygieneRule[] = [
     // character beside them: a hex colour, a UUID's part and a SHA-256 sum are not one.
     pattern: /(?<![\w#-])(?=[\da-f]*\d)(?=[\da-f]*[a-f])[\da-f]{7,40}(?![\w-])/g,
     reason: "History can be rewritten, so a hash leads nowhere; name a date or a state.",
+    inMessages: false,
     markdownProseOnly: true,
   },
 ];
@@ -160,6 +177,25 @@ export function findFileFaults(path: string, text: string): HygieneFault[] {
     .sort(byLine);
 }
 
+/**
+ * A message's own lines in the file git hands the `commit-msg` hook: without its `#` comment
+ * lines, and ending above the scissors line. Each keeps its number in the file.
+ */
+function messageLinesOf(message: string): Line[] {
+  const lines = linesOf(message);
+  const scissors = lines.findIndex(({ text }) => text === SCISSORS);
+  const above = scissors === -1 ? lines : lines.slice(0, scissors);
+  return above.filter(({ text }) => !text.startsWith(COMMENT_MARK));
+}
+
+/** What breaks the rules in a commit's message, as git hands it to the `commit-msg` hook. */
+export function findMessageFaults(message: string): HygieneFault[] {
+  const lines = messageLinesOf(message);
+  return HYGIENE_RULES.filter((rule) => rule.inMessages)
+    .flatMap((rule) => faultsOf(rule, lines, false))
+    .sort(byLine);
+}
+
 function whatAndWhy(fault: HygieneFault): string {
   return `${fault.rule}: "${fault.found}". ${fault.reason}`;
 }
@@ -167,4 +203,19 @@ function whatAndWhy(fault: HygieneFault): string {
 /** A file's fault as a failure prints it: the path and line, the rule, what it found, and why. */
 export function describeFileFault(path: string, fault: HygieneFault): string {
   return `${path}:${fault.line} ${whatAndWhy(fault)}`;
+}
+
+/**
+ * The `commit-msg` hook's check of a message, as git hands it over: prints each fault to `err`
+ * and answers the exit code, 1 when the message breaks a rule.
+ */
+export function runCommitMessageCheck(message: string, err: (line: string) => void): number {
+  const faults = findMessageFaults(message);
+  if (faults.length === 0) return 0;
+  err(
+    'commit-msg: the message breaks the rules for what is committed (CLAUDE.md, "Everything committed is public"):',
+  );
+  for (const fault of faults) err(`  line ${fault.line}, ${whatAndWhy(fault)}`);
+  err("Lines starting with # and everything below the scissors line are not read.");
+  return 1;
 }

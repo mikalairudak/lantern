@@ -33,7 +33,7 @@ The layers overlap on purpose. The quality checks are the eval's measures and th
 
 `.githooks/pre-commit` runs `pnpm check`: Prettier, ESLint, the typecheck, and Vitest with coverage held at 80% of lines, functions, branches and statements. Route handlers are left out of coverage and covered by e2e. `pre-merge-commit` runs the same gate, since a clean merge skips `pre-commit`. Nobody commits with `--no-verify`. A SessionStart hook puts the project's Node first on the PATH, because every new agent session otherwise started on an older Node with no `pnpm`.
 
-A `commit-msg` hook holds a commit's message to the rules `src/lib/repo-hygiene.test.ts` holds the files to (`CLAUDE.md`, "Everything committed is public"). CI (`.github/workflows/ci.yml`) runs `pnpm check` and `pnpm build:check` on every push to `develop` or `main` and every pull request, and `pnpm e2e` on pull requests, on pushes to `main`, which take only releases, and by hand. It holds no secrets: no test calls a live service.
+A `commit-msg` hook (`scripts/check-commit-message.mts`) holds a commit's message to the rules `src/lib/repo-hygiene.test.ts` holds the files to (`CLAUDE.md`, "Everything committed is public"). CI (`.github/workflows/ci.yml`) runs `pnpm check` and `pnpm build:check` on every push to `develop` or `main` and every pull request, and `pnpm e2e` on pull requests, on pushes to `main`, which take only releases, and by hand. It holds no secrets: no test calls a live service.
 
 ### Lint and tokens
 

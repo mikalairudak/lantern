@@ -1,0 +1,11 @@
+#!/bin/sh
+# Holds each commit's message to the rules for what is committed (CLAUDE.md, "Everything
+# committed is public"), as src/lib/repo-hygiene.test.ts holds the files. Git hands it the
+# message's file, run from the root of the working tree.
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "commit-msg: node is not on PATH. Switch to the Node version in .nvmrc (nvm use), then commit again." >&2
+  exit 1
+fi
+
+exec node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-commit-message.mts "$1"

@@ -67,7 +67,7 @@ flowchart TD
 | `db/migrations/`             | Forward-only, checksummed SQL migrations                                                                                                                   |
 | `db/roles/`                  | The read-only production role                                                                                                                              |
 | `e2e/`                       | Playwright specs; `e2e/visual/` holds the pixel baseline of the `/lab` matrices                                                                            |
-| `scripts/`                   | The build check, migrations, reports, the paid eval round and its table, the favicon, the production read                                                  |
+| `scripts/`                   | The build check, migrations, reports, the paid eval round and its table, the favicon, the production read, the commit message check                        |
 | `docs/`                      | Decisions, harness, security, ops, roadmap, case study, and the contracts and plans listed under "Where decisions are recorded"                            |
 
 **Lab registration sits beside each component.** A `*-matrix.tsx` file exports the component's `labMatrix` entry, a `*-cell.tsx` file renders one cell (a stand-in parent, a frozen stream frame), and a `*-examples.ts` file holds the data the cells draw. No product module imports them; `src/app/lab/matrix/matrices.tsx` registers the entries. `src/features/itinerary/use-still.tsx` and `src/features/itinerary/stream-frames.ts` are the lab's helpers for freezing a stream at one frame.

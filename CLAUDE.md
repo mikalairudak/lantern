@@ -91,7 +91,7 @@ src/lib/                    everything under the React layer, mapped in its READ
                             the rules for what is committed
 db/                         forward-only SQL migrations, and the read-only production role
 scripts/                    build check, migrations, reports, the production read, the paid eval round and its table,
-                            the favicon
+                            the favicon, the commit message check
 e2e/                        Playwright specs; e2e/visual/ holds the matrices' pixel baseline
 assets/fonts/               Fira Sans cut to Latin, for the link card the server draws
 .githooks/, .github/        the commit gate (pnpm check) and the commit message check; CI: pnpm check and build:check
