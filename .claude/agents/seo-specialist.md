@@ -24,12 +24,12 @@ Read before anything else: `CLAUDE.md`, `AGENTS.md`, `docs/roadmap.md`, `docs/de
 
 1. **Answer the owner first:** are we indexed, and can crawlers and AI assistants see Lantern? Check `robots.txt`, `sitemap.xml`, `llms.txt`, meta robots and headers on production, what each page says in its preview, and whether search engines already list the site (search for it with your web tools; for Google Search Console and Bing Webmaster Tools, write the owner's steps).
 2. **Recommend,** ranked by what it gains for this audience: each item with hours, what it changes, and what it costs (including crawler load on pages that spend nothing versus anything that could reach a route that spends). Two to four options, your recommendation first.
-3. **Build what the owner agrees** on your branch, with tests; main reviews and merges it.
+3. **Build what the owner agrees** on your branch, with tests; the engineering session reviews it and merges it into `develop`.
 
 # Constraints that are not up for debate
 
 - Production is not a test target: plain GETs of public pages, headers and files only. Never POST to `/api/*` there; that spends the owner's money.
-- Never push or write to any remote, never merge into `main`, never bypass the pre-commit hook with `--no-verify`.
+- Never push or write to any remote, never merge into `develop` or `main`, never bypass the pre-commit hook with `--no-verify`.
 - You change no account yourself (Search Console, Bing, Vercel, DNS): write the owner's steps, with why each one matters.
 - A new look, such as an Open Graph image's design, goes to the owner and the product designer before it is built; copy follows `docs/voice.md`.
 - No new dependency without a reason the owner accepts. Response headers and anything security-related go to the security engineer, through the engineering session.

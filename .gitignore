@@ -46,6 +46,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Working notes, plans and handoffs, which stay on the machine that wrote them
+/notes/
+
 # Claude Code: worktrees for parallel sessions, and each person's local settings and scheduler lock
 /.claude/worktrees/
 /.claude/settings.local.json

@@ -2,7 +2,7 @@
 
 Lantern plans one day in a city, hour by hour, as quiet or as lively as the visitor asks. A language model writes the day as JSON held to a Zod schema. Code checks it, repairs small slips, and draws it with deterministic React components while it streams. Once the day is written, everything the visitor does to it (the energy curve, a swap, the light) runs on the client. After the day itself, the only other model calls are reading the visitor's first sentence and re-planning: a changed word writes again the part of the day it shaped, or the whole day where no stop names a changed time word or the part would hold most of the day, and the page proposes the result beside the day for the visitor to take.
 
-This page describes the tree as it stands on `main`. Why each piece is the way it is lives in `docs/decisions.md`; how it is tested and measured lives in `docs/harness.md`.
+This page describes the tree as it stands. Why each piece is the way it is lives in `docs/decisions.md`; how it is tested and measured lives in `docs/harness.md`.
 
 ## A request's life
 
@@ -180,7 +180,7 @@ A day may run past midnight: `runningStart` and `runningSpans` in `src/lib/time/
 
 ## How the harness keeps quality
 
-- **The commit gate.** `.githooks/pre-commit` runs `pnpm check` on every commit: format, lint, typecheck, and unit tests with an 80% coverage gate (`vitest.config.mts`). `.github/workflows/ci.yml` runs it again with `pnpm build:check` on every push to `main` and every pull request, and `pnpm e2e` in a second job on pull requests, on pushes to `main` while the repository is public, and by hand.
+- **The commit gate.** `.githooks/pre-commit` runs `pnpm check` on every commit: format, lint, typecheck, and unit tests with an 80% coverage gate (`vitest.config.mts`). A `commit-msg` hook checks the message against the rules in `CLAUDE.md`, "Everything committed is public", as a unit test checks the files. `.github/workflows/ci.yml` runs `pnpm check` again with `pnpm build:check` on every push to `develop` or `main` and every pull request, and `pnpm e2e` in a second job on pull requests, on pushes to `main` and by hand. Work lands on `develop`; `main` takes only releases, each tagged.
 - **No live service in tests.**
   - Written and fixture days stream through the real AI SDK path on its mock model (`src/lib/stream/simulate-day-stream.ts`), with seeded uneven pacing (`src/lib/stream/uneven-pace.ts`) and every ending the outcome protocol lists.
   - A fake Claude API sits behind the real provider (`src/lib/fixtures/live/mock-claude.ts`), and Postgres runs in WASM (`src/lib/fixtures/db/pglite.ts`).

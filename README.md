@@ -10,6 +10,8 @@ An adaptive, editorial day planner for travel. A generative model lays out the d
 
 **Licence:** MIT ([`LICENSE`](LICENSE)).
 
+**Branches:** `main` holds the releases, each tagged; work lands on `develop` first.
+
 ## How it was built
 
 I built Lantern alone in three weeks by directing Claude Code sessions in set roles: engineering lead, product designer, evaluation, security, SEO and ops. I set the product, the date and the cut order, and made the calls on design, cost, privacy and what ships; agents wrote most of the code and first drafts of the docs, which I reviewed.

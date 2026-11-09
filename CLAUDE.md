@@ -6,12 +6,23 @@ Lantern plans one day in a city, hour by hour, as quiet or as lively as the visi
 
 ## Ground rules
 
-- Everything in the repo is written in English: code, comments, docs, UI copy, commit messages.
-- **Current stage: v1.0 (from 2026-11-09).** Live calls to Claude and Geoapify run only behind the `LIVE_GENERATION` flag. It has been on in production since 2026-10-31, behind per-visitor limits and the app's daily and monthly spend caps (`src/lib/live/limits.ts`); a schema change that a live day writes needs production migrated before its push (`docs/harness.md`, "Database"). Provider API keys and secrets, the studio's password (`STUDIO_PASSWORD`) among them, live only in `.env.local` and Vercel's environment, never in the repository. One credential lives elsewhere: the production read-only role's connection string, in the owner's macOS Keychain, read only by `pnpm prod:read` (`docs/ops.md`). Tests never call a live service: they run on mock models and recorded responses.
-- Commit locally with conventional commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`). Never push; the owner pushes.
+- **Current stage: v1.0 (from 2026-11-09).** Live calls to Claude and Geoapify run only behind the `LIVE_GENERATION` flag. It has been on in production since 2026-10-31, behind per-visitor limits and the app's daily and monthly spend caps (`src/lib/live/limits.ts`); a schema change that a live day writes needs production migrated before the release that carries it (`docs/harness.md`, "Database"). Provider API keys and secrets, the studio's password (`STUDIO_PASSWORD`) among them, live only in `.env.local` and Vercel's environment, never in the repository. One credential lives elsewhere: the production read-only role's connection string, in the owner's macOS Keychain, read only by `pnpm prod:read` (`docs/ops.md`). Tests never call a live service: they run on mock models and recorded responses.
+- **Work lands on `develop`; `main` holds only releases.** Commit on a local branch with conventional commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`). The engineering session merges a branch into `develop` once the definition of done holds, and pushes `develop`, which Vercel builds as a preview. A release, on the owner's word, fast-forwards `main` to a `develop` that passed the gate and is tagged (`v1.1`, or `v1.0.1` for fixes alone); Vercel builds production from `main`. Only `develop`, `main` and release tags are pushed: every other branch stays local. Agents never push and never merge into `develop` or `main`.
 - A pre-commit hook runs `pnpm check`. Never bypass it with `--no-verify`; fix what it reports.
 - **Comments say what is true now.** State the rule and one clause of why, in the present tense; name a state ("with live generation off"), not a stage or a date, and cite a decision by its heading in `docs/decisions.md`. What used to be true belongs in the decision's entry and in git.
 - When a decision is worth explaining to someone who reads the code later, add an entry to `docs/decisions.md`.
+
+## Everything committed is public
+
+The repository is public, and so is everything pushed to it, `develop` included: code, comments, docs, fixtures, screenshots, commit messages and branch names. Write each for a reader of the code. `src/lib/repo-hygiene.test.ts`, in `pnpm check`, and the `commit-msg` hook hold the plainest of these rules; the rest are kept by whoever writes.
+
+- **English only,** in code, comments, docs, UI copy and commit messages. The exceptions are test data that exercises other scripts, listed in the hygiene test.
+- **Say what is true and why, never how it was agreed.** No record of conversations, approvals or requests, of who asked for what, and no quotes from a chat. A product call is stated with its reason; a comment cites a decision. Sessions, agents, tickets, rounds of work, worktrees and reviews are how the work gets done, not what the code is, and stay out.
+- **Nothing personal** about the owner or anyone else: background, plans, skills, whereabouts, or words from a chat or a note. An agent's brief describes its role and its work.
+- **No pointers that leak or rot.** No links to chats, sessions or shared pages; no local paths, machine or account names; no ids of production records; no secret and no hash of one. No commit hashes or branch names in docs or comments, since history can be rewritten: name a date or a state.
+- **Plans and notes stay out of git.** Status, handoffs, ask lists, transcripts and working notes live in a session's memory or in the gitignored `/notes/`. The repository holds what is built and why: `docs/decisions.md`, `docs/harness.md`, and the scope in `docs/roadmap.md`.
+- **Security docs describe the controls in place.** An open weakness, and how one would use it, stays out of the repository until it is fixed.
+- **A commit message is a short record for a reader:** the subject says what changed, the body why. It tells no story of the work and names no one who did it, beyond the co-author trailer.
 
 ## Commands
 
@@ -82,7 +93,9 @@ scripts/                    build check, migrations, reports, the production rea
                             the favicon
 e2e/                        Playwright specs; e2e/visual/ holds the matrices' pixel baseline
 assets/fonts/               Fira Sans cut to Latin, for the link card the server draws
-.githooks/, .github/        the commit gate (pnpm check), and CI: pnpm check and build:check, and pnpm e2e on pull requests, on pushes to main and by hand
+.githooks/, .github/        the commit gate (pnpm check) and the commit message check; CI: pnpm check and build:check
+                            on pushes to develop and main and on pull requests, pnpm e2e on pull requests, on pushes
+                            to main and by hand
 docs/                       decisions, harness, design direction, security, ops, roadmap, case study, the contracts
                             (targeted re-plan, grounding, voice), discoverability; brand/ and media/ (the README's demo)
 ```

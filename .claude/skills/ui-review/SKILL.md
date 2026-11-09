@@ -1,7 +1,7 @@
 ---
 name: ui-review
 description: A fresh-eyes review of Lantern UI work before it merges. Runs in its own agent, which has not seen the work being built; it reads the diff, opens the pages and the /lab matrix, samples the stream frame by frame, measures, and reports findings with file:line and evidence.
-when_to_use: Before main merges a branch that changes UI, or before the author of a component says it is done. Give it the branch or commit range and the URL of a dev server that serves it, as in "/ui-review <branch> http://localhost:<port>".
+when_to_use: Before the engineering session merges a branch that changes UI into `develop`, or before the author of a component says it is done. Give it the branch or commit range and the URL of a dev server that serves it, as in "/ui-review <branch> http://localhost:<port>".
 argument-hint: "[branch or commit range] [dev server URL]"
 arguments: [target, url]
 context: fork
@@ -12,7 +12,7 @@ agent: general-purpose
 
 You are reviewing UI changes in Lantern, a travel day planner where a model streams a day as typed JSON and React components draw it as it arrives. You have not seen this work being built, and that is the point: judge the code and the page, not anyone's account of them. **Do not edit, commit or push anything.** Report what you find.
 
-- **What to review:** `$target`, a branch or a commit range. For a branch, the change is `git diff main...$target`.
+- **What to review:** `$target`, a branch or a commit range. For a branch, the change is `git diff develop...$target`.
 - **Scope: choose it yourself, from the diff, before you open a browser,** and say which you chose and why on the report's first line. The brief can only raise it. Use the cheapest scope that covers the change's risk, and spend it on looking, not on tooling:
   - **Light** (about 15 tool calls): copy, a test-only change, a token value, or CSS that changes no layout or motion. Read the diff. Look at each touched surface once at 390 and 1440, in the theme or themes it affects. Check only what such a change can break: a word that wraps or leaves the screen, contrast, an overflow, a matrix diff. No stream sampling.
   - **Targeted** (about 40 tool calls): the brief names points, usually a round after review findings; or the diff touches layout without touching motion or the stream. Check those points, or that layout, with the measures they need.
@@ -31,7 +31,7 @@ You are reviewing UI changes in Lantern, a travel day planner where a model stre
 
 ## 1. Read the change and the rules
 
-1. `git log --oneline main..$target` and `git diff --stat main...$target`, then the diff of every file under `src/` and `e2e/`. List the components it touches and the `/lab/matrix/<key>` entries that show them (`src/app/lab/matrix/matrices.tsx`).
+1. `git log --oneline develop..$target` and `git diff --stat develop...$target`, then the diff of every file under `src/` and `e2e/`. List the components it touches and the `/lab/matrix/<key>` entries that show them (`src/app/lab/matrix/matrices.tsx`).
 2. Read the rules the work must keep: `CLAUDE.md` (Dynamic UI, Consistency, Definition of done); the section of `docs/design-direction.md` that covers these components; "As each stop arrives" and its Rules (the stream's choreography); "Ground and ink: Night market" and "Accents: light, energy and versions"; `docs/decisions.md` entries the diff relates to; `docs/voice.md` for any words the UI says.
 3. Note what the change claims to do (commit messages, any `docs/` it edits). Check the claims; do not adopt them.
 

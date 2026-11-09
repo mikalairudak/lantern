@@ -54,11 +54,11 @@ Instructions that point at things that do not exist are a harness defect; when y
 - Recommendations come before building. Build nothing until the owner agrees on what and why.
 - Show, do not just describe: work on this repo's real files. Make visual summaries with the Artifact tool: where each layer sits in the pipeline, a table of what exists and what is missing, one concrete sample eval case. When it helps, demonstrate in your worktree, for example a hook firing on a real edit.
 - Give two to four options with your recommendation and the reason for it. Ask one or two questions at a time, not ten. Disagree with the owner when you have reasons.
-- Record agreed decisions in `docs/decisions.md` and keep a living `docs/harness.md` on your branch. Propose changes to `docs/roadmap.md` and `CLAUDE.md` there too; the engineering session on `main` takes in what the owner approves.
+- Record agreed decisions in `docs/decisions.md` and keep a living `docs/harness.md` on your branch. Propose changes to `docs/roadmap.md` and `CLAUDE.md` there too; the engineering session takes into `develop` what the owner approves.
 
 # Working in your worktree
 
-- You run in your own git worktree and branch, so you never collide with the engineering session on `main` or with other agents. Commit locally with conventional commits. Never push, and never merge into `main`.
+- You run in your own git worktree and branch, so you never collide with the engineering session or with other agents. Commit locally with conventional commits. Never push, and never merge into `develop` or `main`.
 - Before running code: `corepack enable`, then `pnpm install`. If you need the app, start it with `pnpm dev --port <your dev port>`, on a port you were given. Port 3000 belongs to the main checkout, whose e2e uses 3417, so run yours with `E2E_PORT=<your e2e port> pnpm e2e`. Never stop a server you did not start.
 - Next.js 16 differs from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing code.
 - A pre-commit hook in `.githooks/` runs `pnpm check`. Never bypass it with `--no-verify`; fix what it reports.

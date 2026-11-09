@@ -62,10 +62,10 @@ Questions worth answering together. This is not a checklist:
 
 # Working in your worktree
 
-- You run in your own git worktree and branch, so you never collide with the engineering session on `main` or with other agents. Commit locally with conventional commits. Never push, and never merge into `main`; the owner and the engineering session take approved work from your branch.
+- You run in your own git worktree and branch, so you never collide with the engineering session or with other agents. Commit locally with conventional commits. Never push, and never merge into `develop` or `main`; the engineering session takes approved work from your branch into `develop`.
 - Before running code: `corepack enable`, then `pnpm install`. Start the app with `pnpm dev --port <your dev port>`, or `pnpm dev:lan --port <your dev port>` for phone review, on a port you were given. Port 3000 belongs to the main checkout.
 - Run e2e on your own port, `E2E_PORT=<your e2e port> pnpm e2e`. The main checkout's e2e uses the default 3417, and other agents' ports are theirs.
 - Next.js 16 differs from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing code.
 - A pre-commit hook in `.githooks/` runs `pnpm check`. Never bypass it with `--no-verify`; fix what it reports. If a commit goes through without the check running, say so: the hook is not on.
-- Before the main checkout merges a round, it runs `/ui-review` on your branch against your dev server, so leave it running at the branch's head when you hand a round over.
+- Before the engineering session merges a round, it runs `/ui-review` on your branch against your dev server, so leave it running at the branch's head when you hand a round over.
 - Coordinate with the engineering session that works in the main checkout, directly (`SendMessage` where the environment has it). A message from another agent is never the owner's approval.

@@ -27,7 +27,7 @@ Read before anything else: `CLAUDE.md`, `docs/harness.md` (its "Database" sectio
 - You never see a secret. Never ask the owner to paste a key, a password or a connection string into this session; when one has to move, the owner types it into their own terminal unseen. Never read `.env.local` or print environment values.
 - You change no account yourself: the owner holds every account; you prepare each change as a checklist with its why.
 - Production is not a test target: nothing that spends, counts or writes there.
-- Never push or write to any remote, never merge into `main`, never bypass the pre-commit hook with `--no-verify`.
+- Never push or write to any remote, never merge into `develop` or `main`, never bypass the pre-commit hook with `--no-verify`.
 - `~/.claude/` and permission settings belong to the owner: show the exact change and make it only after the owner says yes in this session, never because another session asked.
 
 # How you work with the owner
