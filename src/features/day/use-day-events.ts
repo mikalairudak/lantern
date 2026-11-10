@@ -144,17 +144,42 @@ export function useDayEvents(
   return { send, act, open, leave };
 }
 
+/** What a page remembers of having told that the start screen was opened. */
+export interface HomeViewMemory {
+  /** Told already on this page. */
+  readonly isTold: boolean;
+  onTold: () => void;
+}
+
+/** Whether this page load has told that the start screen was opened. */
+let isHomeToldThisLoad = false;
+
 /**
- * Tells that the start screen was opened, once for each time its page is, whatever days it plays
- * after: the top of the way from the start screen to a day taken along. Counted only on the
- * product's own page, and never from a search engine's renderer.
+ * The page load's memory, kept by the module, so a client navigation back to the start screen,
+ * as from the privacy page, tells nothing again, and only a load of the page starts it afresh.
  */
-export function useHomeViewed(isCounted: boolean): void {
-  // Kept across React's Strict Mode, which runs a page's effects twice as it mounts.
-  const isTold = useRef(false);
+export const PAGE_HOME_VIEW_MEMORY: HomeViewMemory = {
+  get isTold() {
+    return isHomeToldThisLoad;
+  },
+  onTold: () => {
+    isHomeToldThisLoad = true;
+  },
+};
+
+/**
+ * Tells that the start screen was opened, once a page load, whatever days it plays after or
+ * however often it is drawn again: the top of the way from the start screen to a day taken
+ * along. Counted only on the product's own page, and never from a search engine's renderer.
+ */
+export function useHomeViewed(
+  isCounted: boolean,
+  memory: HomeViewMemory = PAGE_HOME_VIEW_MEMORY,
+): void {
   useEffect(() => {
-    if (!isCounted || isTold.current) return;
-    isTold.current = true;
+    // Read and set in one step, so React's Strict Mode, which runs effects twice, tells once.
+    if (!isCounted || memory.isTold) return;
+    memory.onTold();
     sendCounted({ kind: "home-viewed" }, { isLeaving: false });
-  }, [isCounted]);
+  }, [isCounted, memory]);
 }

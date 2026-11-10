@@ -2,7 +2,7 @@
 
 import { Day, type WrittenGist } from "./day";
 import { readIntakeRoute } from "./intake-route";
-import { useHomeViewed } from "./use-day-events";
+import { useHomeViewed, type HomeViewMemory } from "./use-day-events";
 import { readWrittenOnly } from "./written-reader";
 
 interface StartDayProps {
@@ -12,6 +12,11 @@ interface StartDayProps {
   isLive: boolean;
   /** The product's events are sent: only the product's own page counts. */
   isCounted?: boolean;
+  /**
+   * What the page remembers of having told the start screen opened; left out, the page load's
+   * (`PAGE_HOME_VIEW_MEMORY`), so it is told once however often the page is drawn.
+   */
+  homeViewMemory?: HomeViewMemory;
 }
 
 /**
@@ -21,8 +26,8 @@ interface StartDayProps {
  * back; with live generation on it goes to the intake route, and Lantern says it writes new days.
  * The address names the day once one takes the page, so a copied link opens it.
  */
-export function StartDay({ pool, isLive, isCounted = false }: StartDayProps) {
-  useHomeViewed(isCounted);
+export function StartDay({ pool, isLive, isCounted = false, homeViewMemory }: StartDayProps) {
+  useHomeViewed(isCounted, homeViewMemory);
   if (pool.length === 0) throw new Error("The start screen has no written day to offer");
   const read = isLive ? readIntakeRoute : readWrittenOnly(pool);
   return <Day start={{ pool, read }} isLive={isLive} isAddressed isCounted={isCounted} />;

@@ -23,6 +23,7 @@ import type { KeptLanding } from "./kept-day";
 import { writtenDayAt } from "@/lib/days/written/days";
 import { writtenPool } from "./written-pool";
 import { READ_TO_END_MS } from "./use-read-to-end";
+import { PAGE_HOME_VIEW_MEMORY, type HomeViewMemory } from "./use-day-events";
 
 /**
  * The product's events as the page sends them, with the sender stubbed: each kind once, at
@@ -186,7 +187,18 @@ beforeAll(() => {
   window.scrollBy = () => undefined;
   Element.prototype.scrollIntoView = () => undefined;
 });
+/** Each test is a page load of its own, with nothing told of the start screen yet. */
+let homeMemory: HomeViewMemory;
 beforeEach(() => {
+  let isTold = false;
+  homeMemory = {
+    get isTold() {
+      return isTold;
+    },
+    onTold: () => {
+      isTold = true;
+    },
+  };
   vi.mocked(sendProductEvent).mockClear();
   dayReplies.length = 0;
   intakeReplies.length = 0;
@@ -283,7 +295,7 @@ describe("the days played, as the product counts them", () => {
 
   it("opens a start pressed on the start screen as pressed", async () => {
     const user = userEvent.setup();
-    render(<StartDay pool={POOL} isLive={false} isCounted />);
+    render(<StartDay pool={POOL} isLive={false} isCounted homeViewMemory={homeMemory} />);
 
     await user.click(writtenCity("Kanazawa"));
     await waitForTheDay();
@@ -304,7 +316,7 @@ describe("the days played, as the product counts them", () => {
       signed: [{ city: "Porto", timezone: "Europe/Lisbon", signature: "porto-signed" }],
     });
     const user = userEvent.setup();
-    render(<StartDay pool={POOL} isLive isCounted />);
+    render(<StartDay pool={POOL} isLive isCounted homeViewMemory={homeMemory} />);
 
     await user.type(screen.getByRole("textbox"), "Porto, a calm day{Enter}");
     await waitForTheDay();
@@ -320,7 +332,7 @@ describe("the days played, as the product counts them", () => {
 
   it("counts no intake with live generation off, where the text is read in the page", async () => {
     const user = userEvent.setup();
-    render(<StartDay pool={POOL} isLive={false} isCounted />);
+    render(<StartDay pool={POOL} isLive={false} isCounted homeViewMemory={homeMemory} />);
 
     await user.type(screen.getByRole("textbox"), "Kanazawa{Enter}");
     await waitForTheDay();
@@ -334,7 +346,7 @@ describe("the days played, as the product counts them", () => {
   it("leaves a day replaced before its first stop there, and opens the next", async () => {
     dayReplies.push("stalled");
     const user = userEvent.setup();
-    render(<StartDay pool={POOL} isLive={false} isCounted />);
+    render(<StartDay pool={POOL} isLive={false} isCounted homeViewMemory={homeMemory} />);
 
     await user.click(writtenCity("Bologna"));
     await user.click(writtenCity("Nafplio"));
@@ -522,7 +534,7 @@ describe("the gestures on a day, as the product counts them", () => {
     });
     dayReplies.push("empty", "empty");
     const user = userEvent.setup();
-    render(<StartDay pool={POOL} isLive isCounted />);
+    render(<StartDay pool={POOL} isLive isCounted homeViewMemory={homeMemory} />);
 
     await user.type(screen.getByRole("textbox"), "Porto, a calm day{Enter}");
     await waitFor(() => expect(sentOf("day-ended")).toHaveLength(1), DAY_TIMEOUT);
@@ -623,7 +635,7 @@ describe("the start screen and the day's end, as the product counts them", () =>
     // Strict Mode runs the page's effects twice as it mounts; it is one page opened.
     render(
       <StrictMode>
-        <StartDay pool={POOL} isLive={false} isCounted />
+        <StartDay pool={POOL} isLive={false} isCounted homeViewMemory={homeMemory} />
       </StrictMode>,
     );
     await waitFor(() => expect(sentOf("home-viewed")).toEqual([HOME_VIEWED]));
@@ -633,6 +645,20 @@ describe("the start screen and the day's end, as the product counts them", () =>
 
     expect(sentOf("home-viewed")).toEqual([HOME_VIEWED]);
     expect(sent()[0]).toEqual(HOME_VIEWED);
+  });
+
+  it("tells the start screen once a page load, not again when a navigation draws it anew", async () => {
+    // The page load's own memory, which no other test here uses.
+    const first = render(<StartDay pool={POOL} isLive={false} isCounted />);
+    await waitFor(() => expect(sentOf("home-viewed")).toEqual([HOME_VIEWED]));
+    first.unmount();
+
+    // Back to the start screen from another page, as by the wordmark from the privacy page.
+    render(<StartDay pool={POOL} isLive={false} isCounted />);
+    await screen.findByRole("list", { name: WRITTEN_HEADING });
+
+    expect(sentOf("home-viewed")).toEqual([HOME_VIEWED]);
+    expect(PAGE_HOME_VIEW_MEMORY.isTold).toBe(true);
   });
 
   it("tells nothing of a start screen that does not count, as a lab's", async () => {
@@ -684,7 +710,7 @@ describe("the start screen and the day's end, as the product counts them", () =>
     try {
       await withEverythingInView(async () => {
         const user = userEvent.setup();
-        render(<StartDay pool={POOL} isLive={false} isCounted />);
+        render(<StartDay pool={POOL} isLive={false} isCounted homeViewMemory={homeMemory} />);
         await user.click(writtenCity("Kanazawa"));
         await waitForTheDay();
         await new Promise((resolve) => setTimeout(resolve, READ_TO_END_MS * 1.5));
