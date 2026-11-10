@@ -83,13 +83,13 @@ Each milestone is one release. Its work reaches `develop` as small pull requests
    - one fix taken from a branch to a release, `v1.0.1`, to prove the path end to end;
    - the events that say whether a day was used: the start screen seen, a day read to its end, the view it was read in, a returning visitor; and their values before the start screen changes;
    - the header's top row aligned;
-   - the lint's dependencies brought past their advisory.
+   - the lint's dependencies updated.
 2. **First impression (v1.1).** What a visitor sees in their first ten seconds, released as one:
-   - a start screen with two ways in, the question and tiles for a mood or an occasion, each tile opening a day already written for it, and a still excerpt of a day beneath them;
+   - a start screen with two ways in, the question and tiles for a mood or an occasion, each tile opening a day already written for it, and a still excerpt of a day beneath them; the six written days leave it and keep their pages, as examples a search can find;
    - a day shown first as a plan to read, with its light, and the chart as its second view;
    - the header's remaining polish, the tiles' picture style, and a reaction a visitor gives in one tap;
-   - a test with five people, and the events compared with the values before.
-   - The six written days leave the start screen and keep their pages, as examples a search can find.
+   - a test with five people;
+   - the events compared with their values before.
 3. **Day quality (v1.2).** The day itself: the model's and the data's open issues, and the six written days written again.
 
 After them: a weekend, tiles by season or region, and a page of the product's measures in `/studio`.

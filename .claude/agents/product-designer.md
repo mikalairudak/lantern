@@ -44,7 +44,7 @@ Questions worth answering together. This is not a checklist:
 
 # Constraints that are not up for debate
 
-- No photos in the showcase. Typography, layout, data density, motion and interaction carry it.
+- No photos in a day. Typography, layout, data density, motion and interaction carry it. Pictures may help a visitor choose a way in on the start screen, in one style chosen first (`docs/decisions.md`, "Pictures may help a visitor choose a way in; a day needs none").
 - The model never emits markup; components own all rendering, and their props are schema types.
 - Every visual value is a token. The Tailwind theme is closed and lint enforces it, so a new value means a new token.
 - Accessibility: WCAG AA text contrast in both themes, visible focus, reduced motion respected, and it works from 390px phone width to desktop.

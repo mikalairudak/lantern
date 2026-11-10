@@ -515,6 +515,8 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 
 **Cost.** A fix waits for a release to reach visitors, so an urgent one is released alone. The preview of `develop` shares the development database and keys with every other preview, under the same caps.
 
+Since 2026-11-10, `develop` moves only by a merged pull request, not by a merge and push ("Every change reaches develop as a pull request the owner merges"); releases are unchanged.
+
 ## 2026-11-09 — Everything committed is written for a reader of the code, and a check holds the plainest rules
 
 **Decision.** Everything pushed is public, `develop` included, so commits, comments, docs and fixtures are written for a reader of the code: what is true and why, in English, with no record of how the work was agreed, nothing personal, no links to chats, local paths, production ids or secrets, and no commit hashes in prose. Plans, handoffs and working notes stay outside git, in a session's memory or the gitignored `/notes/`. Security docs describe controls in place and fixed findings; an open weakness stays out until it is fixed. `src/lib/repo-hygiene.test.ts` checks every tracked text file for what a pattern can see, and the `commit-msg` hook checks each message the same way (`CLAUDE.md`, "Everything committed is public").
