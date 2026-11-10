@@ -14,7 +14,7 @@ Lantern plans one day in a city, hour by hour, as quiet or as lively as the visi
 
 ## Everything committed is public
 
-The repository is public, and so is everything pushed to it, `develop` included: code, comments, docs, fixtures, screenshots, commit messages and branch names. Write each for a reader of the code. `src/lib/repo-hygiene.test.ts`, in `pnpm check`, and the `commit-msg` hook hold the plainest of these rules; the rest are kept by whoever writes.
+The repository is public, and so is everything pushed to it, `develop` included: code, comments, docs, fixtures, screenshots, commit messages and branch names. Write each for a reader of the code. `src/lib/repo-hygiene.test.ts`, in `pnpm check`, the `commit-msg` hook, and the pull request check (`scripts/check-pr-text.mts`, run by `.github/workflows/pr-text.yml` on the branch name, title and body of each pull request into `develop`) hold the plainest of these rules; the rest are kept by whoever writes.
 
 - **English only,** in code, comments, docs, UI copy and commit messages. The exceptions are test data that exercises other scripts, listed in the hygiene test.
 - **Say what is true and why, never how it was agreed.** No record of conversations, approvals or requests, of who asked for what, and no quotes from a chat. A product call is stated with its reason; a comment cites a decision. Sessions, agents, tickets, rounds of work, worktrees and reviews are how the work gets done, not what the code is, and stay out.
@@ -22,7 +22,7 @@ The repository is public, and so is everything pushed to it, `develop` included:
 - **No pointers that leak or rot.** No links to chats, sessions or shared pages; no local paths, machine or account names; no ids of production records; no secret and no hash of one. No commit hashes or branch names in docs or comments, since history can be rewritten: name a date or a state.
 - **Plans and notes stay out of git.** Status, handoffs, ask lists, transcripts and working notes live in a session's memory or in the gitignored `/notes/`. The repository holds what is built and why: `docs/decisions.md`, `docs/harness.md`, and the scope in `docs/roadmap.md`.
 - **Security docs describe the controls in place.** An open weakness, and how one would use it, stays out of the repository until it is fixed.
-- **A commit message is a short record for a reader:** the subject says what changed, the body why. It tells no story of the work and names no one who did it, beyond the co-author trailer.
+- **A commit message is a short record for a reader:** the subject says what changed, the body why. It tells no story of the work and names no one who did it, beyond the co-author trailer. That trailer ends every commit and every pull request's body, since a pull request's body becomes its squash commit's: the work is written with Claude, and the history shows it.
 
 ## Commands
 
@@ -91,12 +91,12 @@ src/lib/                    everything under the React layer, mapped in its READ
                             the rules for what is committed
 db/                         forward-only SQL migrations, and the read-only production role
 scripts/                    build check, migrations, reports, the production read, the paid eval round and its table,
-                            the favicon, the commit message check
+                            the favicon, the commit message check, the pull request text check
 e2e/                        Playwright specs; e2e/visual/ holds the matrices' pixel baseline
 assets/fonts/               Fira Sans cut to Latin, for the link card the server draws
 .githooks/, .github/        the commit gate (pnpm check) and the commit message check; CI: pnpm check and build:check
                             on pushes to develop and main and on pull requests, pnpm e2e on pull requests, on pushes
-                            to main and by hand
+                            to main and by hand; the pull request template, and the check of a pull request's text
 docs/                       decisions, harness, design direction, security, ops, roadmap, case study, the contracts
                             (targeted re-plan, grounding, voice), discoverability; brand/ and media/ (the README's demo)
 ```

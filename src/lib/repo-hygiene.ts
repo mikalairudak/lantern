@@ -1,9 +1,11 @@
 /**
  * The rules for what may be committed that a pattern can see (`CLAUDE.md`, "Everything
  * committed is public", and `docs/decisions.md`, "Everything committed is written for a reader
- * of the code"). `repo-hygiene.test.ts` holds every tracked text file to them, and
- * `.githooks/commit-msg` holds each commit's message, through `scripts/check-commit-message.mts`.
- * The module imports nothing, so that script runs it on plain Node at every commit.
+ * of the code"). `repo-hygiene.test.ts` holds every tracked text file to them,
+ * `.githooks/commit-msg` holds each commit's message, through `scripts/check-commit-message.mts`,
+ * and `.github/workflows/pr-text.yml` holds the branch name, title and body of each pull request
+ * into `develop`, through `scripts/check-pr-text.mts`. The module imports nothing, so those
+ * scripts run it on plain Node.
  */
 
 export interface HygieneRule {
@@ -13,7 +15,7 @@ export interface HygieneRule {
   readonly pattern: RegExp;
   /** Why it stays out of the repository. */
   readonly reason: string;
-  /** Whether a commit's message is held to it as well as the files. */
+  /** Whether a commit's message and a pull request's text are held to it as well as the files. */
   readonly inMessages: boolean;
   /** Whether it reads Markdown alone, and only outside fenced code. */
   readonly markdownProseOnly?: boolean;
@@ -39,8 +41,10 @@ export interface HygieneFault {
 /** Tests, end-to-end specs and fixtures: what they hold is made up to exercise the code. */
 const TEST_FILE = /\.(?:test|spec)\.tsx?$|^e2e\/|^src\/lib\/fixtures\//;
 const MARKDOWN_FILE = /\.md$/;
-/** A line that opens or closes a fenced code block. */
-const FENCE = /^ {0,3}(?:```|~~~)/;
+/** A line that opens a fenced code block: three or more backticks or tildes, and its marker. */
+const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
+/** A line that can close one: a marker alone, as long as the opening one or longer. */
+const FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})\s*$/;
 /** Git's comment lines in a message it hands the hook. */
 const COMMENT_MARK = "#";
 /** Git's scissors line: everything below it, such as `git commit -v`'s diff, is not the message. */
@@ -137,16 +141,44 @@ function linesOf(text: string): Line[] {
   return text.split("\n").map((line, index) => ({ number: index + 1, text: line.trimEnd() }));
 }
 
+interface Fences {
+  /** Whether each line is fenced code, its opening and closing lines included. */
+  readonly isCode: readonly boolean[];
+  /** The line of a fence the text leaves open, which hides every line below it. */
+  readonly unclosed: Line | null;
+}
+
+/**
+ * Where fenced code stands, as CommonMark reads it: a fence closes only on a marker of the same
+ * character, at least as long as the one that opened it.
+ */
+function fencesOf(lines: readonly Line[]): Fences {
+  let opening: Line | null = null;
+  let openMarker = "";
+  const isCode: boolean[] = [];
+  for (const line of lines) {
+    if (opening === null) {
+      const marker = FENCE_OPEN.exec(line.text)?.[1];
+      if (marker !== undefined) {
+        opening = line;
+        openMarker = marker;
+      }
+      isCode.push(marker !== undefined);
+      continue;
+    }
+    const marker = FENCE_CLOSE.exec(line.text)?.[1] ?? "";
+    // A marker is one character throughout, so one that starts with the opening marker is of
+    // the same character and at least as long.
+    if (marker.startsWith(openMarker)) opening = null;
+    isCode.push(true);
+  }
+  return { isCode, unclosed: opening };
+}
+
 /** The lines outside fenced code blocks. */
 function proseLinesOf(lines: readonly Line[]): Line[] {
-  let isInFence = false;
-  return lines.filter(({ text }) => {
-    if (FENCE.test(text)) {
-      isInFence = !isInFence;
-      return false;
-    }
-    return !isInFence;
-  });
+  const { isCode } = fencesOf(lines);
+  return lines.filter((_, index) => !isCode[index]);
 }
 
 function faultsOf(rule: HygieneRule, lines: readonly Line[], isTestFile: boolean): HygieneFault[] {
@@ -190,13 +222,17 @@ function messageLinesOf(message: string): Line[] {
 
 /** What breaks the rules in a commit's message, as git hands it to the `commit-msg` hook. */
 export function findMessageFaults(message: string): HygieneFault[] {
-  const lines = messageLinesOf(message);
+  return messageFaultsOf(messageLinesOf(message));
+}
+
+/** What breaks the rules held to messages, among the lines given. */
+function messageFaultsOf(lines: readonly Line[]): HygieneFault[] {
   return HYGIENE_RULES.filter((rule) => rule.inMessages)
     .flatMap((rule) => faultsOf(rule, lines, false))
     .sort(byLine);
 }
 
-function whatAndWhy(fault: HygieneFault): string {
+function whatAndWhy(fault: Pick<HygieneFault, "rule" | "found" | "reason">): string {
   return `${fault.rule}: "${fault.found}". ${fault.reason}`;
 }
 
@@ -217,5 +253,232 @@ export function runCommitMessageCheck(message: string, err: (line: string) => vo
   );
   for (const fault of faults) err(`  line ${fault.line}, ${whatAndWhy(fault)}`);
   err("Lines starting with # and everything below the scissors line are not read.");
+  return 1;
+}
+
+/** The kinds of change a commit's subject and a branch's name start with. */
+const CHANGE_KINDS = ["feat", "fix", "chore", "docs", "test", "refactor"] as const;
+const BRANCH_NAME = new RegExp(`^(?:${CHANGE_KINDS.join("|")})/[a-z0-9][a-z0-9.-]*$`);
+/** A conventional commit's subject: its kind, an optional scope, a colon and the change. */
+const CONVENTIONAL_SUBJECT = new RegExp(`^(?:${CHANGE_KINDS.join("|")})(?:\\([a-z0-9-]+\\))?: \\S`);
+/** The body's sections, in order, as `.github/pull_request_template.md` lays them out. */
+export const PULL_REQUEST_SECTIONS = ["What changes", "Why", "Look at", "Checked", "Risk"] as const;
+/** A first- or second-level heading, which ends the section above it. */
+const SECTION_HEADING = /^ {0,3}(#{1,2})(?!#)(?:\s+(.*?))?\s*#*\s*$/;
+/** An HTML comment, which GitHub does not show; one left open hides the rest of the text. */
+const HTML_COMMENT = /<!--[\s\S]*?(?:-->|$)/g;
+const TEMPLATE = ".github/pull_request_template.md";
+
+/** A pull request's public text: GitHub shows each part the moment the branch is pushed. */
+export interface PullRequestText {
+  readonly branch: string;
+  readonly title: string;
+  readonly body: string;
+}
+
+export interface PullRequestFault {
+  /** The part it stands in. */
+  readonly part: keyof PullRequestText;
+  /** The body's line it stands on, counted from 1; null for a whole part or a missing section. */
+  readonly line: number | null;
+  /** The rule it breaks. */
+  readonly rule: string;
+  /** What the rule found. */
+  readonly found: string;
+  /** Why the rule holds. */
+  readonly reason: string;
+}
+
+function inPart(part: keyof PullRequestText, line: number | null) {
+  return (fault: HygieneFault): PullRequestFault => ({
+    part,
+    line,
+    rule: fault.rule,
+    found: fault.found,
+    reason: fault.reason,
+  });
+}
+
+function titleFaultsOf(title: string): PullRequestFault[] {
+  const shape: PullRequestFault[] = CONVENTIONAL_SUBJECT.test(title)
+    ? []
+    : [
+        {
+          part: "title",
+          line: null,
+          rule: "Title",
+          found: title,
+          reason: `A pull request is squash-merged, so its title becomes the commit's subject on develop and its body the commit's body; the title is a conventional commit's subject (${CHANGE_KINDS.join(", ")}, an optional scope, a colon and the change).`,
+        },
+      ];
+  return [...shape, ...messageFaultsOf(linesOf(title)).map(inPart("title", null))];
+}
+
+function branchFaultsOf(branch: string): PullRequestFault[] {
+  const shape: PullRequestFault[] = BRANCH_NAME.test(branch)
+    ? []
+    : [
+        {
+          part: "branch",
+          line: null,
+          rule: "Branch name",
+          found: branch,
+          reason: `A branch's name is public once pushed, so it names its kind of change as a commit does (${CHANGE_KINDS.join(", ")}), then a slash and lowercase words joined by hyphens or dots.`,
+        },
+      ];
+  return [...shape, ...messageFaultsOf(linesOf(branch)).map(inPart("branch", null))];
+}
+
+interface Heading {
+  /** Its index among the body's lines. */
+  readonly index: number;
+  /** 1 or 2: a section is a second-level heading. */
+  readonly level: number;
+  readonly title: string;
+}
+
+/** The body's first- and second-level headings outside fenced code. */
+function headingsOf(lines: readonly Line[]): Heading[] {
+  const { isCode } = fencesOf(lines);
+  return lines.flatMap(({ text }, index) => {
+    const match = isCode[index] === true ? null : SECTION_HEADING.exec(text);
+    return match === null ? [] : [{ index, level: match[1]?.length ?? 0, title: match[2] ?? "" }];
+  });
+}
+
+/**
+ * The body's lines as GitHub shows them: each HTML comment outside fenced code blanked, a
+ * multi-line one too, so a heading inside one is no section. Each line keeps its number.
+ */
+function shownLinesOf(lines: readonly Line[]): Line[] {
+  const { isCode } = fencesOf(lines);
+  const shown: Line[] = [];
+  let prose: Line[] = [];
+  const flush = () => {
+    const text = prose
+      .map((line) => line.text)
+      .join("\n")
+      .replace(HTML_COMMENT, (comment) => comment.replace(/[^\n]/g, ""));
+    text.split("\n").forEach((line, index) => {
+      const at = prose[index];
+      if (at !== undefined) shown.push({ number: at.number, text: line.trimEnd() });
+    });
+    prose = [];
+  };
+  lines.forEach((line, index) => {
+    if (isCode[index] === true) {
+      flush();
+      shown.push(line);
+    } else {
+      prose.push(line);
+    }
+  });
+  flush();
+  return shown;
+}
+
+function sectionFault(heading: string, rule: string, reason: string): PullRequestFault {
+  return { part: "body", line: null, rule, found: `## ${heading}`, reason };
+}
+
+/** The five sections, each present, in order, and saying something beyond the template's hint. */
+function shapeFaultsOf(lines: readonly Line[]): PullRequestFault[] {
+  const headings = headingsOf(lines);
+  let lastIndex = -1;
+  return PULL_REQUEST_SECTIONS.flatMap((title) => {
+    const at = headings.findIndex((heading) => heading.level === 2 && heading.title === title);
+    const heading = headings[at];
+    if (heading === undefined) {
+      return [
+        sectionFault(
+          title,
+          "Section missing",
+          `The body holds ${PULL_REQUEST_SECTIONS.length} sections, in the order ${TEMPLATE} gives them.`,
+        ),
+      ];
+    }
+    const { index } = heading;
+    const end = headings[at + 1]?.index ?? lines.length;
+    const said = lines
+      .slice(index + 1, end)
+      .map(({ text }) => text)
+      .join("\n")
+      .trim();
+    const faults: PullRequestFault[] = [];
+    if (index < lastIndex) {
+      faults.push(
+        sectionFault(
+          title,
+          "Section out of order",
+          `A reader finds each section where ${TEMPLATE} puts it.`,
+        ),
+      );
+    }
+    if (said === "") {
+      faults.push(
+        sectionFault(
+          title,
+          "Section empty",
+          "Each section says at least one line; the template's comment alone is a hint, not an answer.",
+        ),
+      );
+    }
+    lastIndex = Math.max(lastIndex, index);
+    return faults;
+  });
+}
+
+/**
+ * What breaks the rules in a pull request's branch name, title and body. The body is Markdown,
+ * so the rules read its prose outside fenced code, comments included, since they stay in its
+ * source; it also holds the template's five sections.
+ */
+export function findPullRequestFaults(text: PullRequestText): PullRequestFault[] {
+  const bodyLines = linesOf(text.body);
+  const { unclosed } = fencesOf(bodyLines);
+  const fenceFaults: PullRequestFault[] =
+    unclosed === null
+      ? []
+      : [
+          {
+            part: "body",
+            line: unclosed.number,
+            rule: "Unclosed code fence",
+            found: unclosed.text.trim(),
+            reason:
+              "A fence left open hides every line below it from the rules and the sections; close it with the same marker.",
+          },
+        ];
+  const bodyFaults = messageFaultsOf(proseLinesOf(bodyLines)).map((fault) =>
+    inPart("body", fault.line)(fault),
+  );
+  return [
+    ...branchFaultsOf(text.branch),
+    ...titleFaultsOf(text.title),
+    ...fenceFaults,
+    ...bodyFaults,
+    ...shapeFaultsOf(shownLinesOf(bodyLines)),
+  ];
+}
+
+function placeOf(fault: PullRequestFault): string {
+  return fault.line === null ? fault.part : `${fault.part} line ${fault.line}`;
+}
+
+/**
+ * The pull request check, as `.github/workflows/pr-text.yml` runs it: prints each fault to `err`
+ * and answers the exit code, 1 when the branch name, title or body breaks a rule.
+ */
+export function runPullRequestTextCheck(
+  text: PullRequestText,
+  err: (line: string) => void,
+): number {
+  const faults = findPullRequestFaults(text);
+  if (faults.length === 0) return 0;
+  err(
+    'pr-text: the pull request breaks the rules for what is committed (CLAUDE.md, "Everything committed is public"):',
+  );
+  for (const fault of faults) err(`  ${placeOf(fault)}, ${whatAndWhy(fault)}`);
+  err("Text inside fenced code is not read.");
   return 1;
 }
