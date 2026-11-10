@@ -132,64 +132,66 @@ function firstNamesOf(page: Page) {
 }
 
 for (const city of ["bologna", "kanazawa", "nafplio"]) {
-  test(`on ${city}'s day a drag grabbed at the screen's top names its version on the screen`, async ({
-    page,
-  }) => {
-    await page.setViewportSize(NARROW_PHONE);
-    await page.goto(`/day/${city}`);
-    const chart = page.getByRole("group", { name: /The day's energy/ });
-    await expect(chart).toHaveAttribute("aria-busy", "false", { timeout: DAY_TIMEOUT_MS });
-    const chartBox = await chart.boundingBox();
-    if (!chartBox) throw new Error("The chart has no box");
-    const lane = chartBox.width / 5;
-    const past: string[] = [];
-    const sliders = page.getByRole("slider", { name: /^Energy at/ });
-    for (const at of GRABBED_AT_PX) {
-      for (const index of [0, 1]) {
-        const knob = sliders.nth(index).locator("circle");
-        const box = await knob.boundingBox();
-        if (!box) throw new Error("The knob has no box");
-        // The knob this far under the screen's top, the band held over the chart.
-        await page.evaluate((by) => scrollBy(0, by), box.y + box.height / 2 - at);
-        const from = await knob.boundingBox();
-        if (!from) throw new Error("The knob has no box");
-        const x = from.x + from.width / 2;
-        const y = from.y + from.height / 2;
-        const toward = x < chartBox.x + chartBox.width / 2 ? 1 : -1;
-        const band = await bandOf(page);
-        await watchFirstNames(page);
-        await page.mouse.move(x, y);
-        await page.mouse.down();
-        // Held over the knob, the band steps aside at the press, before the hand has moved;
-        // over a knob under it, as the drag sets off.
-        const isUnderBand = band?.isHeld && y <= band.bottom;
-        if (isUnderBand) await expect.poll(async () => (await bandOf(page))?.opacity).toBe(0);
-        for (let step = 1; step <= 12; step += 1) {
-          await page.mouse.move(x + (toward * lane * 1.5 * step) / 12, y);
-        }
-        if (band?.isHeld) await expect.poll(async () => (await bandOf(page))?.opacity).toBe(0);
-        const name = page.locator("[data-tag][data-dragged] > *").first();
-        if (await name.count()) {
-          const top = (await name.boundingBox())?.y ?? 0;
-          if (top < 0) past.push(`stop ${index} at ${at} px: ${Math.round(top)} px`);
-        }
-        // Its first frame stands where the screen is now, not where it was at the drag before.
-        const [first, second] = await firstNamesOf(page);
-        if (first && first.top < 0) {
-          past.push(`stop ${index} at ${at} px, first frame: ${Math.round(first.top)} px`);
-        }
-        const isSameName = first && second && first.line === second.line;
-        if (isSameName && first.text === second.text) {
-          const moved = Math.abs(second.top - first.top);
-          if (moved > NAME_STILL_PX) {
-            past.push(`stop ${index} at ${at} px, first frame ${Math.round(moved)} px off`);
+  test(
+    `on ${city}'s day a drag grabbed at the screen's top names its version on the screen`,
+    { tag: "@frame" },
+    async ({ page }) => {
+      await page.setViewportSize(NARROW_PHONE);
+      await page.goto(`/day/${city}`);
+      const chart = page.getByRole("group", { name: /The day's energy/ });
+      await expect(chart).toHaveAttribute("aria-busy", "false", { timeout: DAY_TIMEOUT_MS });
+      const chartBox = await chart.boundingBox();
+      if (!chartBox) throw new Error("The chart has no box");
+      const lane = chartBox.width / 5;
+      const past: string[] = [];
+      const sliders = page.getByRole("slider", { name: /^Energy at/ });
+      for (const at of GRABBED_AT_PX) {
+        for (const index of [0, 1]) {
+          const knob = sliders.nth(index).locator("circle");
+          const box = await knob.boundingBox();
+          if (!box) throw new Error("The knob has no box");
+          // The knob this far under the screen's top, the band held over the chart.
+          await page.evaluate((by) => scrollBy(0, by), box.y + box.height / 2 - at);
+          const from = await knob.boundingBox();
+          if (!from) throw new Error("The knob has no box");
+          const x = from.x + from.width / 2;
+          const y = from.y + from.height / 2;
+          const toward = x < chartBox.x + chartBox.width / 2 ? 1 : -1;
+          const band = await bandOf(page);
+          await watchFirstNames(page);
+          await page.mouse.move(x, y);
+          await page.mouse.down();
+          // Held over the knob, the band steps aside at the press, before the hand has moved;
+          // over a knob under it, as the drag sets off.
+          const isUnderBand = band?.isHeld && y <= band.bottom;
+          if (isUnderBand) await expect.poll(async () => (await bandOf(page))?.opacity).toBe(0);
+          for (let step = 1; step <= 12; step += 1) {
+            await page.mouse.move(x + (toward * lane * 1.5 * step) / 12, y);
           }
+          if (band?.isHeld) await expect.poll(async () => (await bandOf(page))?.opacity).toBe(0);
+          const name = page.locator("[data-tag][data-dragged] > *").first();
+          if (await name.count()) {
+            const top = (await name.boundingBox())?.y ?? 0;
+            if (top < 0) past.push(`stop ${index} at ${at} px: ${Math.round(top)} px`);
+          }
+          // Its first frame stands where the screen is now, not where it was at the drag before.
+          const [first, second] = await firstNamesOf(page);
+          if (first && first.top < 0) {
+            past.push(`stop ${index} at ${at} px, first frame: ${Math.round(first.top)} px`);
+          }
+          const isSameName = first && second && first.line === second.line;
+          if (isSameName && first.text === second.text) {
+            const moved = Math.abs(second.top - first.top);
+            if (moved > NAME_STILL_PX) {
+              past.push(`stop ${index} at ${at} px, first frame ${Math.round(moved)} px off`);
+            }
+          }
+          await page.mouse.up();
+          const back = page.getByRole("button", { name: "Back to the plan" });
+          if (await back.count()) await back.click();
         }
-        await page.mouse.up();
-        const back = page.getByRole("button", { name: "Back to the plan" });
-        if (await back.count()) await back.click();
       }
-    }
-    expect(past).toEqual([]);
-  });
+      expect(past).toEqual([]);
+    },
+  );
 }

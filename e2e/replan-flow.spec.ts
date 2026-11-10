@@ -355,59 +355,61 @@ test("a second change taken back puts back the first one's day and its address, 
   });
 });
 
-test("a word that writes the whole day again keeps the day before on screen until its proposal is taken, its headline changed by the pair", async ({
-  page,
-}) => {
-  await seeWrittenDay(page, "madrid", MADRID.itinerary);
-  await openLive(page, MADRID_ADDRESS);
-  await waitForTheDay(page);
-  // Each frame from now on: the headline's words, without a word's open list, and whether
-  // the rows are still the day before's.
-  await page.evaluate(() => {
-    const list = document.querySelector('ol[aria-label="The day"]');
-    list?.setAttribute("data-before", "yes");
-    const state = window as unknown as { frames: { sentence: string; rows: string }[] };
-    state.frames = [];
-    const sample = () => {
-      const headline = document.querySelector("main h1");
-      const open = headline?.querySelector('[role="listbox"]')?.textContent ?? "";
-      const day = document.querySelector('ol[aria-label="The day"]');
-      const rows = day === null ? "none" : day.getAttribute("data-before") ? "before" : "new";
-      const sentence = (headline?.textContent ?? "").replace(open, "");
-      state.frames.push({ sentence, rows: `${rows}:${day?.children.length ?? 0}` });
+test(
+  "a word that writes the whole day again keeps the day before on screen until its proposal is taken, its headline changed by the pair",
+  { tag: "@frame" },
+  async ({ page }) => {
+    await seeWrittenDay(page, "madrid", MADRID.itinerary);
+    await openLive(page, MADRID_ADDRESS);
+    await waitForTheDay(page);
+    // Each frame from now on: the headline's words, without a word's open list, and whether
+    // the rows are still the day before's.
+    await page.evaluate(() => {
+      const list = document.querySelector('ol[aria-label="The day"]');
+      list?.setAttribute("data-before", "yes");
+      const state = window as unknown as { frames: { sentence: string; rows: string }[] };
+      state.frames = [];
+      const sample = () => {
+        const headline = document.querySelector("main h1");
+        const open = headline?.querySelector('[role="listbox"]')?.textContent ?? "";
+        const day = document.querySelector('ol[aria-label="The day"]');
+        const rows = day === null ? "none" : day.getAttribute("data-before") ? "before" : "new";
+        const sentence = (headline?.textContent ?? "").replace(open, "");
+        state.frames.push({ sentence, rows: `${rows}:${day?.children.length ?? 0}` });
+        requestAnimationFrame(sample);
+      };
       requestAnimationFrame(sample);
-    };
-    requestAnimationFrame(sample);
-  });
-  // Written for family: the day the route writes for Madrid, at its own pace.
-  await page.route(DAY_ROUTE, (route) =>
-    route.continue({ postData: JSON.stringify(MADRID.request) }),
-  );
+    });
+    // Written for family: the day the route writes for Madrid, at its own pace.
+    await page.route(DAY_ROUTE, (route) =>
+      route.continue({ postData: JSON.stringify(MADRID.request) }),
+    );
 
-  await changeWord(page, "with friends", "with family");
-  await takeProposal(page, "with family");
+    await changeWord(page, "with friends", "with family");
+    await takeProposal(page, "with family");
 
-  await expect(page.getByRole("heading", { level: 1 })).not.toContainText("with friends", {
-    timeout: DAY_TIMEOUT_MS,
-  });
-  await waitForTheDay(page);
-  const frames = await page.evaluate(
-    () => (window as unknown as { frames: { sentence: string; rows: string }[] }).frames,
-  );
-  const stops = MADRID.itinerary.stops.length;
-  // The rows the day before had, every one, until the new day's, every one, in one pass.
-  const rows = frames.map((frame) => frame.rows).filter((each, at, all) => each !== all[at - 1]);
-  expect(rows).toEqual([`before:${stops}`, `new:${stops}`]);
-  // The pen wrote the pair in after the visitor's word, and the word taken stood alone.
-  const sentences = frames
-    .map((frame) => frame.sentence)
-    .filter((each, at, all) => each !== all[at - 1]);
-  const before = sentences[0] ?? "";
-  const lead = before.slice(0, before.lastIndexOf("with friends"));
-  expect(sentences).toContain(`${lead}with friends or with family`);
-  expect(sentences.at(-1)).toBe(`${lead}with family`);
-  for (const sentence of sentences) expect(sentence.startsWith(lead), sentence).toBe(true);
-});
+    await expect(page.getByRole("heading", { level: 1 })).not.toContainText("with friends", {
+      timeout: DAY_TIMEOUT_MS,
+    });
+    await waitForTheDay(page);
+    const frames = await page.evaluate(
+      () => (window as unknown as { frames: { sentence: string; rows: string }[] }).frames,
+    );
+    const stops = MADRID.itinerary.stops.length;
+    // The rows the day before had, every one, until the new day's, every one, in one pass.
+    const rows = frames.map((frame) => frame.rows).filter((each, at, all) => each !== all[at - 1]);
+    expect(rows).toEqual([`before:${stops}`, `new:${stops}`]);
+    // The pen wrote the pair in after the visitor's word, and the word taken stood alone.
+    const sentences = frames
+      .map((frame) => frame.sentence)
+      .filter((each, at, all) => each !== all[at - 1]);
+    const before = sentences[0] ?? "";
+    const lead = before.slice(0, before.lastIndexOf("with friends"));
+    expect(sentences).toContain(`${lead}with friends or with family`);
+    expect(sentences.at(-1)).toBe(`${lead}with family`);
+    for (const sentence of sentences) expect(sentence.startsWith(lead), sentence).toBe(true);
+  },
+);
 
 test("a word that changes no stop is the visitor's at once: no route is asked, every row stays, and the facts line says why", async ({
   page,

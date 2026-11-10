@@ -141,7 +141,7 @@ test("forgetting the visitor's days forgets what the browser kept of every kept 
   expect(kept).toEqual([null, [written], [{ day: written, places: chosen }]]);
 });
 
-test.describe("with motion, a day opened by a device that has seen it", () => {
+test.describe("with motion, a day opened by a device that has seen it", { tag: "@frame" }, () => {
   test.use({ reducedMotion: "no-preference" });
 
   /** Notes how many of the day's rows the first frame that drew any had: all, opened whole. */

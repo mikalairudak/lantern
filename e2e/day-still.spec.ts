@@ -668,56 +668,57 @@ test("a swap made with the header above the screen never takes back the hand's s
   throw new Error("No stop of the day has a livelier version to step to");
 });
 
-test("a swap made with the header above the screen holds the day still, where nothing anchors the page", async ({
-  page,
-  isMobile,
-}) => {
-  test.skip(!isMobile, "A laptop's header holds room for the clause and the lead");
-  await page.setViewportSize(PHONE);
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  await page.goto("/day/nafplio");
-  const chart = page.getByRole("group", { name: /The day's energy/ });
-  await expect(chart).toHaveAttribute("aria-busy", "false", { timeout: DAY_TIMEOUT_MS });
-  // As in WebKit, an iPhone's engine, the browser keeps nothing in place as the page above
-  // the screen grows: only the page's own scroll can hold the day still.
-  await page.addStyleTag({ content: "html, body { overflow-anchor: none; }" });
-  await chart.evaluate((element) =>
-    window.scrollTo(0, element.getBoundingClientRect().top + scrollY),
-  );
-  const header = page.locator("main header");
-  const headerHeight = async () => (await header.boundingBox())?.height ?? 0;
-  const before = await headerHeight();
-
-  for (const slider of await page.getByRole("slider", { name: /^Energy at / }).all()) {
-    const energy = await slider.getAttribute("aria-valuenow");
-    await slider.evaluate((element) => element.focus({ preventScroll: true }));
-    // Where the chart stands on screen, every frame from the swap until the header rests.
-    await chart.evaluate((element) => {
-      const tops: number[] = [];
-      const from = element.getBoundingClientRect().top;
-      const until = performance.now() + 2000;
-      const tick = () => {
-        tops.push(element.getBoundingClientRect().top - from);
-        if (performance.now() < until) requestAnimationFrame(tick);
-        else Object.assign(window, { swapTops: tops });
-      };
-      requestAnimationFrame(tick);
-    });
-    await page.keyboard.press("ArrowRight");
-    if (!(await isStepped(slider, energy))) continue;
-    const sampled = await page.waitForFunction(
-      () => (window as unknown as { swapTops?: number[] }).swapTops,
+test(
+  "a swap made with the header above the screen holds the day still, where nothing anchors the page",
+  { tag: "@frame" },
+  async ({ page, isMobile }) => {
+    test.skip(!isMobile, "A laptop's header holds room for the clause and the lead");
+    await page.setViewportSize(PHONE);
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.goto("/day/nafplio");
+    const chart = page.getByRole("group", { name: /The day's energy/ });
+    await expect(chart).toHaveAttribute("aria-busy", "false", { timeout: DAY_TIMEOUT_MS });
+    // As in WebKit, an iPhone's engine, the browser keeps nothing in place as the page above
+    // the screen grows: only the page's own scroll can hold the day still.
+    await page.addStyleTag({ content: "html, body { overflow-anchor: none; }" });
+    await chart.evaluate((element) =>
+      window.scrollTo(0, element.getBoundingClientRect().top + scrollY),
     );
-    const tops = (await sampled.jsonValue()) ?? [];
-    // The sentence took a line above the screen, and the day under it never moved.
-    expect(await headerHeight()).toBeGreaterThan(before);
-    expect(Math.max(...tops.map(Math.abs)), "the chart on screen").toBeLessThanOrEqual(1);
-    return;
-  }
-  throw new Error("No stop of the day has a livelier version to step to");
-});
+    const header = page.locator("main header");
+    const headerHeight = async () => (await header.boundingBox())?.height ?? 0;
+    const before = await headerHeight();
 
-test.describe("with motion", () => {
+    for (const slider of await page.getByRole("slider", { name: /^Energy at / }).all()) {
+      const energy = await slider.getAttribute("aria-valuenow");
+      await slider.evaluate((element) => element.focus({ preventScroll: true }));
+      // Where the chart stands on screen, every frame from the swap until the header rests.
+      await chart.evaluate((element) => {
+        const tops: number[] = [];
+        const from = element.getBoundingClientRect().top;
+        const until = performance.now() + 2000;
+        const tick = () => {
+          tops.push(element.getBoundingClientRect().top - from);
+          if (performance.now() < until) requestAnimationFrame(tick);
+          else Object.assign(window, { swapTops: tops });
+        };
+        requestAnimationFrame(tick);
+      });
+      await page.keyboard.press("ArrowRight");
+      if (!(await isStepped(slider, energy))) continue;
+      const sampled = await page.waitForFunction(
+        () => (window as unknown as { swapTops?: number[] }).swapTops,
+      );
+      const tops = (await sampled.jsonValue()) ?? [];
+      // The sentence took a line above the screen, and the day under it never moved.
+      expect(await headerHeight()).toBeGreaterThan(before);
+      expect(Math.max(...tops.map(Math.abs)), "the chart on screen").toBeLessThanOrEqual(1);
+      return;
+    }
+    throw new Error("No stop of the day has a livelier version to step to");
+  },
+);
+
+test.describe("with motion", { tag: "@frame" }, () => {
   test.beforeEach(async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await sampleEveryFrame(page);
@@ -1107,6 +1108,7 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
   const isMoving = reducedMotion === "no-preference";
   test.describe(
     isMoving ? "at 390 and 1440 px, with motion" : "at 390 and 1440 px, reduced",
+    { tag: "@frame" },
     () => {
       test.beforeEach(async ({ page, isMobile }) => {
         await page.setViewportSize(isMobile ? PHONE : LAPTOP);

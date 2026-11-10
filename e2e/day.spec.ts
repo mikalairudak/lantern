@@ -166,61 +166,63 @@ test("a pointer over the chart previews a pull, and only a drag makes it", async
   await expect(headline).toHaveText(madeHeadline ?? "");
 });
 
-test("under reduced motion each row lands whole, and never grows or moves after", async ({
-  page,
-}) => {
-  // Each frame from the first: every row's words box, page-relative, once it can be seen.
-  await page.addInitScript(() => {
-    const frames: { top: number; left: number; height: number; width: number }[][] = [];
-    Object.assign(window, { rowFrames: frames });
-    const tick = () => {
-      const rows = [...document.querySelectorAll('ol[aria-label="The day"] > li')];
-      frames.push(
-        rows.map((row) => {
-          let opacity = 1;
-          for (let node: Element | null = row; node; node = node.parentElement) {
-            opacity *= Number.parseFloat(getComputedStyle(node).opacity);
-          }
-          const box = row.querySelector("button[aria-expanded]")?.parentElement;
-          const words = box?.getBoundingClientRect();
-          if (!words || opacity === 0) return { top: -1, left: -1, height: -1, width: -1 };
-          const top = Math.round(words.top + window.scrollY);
-          return {
-            top,
-            left: Math.round(words.left),
-            height: Math.round(words.height),
-            width: Math.round(words.width),
-          };
-        }),
-      );
+test(
+  "under reduced motion each row lands whole, and never grows or moves after",
+  { tag: "@frame" },
+  async ({ page }) => {
+    // Each frame from the first: every row's words box, page-relative, once it can be seen.
+    await page.addInitScript(() => {
+      const frames: { top: number; left: number; height: number; width: number }[][] = [];
+      Object.assign(window, { rowFrames: frames });
+      const tick = () => {
+        const rows = [...document.querySelectorAll('ol[aria-label="The day"] > li')];
+        frames.push(
+          rows.map((row) => {
+            let opacity = 1;
+            for (let node: Element | null = row; node; node = node.parentElement) {
+              opacity *= Number.parseFloat(getComputedStyle(node).opacity);
+            }
+            const box = row.querySelector("button[aria-expanded]")?.parentElement;
+            const words = box?.getBoundingClientRect();
+            if (!words || opacity === 0) return { top: -1, left: -1, height: -1, width: -1 };
+            const top = Math.round(words.top + window.scrollY);
+            return {
+              top,
+              left: Math.round(words.left),
+              height: Math.round(words.height),
+              width: Math.round(words.width),
+            };
+          }),
+        );
+        requestAnimationFrame(tick);
+      };
       requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  });
-  await page.goto("/day/kanazawa");
-  await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
-    "aria-busy",
-    "false",
-    { timeout: DAY_TIMEOUT_MS },
-  );
-
-  const frames = await page.evaluate(
-    () => (window as unknown as { rowFrames: { top: number }[][] }).rowFrames,
-  );
-  const seen = new Map<number, string>();
-  let rows = 0;
-  for (const frame of frames) {
-    frame.forEach((row, index) => {
-      if (row.top === -1) return;
-      const box = JSON.stringify(row);
-      const first = seen.get(index) ?? box;
-      expect(box, `row ${index}, once seen`).toBe(first);
-      seen.set(index, first);
     });
-    rows = Math.max(rows, frame.length);
-  }
-  expect(seen.size).toBe(rows);
-});
+    await page.goto("/day/kanazawa");
+    await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+      "aria-busy",
+      "false",
+      { timeout: DAY_TIMEOUT_MS },
+    );
+
+    const frames = await page.evaluate(
+      () => (window as unknown as { rowFrames: { top: number }[][] }).rowFrames,
+    );
+    const seen = new Map<number, string>();
+    let rows = 0;
+    for (const frame of frames) {
+      frame.forEach((row, index) => {
+        if (row.top === -1) return;
+        const box = JSON.stringify(row);
+        const first = seen.get(index) ?? box;
+        expect(box, `row ${index}, once seen`).toBe(first);
+        seen.set(index, first);
+      });
+      rows = Math.max(rows, frame.length);
+    }
+    expect(seen.size).toBe(rows);
+  },
+);
 
 test("every written day has an address of its own, which names the day", async ({ page }) => {
   await page.goto("/day/bologna");
@@ -487,91 +489,95 @@ test("an open stop's sheet never makes the page taller: the last opens above its
   expect(await pageHeight()).toBe(closed);
 });
 
-test("a version swapped in from the keyboard leaves an open sheet where it lies, and the focus on the slider", async ({
-  page,
-}) => {
-  // On a phone, Kanazawa Castle Park's livelier version is another row, Hirosaka Street.
-  await page.setViewportSize(PHONE);
-  await page.goto("/day/kanazawa");
-  await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
-    "aria-busy",
-    "false",
-    { timeout: DAY_TIMEOUT_MS },
-  );
-  const pageHeight = () => page.evaluate(() => document.documentElement.scrollHeight);
-  const slider = page.getByRole("slider", { name: "Energy at 13:30" });
-  const valueOf = () => slider.getAttribute("aria-valuetext");
-  // The page's height with each version on show, the stop closed.
-  await slider.focus();
-  const calm = { value: await valueOf(), height: await pageHeight() };
-  await page.keyboard.press("ArrowRight");
-  const livelyHeight = await pageHeight();
-  await page.keyboard.press("ArrowLeft");
-  expect(calm.value).toMatch(/^calm/);
-  expect(await valueOf()).toBe(calm.value);
+test(
+  "a version swapped in from the keyboard leaves an open sheet where it lies, and the focus on the slider",
+  { tag: "@frame" },
+  async ({ page }) => {
+    // On a phone, Kanazawa Castle Park's livelier version is another row, Hirosaka Street.
+    await page.setViewportSize(PHONE);
+    await page.goto("/day/kanazawa");
+    await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+      "aria-busy",
+      "false",
+      { timeout: DAY_TIMEOUT_MS },
+    );
+    const pageHeight = () => page.evaluate(() => document.documentElement.scrollHeight);
+    const slider = page.getByRole("slider", { name: "Energy at 13:30" });
+    const valueOf = () => slider.getAttribute("aria-valuetext");
+    // The page's height with each version on show, the stop closed.
+    await slider.focus();
+    const calm = { value: await valueOf(), height: await pageHeight() };
+    await page.keyboard.press("ArrowRight");
+    const livelyHeight = await pageHeight();
+    await page.keyboard.press("ArrowLeft");
+    expect(calm.value).toMatch(/^calm/);
+    expect(await valueOf()).toBe(calm.value);
 
-  await page
-    .getByRole("list", { name: "The day" })
-    .getByRole("button", { name: /^Kanazawa Castle Park/ })
-    .click();
-  const sheet = page.getByRole("region", { name: /^About / });
-  await expect(sheet).toBeFocused();
-  // Which side of its stop's name the sheet lies on, whether the name stands on it, the edge
-  // it unrolls from, and where the name stands on the screen: on a phone the header takes the
-  // swap's clause and the line's lead above, and the page scrolls with it, so nothing moves.
-  const placeOf = () =>
-    sheet.evaluate((element) => {
-      const box = element.getBoundingClientRect();
-      const name = document
-        .querySelector('ol[aria-label="The day"] button[aria-expanded="true"]')
-        ?.getBoundingClientRect();
-      const isAbove = name !== undefined && box.top < name.top;
-      return {
-        side: isAbove ? "above" : "below",
-        isOnSheet: name !== undefined && box.top < name.top && box.bottom > name.bottom,
-        edge: Math.round((isAbove ? box.bottom : box.top) + scrollY),
-        nameOnScreen: Math.round(name?.top ?? 0),
+    await page
+      .getByRole("list", { name: "The day" })
+      .getByRole("button", { name: /^Kanazawa Castle Park/ })
+      .click();
+    const sheet = page.getByRole("region", { name: /^About / });
+    await expect(sheet).toBeFocused();
+    // Which side of its stop's name the sheet lies on, whether the name stands on it, the edge
+    // it unrolls from, and where the name stands on the screen: on a phone the header takes the
+    // swap's clause and the line's lead above, and the page scrolls with it, so nothing moves.
+    const placeOf = () =>
+      sheet.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        const name = document
+          .querySelector('ol[aria-label="The day"] button[aria-expanded="true"]')
+          ?.getBoundingClientRect();
+        const isAbove = name !== undefined && box.top < name.top;
+        return {
+          side: isAbove ? "above" : "below",
+          isOnSheet: name !== undefined && box.top < name.top && box.bottom > name.bottom,
+          edge: Math.round((isAbove ? box.bottom : box.top) + scrollY),
+          nameOnScreen: Math.round(name?.top ?? 0),
+        };
+      });
+    await slider.focus();
+    const atOpen = await placeOf();
+    expect(atOpen.isOnSheet).toBe(true);
+    // The clause stepped in and straight back stands a while in the line it opened, then goes:
+    // the page comes back to the calm day's height, and the name under the open sheet holds
+    // still on the screen each frame as the line closes above it.
+    await page.evaluate(() => {
+      const state = window as unknown as { nameTops: number[] };
+      state.nameTops = [];
+      const sample = () => {
+        const name = document.querySelector(
+          'ol[aria-label="The day"] button[aria-expanded="true"]',
+        );
+        if (name) state.nameTops.push(name.getBoundingClientRect().top);
+        requestAnimationFrame(sample);
       };
-    });
-  await slider.focus();
-  const atOpen = await placeOf();
-  expect(atOpen.isOnSheet).toBe(true);
-  // The clause stepped in and straight back stands a while in the line it opened, then goes:
-  // the page comes back to the calm day's height, and the name under the open sheet holds
-  // still on the screen each frame as the line closes above it.
-  await page.evaluate(() => {
-    const state = window as unknown as { nameTops: number[] };
-    state.nameTops = [];
-    const sample = () => {
-      const name = document.querySelector('ol[aria-label="The day"] button[aria-expanded="true"]');
-      if (name) state.nameTops.push(name.getBoundingClientRect().top);
       requestAnimationFrame(sample);
-    };
-    requestAnimationFrame(sample);
-  });
-  await expect.poll(pageHeight).toBe(calm.height);
-  const nameTops = await page.evaluate(
-    () => (window as unknown as { nameTops: number[] }).nameTops,
-  );
-  expect(Math.max(...nameTops) - Math.min(...nameTops)).toBeLessThanOrEqual(STILL_NAME_PX);
-  const opened = await placeOf();
-  expect(Math.abs(opened.nameOnScreen - atOpen.nameOnScreen)).toBeLessThanOrEqual(STILL_NAME_PX);
+    });
+    await expect.poll(pageHeight).toBe(calm.height);
+    const nameTops = await page.evaluate(
+      () => (window as unknown as { nameTops: number[] }).nameTops,
+    );
+    expect(Math.max(...nameTops) - Math.min(...nameTops)).toBeLessThanOrEqual(STILL_NAME_PX);
+    const opened = await placeOf();
+    expect(Math.abs(opened.nameOnScreen - atOpen.nameOnScreen)).toBeLessThanOrEqual(STILL_NAME_PX);
 
-  // The livelier version's row is laid out anew, and the sheet keeps to it, on the same side.
-  await page.keyboard.press("ArrowRight");
-  await expect(page.getByRole("region", { name: "About Hirosaka Street" })).toBeVisible();
-  await expect(slider).toBeFocused();
-  expect(await placeOf()).toEqual({ ...opened, edge: expect.any(Number) });
-  expect(await pageHeight()).toBe(livelyHeight);
+    // The livelier version's row is laid out anew, and the sheet keeps to it, on the same side.
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByRole("region", { name: "About Hirosaka Street" })).toBeVisible();
+    await expect(slider).toBeFocused();
+    expect(await placeOf()).toEqual({ ...opened, edge: expect.any(Number) });
+    expect(await pageHeight()).toBe(livelyHeight);
 
-  await page.keyboard.press("ArrowLeft");
-  await expect(page.getByRole("region", { name: "About Kanazawa Castle Park" })).toBeVisible();
-  await expect(slider).toBeFocused();
-  expect(await valueOf()).toBe(calm.value);
-  // The clause the step back lets go stands its while in its line, then goes, as above.
-  await expect.poll(pageHeight).toBe(calm.height);
-  expect(await placeOf()).toEqual(opened);
-});
+    await page.keyboard.press("ArrowLeft");
+    await expect(page.getByRole("region", { name: "About Kanazawa Castle Park" })).toBeVisible();
+    await expect(slider).toBeFocused();
+    expect(await valueOf()).toBe(calm.value);
+    // The clause the step back lets go stands its while in its line, then goes, as above.
+    await expect.poll(pageHeight).toBe(calm.height);
+    expect(await placeOf()).toEqual(opened);
+  },
+);
 
 /** How many of the chart's beads are fading in or out, not yet whole or gone. */
 async function fadingBeadsOf(page: Page): Promise<number> {
@@ -834,88 +840,89 @@ interface RowFrame {
   isHungLeft: boolean;
 }
 
-test("a row hung left of its bead keeps its words where they stand as its crosshair comes", async ({
-  page,
-  isMobile,
-}) => {
-  test.skip(isMobile, "Madrid's evening rows hang left of their beads on a laptop");
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  await page.setViewportSize(LAPTOP);
-  await page.addInitScript((beadAttribute) => {
-    const rows: RowFrame[][] = [];
-    Object.assign(window, { rowFrames: rows });
-    const sample = (): void => {
-      const beads = [...document.querySelectorAll(`[${beadAttribute}]`)].map((bead) => {
-        const box = bead.getBoundingClientRect();
-        return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
-      });
-      document.querySelectorAll('ol[aria-label="The day"] > li').forEach((item, index) => {
-        const button = item.querySelector("button");
-        const words = button?.parentElement;
-        if (!button || !words) return;
-        // A row's bead is the first under its words: its wire runs under them.
-        const top = words.getBoundingClientRect().top;
-        const bead = beads.filter((each) => each.y > top).sort((a, b) => a.y - b.y)[0];
-        const name = button.firstElementChild?.getBoundingClientRect();
-        const heard = [...button.querySelectorAll(".sr-only")].map((only) => only.textContent);
-        const said = heard.reduce(
-          (text, only) => text.replace(only ?? "", ""),
-          button.textContent ?? "",
-        );
-        (rows[index] ??= []).push({
-          left: name ? name.left : null,
-          offset: name && bead ? name.left - bead.x : null,
-          said,
-          isSeen:
-            getComputedStyle(words).visibility !== "hidden" &&
-            item.getAttribute("aria-hidden") !== "true",
-          isMarked: button.querySelector("[title='on the map']") !== null,
-          isHungLeft: getComputedStyle(words).textAlign === "right",
+test(
+  "a row hung left of its bead keeps its words where they stand as its crosshair comes",
+  { tag: "@frame" },
+  async ({ page, isMobile }) => {
+    test.skip(isMobile, "Madrid's evening rows hang left of their beads on a laptop");
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.setViewportSize(LAPTOP);
+    await page.addInitScript((beadAttribute) => {
+      const rows: RowFrame[][] = [];
+      Object.assign(window, { rowFrames: rows });
+      const sample = (): void => {
+        const beads = [...document.querySelectorAll(`[${beadAttribute}]`)].map((bead) => {
+          const box = bead.getBoundingClientRect();
+          return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
         });
-      });
+        document.querySelectorAll('ol[aria-label="The day"] > li').forEach((item, index) => {
+          const button = item.querySelector("button");
+          const words = button?.parentElement;
+          if (!button || !words) return;
+          // A row's bead is the first under its words: its wire runs under them.
+          const top = words.getBoundingClientRect().top;
+          const bead = beads.filter((each) => each.y > top).sort((a, b) => a.y - b.y)[0];
+          const name = button.firstElementChild?.getBoundingClientRect();
+          const heard = [...button.querySelectorAll(".sr-only")].map((only) => only.textContent);
+          const said = heard.reduce(
+            (text, only) => text.replace(only ?? "", ""),
+            button.textContent ?? "",
+          );
+          (rows[index] ??= []).push({
+            left: name ? name.left : null,
+            offset: name && bead ? name.left - bead.x : null,
+            said,
+            isSeen:
+              getComputedStyle(words).visibility !== "hidden" &&
+              item.getAttribute("aria-hidden") !== "true",
+            isMarked: button.querySelector("[title='on the map']") !== null,
+            isHungLeft: getComputedStyle(words).textAlign === "right",
+          });
+        });
+        requestAnimationFrame(sample);
+      };
       requestAnimationFrame(sample);
-    };
-    requestAnimationFrame(sample);
-  }, SHOWN_BEAD);
-  await page.goto("/day/madrid");
-  await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
-    "aria-busy",
-    "false",
-    { timeout: DAY_TIMEOUT_MS },
-  );
-  const rows = await page.evaluate(
-    () => (window as unknown as { rowFrames: RowFrame[][] }).rowFrames,
-  );
-  // A crosshair that shows in a frame of its own, the row seen and saying the same as the frame
-  // before, holds its name still there and in the frame after, as a width set a frame before
-  // its place would land in the next. One that shows as its bead is weighed comes with the
-  // rest of what the row says, as the row sets off. Held from when the check came, or the name
-  // was whole, its room moved the Retiro's 16 px left.
-  const moves: string[] = [];
-  let checked = 0;
-  rows.forEach((frames) => {
-    const marked = frames.findIndex((frame) => frame.isMarked);
-    const stands = (at: number): boolean => {
-      const [now, before] = [frames[at], frames[at - 1]];
-      return Boolean(now?.isSeen && before?.isSeen && now.said === before.said);
-    };
-    if (marked < 1 || !frames[marked]?.isHungLeft || !stands(marked)) return;
-    for (const at of [marked, marked + 1].filter(stands)) {
-      const [now, before] = [frames[at], frames[at - 1]];
-      if (!now || !before || now.offset === null || before.offset === null) continue;
-      checked += 1;
-      // A step moves the words on the screen and away from their bead at once: a bead sliding
-      // in under words standing at rest moves alone, and words riding their bead move with it.
-      const against = now.offset - before.offset;
-      const moved = (now.left ?? 0) - (before.left ?? 0);
-      if (Math.abs(against) >= NAME_STANDS_PX && Math.abs(moved) >= NAME_STANDS_PX) {
-        moves.push(`${now.said}: ${moved.toFixed(1)} px`);
+    }, SHOWN_BEAD);
+    await page.goto("/day/madrid");
+    await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+      "aria-busy",
+      "false",
+      { timeout: DAY_TIMEOUT_MS },
+    );
+    const rows = await page.evaluate(
+      () => (window as unknown as { rowFrames: RowFrame[][] }).rowFrames,
+    );
+    // A crosshair that shows in a frame of its own, the row seen and saying the same as the frame
+    // before, holds its name still there and in the frame after, as a width set a frame before
+    // its place would land in the next. One that shows as its bead is weighed comes with the
+    // rest of what the row says, as the row sets off. Held from when the check came, or the name
+    // was whole, its room moved the Retiro's 16 px left.
+    const moves: string[] = [];
+    let checked = 0;
+    rows.forEach((frames) => {
+      const marked = frames.findIndex((frame) => frame.isMarked);
+      const stands = (at: number): boolean => {
+        const [now, before] = [frames[at], frames[at - 1]];
+        return Boolean(now?.isSeen && before?.isSeen && now.said === before.said);
+      };
+      if (marked < 1 || !frames[marked]?.isHungLeft || !stands(marked)) return;
+      for (const at of [marked, marked + 1].filter(stands)) {
+        const [now, before] = [frames[at], frames[at - 1]];
+        if (!now || !before || now.offset === null || before.offset === null) continue;
+        checked += 1;
+        // A step moves the words on the screen and away from their bead at once: a bead sliding
+        // in under words standing at rest moves alone, and words riding their bead move with it.
+        const against = now.offset - before.offset;
+        const moved = (now.left ?? 0) - (before.left ?? 0);
+        if (Math.abs(against) >= NAME_STANDS_PX && Math.abs(moved) >= NAME_STANDS_PX) {
+          moves.push(`${now.said}: ${moved.toFixed(1)} px`);
+        }
       }
-    }
-  });
-  expect(moves).toEqual([]);
-  expect(checked).toBeGreaterThanOrEqual(MADRID_MARKS_AFTER_WORDS * 2);
-});
+    });
+    expect(moves).toEqual([]);
+    expect(checked).toBeGreaterThanOrEqual(MADRID_MARKS_AFTER_WORDS * 2);
+  },
+);
 
 /**
  * The most a row's words may move on the screen in a 60 Hz frame's time as their bead is
@@ -931,57 +938,61 @@ interface LandingFrame {
 }
 
 for (const city of ["madrid", "bologna"]) {
-  test(`${city}'s rows keep their words where they stand as their beads are weighed`, async ({
-    page,
-    isMobile,
-  }) => {
-    test.skip(isMobile, "on a laptop the first rows stand at rest before their beads are weighed");
-    await page.emulateMedia({ reducedMotion: "no-preference" });
-    await page.setViewportSize(LAPTOP);
-    await page.addInitScript(() => {
-      const rows: LandingFrame[][] = [];
-      Object.assign(window, { landingFrames: rows });
-      const sample = (): void => {
-        const t = performance.now();
-        document.querySelectorAll('ol[aria-label="The day"] > li').forEach((item, index) => {
-          const button = item.querySelector("button");
-          const words = button?.parentElement;
-          if (!button || !words) return;
-          (rows[index] ??= []).push({
-            t,
-            left: button.firstElementChild?.getBoundingClientRect().left ?? null,
-            isSeen:
-              getComputedStyle(words).visibility !== "hidden" &&
-              item.getAttribute("aria-hidden") !== "true",
+  test(
+    `${city}'s rows keep their words where they stand as their beads are weighed`,
+    { tag: "@frame" },
+    async ({ page, isMobile }) => {
+      test.skip(
+        isMobile,
+        "on a laptop the first rows stand at rest before their beads are weighed",
+      );
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await page.setViewportSize(LAPTOP);
+      await page.addInitScript(() => {
+        const rows: LandingFrame[][] = [];
+        Object.assign(window, { landingFrames: rows });
+        const sample = (): void => {
+          const t = performance.now();
+          document.querySelectorAll('ol[aria-label="The day"] > li').forEach((item, index) => {
+            const button = item.querySelector("button");
+            const words = button?.parentElement;
+            if (!button || !words) return;
+            (rows[index] ??= []).push({
+              t,
+              left: button.firstElementChild?.getBoundingClientRect().left ?? null,
+              isSeen:
+                getComputedStyle(words).visibility !== "hidden" &&
+                item.getAttribute("aria-hidden") !== "true",
+            });
           });
-        });
+          requestAnimationFrame(sample);
+        };
         requestAnimationFrame(sample);
-      };
-      requestAnimationFrame(sample);
-    });
-    await page.goto(`/day/${city}`);
-    await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
-      "aria-busy",
-      "false",
-      { timeout: DAY_TIMEOUT_MS },
-    );
-    const rows = await page.evaluate(
-      () => (window as unknown as { landingFrames: LandingFrame[][] }).landingFrames,
-    );
-    // Each row's words, seen in two frames running: how far they moved in a 60 Hz frame's time.
-    const jumps = rows.flatMap((frames, row) =>
-      frames.flatMap((now, at) => {
-        const before = frames[at - 1];
-        if (!before?.isSeen || !now.isSeen || before.left === null || now.left === null) {
-          return [];
-        }
-        const frames60 = Math.max(1, (now.t - before.t) / FRAME_MS);
-        const pace = Math.abs(now.left - before.left) / frames60;
-        return pace >= LANDING_STEP_PX ? [`row ${row}: ${pace.toFixed(0)} px a frame`] : [];
-      }),
-    );
-    expect(jumps).toEqual([]);
-  });
+      });
+      await page.goto(`/day/${city}`);
+      await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+        "aria-busy",
+        "false",
+        { timeout: DAY_TIMEOUT_MS },
+      );
+      const rows = await page.evaluate(
+        () => (window as unknown as { landingFrames: LandingFrame[][] }).landingFrames,
+      );
+      // Each row's words, seen in two frames running: how far they moved in a 60 Hz frame's time.
+      const jumps = rows.flatMap((frames, row) =>
+        frames.flatMap((now, at) => {
+          const before = frames[at - 1];
+          if (!before?.isSeen || !now.isSeen || before.left === null || now.left === null) {
+            return [];
+          }
+          const frames60 = Math.max(1, (now.t - before.t) / FRAME_MS);
+          const pace = Math.abs(now.left - before.left) / frames60;
+          return pace >= LANDING_STEP_PX ? [`row ${row}: ${pace.toFixed(0)} px a frame`] : [];
+        }),
+      );
+      expect(jumps).toEqual([]);
+    },
+  );
 }
 
 /** After a day with motion has said it is still, how long it is watched for an error. */
@@ -1064,84 +1075,85 @@ interface FrameSample {
 }
 
 for (const { from, word, to } of CITY_CHANGES) {
-  test(`${word}'s day played as ${to} from the city word keeps the chart where it stood, and lands the first stop once it rests`, async ({
-    page,
-    isMobile,
-  }) => {
-    await page.emulateMedia({ reducedMotion: "no-preference" });
-    await page.setViewportSize(isMobile ? PHONE : LAPTOP);
-    await page.goto(`/day/${from}`);
-    await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
-      "aria-busy",
-      "false",
-      { timeout: DAY_TIMEOUT_MS },
-    );
-    await page
-      .getByRole("heading", { level: 1 })
-      .getByRole("button", { name: word, exact: true })
-      .click();
-    const next = page
-      .getByRole("group", { name: "Where" })
-      .getByRole("button", { name: new RegExp(`^${to}`) });
-    await expect(next).toBeVisible();
-    // Where the chart frame stands each frame, and how many of its rows are on screen: the
-    // day's rows go with the press, and the next day's come back from its first stop on.
-    const sampled = page.evaluate(
-      ({ timeout, afterLanding }) =>
-        new Promise<FrameSample[]>((resolve) => {
-          const frames: FrameSample[] = [];
-          const start = performance.now();
-          let isSwapped = false;
-          let landedAt: number | null = null;
-          const tick = () => {
-            const frame = document.querySelector(".h-day");
-            const rows = document.querySelectorAll('ol[aria-label="The day"] > li').length;
-            if (frame) {
-              const top = frame.getBoundingClientRect().top + window.scrollY;
-              frames.push({ t: performance.now() - start, top, rows });
-            }
-            if (rows === 0) isSwapped = true;
-            if (isSwapped && rows > 0 && landedAt === null) landedAt = frames.length;
-            const isDone = landedAt !== null && frames.length - landedAt >= afterLanding;
-            if (isDone || performance.now() - start > timeout) resolve(frames);
-            else requestAnimationFrame(tick);
-          };
-          requestAnimationFrame(tick);
-        }),
-      { timeout: NEXT_DAY_MS, afterLanding: FRAMES_AFTER_LANDING },
-    );
-    await next.click();
-    const frames = await sampled;
+  test(
+    `${word}'s day played as ${to} from the city word keeps the chart where it stood, and lands the first stop once it rests`,
+    { tag: "@frame" },
+    async ({ page, isMobile }) => {
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await page.setViewportSize(isMobile ? PHONE : LAPTOP);
+      await page.goto(`/day/${from}`);
+      await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+        "aria-busy",
+        "false",
+        { timeout: DAY_TIMEOUT_MS },
+      );
+      await page
+        .getByRole("heading", { level: 1 })
+        .getByRole("button", { name: word, exact: true })
+        .click();
+      const next = page
+        .getByRole("group", { name: "Where" })
+        .getByRole("button", { name: new RegExp(`^${to}`) });
+      await expect(next).toBeVisible();
+      // Where the chart frame stands each frame, and how many of its rows are on screen: the
+      // day's rows go with the press, and the next day's come back from its first stop on.
+      const sampled = page.evaluate(
+        ({ timeout, afterLanding }) =>
+          new Promise<FrameSample[]>((resolve) => {
+            const frames: FrameSample[] = [];
+            const start = performance.now();
+            let isSwapped = false;
+            let landedAt: number | null = null;
+            const tick = () => {
+              const frame = document.querySelector(".h-day");
+              const rows = document.querySelectorAll('ol[aria-label="The day"] > li').length;
+              if (frame) {
+                const top = frame.getBoundingClientRect().top + window.scrollY;
+                frames.push({ t: performance.now() - start, top, rows });
+              }
+              if (rows === 0) isSwapped = true;
+              if (isSwapped && rows > 0 && landedAt === null) landedAt = frames.length;
+              const isDone = landedAt !== null && frames.length - landedAt >= afterLanding;
+              if (isDone || performance.now() - start > timeout) resolve(frames);
+              else requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+          }),
+        { timeout: NEXT_DAY_MS, afterLanding: FRAMES_AFTER_LANDING },
+      );
+      await next.click();
+      const frames = await sampled;
 
-    const swap = frames.findIndex((frame) => frame.rows === 0);
-    expect(swap, "the day's rows went with the press").toBeGreaterThan(0);
-    const landed = frames.findIndex((frame, at) => at > swap && frame.rows > 0);
-    expect(landed, `${to}'s first stop landed`).toBeGreaterThan(swap);
-    const before = frames[0]?.top ?? 0;
-    const after = frames.at(-1)?.top ?? 0;
-    for (let at = 1; at < frames.length; at++) {
-      const now = frames[at];
-      if (!now) continue;
-      // The latest frame at least a window before this one, or the first.
-      let from = at - 1;
-      while (from > 0 && now.t - (frames[from]?.t ?? 0) < PACE_WINDOW_MS) from -= 1;
-      const last = frames[from];
-      if (!last) continue;
-      const step = Math.abs(now.top - last.top) / Math.max(1, (now.t - last.t) / FRAME_MS);
-      expect(step, `the frame at ${Math.round(now.t)} ms`).toBeLessThanOrEqual(FRAME_GLIDE_PX);
-      // Held where it stood, it only ever glides by the two headers' difference.
-      expect(now.top).toBeGreaterThanOrEqual(Math.min(before, after) - SCROLL_ROUNDING_PX);
-      expect(now.top).toBeLessThanOrEqual(Math.max(before, after) + SCROLL_ROUNDING_PX);
-    }
-    // The first stop lands on a frame at rest, as the spring defines rest, and the frame stays.
-    const resting = frames[landed - 1]?.top ?? 0;
-    for (const frame of frames.slice(landed - 1)) {
-      expect(
-        Math.abs(frame.top - resting),
-        "the frame once the first stop landed",
-      ).toBeLessThanOrEqual(SPRING_REST_PX);
-    }
-  });
+      const swap = frames.findIndex((frame) => frame.rows === 0);
+      expect(swap, "the day's rows went with the press").toBeGreaterThan(0);
+      const landed = frames.findIndex((frame, at) => at > swap && frame.rows > 0);
+      expect(landed, `${to}'s first stop landed`).toBeGreaterThan(swap);
+      const before = frames[0]?.top ?? 0;
+      const after = frames.at(-1)?.top ?? 0;
+      for (let at = 1; at < frames.length; at++) {
+        const now = frames[at];
+        if (!now) continue;
+        // The latest frame at least a window before this one, or the first.
+        let from = at - 1;
+        while (from > 0 && now.t - (frames[from]?.t ?? 0) < PACE_WINDOW_MS) from -= 1;
+        const last = frames[from];
+        if (!last) continue;
+        const step = Math.abs(now.top - last.top) / Math.max(1, (now.t - last.t) / FRAME_MS);
+        expect(step, `the frame at ${Math.round(now.t)} ms`).toBeLessThanOrEqual(FRAME_GLIDE_PX);
+        // Held where it stood, it only ever glides by the two headers' difference.
+        expect(now.top).toBeGreaterThanOrEqual(Math.min(before, after) - SCROLL_ROUNDING_PX);
+        expect(now.top).toBeLessThanOrEqual(Math.max(before, after) + SCROLL_ROUNDING_PX);
+      }
+      // The first stop lands on a frame at rest, as the spring defines rest, and the frame stays.
+      const resting = frames[landed - 1]?.top ?? 0;
+      for (const frame of frames.slice(landed - 1)) {
+        expect(
+          Math.abs(frame.top - resting),
+          "the frame once the first stop landed",
+        ).toBeLessThanOrEqual(SPRING_REST_PX);
+      }
+    },
+  );
 }
 
 /** The least an open stop's sheet is wide where its row's run has room, as on a laptop. */
@@ -1329,58 +1341,63 @@ function timedShareOf(run: readonly Reading[]): number {
   return momentOf(SHRINK_TIMED_TO) - momentOf(SHRINK_TIMED_FROM);
 }
 
-test("with motion, Kanazawa's frame glides up to its own hours once the day is written, the line under it with it", async ({
-  page,
-  isMobile,
-}) => {
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  await page.setViewportSize(isMobile ? PHONE : LAPTOP);
-  // Every frame from the first, the page kept at its end as a visitor following the day is:
-  // there the page's shrinking end carries what is on screen with it.
-  await page.addInitScript(() => {
-    const frames: ShrinkFrame[] = [];
-    Object.assign(window, { shrinkFrames: frames });
-    const start = performance.now();
-    const tick = () => {
-      window.scrollTo(0, document.documentElement.scrollHeight);
-      const chart = document.querySelector('svg[role="group"]');
-      // The line under the chart, which rides its frame's end: the day's end, or the line
-      // saying how far the day is written. The page's foot under it also makes room for the
-      // day's end as it lands (day-end.spec.ts).
-      const under = document.querySelector("[data-under-chart]");
-      if (chart) {
-        frames.push({
-          t: performance.now() - start,
-          bottom: chart.getBoundingClientRect().bottom + scrollY,
-          under: under ? under.getBoundingClientRect().top + scrollY : null,
-        });
-      }
+test(
+  "with motion, Kanazawa's frame glides up to its own hours once the day is written, the line under it with it",
+  { tag: "@frame" },
+  async ({ page, isMobile }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.setViewportSize(isMobile ? PHONE : LAPTOP);
+    // Every frame from the first, the page kept at its end as a visitor following the day is:
+    // there the page's shrinking end carries what is on screen with it.
+    await page.addInitScript(() => {
+      const frames: ShrinkFrame[] = [];
+      Object.assign(window, { shrinkFrames: frames });
+      const start = performance.now();
+      const tick = () => {
+        window.scrollTo(0, document.documentElement.scrollHeight);
+        const chart = document.querySelector('svg[role="group"]');
+        // The line under the chart, which rides its frame's end: the day's end, or the line
+        // saying how far the day is written. The page's foot under it also makes room for the
+        // day's end as it lands (day-end.spec.ts).
+        const under = document.querySelector("[data-under-chart]");
+        if (chart) {
+          frames.push({
+            t: performance.now() - start,
+            bottom: chart.getBoundingClientRect().bottom + scrollY,
+            under: under ? under.getBoundingClientRect().top + scrollY : null,
+          });
+        }
+        requestAnimationFrame(tick);
+      };
       requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  });
-  await page.goto("/day/kanazawa");
-  const chart = page.getByRole("group", { name: /The day's energy/ });
-  await expect(chart).toHaveAttribute("aria-busy", "false", { timeout: DAY_TIMEOUT_MS });
-  const { dayHeight } = await frameUnderLastWire(page);
-  const pace = (dayHeight - FRAME_INSETS_PX) / KANAZAWA_ASKED_MINUTES;
-  await expect
-    .poll(async () => (await frameUnderLastWire(page)).under)
-    .toBeCloseTo(pace * KANAZAWA_UNDER_LAST_WIRE, PIXEL);
-  const shrink = shrinkOf(
-    await page.evaluate(() => (window as unknown as { shrinkFrames: ShrinkFrame[] }).shrinkFrames),
-  );
+    });
+    await page.goto("/day/kanazawa");
+    const chart = page.getByRole("group", { name: /The day's energy/ });
+    await expect(chart).toHaveAttribute("aria-busy", "false", { timeout: DAY_TIMEOUT_MS });
+    const { dayHeight } = await frameUnderLastWire(page);
+    const pace = (dayHeight - FRAME_INSETS_PX) / KANAZAWA_ASKED_MINUTES;
+    await expect
+      .poll(async () => (await frameUnderLastWire(page)).under)
+      .toBeCloseTo(pace * KANAZAWA_UNDER_LAST_WIRE, PIXEL);
+    const shrink = shrinkOf(
+      await page.evaluate(
+        () => (window as unknown as { shrinkFrames: ShrinkFrame[] }).shrinkFrames,
+      ),
+    );
 
-  // The run of frames is read from the first that moves; its last pixel can fall in the
-  // frame after the run is read.
-  const rise = (shrink[0]?.bottom ?? 0) - (shrink.at(-1)?.bottom ?? 0);
-  expect(rise).toBeGreaterThan(pace * KANAZAWA_CUT_MINUTES * SHRINK_SEEN_SHARE);
-  expect(rise).toBeLessThan(pace * KANAZAWA_CUT_MINUTES + 1);
-  const ends = shrink.map(({ t, bottom }) => ({ t, value: bottom }));
-  const underLine = shrink.flatMap(({ t, under }) => (under === null ? [] : [{ t, value: under }]));
-  expect(timedShareOf(ends), "the frame's end").toBeGreaterThanOrEqual(SHRINK_LEAST_MS);
-  expect(timedShareOf(underLine), "the line under it").toBeGreaterThanOrEqual(SHRINK_LEAST_MS);
-});
+    // The run of frames is read from the first that moves; its last pixel can fall in the
+    // frame after the run is read.
+    const rise = (shrink[0]?.bottom ?? 0) - (shrink.at(-1)?.bottom ?? 0);
+    expect(rise).toBeGreaterThan(pace * KANAZAWA_CUT_MINUTES * SHRINK_SEEN_SHARE);
+    expect(rise).toBeLessThan(pace * KANAZAWA_CUT_MINUTES + 1);
+    const ends = shrink.map(({ t, bottom }) => ({ t, value: bottom }));
+    const underLine = shrink.flatMap(({ t, under }) =>
+      under === null ? [] : [{ t, value: under }],
+    );
+    expect(timedShareOf(ends), "the frame's end").toBeGreaterThanOrEqual(SHRINK_LEAST_MS);
+    expect(timedShareOf(underLine), "the line under it").toBeGreaterThanOrEqual(SHRINK_LEAST_MS);
+  },
+);
 
 /** A twin stands this far from its version on the wire (`CHART.twinStep`). */
 const TWIN_STEP_PX = 24;
@@ -1389,91 +1406,97 @@ const SCROLL_SETTLE_MS = 300;
 /** Frames of the curve taken before a press, so the frame it moves in is seen. */
 const FRAMES_BEFORE_TAP = 3;
 
-test("a twin picked moves the curve there with its bead, never in a frame", async ({ page }) => {
-  // Nafplio's walk at 11:15 has two versions at one energy: the curve goes through the one
-  // shown, so a tap on its twin carries the curve a twin's step along the wire. Taken at
-  // once, the curve stood there a frame before the bead set off.
-  await page.setViewportSize(PHONE);
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  await page.goto("/day/nafplio");
-  await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
-    "aria-busy",
-    "false",
-    { timeout: DAY_TIMEOUT_MS },
-  );
-  // The walk's wire on screen, mid-way down it.
-  await page.evaluate(() =>
-    document
-      .querySelector('[role="slider"][aria-label="Energy at 11:15"]')
-      ?.scrollIntoView({ block: "center" }),
-  );
-  await page.waitForTimeout(SCROLL_SETTLE_MS);
-  const twin = await page.evaluate(() => {
-    const svg = document.querySelector('svg[role="group"][aria-label^="The day\'s energy"]')!;
-    const slider = document.querySelector('[role="slider"][aria-label="Energy at 11:15"]')!;
-    const row = slider.getBoundingClientRect();
-    const y = row.top + row.height / 2;
-    const beads = [...svg.querySelectorAll("[data-candidate] circle")]
-      .map((circle) => circle.getBoundingClientRect())
-      .filter((box) => Math.abs(box.top + box.height / 2 - y) < 2)
-      .map((box) => box.left + box.width / 2);
-    const shown = [...svg.querySelectorAll("circle")].find((circle) => {
-      const box = circle.getBoundingClientRect();
-      return (
-        circle.closest("[data-candidate]") === null &&
-        Math.abs(box.top + box.height / 2 - y) < 2 &&
-        box.width > 8 &&
-        box.width < 20
-      );
+test(
+  "a twin picked moves the curve there with its bead, never in a frame",
+  { tag: "@frame" },
+  async ({ page }) => {
+    // Nafplio's walk at 11:15 has two versions at one energy: the curve goes through the one
+    // shown, so a tap on its twin carries the curve a twin's step along the wire. Taken at
+    // once, the curve stood there a frame before the bead set off.
+    await page.setViewportSize(PHONE);
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.goto("/day/nafplio");
+    await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+      "aria-busy",
+      "false",
+      { timeout: DAY_TIMEOUT_MS },
+    );
+    // The walk's wire on screen, mid-way down it.
+    await page.evaluate(() =>
+      document
+        .querySelector('[role="slider"][aria-label="Energy at 11:15"]')
+        ?.scrollIntoView({ block: "center" }),
+    );
+    await page.waitForTimeout(SCROLL_SETTLE_MS);
+    const twin = await page.evaluate(() => {
+      const svg = document.querySelector('svg[role="group"][aria-label^="The day\'s energy"]')!;
+      const slider = document.querySelector('[role="slider"][aria-label="Energy at 11:15"]')!;
+      const row = slider.getBoundingClientRect();
+      const y = row.top + row.height / 2;
+      const beads = [...svg.querySelectorAll("[data-candidate] circle")]
+        .map((circle) => circle.getBoundingClientRect())
+        .filter((box) => Math.abs(box.top + box.height / 2 - y) < 2)
+        .map((box) => box.left + box.width / 2);
+      const shown = [...svg.querySelectorAll("circle")].find((circle) => {
+        const box = circle.getBoundingClientRect();
+        return (
+          circle.closest("[data-candidate]") === null &&
+          Math.abs(box.top + box.height / 2 - y) < 2 &&
+          box.width > 8 &&
+          box.width < 20
+        );
+      });
+      const shownBox = shown!.getBoundingClientRect();
+      const shownX = shownBox.left + shownBox.width / 2;
+      const nearest = beads.sort((a, b) => Math.abs(a - shownX) - Math.abs(b - shownX))[0]!;
+      return { x: nearest, y, gap: Math.abs(nearest - shownX) };
     });
-    const shownBox = shown!.getBoundingClientRect();
-    const shownX = shownBox.left + shownBox.width / 2;
-    const nearest = beads.sort((a, b) => Math.abs(a - shownX) - Math.abs(b - shownX))[0]!;
-    return { x: nearest, y, gap: Math.abs(nearest - shownX) };
-  });
-  expect(twin.gap).toBeCloseTo(TWIN_STEP_PX, 0);
-  // Where the curve crosses the walk's wire, each frame from the tap on.
-  await page.evaluate((y) => {
-    const crossings: number[] = [];
-    (window as unknown as { crossings: number[] }).crossings = crossings;
-    const svg = document.querySelector('svg[role="group"][aria-label^="The day\'s energy"]')!;
-    const tick = () => {
-      const path = svg.querySelector<SVGPathElement>("path.stroke-curve");
-      if (path) {
-        const m = path.getScreenCTM()!;
-        let best: { x: number; y: number } | null = null;
-        for (let at = 0; at <= path.getTotalLength(); at += 0.25) {
-          const point = path.getPointAtLength(at);
-          const screen = {
-            x: m.a * point.x + m.c * point.y + m.e,
-            y: m.b * point.x + m.d * point.y + m.f,
-          };
-          if (best === null || Math.abs(screen.y - y) < Math.abs(best.y - y)) best = screen;
+    expect(twin.gap).toBeCloseTo(TWIN_STEP_PX, 0);
+    // Where the curve crosses the walk's wire, each frame from the tap on.
+    await page.evaluate((y) => {
+      const crossings: number[] = [];
+      (window as unknown as { crossings: number[] }).crossings = crossings;
+      const svg = document.querySelector('svg[role="group"][aria-label^="The day\'s energy"]')!;
+      const tick = () => {
+        const path = svg.querySelector<SVGPathElement>("path.stroke-curve");
+        if (path) {
+          const m = path.getScreenCTM()!;
+          let best: { x: number; y: number } | null = null;
+          for (let at = 0; at <= path.getTotalLength(); at += 0.25) {
+            const point = path.getPointAtLength(at);
+            const screen = {
+              x: m.a * point.x + m.c * point.y + m.e,
+              y: m.b * point.x + m.d * point.y + m.f,
+            };
+            if (best === null || Math.abs(screen.y - y) < Math.abs(best.y - y)) best = screen;
+          }
+          if (best) crossings.push(best.x);
         }
-        if (best) crossings.push(best.x);
-      }
-      if (crossings.length < SAMPLED_FRAMES) requestAnimationFrame(tick);
-    };
-    const SAMPLED_FRAMES = 40;
-    requestAnimationFrame(tick);
-  }, twin.y);
+        if (crossings.length < SAMPLED_FRAMES) requestAnimationFrame(tick);
+      };
+      const SAMPLED_FRAMES = 40;
+      requestAnimationFrame(tick);
+    }, twin.y);
 
-  // Pressed once a few frames are taken before it, so the frame it moves in is among them.
-  await page.waitForFunction(
-    (frames) => (window as unknown as { crossings: number[] }).crossings.length >= frames,
-    FRAMES_BEFORE_TAP,
-    { polling: "raf" },
-  );
-  await page.mouse.click(twin.x, twin.y);
-  await page.waitForTimeout(1000);
+    // Pressed once a few frames are taken before it, so the frame it moves in is among them.
+    await page.waitForFunction(
+      (frames) => (window as unknown as { crossings: number[] }).crossings.length >= frames,
+      FRAMES_BEFORE_TAP,
+      { polling: "raf" },
+    );
+    await page.mouse.click(twin.x, twin.y);
+    await page.waitForTimeout(1000);
 
-  const crossings = await page.evaluate(
-    () => (window as unknown as { crossings: number[] }).crossings,
-  );
-  const steps = crossings.slice(1).map((x, index) => Math.abs(x - (crossings[index] ?? x)));
-  // It went some way, and never the whole of it in one frame.
-  expect(Math.abs((crossings.at(-1) ?? 0) - (crossings[0] ?? 0))).toBeGreaterThan(TWIN_STEP_PX / 4);
-  expect(Math.max(...steps), crossings.map((x) => x.toFixed(1)).join(" ")).toBeLessThanOrEqual(
-    TWIN_STEP_PX / 2,
-  );
-});
+    const crossings = await page.evaluate(
+      () => (window as unknown as { crossings: number[] }).crossings,
+    );
+    const steps = crossings.slice(1).map((x, index) => Math.abs(x - (crossings[index] ?? x)));
+    // It went some way, and never the whole of it in one frame.
+    expect(Math.abs((crossings.at(-1) ?? 0) - (crossings[0] ?? 0))).toBeGreaterThan(
+      TWIN_STEP_PX / 4,
+    );
+    expect(Math.max(...steps), crossings.map((x) => x.toFixed(1)).join(" ")).toBeLessThanOrEqual(
+      TWIN_STEP_PX / 2,
+    );
+  },
+);

@@ -101,51 +101,53 @@ test("a written day's page holds the whole day for a reader without its script",
 test.describe("with motion", () => {
   test.use({ reducedMotion: "no-preference" });
 
-  test("a day watched to its end on the chart opens whole as a list from another city, and after a reload", async ({
-    page,
-  }) => {
-    test.setTimeout(4 * DAY_TIMEOUT_MS);
-    // The owner's words: a day opened on the chart and played to its end, another day, the
-    // list chosen there, and back to the first day: no playing.
-    await page.goto("/day/bologna");
-    await waitForTheDay(page);
+  test(
+    "a day watched to its end on the chart opens whole as a list from another city, and after a reload",
+    { tag: "@frame" },
+    async ({ page }) => {
+      test.setTimeout(4 * DAY_TIMEOUT_MS);
+      // The owner's words: a day opened on the chart and played to its end, another day, the
+      // list chosen there, and back to the first day: no playing.
+      await page.goto("/day/bologna");
+      await waitForTheDay(page);
 
-    const headline = page.getByRole("heading", { level: 1 });
-    await headline.getByRole("button", { name: "Bologna", exact: true }).click();
-    await page.getByRole("button", { name: /^Porto/ }).click();
-    await expect(headline).toContainText("Porto");
-    await waitForTheDay(page);
-    await page.getByRole("group", { name: "View" }).getByRole("button", { name: "Read" }).click();
+      const headline = page.getByRole("heading", { level: 1 });
+      await headline.getByRole("button", { name: "Bologna", exact: true }).click();
+      await page.getByRole("button", { name: /^Porto/ }).click();
+      await expect(headline).toContainText("Porto");
+      await waitForTheDay(page);
+      await page.getByRole("group", { name: "View" }).getByRole("button", { name: "Read" }).click();
 
-    // Back to Bologna: its list whole, not one frame of the pen.
-    await page.evaluate(sampleTheList);
-    await headline.getByRole("button", { name: "Porto", exact: true }).click();
-    await page.getByRole("button", { name: /^Bologna/ }).click();
-    await expect(headline).toContainText("Bologna");
-    await expect(page.getByRole("list", { name: "The day, to read" })).toHaveAttribute(
-      "aria-busy",
-      "false",
-    );
-    expectWhole(await listFramesOf(page), BOLOGNA);
+      // Back to Bologna: its list whole, not one frame of the pen.
+      await page.evaluate(sampleTheList);
+      await headline.getByRole("button", { name: "Porto", exact: true }).click();
+      await page.getByRole("button", { name: /^Bologna/ }).click();
+      await expect(headline).toContainText("Bologna");
+      await expect(page.getByRole("list", { name: "The day, to read" })).toHaveAttribute(
+        "aria-busy",
+        "false",
+      );
+      expectWhole(await listFramesOf(page), BOLOGNA);
 
-    // Porto too, watched to its end here, comes whole from the route.
-    await page.evaluate(sampleTheList);
-    await headline.getByRole("button", { name: "Bologna", exact: true }).click();
-    await page.getByRole("button", { name: /^Porto/ }).click();
-    await expect(headline).toContainText("Porto");
-    await expect(page.getByRole("list", { name: "The day, to read" })).toHaveAttribute(
-      "aria-busy",
-      "false",
-    );
-    expectWhole(await listFramesOf(page), PORTO);
+      // Porto too, watched to its end here, comes whole from the route.
+      await page.evaluate(sampleTheList);
+      await headline.getByRole("button", { name: "Bologna", exact: true }).click();
+      await page.getByRole("button", { name: /^Porto/ }).click();
+      await expect(headline).toContainText("Porto");
+      await expect(page.getByRole("list", { name: "The day, to read" })).toHaveAttribute(
+        "aria-busy",
+        "false",
+      );
+      expectWhole(await listFramesOf(page), PORTO);
 
-    // And Bologna after a reload, from the page's first frame.
-    await page.goto("/day/bologna");
-    await page.addInitScript(sampleTheList);
-    await page.reload();
-    await waitForTheDay(page);
-    expectWhole(await listFramesOf(page), BOLOGNA);
-  });
+      // And Bologna after a reload, from the page's first frame.
+      await page.goto("/day/bologna");
+      await page.addInitScript(sampleTheList);
+      await page.reload();
+      await waitForTheDay(page);
+      expectWhole(await listFramesOf(page), BOLOGNA);
+    },
+  );
 
   test("a day left before its end plays again on the next visit", async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem("lantern-day-view", "read"));
@@ -172,35 +174,37 @@ const GOOGLEBOT =
 test.describe("in a search engine's renderer", () => {
   test.use({ userAgent: GOOGLEBOT, reducedMotion: "no-preference" });
 
-  test("a written day stays whole as its HTML holds it, and its stream is never asked", async ({
-    page,
-  }) => {
-    // Every ask for the day fails, as Google's renderer gave it up on 2026-11-08: a page that
-    // asked would end as a dropped connection, the ending Google indexed in the day's place.
-    const asked: string[] = [];
-    await page.route("**/api/day", (route) => {
-      asked.push(route.request().url());
-      return route.abort("failed");
-    });
-    await page.addInitScript(() => localStorage.setItem("lantern-day-view", "read"));
-    await page.addInitScript(sampleTheList);
-    await page.goto("/day/kanazawa");
+  test(
+    "a written day stays whole as its HTML holds it, and its stream is never asked",
+    { tag: "@frame" },
+    async ({ page }) => {
+      // Every ask for the day fails, as Google's renderer gave it up on 2026-11-08: a page that
+      // asked would end as a dropped connection, the ending Google indexed in the day's place.
+      const asked: string[] = [];
+      await page.route("**/api/day", (route) => {
+        asked.push(route.request().url());
+        return route.abort("failed");
+      });
+      await page.addInitScript(() => localStorage.setItem("lantern-day-view", "read"));
+      await page.addInitScript(sampleTheList);
+      await page.goto("/day/kanazawa");
 
-    // The page's note on <html> is done with once its script has drawn the day as it stays.
-    await page.waitForFunction(
-      () => !document.documentElement.hasAttribute("data-day-seen"),
-      null,
-      {
-        timeout: DAY_TIMEOUT_MS,
-      },
-    );
-    await waitForTheDay(page);
-    await page.waitForLoadState("networkidle");
+      // The page's note on <html> is done with once its script has drawn the day as it stays.
+      await page.waitForFunction(
+        () => !document.documentElement.hasAttribute("data-day-seen"),
+        null,
+        {
+          timeout: DAY_TIMEOUT_MS,
+        },
+      );
+      await waitForTheDay(page);
+      await page.waitForLoadState("networkidle");
 
-    expect(asked).toEqual([]);
-    expectWhole(await listFramesOf(page), KANAZAWA);
-    await expect(page.getByText(/connection dropped/i)).toHaveCount(0);
-  });
+      expect(asked).toEqual([]);
+      expectWhole(await listFramesOf(page), KANAZAWA);
+      await expect(page.getByText(/connection dropped/i)).toHaveCount(0);
+    },
+  );
 });
 
 /** What a play that ends without the day would say in its place, any of the endings. */
@@ -271,23 +275,25 @@ function sampleUnderTheHeadline(): void {
   requestAnimationFrame(sample);
 }
 
-test("a link draws its date and its view switch once, never shown and then taken away", async ({
-  page,
-}) => {
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  await page.addInitScript(sampleUnderTheHeadline);
-  await page.goto("/day/kanazawa");
-  await waitForTheDay(page);
+test(
+  "a link draws its date and its view switch once, never shown and then taken away",
+  { tag: "@frame" },
+  async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.addInitScript(sampleUnderTheHeadline);
+    await page.goto("/day/kanazawa");
+    await waitForTheDay(page);
 
-  const frames = await page.evaluate(
-    () => (window as unknown as { underFrames: { date: boolean; views: boolean }[] }).underFrames,
-  );
-  for (const part of ["date", "views"] as const) {
-    const shown = frames.map((frame) => frame[part]);
-    // Its first HTML holds the playing's first frame, which draws neither until the header's
-    // room is known: shown there, the date went as the page ran, and came back 2.5 s on.
-    const from = shown.indexOf(true);
-    expect(from, `the ${part} was drawn`).toBeGreaterThan(0);
-    expect(shown.slice(from).includes(false), `the ${part} went once drawn`).toBe(false);
-  }
-});
+    const frames = await page.evaluate(
+      () => (window as unknown as { underFrames: { date: boolean; views: boolean }[] }).underFrames,
+    );
+    for (const part of ["date", "views"] as const) {
+      const shown = frames.map((frame) => frame[part]);
+      // Its first HTML holds the playing's first frame, which draws neither until the header's
+      // room is known: shown there, the date went as the page ran, and came back 2.5 s on.
+      const from = shown.indexOf(true);
+      expect(from, `the ${part} was drawn`).toBeGreaterThan(0);
+      expect(shown.slice(from).includes(false), `the ${part} went once drawn`).toBe(false);
+    }
+  },
+);

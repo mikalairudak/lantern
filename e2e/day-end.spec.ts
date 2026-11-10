@@ -126,83 +126,88 @@ const withMotion = (motion: Motion) =>
 
 for (const motion of MOTIONS) {
   for (const view of VIEWS) {
-    test(`in ${view} ${withMotion(motion)}, the day's end lands as the day is whole, and nothing above it, nor it, moves`, async ({
-      page,
-    }) => {
-      await openKanazawa(page, view, motion);
-      await expect(theEnd(page)).toBeVisible({ timeout: DAY_TIMEOUT_MS });
-      await untilAtRest(page);
+    test(
+      `in ${view} ${withMotion(motion)}, the day's end lands as the day is whole, and nothing above it, nor it, moves`,
+      { tag: "@frame" },
+      async ({ page }) => {
+        await openKanazawa(page, view, motion);
+        await expect(theEnd(page)).toBeVisible({ timeout: DAY_TIMEOUT_MS });
+        await untilAtRest(page);
 
-      const frames = await framesOf(page);
-      const landed = frames.findIndex(({ end }) => end !== null);
-      expect(landed, "the end landed").toBeGreaterThan(0);
-      // It came after the day was written, never with the line still writing it.
-      expect(frames.slice(landed).filter(({ isWriting }) => isWriting)).toEqual([]);
-      expect(frames.slice(0, landed).some(({ isWriting }) => isWriting)).toBe(true);
-      // Every row on screen as it landed holds still, the chart and the header with them, and
-      // so does the end itself: under reduced motion the last row comes in Read with the day
-      // whole, in the same frame as the end under it.
-      const before = frames[landed - 1]!;
-      expect(before.rows.length).toBeGreaterThanOrEqual(KANAZAWA.stops.length - 1);
-      const after = frames.slice(landed);
-      for (const frame of after) {
-        expect(frame.rows).toHaveLength(KANAZAWA.stops.length);
-        before.rows.forEach((top, at) =>
-          expect(Math.abs(frame.rows[at]! - top)).toBeLessThanOrEqual(TOLERANCE_PX),
+        const frames = await framesOf(page);
+        const landed = frames.findIndex(({ end }) => end !== null);
+        expect(landed, "the end landed").toBeGreaterThan(0);
+        // It came after the day was written, never with the line still writing it.
+        expect(frames.slice(landed).filter(({ isWriting }) => isWriting)).toEqual([]);
+        expect(frames.slice(0, landed).some(({ isWriting }) => isWriting)).toBe(true);
+        // Every row on screen as it landed holds still, the chart and the header with them, and
+        // so does the end itself: under reduced motion the last row comes in Read with the day
+        // whole, in the same frame as the end under it.
+        const before = frames[landed - 1]!;
+        expect(before.rows.length).toBeGreaterThanOrEqual(KANAZAWA.stops.length - 1);
+        const after = frames.slice(landed);
+        for (const frame of after) {
+          expect(frame.rows).toHaveLength(KANAZAWA.stops.length);
+          before.rows.forEach((top, at) =>
+            expect(Math.abs(frame.rows[at]! - top)).toBeLessThanOrEqual(TOLERANCE_PX),
+          );
+          expect(Math.abs((frame.chartTop ?? 0) - (before.chartTop ?? 0))).toBeLessThanOrEqual(
+            TOLERANCE_PX,
+          );
+          expect(
+            Math.abs((frame.headerBottom ?? 0) - (before.headerBottom ?? 0)),
+          ).toBeLessThanOrEqual(TOLERANCE_PX);
+        }
+        expect(travelOf(after.map(({ end }) => end)), "the end moved").toBeLessThanOrEqual(
+          TOLERANCE_PX,
         );
-        expect(Math.abs((frame.chartTop ?? 0) - (before.chartTop ?? 0))).toBeLessThanOrEqual(
+
+        // Under the last row, above the page's foot and its sources.
+        const lastRow =
+          view === "chart"
+            ? page.locator("[data-start-time]").last()
+            : page.locator('ol[aria-label="The day, to read"] > li').last();
+        const credit = page.getByRole("link", { name: "© OpenStreetMap contributors" });
+        const [endBox, rowBox, creditBox] = await Promise.all([
+          theEnd(page).boundingBox(),
+          lastRow.boundingBox(),
+          credit.boundingBox(),
+        ]);
+        if (!endBox || !rowBox || !creditBox) throw new Error("The day did not render");
+        expect(endBox.y).toBeGreaterThan(rowBox.y + rowBox.height);
+        expect(creditBox.y).toBeGreaterThan(endBox.y + endBox.height);
+      },
+    );
+
+    test(
+      `in ${view} ${withMotion(motion)}, a day this device watched opens with its end there at once, and nothing moves`,
+      { tag: "@frame" },
+      async ({ page }) => {
+        await openKanazawa(page, view, motion);
+        await expect(theEnd(page)).toBeVisible({ timeout: DAY_TIMEOUT_MS });
+        await untilAtRest(page);
+
+        await page.reload();
+        await expect(theEnd(page)).toBeVisible({ timeout: WHOLE_TIMEOUT_MS });
+        await untilAtRest(page);
+        const frames = await framesOf(page);
+        // No frame of the day whole without its end, and none that wrote it again.
+        expect(
+          frames.filter(({ rows, end }) => rows.length === KANAZAWA.stops.length && end === null),
+        ).toEqual([]);
+        expect(frames.filter(({ isWriting }) => isWriting)).toEqual([]);
+        // The end and the foot's sources under it stand where they rest from the first frame they are
+        // seen: the end's room is whole at once, and the chart's frame ends where it rests.
+        const shown = frames.filter(({ end }) => end !== null);
+        expect(travelOf(shown.map(({ end }) => end)), "the end moved").toBeLessThanOrEqual(
           TOLERANCE_PX,
         );
         expect(
-          Math.abs((frame.headerBottom ?? 0) - (before.headerBottom ?? 0)),
+          travelOf(shown.map(({ credit }) => credit)),
+          "the sources moved",
         ).toBeLessThanOrEqual(TOLERANCE_PX);
-      }
-      expect(travelOf(after.map(({ end }) => end)), "the end moved").toBeLessThanOrEqual(
-        TOLERANCE_PX,
-      );
-
-      // Under the last row, above the page's foot and its sources.
-      const lastRow =
-        view === "chart"
-          ? page.locator("[data-start-time]").last()
-          : page.locator('ol[aria-label="The day, to read"] > li').last();
-      const credit = page.getByRole("link", { name: "© OpenStreetMap contributors" });
-      const [endBox, rowBox, creditBox] = await Promise.all([
-        theEnd(page).boundingBox(),
-        lastRow.boundingBox(),
-        credit.boundingBox(),
-      ]);
-      if (!endBox || !rowBox || !creditBox) throw new Error("The day did not render");
-      expect(endBox.y).toBeGreaterThan(rowBox.y + rowBox.height);
-      expect(creditBox.y).toBeGreaterThan(endBox.y + endBox.height);
-    });
-
-    test(`in ${view} ${withMotion(motion)}, a day this device watched opens with its end there at once, and nothing moves`, async ({
-      page,
-    }) => {
-      await openKanazawa(page, view, motion);
-      await expect(theEnd(page)).toBeVisible({ timeout: DAY_TIMEOUT_MS });
-      await untilAtRest(page);
-
-      await page.reload();
-      await expect(theEnd(page)).toBeVisible({ timeout: WHOLE_TIMEOUT_MS });
-      await untilAtRest(page);
-      const frames = await framesOf(page);
-      // No frame of the day whole without its end, and none that wrote it again.
-      expect(
-        frames.filter(({ rows, end }) => rows.length === KANAZAWA.stops.length && end === null),
-      ).toEqual([]);
-      expect(frames.filter(({ isWriting }) => isWriting)).toEqual([]);
-      // The end and the foot's sources under it stand where they rest from the first frame they are
-      // seen: the end's room is whole at once, and the chart's frame ends where it rests.
-      const shown = frames.filter(({ end }) => end !== null);
-      expect(travelOf(shown.map(({ end }) => end)), "the end moved").toBeLessThanOrEqual(
-        TOLERANCE_PX,
-      );
-      expect(travelOf(shown.map(({ credit }) => credit)), "the sources moved").toBeLessThanOrEqual(
-        TOLERANCE_PX,
-      );
-    });
+      },
+    );
   }
 }
 
@@ -268,48 +273,51 @@ function sampleTheLineUnderTheChart(): void {
 // its place, and the room the frame gives up is held under it, so a phone reading the page's
 // foot sees no empty line and no page shrinking under it (the phone pass, 2026-11-08).
 for (const city of ["kanazawa", "nafplio"]) {
-  test(`with motion, ${city}'s line under the chart gives way to the day's end with no empty frame, the page never shorter`, async ({
-    page,
-  }) => {
-    await page.setViewportSize(PHONE);
-    await page.emulateMedia({ reducedMotion: "no-preference" });
-    await page.addInitScript(sampleTheLineUnderTheChart);
-    await page.goto(`/day/${city}`);
-    const underFrames = () =>
-      page.evaluate(
-        () =>
-          (window as unknown as { underFrames: { words: string; height: number }[] }).underFrames,
-      );
-    // The day's end under the chart, whatever hour it says, and the page at rest after it.
-    await expect(page.locator("[data-under-chart]").getByText(/stops? ·/)).toBeVisible({
-      timeout: DAY_TIMEOUT_MS,
-    });
-    await expect
-      .poll(
-        async () => {
-          const last = (await underFrames()).slice(-FRAMES_AT_REST);
-          return (
-            last.length === FRAMES_AT_REST && last.every(({ height }) => height === last[0]!.height)
-          );
-        },
-        { timeout: REST_TIMEOUT_MS },
-      )
-      .toBe(true);
+  test(
+    `with motion, ${city}'s line under the chart gives way to the day's end with no empty frame, the page never shorter`,
+    { tag: "@frame" },
+    async ({ page }) => {
+      await page.setViewportSize(PHONE);
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await page.addInitScript(sampleTheLineUnderTheChart);
+      await page.goto(`/day/${city}`);
+      const underFrames = () =>
+        page.evaluate(
+          () =>
+            (window as unknown as { underFrames: { words: string; height: number }[] }).underFrames,
+        );
+      // The day's end under the chart, whatever hour it says, and the page at rest after it.
+      await expect(page.locator("[data-under-chart]").getByText(/stops? ·/)).toBeVisible({
+        timeout: DAY_TIMEOUT_MS,
+      });
+      await expect
+        .poll(
+          async () => {
+            const last = (await underFrames()).slice(-FRAMES_AT_REST);
+            return (
+              last.length === FRAMES_AT_REST &&
+              last.every(({ height }) => height === last[0]!.height)
+            );
+          },
+          { timeout: REST_TIMEOUT_MS },
+        )
+        .toBe(true);
 
-    const frames = await underFrames();
-    // From the line's last count, every stop's versions written, to the end in its place.
-    const from = frames.findIndex(({ words }) =>
-      /^Writing quieter and livelier versions · (\d+)\u00A0of\u00A0\1\u00A0stops/.test(words),
-    );
-    const to = frames.findIndex(({ words }) => /stops? ·/.test(words));
-    expect(from, "the line said every stop's versions were being written").toBeGreaterThanOrEqual(
-      0,
-    );
-    expect(to, "the day's end stood").toBeGreaterThan(from);
-    const between = frames.slice(from, to + 1);
-    expect(between.filter(({ words }) => words.trim() === "")).toEqual([]);
-    for (let at = 1; at < between.length; at++) {
-      expect(between[at]!.height).toBeGreaterThanOrEqual(between[at - 1]!.height - TOLERANCE_PX);
-    }
-  });
+      const frames = await underFrames();
+      // From the line's last count, every stop's versions written, to the end in its place.
+      const from = frames.findIndex(({ words }) =>
+        /^Writing quieter and livelier versions · (\d+)\u00A0of\u00A0\1\u00A0stops/.test(words),
+      );
+      const to = frames.findIndex(({ words }) => /stops? ·/.test(words));
+      expect(from, "the line said every stop's versions were being written").toBeGreaterThanOrEqual(
+        0,
+      );
+      expect(to, "the day's end stood").toBeGreaterThan(from);
+      const between = frames.slice(from, to + 1);
+      expect(between.filter(({ words }) => words.trim() === "")).toEqual([]);
+      for (let at = 1; at < between.length; at++) {
+        expect(between[at]!.height).toBeGreaterThanOrEqual(between[at - 1]!.height - TOLERANCE_PX);
+      }
+    },
+  );
 }

@@ -163,78 +163,81 @@ const LARGE_FRAME_INSETS_PX = (40 + 20) * FACTOR;
 const KANAZAWA_ASKED_MINUTES = 16 * 60;
 const KANAZAWA_UNDER_LAST_WIRE = 75;
 
-test("at 2560 px the chart is drawn a quarter larger from its first frame, its sheet at least 560 px", async ({
-  page,
-  isMobile,
-}) => {
-  test.skip(isMobile, "A large screen is not a phone.");
-  // Every frame from the first: the chart's width, where its lanes start and its shown bead's
-  // radius, so a frame drawn at a laptop's pixels before the factor is read would show.
-  await page.addInitScript(() => {
-    const frames: { width: string | null; lanesFrom: string | null; beadR: string | null }[] = [];
-    Object.assign(window, { chartFrames: frames });
-    const sample = () => {
-      const chart = document.querySelector('svg[role="group"]');
-      if (chart) {
-        const quieter = [...chart.querySelectorAll("text")].find((text) =>
-          text.textContent?.includes("quieter"),
-        );
-        frames.push({
-          width: chart.getAttribute("width"),
-          lanesFrom: quieter?.getAttribute("x") ?? null,
-          beadR: chart.querySelector("circle.fill-ink")?.getAttribute("r") ?? null,
-        });
-      }
+test(
+  "at 2560 px the chart is drawn a quarter larger from its first frame, its sheet at least 560 px",
+  { tag: "@frame" },
+  async ({ page, isMobile }) => {
+    test.skip(isMobile, "A large screen is not a phone.");
+    // Every frame from the first: the chart's width, where its lanes start and its shown bead's
+    // radius, so a frame drawn at a laptop's pixels before the factor is read would show.
+    await page.addInitScript(() => {
+      const frames: { width: string | null; lanesFrom: string | null; beadR: string | null }[] = [];
+      Object.assign(window, { chartFrames: frames });
+      const sample = () => {
+        const chart = document.querySelector('svg[role="group"]');
+        if (chart) {
+          const quieter = [...chart.querySelectorAll("text")].find((text) =>
+            text.textContent?.includes("quieter"),
+          );
+          frames.push({
+            width: chart.getAttribute("width"),
+            lanesFrom: quieter?.getAttribute("x") ?? null,
+            beadR: chart.querySelector("circle.fill-ink")?.getAttribute("r") ?? null,
+          });
+        }
+        requestAnimationFrame(sample);
+      };
       requestAnimationFrame(sample);
-    };
-    requestAnimationFrame(sample);
-  });
-  await openKanazawa(page, LARGE);
-
-  const frames = await page.evaluate(
-    () => (window as unknown as { chartFrames: Record<string, string | null>[] }).chartFrames,
-  );
-  expect(frames.length).toBeGreaterThan(0);
-  expect(new Set(frames.map((frame) => frame.width))).toEqual(new Set([`${LARGE_CHART_PX}`]));
-  expect(new Set(frames.map((frame) => frame.lanesFrom))).toEqual(new Set([`${LARGE_LANES_FROM}`]));
-  const radii = new Set(frames.flatMap((frame) => (frame.beadR === null ? [] : [frame.beadR])));
-  expect(radii).toEqual(new Set([`${LARGE_BEAD_R}`]));
-
-  const drawn = await geometryOf(page);
-  expect(drawn.root).toBe(LARGE_ROOT);
-  expect(drawn.chart.width).toBe(LARGE_CHART_PX);
-  expect(drawn.chart.width / LARGE.width).toBe(0.375);
-
-  // The time scale runs a quarter faster down the page: the day it is fitted to is a quarter
-  // taller, and its frame's insets with it.
-  const time = await page.evaluate((insetBelow) => {
-    const chart = document.querySelector('svg[role="group"]');
-    const day = document.querySelector(".h-day");
-    if (!chart || !day) throw new Error("The day did not render");
-    const wires = [...chart.querySelectorAll("path")].flatMap((path) => {
-      const wire = /^M[\d.]+ ([\d.]+) H/.exec(path.getAttribute("d") ?? "");
-      return wire ? [Number(wire[1])] : [];
     });
-    const plotBottom = Number(chart.getAttribute("height")) - insetBelow;
-    return { dayHeight: day.clientHeight, under: plotBottom - Math.max(...wires) };
-  }, LARGE_INSET_BELOW_PX);
-  expect(time.dayHeight).toBe(LARGE_DAY_PX);
-  const pace = (LARGE_DAY_PX - LARGE_FRAME_INSETS_PX) / KANAZAWA_ASKED_MINUTES;
-  expect(pace).toBe(0.5 * FACTOR);
-  expect(time.under).toBeCloseTo(KANAZAWA_UNDER_LAST_WIRE * pace, SAME_TO_ONE_DECIMAL);
+    await openKanazawa(page, LARGE);
 
-  // Oden in Katamachi folds to its name and kind, so its sheet is as narrow as a sheet goes.
-  await page
-    .getByRole("list", { name: "The day" })
-    .getByRole("button", { name: /^Oden in Katamachi/ })
-    .click();
-  const sheet = page.getByRole("region", { name: "About Oden in Katamachi" });
-  await expect(sheet).toBeFocused();
-  const sheetBox = await sheet.boundingBox();
-  if (!sheetBox) throw new Error("The sheet did not render");
-  expect(sheetBox.width).toBeCloseTo(LARGE_SHEET_LEAST_PX, SAME_TO_ONE_DECIMAL);
-  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(drawn.page);
-});
+    const frames = await page.evaluate(
+      () => (window as unknown as { chartFrames: Record<string, string | null>[] }).chartFrames,
+    );
+    expect(frames.length).toBeGreaterThan(0);
+    expect(new Set(frames.map((frame) => frame.width))).toEqual(new Set([`${LARGE_CHART_PX}`]));
+    expect(new Set(frames.map((frame) => frame.lanesFrom))).toEqual(
+      new Set([`${LARGE_LANES_FROM}`]),
+    );
+    const radii = new Set(frames.flatMap((frame) => (frame.beadR === null ? [] : [frame.beadR])));
+    expect(radii).toEqual(new Set([`${LARGE_BEAD_R}`]));
+
+    const drawn = await geometryOf(page);
+    expect(drawn.root).toBe(LARGE_ROOT);
+    expect(drawn.chart.width).toBe(LARGE_CHART_PX);
+    expect(drawn.chart.width / LARGE.width).toBe(0.375);
+
+    // The time scale runs a quarter faster down the page: the day it is fitted to is a quarter
+    // taller, and its frame's insets with it.
+    const time = await page.evaluate((insetBelow) => {
+      const chart = document.querySelector('svg[role="group"]');
+      const day = document.querySelector(".h-day");
+      if (!chart || !day) throw new Error("The day did not render");
+      const wires = [...chart.querySelectorAll("path")].flatMap((path) => {
+        const wire = /^M[\d.]+ ([\d.]+) H/.exec(path.getAttribute("d") ?? "");
+        return wire ? [Number(wire[1])] : [];
+      });
+      const plotBottom = Number(chart.getAttribute("height")) - insetBelow;
+      return { dayHeight: day.clientHeight, under: plotBottom - Math.max(...wires) };
+    }, LARGE_INSET_BELOW_PX);
+    expect(time.dayHeight).toBe(LARGE_DAY_PX);
+    const pace = (LARGE_DAY_PX - LARGE_FRAME_INSETS_PX) / KANAZAWA_ASKED_MINUTES;
+    expect(pace).toBe(0.5 * FACTOR);
+    expect(time.under).toBeCloseTo(KANAZAWA_UNDER_LAST_WIRE * pace, SAME_TO_ONE_DECIMAL);
+
+    // Oden in Katamachi folds to its name and kind, so its sheet is as narrow as a sheet goes.
+    await page
+      .getByRole("list", { name: "The day" })
+      .getByRole("button", { name: /^Oden in Katamachi/ })
+      .click();
+    const sheet = page.getByRole("region", { name: "About Oden in Katamachi" });
+    await expect(sheet).toBeFocused();
+    const sheetBox = await sheet.boundingBox();
+    if (!sheetBox) throw new Error("The sheet did not render");
+    expect(sheetBox.width).toBeCloseTo(LARGE_SHEET_LEAST_PX, SAME_TO_ONE_DECIMAL);
+    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(drawn.page);
+  },
+);
 
 /**
  * The browser's own text at 125 %: Chrome's default font size set to 20 px, as a visitor sets

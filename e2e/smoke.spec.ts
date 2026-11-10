@@ -102,40 +102,42 @@ test("writes a written city's day where the question was", async ({ page }) => {
   );
 });
 
-test("brings a small phone's scrolled page up to the day being written, never in one frame", async ({
-  page,
-}) => {
-  await page.setViewportSize(SMALL_PHONE);
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  await page.goto("/");
-  // The last start, in view at the page's foot, so the press itself scrolls nothing.
-  const lastStart = page
-    .getByRole("list", { name: WRITTEN_HEADING })
-    .getByRole("button", { name: / in Nafplio,/ });
-  // Drawn once the visitor's days are read, so the page is tall enough to scroll.
-  await expect(lastStart).toBeAttached();
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
-  const scrolled = await page.evaluate(() => window.scrollY);
-  const sampled = page.evaluate(
-    () =>
-      new Promise<number[]>((resolve) => {
-        const scrolls: number[] = [];
-        const start = performance.now();
-        const tick = () => {
-          scrolls.push(window.scrollY);
-          if (performance.now() - start < 1200) requestAnimationFrame(tick);
-          else resolve(scrolls);
-        };
-        requestAnimationFrame(tick);
-      }),
-  );
+test(
+  "brings a small phone's scrolled page up to the day being written, never in one frame",
+  { tag: "@frame" },
+  async ({ page }) => {
+    await page.setViewportSize(SMALL_PHONE);
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.goto("/");
+    // The last start, in view at the page's foot, so the press itself scrolls nothing.
+    const lastStart = page
+      .getByRole("list", { name: WRITTEN_HEADING })
+      .getByRole("button", { name: / in Nafplio,/ });
+    // Drawn once the visitor's days are read, so the page is tall enough to scroll.
+    await expect(lastStart).toBeAttached();
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    const scrolled = await page.evaluate(() => window.scrollY);
+    const sampled = page.evaluate(
+      () =>
+        new Promise<number[]>((resolve) => {
+          const scrolls: number[] = [];
+          const start = performance.now();
+          const tick = () => {
+            scrolls.push(window.scrollY);
+            if (performance.now() - start < 1200) requestAnimationFrame(tick);
+            else resolve(scrolls);
+          };
+          requestAnimationFrame(tick);
+        }),
+    );
 
-  await lastStart.click();
+    await lastStart.click();
 
-  const scrolls = await sampled;
-  const steps = scrolls.slice(1).map((top, index) => Math.abs(top - (scrolls[index] ?? top)));
-  // It comes up to the top, where the day's header is written, over several frames.
-  expect(scrolls.at(-1)).toBe(0);
-  expect(Math.max(...steps)).toBeLessThan(scrolled / 2);
-});
+    const scrolls = await sampled;
+    const steps = scrolls.slice(1).map((top, index) => Math.abs(top - (scrolls[index] ?? top)));
+    // It comes up to the top, where the day's header is written, over several frames.
+    expect(scrolls.at(-1)).toBe(0);
+    expect(Math.max(...steps)).toBeLessThan(scrolled / 2);
+  },
+);

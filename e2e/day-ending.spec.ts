@@ -838,7 +838,7 @@ function expectDrawnInPlace(
   return { dateMs, axesMs };
 }
 
-test.describe("with motion", () => {
+test.describe("with motion", { tag: "@frame" }, () => {
   test.beforeEach(async ({ page, isMobile }) => {
     await page.setViewportSize(isMobile ? PHONE : LAPTOP);
     await page.emulateMedia({ reducedMotion: "no-preference" });
@@ -1175,7 +1175,7 @@ async function expectGoesOnFromTheNotice(
   await expectFocusMovesOnce(page, pressedAt, after, drawn, sentence.match(/ in (\w+)/)![1]!);
 }
 
-test.describe("under reduced motion", () => {
+test.describe("under reduced motion", { tag: "@frame" }, () => {
   test.beforeEach(async ({ page, isMobile }) => {
     await page.setViewportSize(isMobile ? PHONE : LAPTOP);
     await page.emulateMedia({ reducedMotion: "reduce" });

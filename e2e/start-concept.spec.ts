@@ -446,30 +446,32 @@ function readField(page: Page): Promise<FieldFrame[]> {
   );
 }
 
-test("the field and its words hold still while the button says what Lantern is doing", async ({
-  page,
-}) => {
-  await openStart(page);
-  const field = page.getByRole("textbox", { name: "Where, and anything else" });
-  await field.fill(LONG_TEXT);
+test(
+  "the field and its words hold still while the button says what Lantern is doing",
+  { tag: "@frame" },
+  async ({ page }) => {
+    await openStart(page);
+    const field = page.getByRole("textbox", { name: "Where, and anything else" });
+    await field.fill(LONG_TEXT);
 
-  const frames = readField(page);
-  await field.press("Enter");
-  const seen = await frames;
+    const frames = readField(page);
+    await field.press("Enter");
+    const seen = await frames;
 
-  // The text wraps in the field, and the button said each of its words.
-  const [rest] = seen;
-  expect(rest?.lines).toBeGreaterThan(1);
-  expect(new Set(seen.map((frame) => frame.label))).toEqual(
-    new Set(["Plan this day", "Reading", "Opening"]),
-  );
-  for (const frame of seen) {
-    expect(frame.width, frame.label).toBeCloseTo(rest?.width ?? 0, 1);
-    expect(frame.lines, frame.label).toBe(rest?.lines);
-    expect(frame.left, frame.label).toBeCloseTo(rest?.left ?? 0, 1);
-    expect(frame.top, frame.label).toBeCloseTo(rest?.top ?? 0, 1);
-  }
-});
+    // The text wraps in the field, and the button said each of its words.
+    const [rest] = seen;
+    expect(rest?.lines).toBeGreaterThan(1);
+    expect(new Set(seen.map((frame) => frame.label))).toEqual(
+      new Set(["Plan this day", "Reading", "Opening"]),
+    );
+    for (const frame of seen) {
+      expect(frame.width, frame.label).toBeCloseTo(rest?.width ?? 0, 1);
+      expect(frame.lines, frame.label).toBe(rest?.lines);
+      expect(frame.left, frame.label).toBeCloseTo(rest?.left ?? 0, 1);
+      expect(frame.top, frame.label).toBeCloseTo(rest?.top ?? 0, 1);
+    }
+  },
+);
 
 test("the lit words lie on the field's own lines while they are read, through Tab too", async ({
   page,
@@ -638,169 +640,173 @@ test("lists the others an assumed city's name could mean, undotted under a notic
   ).toBeFocused();
 });
 
-test("lets the notice go before another reading of the city is drawn, at its place", async ({
-  page,
-  isMobile,
-}) => {
-  await page.setViewportSize(isMobile ? PHONE : TALL_LAPTOP);
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  await page.goto(URL);
-  const field = page.getByRole("textbox", { name: "Where, and anything else" });
-  await field.fill("portland, out late with friends");
-  await field.press("Enter");
-  await expect(noticeLine(page)).toContainText("isn't writing new days", {
-    timeout: DAY_TIMEOUT_MS,
-  });
-  // Written whole, so its words are in reach.
-  await expect(page.locator("header [inert]")).toHaveCount(0);
-  const headline = page.getByRole("heading", { level: 1 });
-  await headline.getByRole("button", { name: "Portland", exact: true }).click();
-  const sampled = sampleUntilTheNextNotice(page);
+test(
+  "lets the notice go before another reading of the city is drawn, at its place",
+  { tag: "@frame" },
+  async ({ page, isMobile }) => {
+    await page.setViewportSize(isMobile ? PHONE : TALL_LAPTOP);
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.goto(URL);
+    const field = page.getByRole("textbox", { name: "Where, and anything else" });
+    await field.fill("portland, out late with friends");
+    await field.press("Enter");
+    await expect(noticeLine(page)).toContainText("isn't writing new days", {
+      timeout: DAY_TIMEOUT_MS,
+    });
+    // Written whole, so its words are in reach.
+    await expect(page.locator("header [inert]")).toHaveCount(0);
+    const headline = page.getByRole("heading", { level: 1 });
+    await headline.getByRole("button", { name: "Portland", exact: true }).click();
+    const sampled = sampleUntilTheNextNotice(page);
 
-  await page
-    .getByRole("group", { name: "Where" })
-    .getByRole("button", { name: /Maine, United States/ })
-    .click();
+    await page
+      .getByRole("group", { name: "Where" })
+      .getByRole("button", { name: /Maine, United States/ })
+      .click();
 
-  const frames = await sampled;
-  const { at: pressedAt, frame: pressedFrame } = await pressOf(page);
-  const pressedOn = frames[pressedFrame - 1]!;
-  const after = frames.slice(pressedFrame);
-  expect(pressedOn.notice).toBe(pressedOn.noticeWhole);
-  // The headline holds.
-  for (const frame of after) expect(frame.headline).toBe(PORTLAND_LATE);
+    const frames = await sampled;
+    const { at: pressedAt, frame: pressedFrame } = await pressOf(page);
+    const pressedOn = frames[pressedFrame - 1]!;
+    const after = frames.slice(pressedFrame);
+    expect(pressedOn.notice).toBe(pressedOn.noticeWhole);
+    // The headline holds.
+    for (const frame of after) expect(frame.headline).toBe(PORTLAND_LATE);
 
-  // The notice fades as it stands, out of the hand's reach, and goes only once gone to the
-  // eye. The list the reading was chosen from leaves sight in the frame after the choice, as
-  // every choice takes its word's place at once, and stays, unseen, holding the focus on the
-  // row pressed, so no list's text lies over the headline as the notice fades.
-  const drawn = after.findIndex((frame) => frame.headerId !== pressedOn.headerId);
-  expect(drawn, "the notice was cut in the frame of the press").toBeGreaterThan(0);
-  const fading = after.slice(0, drawn);
-  for (const frame of fading) {
-    expect(frame.noticeWhole).toBe(pressedOn.noticeWhole);
-    expect(frame.notice).toBe(pressedOn.notice);
-    expect(frame.isNoticeOutOfReach).toBe(true);
-    expect(frame.isListOpen, "the city's list, unmounted").toBe(true);
-    expect(frame.listOpacity, "the list, still seen").toBe(0);
-  }
-  const opacities = new Set(fading.map((frame) => frame.noticeOpacity));
-  expect(opacities.size, `opacities: ${[...opacities].join(" ")}`).toBeGreaterThanOrEqual(
-    FADE_VALUES,
-  );
-  expect(fading.at(-1)!.noticeOpacity).toBeLessThanOrEqual(GONE_OPACITY);
-  expect(after[drawn]!.noticeWhole).toBeNull();
-  expect(after[drawn]!.isListOpen).toBe(false);
-  await expectFocusMovesOnce(page, pressedAt, after, drawn, "Portland");
-
-  // No text under the headline is cut while seen, and the lines step only over nothing seen.
-  frames.slice(1).forEach((frame, index) => {
-    const was = frames[index]!;
-    for (const line of was.under) {
-      const isThere = frame.under.some(
-        (now) => now.line === line.line && now.text.startsWith(line.text),
-      );
-      if (!isThere) expect(line.opacity, `"${line.text}" cut`).toBeLessThanOrEqual(GONE_OPACITY);
+    // The notice fades as it stands, out of the hand's reach, and goes only once gone to the
+    // eye. The list the reading was chosen from leaves sight in the frame after the choice, as
+    // every choice takes its word's place at once, and stays, unseen, holding the focus on the
+    // row pressed, so no list's text lies over the headline as the notice fades.
+    const drawn = after.findIndex((frame) => frame.headerId !== pressedOn.headerId);
+    expect(drawn, "the notice was cut in the frame of the press").toBeGreaterThan(0);
+    const fading = after.slice(0, drawn);
+    for (const frame of fading) {
+      expect(frame.noticeWhole).toBe(pressedOn.noticeWhole);
+      expect(frame.notice).toBe(pressedOn.notice);
+      expect(frame.isNoticeOutOfReach).toBe(true);
+      expect(frame.isListOpen, "the city's list, unmounted").toBe(true);
+      expect(frame.listOpacity, "the list, still seen").toBe(0);
     }
-  });
-  const heights = frames.map((frame) => Math.round(frame.lines)).join(" ");
-  for (const at of linesStepsOf(frames))
-    expect(isNothingSeenUnder(frames[at - 1]!), heights).toBe(true);
-
-  // The day played draws its date and axes a beat after it is drawn, at their place, and
-  // they hold still until they have gone; a day that ends sooner never draws them.
-  const ended = after.findIndex((frame, index) => index > drawn && frame.noticeWhole !== null);
-  expect(ended).toBeGreaterThan(drawn);
-  const shown = after.slice(drawn, ended);
-  const endedMs = after[ended]!.t - after[drawn]!.t;
-  const dateAt = shown.findIndex((frame) => frame.date !== null);
-  const axesAt = shown.findIndex((frame) => frame.chartTop !== null);
-  test.info().annotations.push({
-    type: "measured",
-    description: `drawn ${Math.round(after[drawn]!.t - pressedAt)} ms after the press, ended ${Math.round(endedMs)} ms after, date ${dateAt < 0 ? "never" : `${Math.round(shown[dateAt]!.t - shown[0]!.t)} ms`}, axes ${axesAt < 0 ? "never" : `${Math.round(shown[axesAt]!.t - shown[0]!.t)} ms`}`,
-  });
-  if (endedMs < PEN_BEAT_MS - FRAME_MS) expect(dateAt, "the date of a day already ended").toBe(-1);
-  for (const at of [dateAt, axesAt].filter((index) => index >= 0)) {
-    expect(shown[at]!.t - shown[0]!.t, "drawn before the beat").toBeGreaterThanOrEqual(
-      PEN_BEAT_MS - FRAME_MS,
+    const opacities = new Set(fading.map((frame) => frame.noticeOpacity));
+    expect(opacities.size, `opacities: ${[...opacities].join(" ")}`).toBeGreaterThanOrEqual(
+      FADE_VALUES,
     );
-  }
-  shown.slice(1).forEach((frame, index) => {
-    const last = shown[index]!;
-    if (frame.date !== null && last.date !== null) {
-      expect(Math.abs(frame.date - last.date), "the date moved").toBeLessThanOrEqual(STILL_PX);
-    }
-    if (frame.chartTop !== null && last.chartTop !== null) {
-      expect(Math.abs(frame.chartTop - last.chartTop), "the axes moved").toBeLessThanOrEqual(
-        STILL_PX,
+    expect(fading.at(-1)!.noticeOpacity).toBeLessThanOrEqual(GONE_OPACITY);
+    expect(after[drawn]!.noticeWhole).toBeNull();
+    expect(after[drawn]!.isListOpen).toBe(false);
+    await expectFocusMovesOnce(page, pressedAt, after, drawn, "Portland");
+
+    // No text under the headline is cut while seen, and the lines step only over nothing seen.
+    frames.slice(1).forEach((frame, index) => {
+      const was = frames[index]!;
+      for (const line of was.under) {
+        const isThere = frame.under.some(
+          (now) => now.line === line.line && now.text.startsWith(line.text),
+        );
+        if (!isThere) expect(line.opacity, `"${line.text}" cut`).toBeLessThanOrEqual(GONE_OPACITY);
+      }
+    });
+    const heights = frames.map((frame) => Math.round(frame.lines)).join(" ");
+    for (const at of linesStepsOf(frames))
+      expect(isNothingSeenUnder(frames[at - 1]!), heights).toBe(true);
+
+    // The day played draws its date and axes a beat after it is drawn, at their place, and
+    // they hold still until they have gone; a day that ends sooner never draws them.
+    const ended = after.findIndex((frame, index) => index > drawn && frame.noticeWhole !== null);
+    expect(ended).toBeGreaterThan(drawn);
+    const shown = after.slice(drawn, ended);
+    const endedMs = after[ended]!.t - after[drawn]!.t;
+    const dateAt = shown.findIndex((frame) => frame.date !== null);
+    const axesAt = shown.findIndex((frame) => frame.chartTop !== null);
+    test.info().annotations.push({
+      type: "measured",
+      description: `drawn ${Math.round(after[drawn]!.t - pressedAt)} ms after the press, ended ${Math.round(endedMs)} ms after, date ${dateAt < 0 ? "never" : `${Math.round(shown[dateAt]!.t - shown[0]!.t)} ms`}, axes ${axesAt < 0 ? "never" : `${Math.round(shown[axesAt]!.t - shown[0]!.t)} ms`}`,
+    });
+    if (endedMs < PEN_BEAT_MS - FRAME_MS)
+      expect(dateAt, "the date of a day already ended").toBe(-1);
+    for (const at of [dateAt, axesAt].filter((index) => index >= 0)) {
+      expect(shown[at]!.t - shown[0]!.t, "drawn before the beat").toBeGreaterThanOrEqual(
+        PEN_BEAT_MS - FRAME_MS,
       );
     }
-  });
+    shown.slice(1).forEach((frame, index) => {
+      const last = shown[index]!;
+      if (frame.date !== null && last.date !== null) {
+        expect(Math.abs(frame.date - last.date), "the date moved").toBeLessThanOrEqual(STILL_PX);
+      }
+      if (frame.chartTop !== null && last.chartTop !== null) {
+        expect(Math.abs(frame.chartTop - last.chartTop), "the axes moved").toBeLessThanOrEqual(
+          STILL_PX,
+        );
+      }
+    });
 
-  // Its own notice is heard once, in its step, until the pen has written it, then no more.
-  const notice = after.slice(ended);
-  const line = notice.at(-1)!.noticeWhole;
-  expect(notice.at(-1)!.notice).toBe(line);
-  let isQuiet = false;
-  for (const frame of notice) {
-    if (frame.notice !== frame.noticeWhole) expect(frame.isNoticeInert).toBe(true);
-    if (frame.heard === "") isQuiet = true;
-    else {
-      expect(isQuiet, "heard again").toBe(false);
-      expect(line?.startsWith(frame.heard)).toBe(true);
+    // Its own notice is heard once, in its step, until the pen has written it, then no more.
+    const notice = after.slice(ended);
+    const line = notice.at(-1)!.noticeWhole;
+    expect(notice.at(-1)!.notice).toBe(line);
+    let isQuiet = false;
+    for (const frame of notice) {
+      if (frame.notice !== frame.noticeWhole) expect(frame.isNoticeInert).toBe(true);
+      if (frame.heard === "") isQuiet = true;
+      else {
+        expect(isQuiet, "heard again").toBe(false);
+        expect(line?.startsWith(frame.heard)).toBe(true);
+      }
     }
-  }
-  expect(isQuiet).toBe(true);
-});
+    expect(isQuiet).toBe(true);
+  },
+);
 
-test("under reduced motion, another reading of the city takes the notice's place in one step", async ({
-  page,
-}) => {
-  await openStart(page);
-  const field = page.getByRole("textbox", { name: "Where, and anything else" });
-  await field.fill("portland, out late with friends");
-  await field.press("Enter");
-  await expect(noticeLine(page)).toContainText("isn't writing new days", {
-    timeout: DAY_TIMEOUT_MS,
-  });
-  const headline = page.getByRole("heading", { level: 1 });
-  await headline.getByRole("button", { name: "Portland", exact: true }).click();
-  const sampled = sampleUntilTheNextNotice(page, REDUCED_SAMPLED_MS);
+test(
+  "under reduced motion, another reading of the city takes the notice's place in one step",
+  { tag: "@frame" },
+  async ({ page }) => {
+    await openStart(page);
+    const field = page.getByRole("textbox", { name: "Where, and anything else" });
+    await field.fill("portland, out late with friends");
+    await field.press("Enter");
+    await expect(noticeLine(page)).toContainText("isn't writing new days", {
+      timeout: DAY_TIMEOUT_MS,
+    });
+    const headline = page.getByRole("heading", { level: 1 });
+    await headline.getByRole("button", { name: "Portland", exact: true }).click();
+    const sampled = sampleUntilTheNextNotice(page, REDUCED_SAMPLED_MS);
 
-  await page
-    .getByRole("group", { name: "Where" })
-    .getByRole("button", { name: /Maine, United States/ })
-    .click();
+    await page
+      .getByRole("group", { name: "Where" })
+      .getByRole("button", { name: /Maine, United States/ })
+      .click();
 
-  // The notice never fades, and the next day's says the same: whole in each frame it stands.
-  const frames = await sampled;
-  for (const frame of frames) {
-    if (frame.noticeWhole === null) continue;
-    expect(frame.noticeOpacity).toBe(1);
-    expect(frame.notice).toBe(frame.noticeWhole);
-  }
-  await expect(headline.getByRole("button", { name: "Portland", exact: true })).toBeFocused();
-  // The next day is drawn in the step after the press, and its date and axes a beat later:
-  // a day that ends sooner never draws them.
-  const { at: pressedAt, frame: pressedFrame } = await pressOf(page);
-  const pressedOn = frames[pressedFrame - 1]!;
-  const after = frames.slice(pressedFrame);
-  const drawn = after.findIndex((frame) => frame.headerId !== pressedOn.headerId);
-  expect(drawn).toBeGreaterThanOrEqual(0);
-  // Its own notice may come before the next frame, when the route answers at once.
-  const ended = after.findIndex((frame, index) => index >= drawn && frame.noticeWhole !== null);
-  expect(ended).toBeGreaterThanOrEqual(drawn);
-  const endedMs = after[ended]!.t - pressedAt;
-  const shown = after.slice(drawn);
-  const dateAt = shown.findIndex((frame) => frame.date !== null || frame.chartTop !== null);
-  test.info().annotations.push({
-    type: "measured",
-    description: `drawn ${Math.round(after[drawn]!.t - pressedAt)} ms after the press, its notice ${Math.round(endedMs)} ms, date or axes ${dateAt < 0 ? "never" : `${Math.round(shown[dateAt]!.t - pressedAt)} ms`}`,
-  });
-  if (endedMs < PEN_BEAT_MS - FRAME_MS) {
-    expect(dateAt, "the date or axes of a day already ended").toBe(-1);
-  } else if (dateAt >= 0) {
-    expect(shown[dateAt]!.t - pressedAt).toBeGreaterThanOrEqual(PEN_BEAT_MS - FRAME_MS);
-  }
-  await expectFocusMovesOnce(page, pressedAt, after, drawn, "Portland");
-});
+    // The notice never fades, and the next day's says the same: whole in each frame it stands.
+    const frames = await sampled;
+    for (const frame of frames) {
+      if (frame.noticeWhole === null) continue;
+      expect(frame.noticeOpacity).toBe(1);
+      expect(frame.notice).toBe(frame.noticeWhole);
+    }
+    await expect(headline.getByRole("button", { name: "Portland", exact: true })).toBeFocused();
+    // The next day is drawn in the step after the press, and its date and axes a beat later:
+    // a day that ends sooner never draws them.
+    const { at: pressedAt, frame: pressedFrame } = await pressOf(page);
+    const pressedOn = frames[pressedFrame - 1]!;
+    const after = frames.slice(pressedFrame);
+    const drawn = after.findIndex((frame) => frame.headerId !== pressedOn.headerId);
+    expect(drawn).toBeGreaterThanOrEqual(0);
+    // Its own notice may come before the next frame, when the route answers at once.
+    const ended = after.findIndex((frame, index) => index >= drawn && frame.noticeWhole !== null);
+    expect(ended).toBeGreaterThanOrEqual(drawn);
+    const endedMs = after[ended]!.t - pressedAt;
+    const shown = after.slice(drawn);
+    const dateAt = shown.findIndex((frame) => frame.date !== null || frame.chartTop !== null);
+    test.info().annotations.push({
+      type: "measured",
+      description: `drawn ${Math.round(after[drawn]!.t - pressedAt)} ms after the press, its notice ${Math.round(endedMs)} ms, date or axes ${dateAt < 0 ? "never" : `${Math.round(shown[dateAt]!.t - pressedAt)} ms`}`,
+    });
+    if (endedMs < PEN_BEAT_MS - FRAME_MS) {
+      expect(dateAt, "the date or axes of a day already ended").toBe(-1);
+    } else if (dateAt >= 0) {
+      expect(shown[dateAt]!.t - pressedAt).toBeGreaterThanOrEqual(PEN_BEAT_MS - FRAME_MS);
+    }
+    await expectFocusMovesOnce(page, pressedAt, after, drawn, "Portland");
+  },
+);

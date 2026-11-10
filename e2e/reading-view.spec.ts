@@ -124,7 +124,7 @@ for (const view of ["Read", "Chart"] as const) {
   });
 }
 
-test.describe("with motion", () => {
+test.describe("with motion", { tag: "@frame" }, () => {
   test.use({ reducedMotion: "no-preference" });
 
   test("the chart shown first after the list stands in place from its first frame", async ({

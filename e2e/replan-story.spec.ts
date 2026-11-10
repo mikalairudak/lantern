@@ -221,7 +221,7 @@ test.describe("under reduced motion", () => {
   });
 });
 
-test.describe("with motion", () => {
+test.describe("with motion", { tag: "@frame" }, () => {
   test.use({ reducedMotion: "no-preference" });
 
   test("lands the proposal and takes it moving no row of the day before the fork, and no row in a step", async ({
