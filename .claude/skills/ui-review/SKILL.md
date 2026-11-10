@@ -1,7 +1,7 @@
 ---
 name: ui-review
 description: A fresh-eyes review of Lantern UI work before it merges. Runs in its own agent, which has not seen the work being built; it reads the diff, opens the pages and the /lab matrix, samples the stream frame by frame, measures, and reports findings with file:line and evidence.
-when_to_use: Before the engineering session merges a branch that changes UI into `develop`, or before the author of a component says it is done. Give it the branch or commit range and the URL of a dev server that serves it, as in "/ui-review <branch> http://localhost:<port>".
+when_to_use: Before the engineering session opens the pull request of a branch that changes UI, or before the author of a component says it is done. Give it the branch or commit range and the URL of a dev server that serves it, as in "/ui-review <branch> http://localhost:<port>".
 argument-hint: "[branch or commit range] [dev server URL]"
 arguments: [target, url]
 context: fork

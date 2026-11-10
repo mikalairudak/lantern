@@ -1,6 +1,6 @@
 # Lantern Roadmap
 
-Status: v1.0, 2026-11-09. Planned 2026-10-20; fixtures-only build done 2026-10-27; live since 2026-10-31.
+Status: v1.0, 2026-11-09. Planned 2026-10-20; fixtures-only build done 2026-10-27; live since 2026-10-31; the milestones after v1.0 planned 2026-11-10.
 
 ## What we are building, and for whom
 
@@ -13,7 +13,7 @@ Principles:
 - **Depth over breadth.** A few signature interactions polished to 100%, everything else kept minimal.
 - **One filter for every decision:** will a visitor see it?
 - **Production-grade where undoing is expensive.** The data contract and module boundaries are built properly from day one. Infrastructure that is cheap to add later (auth, database, payments) waits until Lantern becomes a product.
-- **Typography-first.** The design must stand on its own without photos.
+- **Typography-first.** A day stands on its type and its light, without photos. Pictures may help a visitor choose a way in (`docs/decisions.md`, "Pictures may help a visitor choose a way in; a day needs none").
 
 ## The first ten seconds
 
@@ -72,7 +72,27 @@ After it: `/studio` as a walk through the project, and a digest of the decisions
 - the page has a footer: the sources on its left, Lantern's links on its right;
 - a written day is shown on the next date of its weekday, and its page shows its day whatever its play ends with, which is also what a search engine reads;
 
-Next: the post-MVP candidates below. The six written days are written again before mid-February, when their evening light no longer holds (`docs/decisions.md`, "A written day is shown on the next date of its weekday").
+Next: the milestones below. The six written days are written again before mid-February, when their evening light no longer holds (`docs/decisions.md`, "A written day is shown on the next date of its weekday").
+
+## After v1.0: three milestones
+
+Each milestone is one release. Its work reaches `develop` as small pull requests (`docs/decisions.md`, "Every change reaches develop as a pull request the owner merges"). There is no date: each milestone is done when all of it is done.
+
+1. **Foundation (v1.0.x).** The way work lands, and what is measured before the start screen changes:
+   - every change through a reviewed pull request, its text checked, and `develop` merged only from a green one;
+   - one fix taken from a branch to a release, `v1.0.1`, to prove the path end to end;
+   - the events that say whether a day was used: the start screen seen, a day read to its end, and the way in and the view of each day's gestures; and their values before the start screen changes;
+   - the header's top row aligned;
+   - the lint's dependencies updated.
+2. **First impression (v1.1).** What a visitor sees in their first ten seconds, released as one:
+   - a start screen with two ways in, the question and tiles for a mood or an occasion, each tile opening a day already written for it, and a still excerpt of a day beneath them; the six written days leave it and keep their pages, as examples a search can find;
+   - a day shown first as a plan to read, with its light, and the chart as its second view;
+   - the header's remaining polish, the tiles' picture style, and a reaction a visitor gives in one tap;
+   - a test with five people;
+   - the events compared with their values before.
+3. **Day quality (v1.2).** The day itself: the model's and the data's open issues, and the six written days written again.
+
+After them: a weekend, tiles by season or region, and a page of the product's measures in `/studio`.
 
 ## Pre-MVP: the canvas, on fixtures
 
@@ -136,7 +156,7 @@ We start with three features: energy slider, quick swap and the light on the cha
 
 These are not commitments. Each one waits for a single trigger: deciding to turn Lantern into a product.
 
-- Multi-day trips.
+- A weekend: two days in one city, then trips of more days.
 - Saving and sharing a day (a link first, then accounts).
 - An editorial map view for spatial context.
 - Provider photos as an optional layer.
@@ -151,4 +171,4 @@ These are not commitments. Each one waits for a single trigger: deciding to turn
 
 ## Non-goals
 
-Booking, ratings and reviews, a chat interface, social features, and photos as part of the showcase.
+Booking, ratings and reviews, a chat interface, and social features.
