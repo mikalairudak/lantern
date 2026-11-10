@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { emptyDatabase, migratedDatabase, type TestDatabase } from "@/lib/fixtures/db/pglite";
-import { ONE_EVENT_OF_EACH_KIND } from "@/lib/fixtures/events";
+import { KYOTO_DRAGGED, ONE_EVENT_OF_EACH_KIND } from "@/lib/fixtures/events";
 import { hashVisitor } from "@/lib/live/visitor";
 import {
   answerEventRequest,
@@ -16,7 +16,7 @@ const URL = "http://lantern.test/api/events";
 const ADDRESS = "203.0.113.7";
 const OTHER_ADDRESS = "198.51.100.4";
 const NOW = new Date("2026-10-30T12:00:00Z");
-const DRAGGED = JSON.stringify({ kind: "curve-dragged", city: "kyoto" });
+const DRAGGED = JSON.stringify(KYOTO_DRAGGED);
 /**
  * A dotted IPv4 address, or an IPv6 one written out or compressed, as the live routes'
  * test looks for one.
@@ -119,12 +119,12 @@ describe("POST /api/events", () => {
     ],
     [
       "with a field its kind does not have",
-      JSON.stringify({ kind: "curve-dragged", city: "kyoto", ua: "Mozilla/5.0" }),
+      JSON.stringify({ ...KYOTO_DRAGGED, ua: "Mozilla/5.0" }),
       { reason: "not-an-event", issues: ["request"] },
     ],
     [
       "with a city that is not an address's",
-      JSON.stringify({ kind: "stop-swapped", city: "São Paulo" }),
+      JSON.stringify({ ...KYOTO_DRAGGED, city: "São Paulo" }),
       { reason: "not-an-event", issues: ["city"] },
     ],
   ])("answers a body %s with 204, keeps nothing, and logs why", async (_name, body, why) => {
@@ -258,7 +258,7 @@ describe("POST /api/events", () => {
     const typed = { "x-real-ip": "2001:db8:85a3::8a2e:370:7334" };
     const refusals: [EventStore, string][] = [
       [inMemory(), "Mozilla/5.0 from 203.0.113.7"],
-      [inMemory(), JSON.stringify({ kind: "curve-dragged", city: "kyoto", ua: "Mozilla/5.0" })],
+      [inMemory(), JSON.stringify({ ...KYOTO_DRAGGED, ua: "Mozilla/5.0" })],
       [inMemory(), JSON.stringify({ kind: "word-changed", city: "kyoto", word: "my secret" })],
       [spent, DRAGGED],
       [failing, DRAGGED],

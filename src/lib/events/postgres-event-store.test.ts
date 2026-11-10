@@ -2,8 +2,15 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Sql } from "@/lib/db/sql";
 import { migratedDatabase, type TestDatabase } from "@/lib/fixtures/db/pglite";
-import { ONE_EVENT_OF_EACH_KIND } from "@/lib/fixtures/events";
-import { DAY_OUTCOMES, HEADER_WORDS, INTAKE_OUTCOMES, LEFT_STAGES, DAY_VIAS } from "./event.schema";
+import { KYOTO_DRAGGED, KYOTO_ON_CHART, ONE_EVENT_OF_EACH_KIND } from "@/lib/fixtures/events";
+import {
+  DAY_OUTCOMES,
+  DAY_VIAS,
+  DAY_VIEWS,
+  HEADER_WORDS,
+  INTAKE_OUTCOMES,
+  LEFT_STAGES,
+} from "./event.schema";
 import type { EventEntry } from "./event-store";
 import { columnsOf, PostgresEventStore } from "./postgres-event-store";
 
@@ -14,7 +21,7 @@ const OTHER_VISITOR = "b".repeat(64);
 
 function entry(
   visitor: string,
-  event: EventEntry["event"] = { kind: "curve-dragged", city: "kyoto" },
+  event: EventEntry["event"] = KYOTO_DRAGGED,
   day: string = TODAY,
 ): EventEntry {
   return { id: crypto.randomUUID(), visitor, day, event };
@@ -102,7 +109,7 @@ describe("the Postgres event store", () => {
     expect(
       await database.session.query(
         `SELECT environment, utc_day::text AS utc_day, visitor_key, kind, city, via, written,
-          outcome, stage, word FROM product_events`,
+          outcome, stage, word, view FROM product_events`,
       ),
     ).toEqual([
       {
@@ -116,7 +123,47 @@ describe("the Postgres event store", () => {
         outcome: null,
         stage: "before-first-stop",
         word: null,
+        view: null,
       },
+    ]);
+  });
+
+  it("keeps the view a day is read in, and leaves the tile and the answer empty", async () => {
+    const store = new PostgresEventStore(database.session, "production");
+    await store.saltOn(TODAY);
+
+    await store.record(
+      entry(VISITOR, { kind: "day-read-to-end", ...KYOTO_ON_CHART, view: "read" }),
+    );
+
+    expect(
+      await database.session.query("SELECT kind, view, tile, answer FROM product_events"),
+    ).toEqual([{ kind: "day-read-to-end", view: "read", tile: null, answer: null }]);
+  });
+
+  it.each([
+    ["view", "Read on the chart"],
+    ["tile", "kyoto calm"],
+    ["answer", "not quite"],
+  ])("refuses a %s that is not a word, whatever reaches the database", async (column, value) => {
+    await expect(
+      database.session.query(
+        `INSERT INTO product_events (id, environment, utc_day, visitor_key, kind, ${column})
+         VALUES ($1::uuid, 'production', $2::date, $3, 'day-opened', $4)`,
+        [crypto.randomUUID(), TODAY, VISITOR, value],
+      ),
+    ).rejects.toThrow(/check constraint/);
+  });
+
+  it("takes a tile by an id that may hold digits", async () => {
+    await database.session.query(
+      `INSERT INTO product_events (id, environment, utc_day, visitor_key, kind, tile, answer)
+       VALUES ($1::uuid, 'production', $2::date, $3, 'day-opened', 'kyoto-2', 'not-quite')`,
+      [crypto.randomUUID(), TODAY, VISITOR],
+    );
+
+    expect(await database.session.query("SELECT tile, answer FROM product_events")).toEqual([
+      { tile: "kyoto-2", answer: "not-quite" },
     ]);
   });
 
@@ -133,8 +180,16 @@ describe("the Postgres event store", () => {
       ),
       ...DAY_OUTCOMES.map(
         (outcome) =>
-          ({ kind: "day-ended", city: "kyoto", via: "link", written: false, outcome }) as const,
+          ({
+            kind: "day-ended",
+            city: "kyoto",
+            via: "link",
+            written: false,
+            view: "chart",
+            outcome,
+          }) as const,
       ),
+      ...DAY_VIEWS.map((view) => ({ ...KYOTO_DRAGGED, view }) as const),
       ...LEFT_STAGES.map(
         (stage) =>
           ({ kind: "day-left", city: "kyoto", via: "word", written: true, stage }) as const,
@@ -146,7 +201,7 @@ describe("the Postgres event store", () => {
     for (const event of everyWord) expect(await store.record(entry(VISITOR, event))).toBe(true);
 
     const rows = await database.session.query<Record<string, unknown>>(
-      "SELECT kind, city, via, written, outcome, stage, word FROM product_events",
+      "SELECT kind, city, via, written, outcome, stage, word, view FROM product_events",
     );
     expect(rows).toHaveLength(everyWord.length);
     expect(rows).toEqual(

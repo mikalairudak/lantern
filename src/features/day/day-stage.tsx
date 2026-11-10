@@ -73,7 +73,7 @@ import { NO_CHECKS, type PlaceChecks } from "@/features/itinerary/use-day-stream
 import { useElementSize, type ElementSize } from "@/components/ui/use-element-size";
 import { GlidingHeight } from "@/components/ui/gliding-height";
 import { useEnergyCurve, type EnergyCurve } from "@/features/abacus/use-energy-curve";
-import type { HeaderWord, ProductEvent, ProductEventKind } from "@/lib/events/event.schema";
+import type { DayAct, HeaderWord, ProductEvent } from "@/lib/events/event.schema";
 import { useSprung } from "@/components/ui/use-sprung";
 import { SPRINGS, gentleOver } from "@/lib/tokens/motion";
 import { bareStopOf, waitingInBareRow, waitingOver } from "@/features/abacus/waiting";
@@ -147,14 +147,14 @@ const NO_STOPS: readonly StopDraft[] = [];
 export const NO_CONFIRMED: readonly AssumableFactKey[] = [];
 
 /** The chart's gestures the product's events count. */
-type GestureKind = Extract<ProductEventKind, "curve-dragged" | "stop-swapped">;
+type GestureKind = Extract<DayAct, "curve-dragged" | "stop-swapped">;
 
 /** The event each way of taking the day along is counted as. */
 const EXPORT_EVENTS = {
   link: "link-shared",
   calendar: "calendar-saved",
   route: "route-opened",
-} as const satisfies Record<DayExport, ProductEventKind>;
+} as const satisfies Record<DayExport, DayAct>;
 
 /** A day that ended without one, as drawn when it ended, kept while its chart fades. */
 interface Leaving {
@@ -297,11 +297,15 @@ interface DayStageProps {
   replanLine?: string | null;
   /** A changed word, while Lantern writes it and after, as the header tells it (`DayStageHeader`). */
   replan?: ReplanControls;
+  /** Told of each word of the header changed, as the product's event it makes. */
+  onEvent?: (event: Extract<ProductEvent, { kind: "word-changed" }>) => void;
   /**
-   * Told of the product's events the visitor's gestures on this day make: each word changed,
-   * each drag of the curve let go, a stop's arrow key among them, and each stop swapped.
+   * Told of what the visitor does with this day, for the product's events, which add the day
+   * as it was opened and its view: each drag of the curve let go, a stop's arrow key among
+   * them, each stop swapped, each way the day is taken along, and the line under the whole day
+   * staying in view (`READ_TO_END_MS`).
    */
-  onEvent?: (event: ProductEvent) => void;
+  onDayAct?: (act: DayAct) => void;
   /**
    * The page's memory of the chart's invitation to drag, which it shows once across the days
    * it draws (`useInvitation`); left out, each day invites its own.
@@ -366,6 +370,7 @@ export function DayStage({
   replanLine = null,
   replan,
   onEvent,
+  onDayAct,
   invitationMemory,
   heldRoom = null,
   roomRef,
@@ -741,7 +746,7 @@ export function DayStage({
     setHeldGesture((count) => count + 1);
     // One who has bent the curve needs showing how no more, on any page.
     if (kind === "curve-dragged") noteCurveDragged();
-    onEvent?.({ kind, city });
+    onDayAct?.(kind);
   };
   const curve = useEnergyCurve(stops);
   const energy: EnergyCurve = {
@@ -1418,7 +1423,8 @@ export function DayStage({
                       isCut={isCut}
                       calendarKey={picksKey ?? city}
                       onPlanAnother={() => setCityOpenAt("elsewhere")}
-                      onExport={(way) => onEvent?.({ kind: EXPORT_EVENTS[way], city })}
+                      onExport={(way) => onDayAct?.(EXPORT_EVENTS[way])}
+                      onReadToEnd={onDayAct && (() => onDayAct("day-read-to-end"))}
                       className={cn(END_CLASSES, wholeClasses)}
                     />
                   ) : waitingLine !== null ? (

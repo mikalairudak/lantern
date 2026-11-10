@@ -2,6 +2,7 @@
 
 import { Day, type WrittenGist } from "./day";
 import { readIntakeRoute } from "./intake-route";
+import { useHomeViewed } from "./use-day-events";
 import { readWrittenOnly } from "./written-reader";
 
 interface StartDayProps {
@@ -21,6 +22,7 @@ interface StartDayProps {
  * The address names the day once one takes the page, so a copied link opens it.
  */
 export function StartDay({ pool, isLive, isCounted = false }: StartDayProps) {
+  useHomeViewed(isCounted);
   if (pool.length === 0) throw new Error("The start screen has no written day to offer");
   const read = isLive ? readIntakeRoute : readWrittenOnly(pool);
   return <Day start={{ pool, read }} isLive={isLive} isAddressed isCounted={isCounted} />;

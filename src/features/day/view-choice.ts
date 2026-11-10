@@ -1,17 +1,21 @@
 /**
  * How the visitor reads a day: on the chart, or as a list (`docs/decisions.md`, "A day can be read
- * as a list, written as the chart is"). Kept in this browser's storage, as the theme is, never sent
- * anywhere, and noted on `<html>` as `data-day-view` before the first paint, so a visitor who chose
- * the list never sees the chart flash first. Where nothing set the attribute, as where no script
- * runs, the styles show the list (`globals.css`), and the switch the server draws says so. The day
- * itself is not yet in a written day's first HTML, which streams it in a part only the script
- * shows, so a page read without its script has no list to show until it is. The server never reads
- * the choice, so a written day's page stays one page for everyone, served from the cache.
+ * as a list, written as the chart is"). Kept in this browser's storage, as the theme is, and noted
+ * on `<html>` as `data-day-view` before the first paint, so a visitor who chose the list never sees
+ * the chart flash first. The view on show goes with the product's events about the day on screen
+ * (`use-day-events.ts`), as the privacy page says; nothing else of it leaves the browser. Where
+ * nothing set the attribute, as where no script runs, the styles show the list (`globals.css`),
+ * and the switch the server draws says so. The day itself is not yet in a written day's first
+ * HTML, which streams it in a part only the script shows, so a page read without its script has no
+ * list to show until it is. The server never reads the choice, so a written day's page stays one
+ * page for everyone, served from the cache.
  */
 
 import { BROWSER_STORAGE } from "@/lib/browser-storage";
+import type { DAY_VIEWS } from "@/lib/events/event.schema";
 
-export type DayView = "chart" | "read";
+/** The events' words for the views, so what an event says of the view is the page's own. */
+export type DayView = (typeof DAY_VIEWS)[number];
 
 /** Where the choice is kept, in `localStorage`. */
 export const DAY_VIEW_STORAGE_KEY = BROWSER_STORAGE.view.key;

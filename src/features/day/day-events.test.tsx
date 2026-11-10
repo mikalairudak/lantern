@@ -22,6 +22,7 @@ import { keptSeenKeyOf, markSeen, seenKeyOf } from "./seen-days";
 import type { KeptLanding } from "./kept-day";
 import { writtenDayAt } from "@/lib/days/written/days";
 import { writtenPool } from "./written-pool";
+import { READ_TO_END_MS } from "./use-read-to-end";
 
 /**
  * The product's events as the page sends them, with the sender stubbed: each kind once, at
@@ -46,6 +47,39 @@ const PORTO: DayRequest = {
 };
 
 const KANAZAWA_LINK = { city: "kanazawa", via: "link", written: true } as const;
+const PRESSED_KANAZAWA = { city: "kanazawa", via: "pressed", written: true } as const;
+/** The view every test's page starts on (`vitest.setup.ts`), which the events say. */
+const ON_CHART = { view: "chart" } as const;
+/** What the start screen tells as its page opens, before anything else. */
+const HOME_VIEWED = { kind: "home-viewed" } as const;
+/** Google's renderer, as its user agent names it. */
+const GOOGLEBOT =
+  "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1) Chrome/130.0";
+
+/** A browser where everything observed is wholly on screen from the moment it is watched. */
+class AllInViewObserver {
+  constructor(private readonly callback: IntersectionObserverCallback) {}
+  observe(target: Element): void {
+    const entry = { target, isIntersecting: true, intersectionRatio: 1 };
+    this.callback([entry as IntersectionObserverEntry], this as unknown as IntersectionObserver);
+  }
+  unobserve(): void {}
+  disconnect(): void {}
+}
+
+/** Runs `body` in a browser that tells what is on screen, as jsdom does not. */
+async function withEverythingInView(body: () => Promise<void>): Promise<void> {
+  Object.defineProperty(window, "IntersectionObserver", {
+    value: AllInViewObserver,
+    configurable: true,
+  });
+  try {
+    await body();
+  } finally {
+    Reflect.deleteProperty(window, "IntersectionObserver");
+  }
+}
+
 /** A day the log kept, Kanazawa with family: the model's, at its own address. */
 const KEPT_ID = "1b6f0c2e-4d3a-4f5b-9c7e-2a1d3e4f5a6b";
 const KEPT_REQUEST: DayRequest = { ...KANAZAWA_START_REQUEST, company: "family" };
@@ -232,7 +266,7 @@ describe("the days played, as the product counts them", () => {
     await waitForTheDay();
     expect(sent()).toEqual([
       { kind: "day-opened", ...KANAZAWA_LINK },
-      { kind: "day-ended", ...KANAZAWA_LINK, outcome: "complete" },
+      { kind: "day-ended", ...KANAZAWA_LINK, ...ON_CHART, outcome: "complete" },
     ]);
   });
 
@@ -255,8 +289,9 @@ describe("the days played, as the product counts them", () => {
     await waitForTheDay();
 
     expect(sent()).toEqual([
-      { kind: "day-opened", city: "kanazawa", via: "pressed", written: true },
-      { kind: "day-ended", city: "kanazawa", via: "pressed", written: true, outcome: "complete" },
+      HOME_VIEWED,
+      { kind: "day-opened", ...PRESSED_KANAZAWA },
+      { kind: "day-ended", ...PRESSED_KANAZAWA, ...ON_CHART, outcome: "complete" },
     ]);
   });
 
@@ -276,9 +311,10 @@ describe("the days played, as the product counts them", () => {
 
     const porto = { city: "porto", via: "typed", written: false } as const;
     expect(sent()).toEqual([
+      HOME_VIEWED,
       { kind: "intake-ended", outcome: "request" },
       { kind: "day-opened", ...porto },
-      { kind: "day-ended", ...porto, outcome: "complete" },
+      { kind: "day-ended", ...porto, ...ON_CHART, outcome: "complete" },
     ]);
   });
 
@@ -307,10 +343,11 @@ describe("the days played, as the product counts them", () => {
     const lisbon = { city: "bologna", via: "pressed", written: true } as const;
     const alicante = { city: "nafplio", via: "pressed", written: true } as const;
     expect(sent()).toEqual([
+      HOME_VIEWED,
       { kind: "day-opened", ...lisbon },
       { kind: "day-left", ...lisbon, stage: "before-first-stop" },
       { kind: "day-opened", ...alicante },
-      { kind: "day-ended", ...alicante, outcome: "complete" },
+      { kind: "day-ended", ...alicante, ...ON_CHART, outcome: "complete" },
     ]);
   });
 
@@ -353,9 +390,9 @@ describe("the days played, as the product counts them", () => {
     expect(sent().slice(2)).toEqual([
       { kind: "word-changed", city: "kanazawa", word: "city" },
       { kind: "day-opened", ...atlantis },
-      { kind: "day-ended", ...atlantis, outcome: "unavailable" },
+      { kind: "day-ended", ...atlantis, ...ON_CHART, outcome: "unavailable" },
       { kind: "day-opened", ...lisbonDay },
-      { kind: "day-ended", ...lisbonDay, outcome: "complete" },
+      { kind: "day-ended", ...lisbonDay, ...ON_CHART, outcome: "complete" },
     ]);
   });
 });
@@ -386,7 +423,7 @@ describe("the gestures on a day, as the product counts them", () => {
     expect(sent().slice(2)).toEqual([
       { kind: "word-changed", city: "madrid", word: "company" },
       { kind: "day-opened", ...replanned },
-      { kind: "day-ended", ...replanned, outcome: "complete" },
+      { kind: "day-ended", ...replanned, ...ON_CHART, outcome: "complete" },
     ]);
   });
 
@@ -404,7 +441,7 @@ describe("the gestures on a day, as the product counts them", () => {
 
     expect(sent()).toEqual([
       { kind: "day-opened", ...KEPT_ADDRESS },
-      { kind: "day-ended", ...KEPT_ADDRESS, outcome: "complete" },
+      { kind: "day-ended", ...KEPT_ADDRESS, ...ON_CHART, outcome: "complete" },
     ]);
   });
 
@@ -420,7 +457,9 @@ describe("the gestures on a day, as the product counts them", () => {
     render(<Day kept={keptLanding("cut")} isLive={false} isAddressed isCounted />);
     await waitFor(() => expect(sent()).toHaveLength(2), DAY_TIMEOUT);
 
-    expect(sentOf("day-ended")).toEqual([{ kind: "day-ended", ...KEPT_ADDRESS, outcome: "cut" }]);
+    expect(sentOf("day-ended")).toEqual([
+      { kind: "day-ended", ...KEPT_ADDRESS, ...ON_CHART, outcome: "cut" },
+    ]);
   });
 
   it("opens no day for a kept day's notice in its place", async () => {
@@ -447,7 +486,7 @@ describe("the gestures on a day, as the product counts them", () => {
 
     expect(sent()).toEqual([
       { kind: "day-opened", ...KANAZAWA_LINK },
-      { kind: "day-ended", ...KANAZAWA_LINK, outcome: "complete" },
+      { kind: "day-ended", ...KANAZAWA_LINK, ...ON_CHART, outcome: "complete" },
     ]);
     // Another city from the city word: the day seen whole was never left, nor counted so.
     await user.click(within(headline()).getByRole("button", { name: "Kanazawa" }));
@@ -469,7 +508,7 @@ describe("the gestures on a day, as the product counts them", () => {
     expect(sent().slice(2)).toEqual([
       { kind: "word-changed", city: "madrid", word: "company" },
       { kind: "day-opened", ...replanned },
-      { kind: "day-ended", ...replanned, outcome: "complete" },
+      { kind: "day-ended", ...replanned, ...ON_CHART, outcome: "complete" },
     ]);
   });
 
@@ -490,9 +529,10 @@ describe("the gestures on a day, as the product counts them", () => {
 
     const porto = { city: "porto", via: "typed", written: false } as const;
     expect(sent()).toEqual([
+      HOME_VIEWED,
       { kind: "intake-ended", outcome: "request" },
       { kind: "day-opened", ...porto },
-      { kind: "day-ended", ...porto, outcome: "invalid" },
+      { kind: "day-ended", ...porto, ...ON_CHART, outcome: "invalid" },
     ]);
   });
 
@@ -511,8 +551,12 @@ describe("the gestures on a day, as the product counts them", () => {
     const beads = document.querySelectorAll(`[${CANDIDATE_ATTRIBUTE}]`);
     for (const bead of [...beads].slice(0, 3)) await user.click(bead);
 
-    expect(sentOf("curve-dragged")).toEqual([{ kind: "curve-dragged", city: "kanazawa" }]);
-    expect(sentOf("stop-swapped")).toEqual([{ kind: "stop-swapped", city: "kanazawa" }]);
+    expect(sentOf("curve-dragged")).toEqual([
+      { kind: "curve-dragged", ...KANAZAWA_LINK, ...ON_CHART },
+    ]);
+    expect(sentOf("stop-swapped")).toEqual([
+      { kind: "stop-swapped", ...KANAZAWA_LINK, ...ON_CHART },
+    ]);
   });
 
   it("counts each way the day is taken along once a day: its link sent, its route opened", async () => {
@@ -527,8 +571,10 @@ describe("the gestures on a day, as the product counts them", () => {
     }
 
     await waitFor(() => expect(sentOf("link-shared")).toHaveLength(1));
-    expect(sentOf("link-shared")).toEqual([{ kind: "link-shared", city: "kanazawa" }]);
-    expect(sentOf("route-opened")).toEqual([{ kind: "route-opened", city: "kanazawa" }]);
+    expect(sentOf("link-shared")).toEqual([{ kind: "link-shared", ...KANAZAWA_LINK, ...ON_CHART }]);
+    expect(sentOf("route-opened")).toEqual([
+      { kind: "route-opened", ...KANAZAWA_LINK, ...ON_CHART },
+    ]);
   });
 
   it("counts them again on the next day opened", async () => {
@@ -554,8 +600,81 @@ describe("the gestures on a day, as the product counts them", () => {
     await pullTwoStops();
 
     expect(sentOf("curve-dragged")).toEqual([
-      { kind: "curve-dragged", city: "kanazawa" },
-      { kind: "curve-dragged", city: "bologna" },
+      { kind: "curve-dragged", ...KANAZAWA_LINK, ...ON_CHART },
+      { kind: "curve-dragged", city: "bologna", via: "word", written: true, ...ON_CHART },
     ]);
+  });
+
+  it("tells the view a day is read in, as a list where the visitor chose it", async () => {
+    document.documentElement.setAttribute("data-day-view", "read");
+    render(<Day first={KANAZAWA_START_REQUEST} isCounted />);
+
+    await waitFor(() => expect(sentOf("day-ended")).toHaveLength(1), DAY_TIMEOUT);
+
+    expect(sentOf("day-ended")).toEqual([
+      { kind: "day-ended", ...KANAZAWA_LINK, view: "read", outcome: "complete" },
+    ]);
+  });
+});
+
+describe("the start screen and the day's end, as the product counts them", () => {
+  it("tells the start screen opened once a page, whatever is played on it after", async () => {
+    const user = userEvent.setup();
+    // Strict Mode runs the page's effects twice as it mounts; it is one page opened.
+    render(
+      <StrictMode>
+        <StartDay pool={POOL} isLive={false} isCounted />
+      </StrictMode>,
+    );
+    await waitFor(() => expect(sentOf("home-viewed")).toEqual([HOME_VIEWED]));
+
+    await user.click(writtenCity("Kanazawa"));
+    await waitForTheDay();
+
+    expect(sentOf("home-viewed")).toEqual([HOME_VIEWED]);
+    expect(sent()[0]).toEqual(HOME_VIEWED);
+  });
+
+  it("tells nothing of a start screen that does not count, as a lab's", async () => {
+    render(<StartDay pool={POOL} isLive={false} />);
+    await screen.findByRole("list", { name: WRITTEN_HEADING });
+
+    expect(sendProductEvent).not.toHaveBeenCalled();
+  });
+
+  it("tells a day read to its end once, with its view, once the line under it stays in view", async () => {
+    await withEverythingInView(async () => {
+      await landOnKanazawa();
+
+      await waitFor(() => expect(sentOf("day-read-to-end")).toHaveLength(1), DAY_TIMEOUT);
+
+      expect(sentOf("day-read-to-end")).toEqual([
+        { kind: "day-read-to-end", ...KANAZAWA_LINK, ...ON_CHART },
+      ]);
+    });
+  });
+
+  it("tells no day read to its end where the browser cannot say what is on screen", async () => {
+    await landOnKanazawa();
+    await new Promise((resolve) => setTimeout(resolve, READ_TO_END_MS * 1.5));
+
+    expect(sentOf("day-read-to-end")).toEqual([]);
+  });
+
+  it("sends nothing from a search engine's renderer, on the start screen or a day", async () => {
+    Object.defineProperty(navigator, "userAgent", { value: GOOGLEBOT, configurable: true });
+    try {
+      await withEverythingInView(async () => {
+        const user = userEvent.setup();
+        render(<StartDay pool={POOL} isLive={false} isCounted />);
+        await user.click(writtenCity("Kanazawa"));
+        await waitForTheDay();
+        await new Promise((resolve) => setTimeout(resolve, READ_TO_END_MS * 1.5));
+      });
+    } finally {
+      Reflect.deleteProperty(navigator, "userAgent");
+    }
+
+    expect(sendProductEvent).not.toHaveBeenCalled();
   });
 });

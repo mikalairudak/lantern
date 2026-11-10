@@ -1,7 +1,7 @@
 "use client";
 
 import { Crosshair } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/components/ui/cn";
 import { SMALL_MARK_STROKE } from "@/features/abacus/best-light-icon";
 import { NO_CHECKS, type PlaceChecks } from "@/features/itinerary/use-day-stream";
@@ -13,6 +13,7 @@ import { dayEndWordsOf, routeLabelOf } from "./day-end-words";
 import { LINK_CLASSES, TARGET_CLASSES } from "./link-classes";
 import { saveFile } from "./save-file";
 import { dayLinkOf, shareDayLink, type ShareOutcome } from "./share-day";
+import { useReadToEnd } from "./use-read-to-end";
 
 /** How the day left the page: its link sent, its calendar saved, its walking route opened. */
 export type DayExport = "link" | "calendar" | "route";
@@ -64,6 +65,8 @@ export interface DayEndProps {
   onPlanAnother?: () => void;
   /** Told when the day leaves the page by one of the line's ways. */
   onExport?: (way: DayExport) => void;
+  /** Told once the line has stayed in view a moment, the day read to its end (`useReadToEnd`). */
+  onReadToEnd?: () => void;
   className?: string;
 }
 
@@ -83,9 +86,12 @@ export function DayEnd({
   calendarKey,
   onPlanAnother,
   onExport,
+  onReadToEnd,
   className,
 }: DayEndProps) {
   const words = useMemo(() => dayEndWordsOf(day, shown, checks), [day, shown, checks]);
+  const line = useRef<HTMLDivElement>(null);
+  useReadToEnd(line, onReadToEnd);
   const [copied, setCopied] = useState<CopyLabel>(COPY_LINK);
   useEffect(() => {
     if (copied === COPY_LINK) return undefined;
@@ -162,7 +168,7 @@ export function DayEnd({
 
   return (
     // Relative, so the status for screen readers stands inside the line, wherever it is set.
-    <div className={cn("relative", ROW_CLASSES, className)}>
+    <div ref={line} className={cn("relative", ROW_CLASSES, className)}>
       <span className={GUTTER_CLASSES}>{words.endsAt}</span>
       <div className="flex min-w-0 flex-col gap-1 type-note">
         <p className="text-ink">{words.summary}</p>

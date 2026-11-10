@@ -2,6 +2,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { MigrationSession } from "@/lib/db/migrate";
 import { migratedDatabase, type TestDatabase } from "@/lib/fixtures/db/pglite";
+import { KYOTO_DRAGGED } from "@/lib/fixtures/events";
 import type { ProductEvent } from "./event.schema";
 import { columnsOf } from "./postgres-event-store";
 import { runEventsReport, type ReportCommand } from "./report";
@@ -10,6 +11,7 @@ const NEON_URL = "postgresql://lantern:p%40ss@ep-test-1234.us-east-1.aws.neon.te
 const NOW = new Date("2026-10-30T12:00:00Z");
 const A = "a".repeat(64);
 const B = "b".repeat(64);
+const C = "c".repeat(64);
 
 let database: TestDatabase;
 
@@ -30,11 +32,11 @@ async function seed(
   event: ProductEvent,
   { day = "2026-10-30", environment = "production" } = {},
 ): Promise<void> {
-  const { city, via, written, outcome, stage, word } = columnsOf(event);
+  const { city, via, written, outcome, stage, word, view } = columnsOf(event);
   await database.session.query(
     `INSERT INTO product_events
-      (id, environment, utc_day, visitor_key, kind, city, via, written, outcome, stage, word)
-     VALUES ($1::uuid, $2, $3::date, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      (id, environment, utc_day, visitor_key, kind, city, via, written, outcome, stage, word, view)
+     VALUES ($1::uuid, $2, $3::date, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
     [
       crypto.randomUUID(),
       environment,
@@ -47,7 +49,17 @@ async function seed(
       outcome,
       stage,
       word,
+      view,
     ],
+  );
+}
+
+/** An event kept before its kind told the way in and the view: the city alone. */
+async function seedUntold(visitor: string, kind: string): Promise<void> {
+  await database.session.query(
+    `INSERT INTO product_events (id, environment, utc_day, visitor_key, kind, city)
+     VALUES ($1::uuid, 'production', '2026-10-30', $2, $3, 'kyoto')`,
+    [crypto.randomUUID(), visitor, kind],
   );
 }
 
@@ -114,11 +126,19 @@ describe("pnpm events:report", () => {
       via: "pressed",
       written: true,
     } as const;
+    const onChart = { city: "kyoto", via: "pressed", written: true, view: "chart" } as const;
+    const asList = { city: "kyoto", via: "link", written: true, view: "read" } as const;
+    await seed(A, { kind: "home-viewed" });
+    // Twice in a day is one visitor; the same key on another day is another.
+    await seed(B, { kind: "home-viewed" });
+    await seed(B, { kind: "home-viewed" });
+    await seed(B, { kind: "home-viewed" }, { day: "2026-10-29" });
     await seed(A, pressedKyoto);
     await seed(A, pressedKyoto);
     await seed(B, { ...pressedKyoto, via: "link" });
     await seed(B, { kind: "day-opened", city: "sao-paulo", via: "typed", written: false });
-    await seed(A, { ...pressedKyoto, kind: "day-ended", outcome: "complete" });
+    await seed(A, { kind: "day-ended", ...onChart, outcome: "complete" });
+    await seed(B, { kind: "day-ended", ...asList, outcome: "complete" });
     await seed(B, {
       kind: "day-left",
       city: "sao-paulo",
@@ -128,12 +148,14 @@ describe("pnpm events:report", () => {
     });
     await seed(A, { kind: "intake-ended", outcome: "request" });
     await seed(B, { kind: "intake-ended", outcome: "unavailable" });
-    await seed(A, { kind: "curve-dragged", city: "kyoto" });
+    await seed(A, { kind: "curve-dragged", ...onChart });
     await seed(A, { kind: "word-changed", city: "kyoto", word: "energy" });
     await seed(A, { kind: "word-changed", city: "kyoto", word: "energy" });
-    await seed(A, { kind: "route-opened", city: "kyoto" });
-    await seed(B, { kind: "route-opened", city: "sao-paulo" });
-    await seed(A, { kind: "calendar-saved", city: "kyoto" });
+    await seed(A, { kind: "day-read-to-end", ...onChart });
+    await seed(A, { kind: "route-opened", ...onChart });
+    await seed(A, { kind: "calendar-saved", ...onChart });
+    await seed(B, { kind: "route-opened", ...asList });
+    await seedUntold(C, "route-opened");
     // Another environment, and a day before the span: neither is counted.
     await seed(A, { ...pressedKyoto, city: "lisbon" }, { environment: "preview" });
     await seed(A, { ...pressedKyoto, city: "lisbon" }, { day: "2026-09-30" });
@@ -166,14 +188,14 @@ describe("pnpm events:report", () => {
       "",
       "How attempts ended",
       "  attempt    outcome      times",
-      "  day        complete     1",
+      "  day        complete     2",
       "  text read  request      1",
       "  text read  unavailable  1",
       "",
       "Whether visitors waited",
       "  day      wait                    days",
       "  model    left before-first-stop  1",
-      "  written  stayed to the end       1",
+      "  written  stayed to the end       2",
       "",
       "Gestures",
       "  gesture        word    times",
@@ -182,7 +204,7 @@ describe("pnpm events:report", () => {
       "",
       "Days taken along (each way counts once a day opened)",
       "  way             days",
-      "  route-opened    2",
+      "  route-opened    3",
       "  calendar-saved  1",
       "",
       "Days opened again by the same visitor on the same UTC day",
@@ -197,7 +219,7 @@ describe("pnpm events:report", () => {
   });
 
   it("says none for a section with nothing to count, and reads the span asked for", async () => {
-    await seed(A, { kind: "curve-dragged", city: "kyoto" }, { day: "2026-10-29" });
+    await seed(A, KYOTO_DRAGGED, { day: "2026-10-29" });
 
     const { out } = await report(["--environment", "production", "--days", "1"]);
 
