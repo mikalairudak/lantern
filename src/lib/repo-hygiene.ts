@@ -232,7 +232,7 @@ const BRANCH_NAME = new RegExp(`^(?:${CHANGE_KINDS.join("|")})/[a-z0-9][a-z0-9-]
 /** The body's sections, in order, as `.github/pull_request_template.md` lays them out. */
 export const PULL_REQUEST_SECTIONS = ["What changes", "Why", "Look at", "Checked", "Risk"] as const;
 /** A first- or second-level heading, which ends the section above it. */
-const SECTION_HEADING = /^ {0,3}#{1,2}(?!#)(?:\s+(.*?))?\s*#*\s*$/;
+const SECTION_HEADING = /^ {0,3}(#{1,2})(?!#)(?:\s+(.*?))?\s*#*\s*$/;
 /** An HTML comment, which GitHub does not show; one left open hides the rest of the text. */
 const HTML_COMMENT = /<!--[\s\S]*?(?:-->|$)/g;
 const TEMPLATE = ".github/pull_request_template.md";
@@ -285,6 +285,8 @@ function branchFaultsOf(branch: string): PullRequestFault[] {
 interface Heading {
   /** Its index among the body's lines. */
   readonly index: number;
+  /** 1 or 2: a section is a second-level heading. */
+  readonly level: number;
   readonly title: string;
 }
 
@@ -294,7 +296,7 @@ function headingsOf(lines: readonly Line[]): Heading[] {
   return lines.flatMap(({ text }, index) => {
     if (FENCE.test(text)) isInFence = !isInFence;
     const match = isInFence ? null : SECTION_HEADING.exec(text);
-    return match === null ? [] : [{ index, title: match[1] ?? "" }];
+    return match === null ? [] : [{ index, level: match[1]?.length ?? 0, title: match[2] ?? "" }];
   });
 }
 
@@ -307,7 +309,7 @@ function shapeFaultsOf(lines: readonly Line[]): PullRequestFault[] {
   const headings = headingsOf(lines);
   let lastIndex = -1;
   return PULL_REQUEST_SECTIONS.flatMap((title) => {
-    const at = headings.findIndex((heading) => heading.title === title);
+    const at = headings.findIndex((heading) => heading.level === 2 && heading.title === title);
     const heading = headings[at];
     if (heading === undefined) {
       return [

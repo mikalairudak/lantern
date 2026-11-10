@@ -458,6 +458,12 @@ describe("the pull request check", () => {
     expect(faultsIn({ body: BODY.replace("None.", "### Rollback") })).toEqual([]);
   });
 
+  it("takes only a second-level heading for a section", () => {
+    expect(faultsIn({ body: BODY.replace("## Why", "# Why") })).toContain(
+      'body: Section missing "## Why"',
+    );
+  });
+
   it("names a section out of order", () => {
     const body = BODY.replace("## Why", "## Checked\n\nFirst.\n\n## Why").replace(
       /## Checked\n\n- pnpm check\n- pnpm e2e\n\n/,
