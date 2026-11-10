@@ -121,6 +121,7 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 - [2026-11-06 — The voice judge takes the majority of three runs, under a bar set before it ran, and was frozen after one fix to quote the rubric](#2026-11-06--the-voice-judge-takes-the-majority-of-three-runs-under-a-bar-set-before-it-ran-and-was-frozen-after-one-fix-to-quote-the-rubric)
 - [2026-11-09 — Work lands on develop, and main takes only releases](#2026-11-09--work-lands-on-develop-and-main-takes-only-releases)
 - [2026-11-09 — Everything committed is written for a reader of the code, and a check holds the plainest rules](#2026-11-09--everything-committed-is-written-for-a-reader-of-the-code-and-a-check-holds-the-plainest-rules)
+- [2026-11-10 — A pull request's text is held to the rules for what is committed](#2026-11-10--a-pull-requests-text-is-held-to-the-rules-for-what-is-committed)
 
 **Privacy and security**
 
@@ -519,3 +520,11 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 **Why.** Coding agents write most commits and docs, and an agent's working record, of who asked, who agreed and what was tried, reads as process to anyone else and dates within days. A push cannot be taken back once the repository is public. The public history starts at one commit, `Lantern v1.0`; the working history before it stays private, written as it was for the people doing the work. As with the token lint, a rule a check holds outlasts one that has to be remembered.
 
 **Cost.** A pattern sees only words, so tone, private context and what a fact reveals are still the writer's to judge. Test data in another script needs its own entry in the check's list, and notes outside git live on one machine.
+
+## 2026-11-10 — A pull request's text is held to the rules for what is committed
+
+**Decision.** Every change reaches `develop` as a pull request the owner reviews on GitHub, and its branch name, title and body are held to the rules that hold commit messages ("Everything committed is written for a reader of the code, and a check holds the plainest rules"). `scripts/check-pr-text.mts` runs them, from `src/lib/repo-hygiene.ts`, in `.github/workflows/pr-text.yml` on every pull request and again on every edit of its text. The body is read as Markdown, outside fenced code, and holds the five sections of `.github/pull_request_template.md` in order: what changes, why, what to look at, what was checked, and the risk, each with a line beyond the template's comment. A branch is named `<kind>/<words>`, the kind a conventional commit's. The `/pr-ready` skill runs the check, a security review and one fresh read by an agent that has not seen the work before a branch is pushed.
+
+**Why.** A branch's name and a pull request's text are public the moment the branch is pushed, as a commit's message is, and a reviewer reads them before the diff. One shape makes every pull request read the same way, with its risk and its checks stated where a reviewer looks. The check runs in its own workflow, which needs Node and no install, so editing a pull request's text does not run the full CI again. The text reaches the shell only through environment variables, so a title or body cannot run as code.
+
+**Cost.** The same limits as the commit check: a pattern sees only words, so the fresh read is still needed for tone, private context and what a fact reveals. A branch GitHub or a bot names, such as a revert's, fails the name rule until it is renamed. A pull request's text can be edited after it passes; the check runs again on each edit, but what an earlier version said stays in GitHub's history.

@@ -25,6 +25,8 @@ The layers overlap on purpose. The quality checks are the eval's measures and th
 | `pnpm e2e:visual`            | A changed pixel in any `/lab` matrix cell, both themes         | Before UI work merges                                     |
 | `/lab/matrix`, `/lab/stream` | Every state, density and data extreme, by eye                  | While building a component                                |
 | `/ui-review`                 | What the author of a UI change stopped seeing                  | Before UI work merges                                     |
+| The pull request check       | A branch name, PR title or body that breaks the rules          | Every pull request, and every edit of its text            |
+| `/pr-ready`                  | A weakness, or public text a pattern cannot judge              | Before a branch is pushed                                 |
 | The quality checks           | A broken or off-measure day in production                      | On every live day; they never block one                   |
 | `pnpm eval:live`             | A prompt or model change that hurts quality                    | On a change, after a spend confirmation                   |
 | `pnpm log:report`            | Production's calls, outcomes, checks and spend                 | By need, in a read-only transaction                       |
@@ -33,7 +35,7 @@ The layers overlap on purpose. The quality checks are the eval's measures and th
 
 `.githooks/pre-commit` runs `pnpm check`: Prettier, ESLint, the typecheck, and Vitest with coverage held at 80% of lines, functions, branches and statements. Route handlers are left out of coverage and covered by e2e. `pre-merge-commit` runs the same gate, since a clean merge skips `pre-commit`. Nobody commits with `--no-verify`. A SessionStart hook puts the project's Node first on the PATH, because every new agent session otherwise started on an older Node with no `pnpm`.
 
-A `commit-msg` hook (`scripts/check-commit-message.mts`) holds a commit's message to the rules `src/lib/repo-hygiene.test.ts` holds the files to (`CLAUDE.md`, "Everything committed is public"). CI (`.github/workflows/ci.yml`) runs `pnpm check` and `pnpm build:check` on every push to `develop` or `main` and every pull request, and `pnpm e2e` on pull requests, on pushes to `main`, which take only releases, and by hand. It holds no secrets: no test calls a live service.
+A `commit-msg` hook (`scripts/check-commit-message.mts`) holds a commit's message to the rules `src/lib/repo-hygiene.test.ts` holds the files to (`CLAUDE.md`, "Everything committed is public"), and `.github/workflows/pr-text.yml` holds each pull request's branch name, title and body to them (`scripts/check-pr-text.mts`), the body to the five sections of `.github/pull_request_template.md` too. CI (`.github/workflows/ci.yml`) runs `pnpm check` and `pnpm build:check` on every push to `develop` or `main` and every pull request, and `pnpm e2e` on pull requests, on pushes to `main`, which take only releases, and by hand. It holds no secrets: no test calls a live service.
 
 ### Lint and tokens
 
