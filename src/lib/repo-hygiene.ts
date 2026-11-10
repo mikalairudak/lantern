@@ -1,9 +1,11 @@
 /**
  * The rules for what may be committed that a pattern can see (`CLAUDE.md`, "Everything
  * committed is public", and `docs/decisions.md`, "Everything committed is written for a reader
- * of the code"). `repo-hygiene.test.ts` holds every tracked text file to them, and
- * `.githooks/commit-msg` holds each commit's message, through `scripts/check-commit-message.mts`.
- * The module imports nothing, so that script runs it on plain Node at every commit.
+ * of the code"). `repo-hygiene.test.ts` holds every tracked text file to them,
+ * `.githooks/commit-msg` holds each commit's message, through `scripts/check-commit-message.mts`,
+ * and `.github/workflows/pr-text.yml` holds each pull request's branch name, title and body,
+ * through `scripts/check-pr-text.mts`. The module imports nothing, so those scripts run it on
+ * plain Node.
  */
 
 export interface HygieneRule {
@@ -13,7 +15,7 @@ export interface HygieneRule {
   readonly pattern: RegExp;
   /** Why it stays out of the repository. */
   readonly reason: string;
-  /** Whether a commit's message is held to it as well as the files. */
+  /** Whether a commit's message and a pull request's text are held to it as well as the files. */
   readonly inMessages: boolean;
   /** Whether it reads Markdown alone, and only outside fenced code. */
   readonly markdownProseOnly?: boolean;
@@ -190,13 +192,17 @@ function messageLinesOf(message: string): Line[] {
 
 /** What breaks the rules in a commit's message, as git hands it to the `commit-msg` hook. */
 export function findMessageFaults(message: string): HygieneFault[] {
-  const lines = messageLinesOf(message);
+  return messageFaultsOf(messageLinesOf(message));
+}
+
+/** What breaks the rules held to messages, among the lines given. */
+function messageFaultsOf(lines: readonly Line[]): HygieneFault[] {
   return HYGIENE_RULES.filter((rule) => rule.inMessages)
     .flatMap((rule) => faultsOf(rule, lines, false))
     .sort(byLine);
 }
 
-function whatAndWhy(fault: HygieneFault): string {
+function whatAndWhy(fault: Pick<HygieneFault, "rule" | "found" | "reason">): string {
   return `${fault.rule}: "${fault.found}". ${fault.reason}`;
 }
 
@@ -217,5 +223,169 @@ export function runCommitMessageCheck(message: string, err: (line: string) => vo
   );
   for (const fault of faults) err(`  line ${fault.line}, ${whatAndWhy(fault)}`);
   err("Lines starting with # and everything below the scissors line are not read.");
+  return 1;
+}
+
+/** The kinds of change a commit's subject and a branch's name start with. */
+const CHANGE_KINDS = ["feat", "fix", "chore", "docs", "test", "refactor"] as const;
+const BRANCH_NAME = new RegExp(`^(?:${CHANGE_KINDS.join("|")})/[a-z0-9][a-z0-9-]*$`);
+/** The body's sections, in order, as `.github/pull_request_template.md` lays them out. */
+export const PULL_REQUEST_SECTIONS = ["What changes", "Why", "Look at", "Checked", "Risk"] as const;
+/** A first- or second-level heading, which ends the section above it. */
+const SECTION_HEADING = /^ {0,3}#{1,2}(?!#)(?:\s+(.*?))?\s*#*\s*$/;
+/** An HTML comment, which GitHub does not show; one left open hides the rest of the text. */
+const HTML_COMMENT = /<!--[\s\S]*?(?:-->|$)/g;
+const TEMPLATE = ".github/pull_request_template.md";
+
+/** A pull request's public text: GitHub shows each part the moment the branch is pushed. */
+export interface PullRequestText {
+  readonly branch: string;
+  readonly title: string;
+  readonly body: string;
+}
+
+export interface PullRequestFault {
+  /** The part it stands in. */
+  readonly part: keyof PullRequestText;
+  /** The body's line it stands on, counted from 1; null for a whole part or a missing section. */
+  readonly line: number | null;
+  /** The rule it breaks. */
+  readonly rule: string;
+  /** What the rule found. */
+  readonly found: string;
+  /** Why the rule holds. */
+  readonly reason: string;
+}
+
+function inPart(part: keyof PullRequestText, line: number | null) {
+  return (fault: HygieneFault): PullRequestFault => ({
+    part,
+    line,
+    rule: fault.rule,
+    found: fault.found,
+    reason: fault.reason,
+  });
+}
+
+function branchFaultsOf(branch: string): PullRequestFault[] {
+  const shape: PullRequestFault[] = BRANCH_NAME.test(branch)
+    ? []
+    : [
+        {
+          part: "branch",
+          line: null,
+          rule: "Branch name",
+          found: branch,
+          reason: `A branch's name is public once pushed, so it names its kind of change as a commit does (${CHANGE_KINDS.join(", ")}), then a slash and lowercase words joined by hyphens.`,
+        },
+      ];
+  return [...shape, ...messageFaultsOf(linesOf(branch)).map(inPart("branch", null))];
+}
+
+interface Heading {
+  /** Its index among the body's lines. */
+  readonly index: number;
+  readonly title: string;
+}
+
+/** The body's first- and second-level headings outside fenced code. */
+function headingsOf(lines: readonly Line[]): Heading[] {
+  let isInFence = false;
+  return lines.flatMap(({ text }, index) => {
+    if (FENCE.test(text)) isInFence = !isInFence;
+    const match = isInFence ? null : SECTION_HEADING.exec(text);
+    return match === null ? [] : [{ index, title: match[1] ?? "" }];
+  });
+}
+
+function sectionFault(heading: string, rule: string, reason: string): PullRequestFault {
+  return { part: "body", line: null, rule, found: `## ${heading}`, reason };
+}
+
+/** The five sections, each present, in order, and saying something beyond the template's hint. */
+function shapeFaultsOf(lines: readonly Line[]): PullRequestFault[] {
+  const headings = headingsOf(lines);
+  let lastIndex = -1;
+  return PULL_REQUEST_SECTIONS.flatMap((title) => {
+    const at = headings.findIndex((heading) => heading.title === title);
+    const heading = headings[at];
+    if (heading === undefined) {
+      return [
+        sectionFault(
+          title,
+          "Section missing",
+          `The body holds ${PULL_REQUEST_SECTIONS.length} sections, in the order ${TEMPLATE} gives them.`,
+        ),
+      ];
+    }
+    const { index } = heading;
+    const end = headings[at + 1]?.index ?? lines.length;
+    const said = lines
+      .slice(index + 1, end)
+      .map(({ text }) => text)
+      .join("\n")
+      .replace(HTML_COMMENT, "")
+      .trim();
+    const faults: PullRequestFault[] = [];
+    if (index < lastIndex) {
+      faults.push(
+        sectionFault(
+          title,
+          "Section out of order",
+          `A reader finds each section where ${TEMPLATE} puts it.`,
+        ),
+      );
+    }
+    if (said === "") {
+      faults.push(
+        sectionFault(
+          title,
+          "Section empty",
+          "Each section says at least one line; the template's comment alone is a hint, not an answer.",
+        ),
+      );
+    }
+    lastIndex = Math.max(lastIndex, index);
+    return faults;
+  });
+}
+
+/**
+ * What breaks the rules in a pull request's branch name, title and body. The body is Markdown,
+ * so the rules read its prose outside fenced code, comments included, since they stay in its
+ * source; it also holds the template's five sections.
+ */
+export function findPullRequestFaults(text: PullRequestText): PullRequestFault[] {
+  const bodyLines = linesOf(text.body);
+  const bodyFaults = messageFaultsOf(proseLinesOf(bodyLines)).map((fault) =>
+    inPart("body", fault.line)(fault),
+  );
+  return [
+    ...branchFaultsOf(text.branch),
+    ...messageFaultsOf(linesOf(text.title)).map(inPart("title", null)),
+    ...bodyFaults,
+    ...shapeFaultsOf(bodyLines),
+  ];
+}
+
+function placeOf(fault: PullRequestFault): string {
+  return fault.line === null ? fault.part : `${fault.part} line ${fault.line}`;
+}
+
+/**
+ * The pull request check, as `.github/workflows/pr-text.yml` runs it: prints each fault to `err`
+ * and answers the exit code, 1 when the branch name, title or body breaks a rule.
+ */
+export function runPullRequestTextCheck(
+  text: PullRequestText,
+  err: (line: string) => void,
+): number {
+  const faults = findPullRequestFaults(text);
+  if (faults.length === 0) return 0;
+  err(
+    'pr-text: the pull request breaks the rules for what is committed (CLAUDE.md, "Everything committed is public"):',
+  );
+  for (const fault of faults) err(`  ${placeOf(fault)}, ${whatAndWhy(fault)}`);
+  err("Text inside fenced code is not read.");
   return 1;
 }

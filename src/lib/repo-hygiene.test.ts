@@ -8,14 +8,17 @@ import {
   describeFileFault,
   findFileFaults,
   findMessageFaults,
+  findPullRequestFaults,
   HYGIENE_RULES,
+  type PullRequestText,
   runCommitMessageCheck,
+  runPullRequestTextCheck,
 } from "./repo-hygiene";
 
 /**
  * Everything committed is public, so every tracked text file is held to the rules a pattern
- * can see (`CLAUDE.md`, "Everything committed is public"), and the `commit-msg` hook holds each
- * message to them through the same module.
+ * can see (`CLAUDE.md`, "Everything committed is public"), and the same module holds each commit's
+ * message and each pull request's text to them.
  */
 
 const ROOT = join(__dirname, "..", "..");
@@ -322,6 +325,150 @@ describe("the commit message check", () => {
       expect(status).toBe(1);
       expect(stderr).toContain('line 3, Record of approval: "owner said"');
     });
+  });
+});
+
+describe("the pull request check", () => {
+  const BODY = [
+    "## What changes",
+    "",
+    "<!-- One to three sentences. -->",
+    "The fork's line sits under the headline on a phone.",
+    "",
+    "## Why",
+    "",
+    "A phone shows the fork below the screen.",
+    "",
+    "## Look at",
+    "",
+    "### Phone",
+    "",
+    "The preview's Kanazawa day, at 390 px in both themes.",
+    "",
+    "## Checked",
+    "",
+    "- pnpm check",
+    "- pnpm e2e",
+    "",
+    "## Risk",
+    "",
+    "None.",
+  ].join("\n");
+  const CLEAN: PullRequestText = {
+    branch: "fix/fork-line",
+    title: "fix: keep the fork's line under the headline",
+    body: BODY,
+  };
+
+  /** Each fault as `part: rule "found"`, so a test reads what a reader of the output would. */
+  function faultsIn(text: Partial<PullRequestText>): string[] {
+    return findPullRequestFaults({ ...CLEAN, ...text }).map(
+      ({ part, rule, found }) => `${part}: ${rule} "${found}"`,
+    );
+  }
+
+  function withSection(heading: string, content: string): string {
+    return BODY.replace(/(## Risk\n\n)None\./, `$1None.\n\n${heading}\n\n${content}`);
+  }
+
+  it("passes a clean pull request and prints nothing", () => {
+    const printed: string[] = [];
+
+    expect(runPullRequestTextCheck(CLEAN, (line) => printed.push(line))).toBe(0);
+    expect(printed).toEqual([]);
+  });
+
+  it("passes a body written in GitHub's form, with Windows line ends", () => {
+    expect(faultsIn({ body: BODY.replaceAll("\n", "\r\n") })).toEqual([]);
+  });
+
+  it("fails Cyrillic in the title", () => {
+    expect(faultsIn({ title: "fix: \u0441\u0442\u0440\u043e\u043a\u0430" })).toEqual([
+      'title: Cyrillic letters "\u0441\u0442\u0440\u043e\u043a\u0430"',
+    ]);
+  });
+
+  it("fails a local path in the body, naming its line", () => {
+    const body = BODY.replace("None.", "None; the log is in /Users/someone/lantern.");
+    const printed: string[] = [];
+
+    expect(runPullRequestTextCheck({ ...CLEAN, body }, (line) => printed.push(line))).toBe(1);
+    expect(printed.join("\n")).toContain('body line 23, Local path: "/Users/someone/"');
+  });
+
+  it("reads the template's comments, which stay in the body's source", () => {
+    expect(
+      faultsIn({ body: BODY.replace("One to three sentences.", "As the owner asked.") }),
+    ).toEqual(['body: Record of approval "owner asked"']);
+  });
+
+  it("passes a commit hash in the body, as in a message", () => {
+    expect(faultsIn({ body: BODY.replace("None.", "Revert 2276e6bf to roll back.") })).toEqual([]);
+  });
+
+  it("does not read text inside a code fence", () => {
+    const fenced = ["```", "/Users/someone/lantern", "## Why", "```"].join("\n");
+
+    expect(faultsIn({ body: BODY.replace("- pnpm e2e", `- pnpm e2e\n\n${fenced}`) })).toEqual([]);
+  });
+
+  it.each([
+    "feature/fork-line",
+    "fix/Fork-line",
+    "fix/fork_line",
+    "fix/-fork",
+    "fix/",
+    "fork-line",
+    "fix/fork/line",
+  ])("fails the branch name %s", (branch) => {
+    expect(faultsIn({ branch })).toEqual([`branch: Branch name "${branch}"`]);
+  });
+
+  it("holds the branch name to the message rules too", () => {
+    expect(faultsIn({ branch: "chore/worktree-agent-a1b2" })).toEqual([
+      'branch: Agent machinery "worktree-agent-a1b2"',
+    ]);
+  });
+
+  it.each(["What changes", "Why", "Look at", "Checked", "Risk"])(
+    "names the section %s when it is missing",
+    (title) => {
+      const body = BODY.replace(`## ${title}\n`, "");
+
+      expect(faultsIn({ body })).toContain(`body: Section missing "## ${title}"`);
+    },
+  );
+
+  it("names an empty section, and one holding only the template's comment", () => {
+    const body = BODY.replace("A phone shows the fork below the screen.", "").replace(
+      "None.",
+      "<!--\n  What could break.\n-->",
+    );
+
+    expect(faultsIn({ body })).toEqual([
+      'body: Section empty "## Why"',
+      'body: Section empty "## Risk"',
+    ]);
+  });
+
+  it("counts a section's content up to the next heading, and its own subheadings in it", () => {
+    expect(faultsIn({ body: withSection("# Notes", "More.").replace("None.", "") })).toEqual([
+      'body: Section empty "## Risk"',
+    ]);
+    expect(faultsIn({ body: BODY.replace("None.", "### Rollback") })).toEqual([]);
+  });
+
+  it("names a section out of order", () => {
+    const body = BODY.replace("## Why", "## Checked\n\nFirst.\n\n## Why").replace(
+      /## Checked\n\n- pnpm check\n- pnpm e2e\n\n/,
+      "",
+    );
+
+    expect(faultsIn({ body })).toEqual(['body: Section out of order "## Checked"']);
+  });
+
+  it("finds every section missing in an empty body", () => {
+    expect(faultsIn({ body: "" })).toHaveLength(5);
   });
 });
 
