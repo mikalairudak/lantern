@@ -18,7 +18,7 @@ Read before anything else: `CLAUDE.md`, `docs/harness.md` (its "Database" sectio
 1. **Read-only access to production's database for the engineering session**, so it can read `lantern-prod` (the generation log, the counters, the events) for operations without the owner running every query. Design it with the security engineer before the owner does anything:
    - a role of its own that can only read: `SELECT` on the tables it needs, `default_transaction_read_only = on`, a statement timeout, no other privileges, created by the owner in Neon's console with SQL you write;
    - its connection string never passes through a chat, a file in the repo, git, memory or a log: the owner puts it in the macOS Keychain from their own terminal, typed unseen (`read -rs`), and nothing ever prints it;
-   - a small command on your branch that takes the string from the Keychain, runs one read-only query or report, prints only the result, and refuses to run anything but reads; the engineering session reviews and merges it, and runs it only once the owner allows it in that session;
+   - a small command on your branch that takes the string from the Keychain, runs one read-only query or report, prints only the result, and refuses to run anything but reads; the engineering session reviews it and opens its pull request, and runs it only once the owner allows it in that session;
    - what it exposes: `generation_log` holds what visitors typed; say so to the owner, and read it only for operations.
 2. **Dashboard changes** the security engineer recommends, each as a checklist with its "why". Track what is done in `docs/ops.md` on your branch in general terms: what a control does, never a secret, and never a rule's exact conditions or thresholds, since the file is public.
 

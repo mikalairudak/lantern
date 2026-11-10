@@ -9,6 +9,7 @@ import { E2E_STUDIO_LOGIN } from "./studio-login";
 const APP = join(__dirname, "..", "src", "app");
 const HTTP_OK = 200;
 const HTTP_UNAUTHORIZED = 401;
+const HTTP_NOT_FOUND = 404;
 const UNKNOWN_DAY_ID = "00000000-0000-4000-8000-000000000000";
 
 /** Every page's route under a directory of the app, as its folders name it: `/lab/[matrix]`. */
@@ -123,6 +124,28 @@ test("a page's payload for the router asks for the password too", async ({ baseU
     for (const headers of router) {
       const asked = await client.get(`${path}?_rsc=e2e`, { headers });
       expect(asked.status(), `${path} as ${JSON.stringify(headers)}`).toBe(HTTP_UNAUTHORIZED);
+    }
+  }
+  await client.dispose();
+});
+
+test("a name of the studio written with escapes is not found, password or none", async ({
+  baseURL,
+}) => {
+  const client = await withoutLogin(baseURL);
+  // Words only the studio's and the lab's own pages draw.
+  const studioWords = ["Stream scrubber", "The whole lab", "Case study"];
+  for (const path of ["/%6Cab", "/l%61b/stream", "/%73tudio", "/%6Cab/x/%ZZ"]) {
+    for (const [given, headers] of [
+      ["without", {}],
+      ["with", { Authorization: RIGHT }],
+    ] as const) {
+      const asked = await client.get(path, { headers, maxRedirects: 0 });
+      const label = `${path} ${given} the password`;
+      expect(asked.status(), label).toBe(HTTP_NOT_FOUND);
+      expect(asked.headers()["x-robots-tag"], label).toContain("noindex");
+      const html = await asked.text();
+      for (const words of studioWords) expect(html, label).not.toContain(words);
     }
   }
   await client.dispose();

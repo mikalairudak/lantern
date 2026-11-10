@@ -19,4 +19,17 @@ describe("the masthead", () => {
       screen.getAllByRole("button").map((button) => button.getAttribute("aria-label")),
     ).toEqual(["Theme: System"]);
   });
+
+  it.each([
+    [
+      "after the page's action",
+      <Masthead key="day" action={<button type="button">Plan another day</button>} />,
+    ],
+    ["with no action", <Masthead key="home" isHome />],
+  ])("sets the theme's icon at the small type's lowercase middle %s", (_, masthead) => {
+    render(masthead);
+    // The icon's own box, and around it the line of small type it is set in.
+    const iconBox = screen.getByRole("button", { name: "Theme: System" }).parentElement;
+    expect(iconBox?.parentElement).toHaveClass("type-note", "*:align-middle");
+  });
 });

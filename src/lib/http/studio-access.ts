@@ -21,7 +21,8 @@ async function verdictOfThisRequest(): Promise<StudioVerdict> {
  * is checked whatever path led to the page; and a page that reads its request is rendered for
  * each one, never prerendered into the cache. Without the login the page is not found; the
  * plain path never gets this far, since the proxy answers it with a 401 that asks for the
- * password.
+ * password, and the escaped path the proxy knows of neither, since it answers that with a 404.
+ * The lock here holds whatever path a host finds the page by.
  *
  * Every page calls it, not only the layouts: a router request that says it already holds a
  * layout is answered without rendering that layout again, so a check in a layout alone could
