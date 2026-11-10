@@ -17,3 +17,5 @@
 ## Risk
 
 <!-- What could break, and how to roll it back. "None." is an answer. -->
+
+<!-- Last, after a blank line: the co-author trailer the branch's commits carry, such as "Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>". -->

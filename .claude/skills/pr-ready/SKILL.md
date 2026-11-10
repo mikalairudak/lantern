@@ -23,8 +23,9 @@ Every change reaches `develop` as a pull request the owner reviews and merges on
 
 1. The pull request is squash-merged: its title becomes the commit's subject on `develop`, and its body the commit's body. The title is a conventional commit's subject (`fix: …`, `feat(scope): …`); for a branch of one commit, that commit's subject.
 2. Write the body in a file outside the repository, in the shape of `.github/pull_request_template.md`: `## What changes`, `## Why`, `## Look at`, `## Checked`, `## Risk`, each with at least one line. Delete every one of the template's HTML comments, since the body becomes the squash commit's body; a section that holds only its comment is empty.
-3. Plain, short English. Say what is true and why. Tell no story of the work: no record of who asked or agreed, no sessions, agents, rounds or reviews, nothing personal. A commit hash is allowed here, as in a commit's message.
-4. Hold the title in a single-quoted shell variable, so a `"` or `$` in it cannot break a command (write a `'` in it as `'\''`). Run the check on all three parts, and fix each fault it prints:
+3. End the body, after a blank line, with the co-author trailer the branch's commits carry (`git log --format='%(trailers:key=Co-Authored-By)' develop..$branch | sort -u`), such as `Co-authored-by: Claude Opus 5.5 <noreply@anthropic.com>`. The squash commit's body is the pull request's body, so without it the commit on `develop` would not show that the work is written with Claude, as every other commit does.
+4. Plain, short English. Say what is true and why. Tell no story of the work: no record of who asked or agreed, no sessions, agents, rounds or reviews, nothing personal. A commit hash is allowed here, as in a commit's message.
+5. Hold the title in a single-quoted shell variable, so a `"` or `$` in it cannot break a command (write a `'` in it as `'\''`). Run the check on all three parts, and fix each fault it prints:
 
    ```sh
    title='fix: keep the line under the headline'
@@ -73,6 +74,6 @@ Only when every step above is clean:
 ## Done when
 
 - The branch is one change, and the checks the definition of done asks for passed.
-- `scripts/check-pr-text.mts` passes on the branch's name, the title and the body.
+- `scripts/check-pr-text.mts` passes on the branch's name, the title and the body, and the body ends with the co-author trailer.
 - `/security-review` and the fresh read left nothing open.
 - The branch alone is pushed, and its pull request is open against `develop`.

@@ -22,7 +22,7 @@ The repository is public, and so is everything pushed to it, `develop` included:
 - **No pointers that leak or rot.** No links to chats, sessions or shared pages; no local paths, machine or account names; no ids of production records; no secret and no hash of one. No commit hashes or branch names in docs or comments, since history can be rewritten: name a date or a state.
 - **Plans and notes stay out of git.** Status, handoffs, ask lists, transcripts and working notes live in a session's memory or in the gitignored `/notes/`. The repository holds what is built and why: `docs/decisions.md`, `docs/harness.md`, and the scope in `docs/roadmap.md`.
 - **Security docs describe the controls in place.** An open weakness, and how one would use it, stays out of the repository until it is fixed.
-- **A commit message is a short record for a reader:** the subject says what changed, the body why. It tells no story of the work and names no one who did it, beyond the co-author trailer.
+- **A commit message is a short record for a reader:** the subject says what changed, the body why. It tells no story of the work and names no one who did it, beyond the co-author trailer. That trailer ends every commit and every pull request's body, since a pull request's body becomes its squash commit's: the work is written with Claude, and the history shows it.
 
 ## Commands
 
