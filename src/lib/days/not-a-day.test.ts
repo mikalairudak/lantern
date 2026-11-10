@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { KYOTO_REQUEST } from "@/lib/fixtures/curated/requests";
 import { dayAddressOf, daySlugOf } from "./address";
 import { notADaySource } from "./not-a-day";
+import { WRITTEN_DAYS } from "./written/days";
 import { WRITTEN_REQUESTS } from "./written/requests";
 
 describe("notADaySource", () => {
@@ -18,6 +19,9 @@ describe("notADaySource", () => {
     ["a day written by hand's old address", `/day/${daySlugOf(KYOTO_REQUEST)}`],
     ["a written day's slug with more after it", "/day/bologna-x"],
     ["a written day's slug inside another", "/day/xbologna"],
+    ["a written day's slug with a capital", "/day/Bologna"],
+    ["a written day's slug in capitals", "/day/BOLOGNA"],
+    ["a written day's file in capitals", "/day/BOLOGNA.rsc"],
     ["an id a digit short", `/day/${KEPT_DAY_ID.slice(1)}`],
     ["an id with more after it", `/day/${KEPT_DAY_ID}0`],
     ["the route's own name", "/day/[city]"],
@@ -25,10 +29,9 @@ describe("notADaySource", () => {
     expect(isNotADay(path)).not.toBe(false);
   });
 
-  it("leaves every written day's address to its page", () => {
-    for (const request of WRITTEN_REQUESTS) {
-      expect(isNotADay(dayAddressOf(request))).toBe(false);
-    }
+  it("leaves every written day's address to its page, as the page and its params find it", () => {
+    const requests = [...WRITTEN_REQUESTS, ...WRITTEN_DAYS.map(({ request }) => request)];
+    for (const request of requests) expect(isNotADay(dayAddressOf(request))).toBe(false);
   });
 
   it.each([

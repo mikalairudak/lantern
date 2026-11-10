@@ -11,11 +11,13 @@ import { START_REQUESTS } from "./written/quick-starts";
  * nor a day's id. A rewrite sends it to the not-found page before anything renders, so it
  * answers 404 from its first visit: the page itself, for an address outside
  * `generateStaticParams`, sends the route's prerendered shell with a 200 before its
- * `notFound()` has run. The router reads a source without case, as `isDayId` does; a slug or an
- * id followed by a dot is left to the page, since that is how the build names the files it
- * writes beside a page (`bologna.rsc`, `bologna.segments`).
+ * `notFound()` has run. The router reads a source without case, so the slugs are matched with
+ * case (`(?-i:…)`): a slug is lowercase, and `/day/Bologna` is no day's address. An id is
+ * either case, as `isDayId` takes it. A slug or an id followed by a dot is left to the page,
+ * since that is how the build names the files it writes beside a page (`bologna.rsc`,
+ * `bologna.segments`).
  */
 export function notADaySource(): string {
-  const names = [...START_REQUESTS.map(daySlugOf), DAY_ID_PATTERN].join("|");
-  return `/day/:address((?!(?:${names})(?:[.]|$))[^/]+)`;
+  const slugs = START_REQUESTS.map(daySlugOf).join("|");
+  return `/day/:address((?!(?:(?-i:${slugs})|${DAY_ID_PATTERN})(?:[.]|$))[^/]+)`;
 }
