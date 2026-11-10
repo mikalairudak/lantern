@@ -6,6 +6,14 @@ import { ThemeChoice } from "@/features/theme/theme-choice";
 /** The wordmark as a way home: no underline, and the ink ring every link takes for the keyboard. */
 const HOME_CLASSES = "rounded-sm focus-ring";
 
+/**
+ * The theme's icon set in a line of the page's small type, at its lowercase middle: CSS's
+ * `middle` stands the icon's centre at the baseline plus half the type's x-height, so it
+ * reads level with "Plan another day" at every root size, and at the same height on a page
+ * with no action.
+ */
+const THEME_LINE_CLASSES = "type-note *:align-middle";
+
 interface MastheadProps {
   /** The page's one action in words, set before the theme's icon, such as "Plan another day". */
   action?: ReactNode;
@@ -45,11 +53,13 @@ export function Masthead({ action, isHome = false }: MastheadProps) {
           {wordmark}
         </a>
       )}
-      {/* The icon stands on the wordmark's baseline as its capitals do, so it sits at the
-          same place on every page, with an action before it or none. */}
+      {/* The action and the icon's line stand on the wordmark's baseline, so the icon sits at
+          the same place on every page, with an action before it or none. */}
       <span className="flex items-baseline gap-3 whitespace-nowrap">
         {action}
-        <ThemeChoice />
+        <span className={THEME_LINE_CLASSES}>
+          <ThemeChoice />
+        </span>
       </span>
     </div>
   );
