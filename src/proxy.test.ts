@@ -1,8 +1,9 @@
 // @vitest-environment node
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NOT_A_PAGE_PATH } from "@/lib/http/studio-gate";
-import { proxy } from "./proxy";
+import { config, proxy } from "./proxy";
 
 const ORIGIN = "https://lantern.test";
 const PASSWORD = "the owner's own, in the test";
@@ -21,6 +22,27 @@ function rewrittenTo(response: Response): string | null {
   const rewrite = response.headers.get("x-middleware-rewrite");
   return rewrite === null ? null : new URL(rewrite).pathname;
 }
+
+describe("the proxy's matcher", () => {
+  it("takes the studio's paths, and every path with an escape in its first segment", () => {
+    for (const path of ["/lab", "/studio", "/lab.rsc", "/lab%2Fstream", "/%6Cab", "/l%61b/x"]) {
+      expect(unstable_doesMiddlewareMatch({ config, url: `${ORIGIN}${path}` }), path).toBe(true);
+    }
+  });
+
+  it("takes no address of the public site", () => {
+    for (const path of [
+      "/",
+      "/day/porto",
+      "/day/%6Cab",
+      "/privacy",
+      "/api/day",
+      "/_next/static/x",
+    ]) {
+      expect(unstable_doesMiddlewareMatch({ config, url: `${ORIGIN}${path}` }), path).toBe(false);
+    }
+  });
+});
 
 describe("the proxy", () => {
   afterEach(() => {
