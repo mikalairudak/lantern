@@ -81,7 +81,7 @@ Each milestone is one release. Its work reaches `develop` as small pull requests
 1. **Foundation (v1.0.x).** The way work lands, and what is measured before the start screen changes:
    - every change through a reviewed pull request, its text checked, and `develop` merged only from a green one;
    - one fix taken from a branch to a release, `v1.0.1`, to prove the path end to end;
-   - the events that say whether a day was used: the start screen seen, a day read to its end, the view it was read in, a returning visitor; and their values before the start screen changes;
+   - the events that say whether a day was used: the start screen seen, a day read to its end, and the way in and the view of each day's gestures; and their values before the start screen changes;
    - the header's top row aligned;
    - the lint's dependencies updated.
 2. **First impression (v1.1).** What a visitor sees in their first ten seconds, released as one:
