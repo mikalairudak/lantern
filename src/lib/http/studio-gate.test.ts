@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   StudioLock,
+  isEscapedStudioPath,
   isStudioLogin,
   isStudioPath,
   studioLoginOf,
@@ -53,6 +54,46 @@ describe("the studio's paths", () => {
       "/api/day",
     ]) {
       expect(isStudioPath(path), path).toBe(false);
+    }
+  });
+
+  it("tells a name of the studio written with escapes, which it does not hold, from the rest", () => {
+    for (const path of [
+      "/%6Cab",
+      "/%6cab/stream",
+      "/l%61b",
+      "/%73tudio",
+      "/%6Cab.rsc",
+      "/%6Cab%2Fstream",
+      "/lab%2Fstream",
+      "/lab%2F",
+    ]) {
+      expect(isStudioPath(path), path).toBe(false);
+      expect(isEscapedStudioPath(path), path).toBe(true);
+    }
+    // A path the studio holds as written, one of the public site, and one whose escape is
+    // malformed are none.
+    for (const path of [
+      "/lab",
+      "/lab/stream",
+      "/LAB",
+      "/%4Cab",
+      "/day/%6Cab",
+      "/day/caf%C3%A9",
+      "/%E0%A4%A",
+      "/%ZZ/lab",
+    ]) {
+      expect(isEscapedStudioPath(path), path).toBe(false);
+    }
+  });
+
+  it("is not hidden by a malformed escape further on", () => {
+    for (const path of [
+      "/%6Cab/x/%E0%A4%A",
+      "/%6Cab/matrix/%E0%A4%A",
+      "/%6Cab/concepts/invitation/%ZZ",
+    ]) {
+      expect(isEscapedStudioPath(path), path).toBe(true);
     }
   });
 });
