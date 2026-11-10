@@ -483,6 +483,17 @@ describe("the pull request check", () => {
     expect(faultsIn({ body: BODY.replace("None.", "### Rollback") })).toEqual([]);
   });
 
+  it("takes no heading inside an HTML comment for a section", () => {
+    const hidden = BODY.replace("## Why", "<!--\n## Why").replace(
+      "A phone shows the fork below the screen.",
+      "A phone shows the fork below the screen. -->",
+    );
+    const onHeadingLine = BODY.replace("## Risk", "## Risk <!-- hint").replace("None.", "-->");
+
+    expect(faultsIn({ body: hidden })).toEqual(['body: Section missing "## Why"']);
+    expect(faultsIn({ body: onHeadingLine })).toEqual(['body: Section empty "## Risk"']);
+  });
+
   it("takes only a second-level heading for a section", () => {
     expect(faultsIn({ body: BODY.replace("## Why", "# Why") })).toContain(
       'body: Section missing "## Why"',

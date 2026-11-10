@@ -329,6 +329,37 @@ function headingsOf(lines: readonly Line[]): Heading[] {
   });
 }
 
+/**
+ * The body's lines as GitHub shows them: each HTML comment outside fenced code blanked, a
+ * multi-line one too, so a heading inside one is no section. Each line keeps its number.
+ */
+function shownLinesOf(lines: readonly Line[]): Line[] {
+  const { isCode } = fencesOf(lines);
+  const shown: Line[] = [];
+  let prose: Line[] = [];
+  const flush = () => {
+    const text = prose
+      .map((line) => line.text)
+      .join("\n")
+      .replace(HTML_COMMENT, (comment) => comment.replace(/[^\n]/g, ""));
+    text.split("\n").forEach((line, index) => {
+      const at = prose[index];
+      if (at !== undefined) shown.push({ number: at.number, text: line.trimEnd() });
+    });
+    prose = [];
+  };
+  lines.forEach((line, index) => {
+    if (isCode[index] === true) {
+      flush();
+      shown.push(line);
+    } else {
+      prose.push(line);
+    }
+  });
+  flush();
+  return shown;
+}
+
 function sectionFault(heading: string, rule: string, reason: string): PullRequestFault {
   return { part: "body", line: null, rule, found: `## ${heading}`, reason };
 }
@@ -355,7 +386,6 @@ function shapeFaultsOf(lines: readonly Line[]): PullRequestFault[] {
       .slice(index + 1, end)
       .map(({ text }) => text)
       .join("\n")
-      .replace(HTML_COMMENT, "")
       .trim();
     const faults: PullRequestFault[] = [];
     if (index < lastIndex) {
@@ -410,7 +440,7 @@ export function findPullRequestFaults(text: PullRequestText): PullRequestFault[]
     ...messageFaultsOf(linesOf(text.title)).map(inPart("title", null)),
     ...fenceFaults,
     ...bodyFaults,
-    ...shapeFaultsOf(bodyLines),
+    ...shapeFaultsOf(shownLinesOf(bodyLines)),
   ];
 }
 
