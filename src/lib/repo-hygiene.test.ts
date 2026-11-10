@@ -398,6 +398,20 @@ describe("the pull request check", () => {
     expect(faultsIn({ body: BODY.replaceAll("\n", "\r\n") })).toEqual([]);
   });
 
+  it.each(["fix: keep the line", "feat(abacus): fold the row", "refactor: split the reader"])(
+    "passes the conventional title %s",
+    (title) => {
+      expect(faultsIn({ title })).toEqual([]);
+    },
+  );
+
+  it.each(["", "Keep the line", "fix keep the line", "fix:keep the line", "Fix: keep", "fix(): x"])(
+    "fails the title %j, which would be the squash commit's subject",
+    (title) => {
+      expect(faultsIn({ title })).toEqual([`title: Title "${title}"`]);
+    },
+  );
+
   it("fails Cyrillic in the title", () => {
     expect(faultsIn({ title: "fix: \u0441\u0442\u0440\u043e\u043a\u0430" })).toEqual([
       'title: Cyrillic letters "\u0441\u0442\u0440\u043e\u043a\u0430"',
@@ -447,6 +461,10 @@ describe("the pull request check", () => {
     "fix/fork/line",
   ])("fails the branch name %s", (branch) => {
     expect(faultsIn({ branch })).toEqual([`branch: Branch name "${branch}"`]);
+  });
+
+  it("passes a branch name with a dot, such as a version's", () => {
+    expect(faultsIn({ branch: "chore/bump-node-24.1" })).toEqual([]);
   });
 
   it("holds the branch name to the message rules too", () => {
@@ -548,14 +566,25 @@ describe("the pull request check", () => {
       return file;
     }
 
-    it("lets a clean pull request through, a title starting with a dash among them", () => {
+    it("lets a clean pull request through", () => {
       expect(
         scriptOn([
           `--branch=${CLEAN.branch}`,
-          "--title=-fix: keep the line",
+          `--title=${CLEAN.title}`,
           `--body-file=${bodyFile(BODY)}`,
         ]),
       ).toEqual({ status: 0, stderr: "" });
+    });
+
+    it("reads a title that starts with a dash as the title", () => {
+      const { status, stderr } = scriptOn([
+        `--branch=${CLEAN.branch}`,
+        "--title=-fix: keep the line",
+        `--body-file=${bodyFile(BODY)}`,
+      ]);
+
+      expect(status).toBe(1);
+      expect(stderr).toContain('title, Title: "-fix: keep the line"');
     });
 
     it("fails a bad pull request and says why", () => {

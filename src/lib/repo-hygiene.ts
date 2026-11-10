@@ -258,7 +258,9 @@ export function runCommitMessageCheck(message: string, err: (line: string) => vo
 
 /** The kinds of change a commit's subject and a branch's name start with. */
 const CHANGE_KINDS = ["feat", "fix", "chore", "docs", "test", "refactor"] as const;
-const BRANCH_NAME = new RegExp(`^(?:${CHANGE_KINDS.join("|")})/[a-z0-9][a-z0-9-]*$`);
+const BRANCH_NAME = new RegExp(`^(?:${CHANGE_KINDS.join("|")})/[a-z0-9][a-z0-9.-]*$`);
+/** A conventional commit's subject: its kind, an optional scope, a colon and the change. */
+const CONVENTIONAL_SUBJECT = new RegExp(`^(?:${CHANGE_KINDS.join("|")})(?:\\([a-z0-9-]+\\))?: \\S`);
 /** The body's sections, in order, as `.github/pull_request_template.md` lays them out. */
 export const PULL_REQUEST_SECTIONS = ["What changes", "Why", "Look at", "Checked", "Risk"] as const;
 /** A first- or second-level heading, which ends the section above it. */
@@ -297,6 +299,21 @@ function inPart(part: keyof PullRequestText, line: number | null) {
   });
 }
 
+function titleFaultsOf(title: string): PullRequestFault[] {
+  const shape: PullRequestFault[] = CONVENTIONAL_SUBJECT.test(title)
+    ? []
+    : [
+        {
+          part: "title",
+          line: null,
+          rule: "Title",
+          found: title,
+          reason: `A pull request is squash-merged, so its title becomes the commit's subject on develop and its body the commit's body; the title is a conventional commit's subject (${CHANGE_KINDS.join(", ")}, an optional scope, a colon and the change).`,
+        },
+      ];
+  return [...shape, ...messageFaultsOf(linesOf(title)).map(inPart("title", null))];
+}
+
 function branchFaultsOf(branch: string): PullRequestFault[] {
   const shape: PullRequestFault[] = BRANCH_NAME.test(branch)
     ? []
@@ -306,7 +323,7 @@ function branchFaultsOf(branch: string): PullRequestFault[] {
           line: null,
           rule: "Branch name",
           found: branch,
-          reason: `A branch's name is public once pushed, so it names its kind of change as a commit does (${CHANGE_KINDS.join(", ")}), then a slash and lowercase words joined by hyphens.`,
+          reason: `A branch's name is public once pushed, so it names its kind of change as a commit does (${CHANGE_KINDS.join(", ")}), then a slash and lowercase words joined by hyphens or dots.`,
         },
       ];
   return [...shape, ...messageFaultsOf(linesOf(branch)).map(inPart("branch", null))];
@@ -437,7 +454,7 @@ export function findPullRequestFaults(text: PullRequestText): PullRequestFault[]
   );
   return [
     ...branchFaultsOf(text.branch),
-    ...messageFaultsOf(linesOf(text.title)).map(inPart("title", null)),
+    ...titleFaultsOf(text.title),
     ...fenceFaults,
     ...bodyFaults,
     ...shapeFaultsOf(shownLinesOf(bodyLines)),
