@@ -232,6 +232,22 @@ describe("the rules for what is committed", () => {
     ]);
     expect(rulesFoundIn("src/lib/example.ts", "// see 2276e6bf")).toEqual([]);
   });
+
+  it("closes a fence only on a marker of the same character, as long or longer", () => {
+    const markdown = [
+      "````",
+      "~~~",
+      "git show 2276e6bf",
+      "```",
+      "still code: 1c1c734f",
+      "`````",
+      "After 3d4e5f6a.",
+    ].join("\n");
+
+    expect(findFileFaults("docs/example.md", markdown)).toEqual([
+      expect.objectContaining({ line: 7, found: "3d4e5f6a" }),
+    ]);
+  });
 });
 
 describe("the commit message check", () => {
@@ -410,6 +426,15 @@ describe("the pull request check", () => {
     const fenced = ["```", "/Users/someone/lantern", "## Why", "```"].join("\n");
 
     expect(faultsIn({ body: BODY.replace("- pnpm e2e", `- pnpm e2e\n\n${fenced}`) })).toEqual([]);
+  });
+
+  it("fails a fence left open, which would hide the sections below it", () => {
+    const body = BODY.replace("- pnpm e2e", "- pnpm e2e\n\n```\n/Users/someone/lantern\n~~~");
+
+    expect(faultsIn({ body })).toEqual([
+      'body: Unclosed code fence "```"',
+      'body: Section missing "## Risk"',
+    ]);
   });
 
   it.each([

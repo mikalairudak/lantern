@@ -41,8 +41,10 @@ export interface HygieneFault {
 /** Tests, end-to-end specs and fixtures: what they hold is made up to exercise the code. */
 const TEST_FILE = /\.(?:test|spec)\.tsx?$|^e2e\/|^src\/lib\/fixtures\//;
 const MARKDOWN_FILE = /\.md$/;
-/** A line that opens or closes a fenced code block. */
-const FENCE = /^ {0,3}(?:```|~~~)/;
+/** A line that opens a fenced code block: three or more backticks or tildes, and its marker. */
+const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
+/** A line that can close one: a marker alone, as long as the opening one or longer. */
+const FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})\s*$/;
 /** Git's comment lines in a message it hands the hook. */
 const COMMENT_MARK = "#";
 /** Git's scissors line: everything below it, such as `git commit -v`'s diff, is not the message. */
@@ -139,16 +141,44 @@ function linesOf(text: string): Line[] {
   return text.split("\n").map((line, index) => ({ number: index + 1, text: line.trimEnd() }));
 }
 
+interface Fences {
+  /** Whether each line is fenced code, its opening and closing lines included. */
+  readonly isCode: readonly boolean[];
+  /** The line of a fence the text leaves open, which hides every line below it. */
+  readonly unclosed: Line | null;
+}
+
+/**
+ * Where fenced code stands, as CommonMark reads it: a fence closes only on a marker of the same
+ * character, at least as long as the one that opened it.
+ */
+function fencesOf(lines: readonly Line[]): Fences {
+  let opening: Line | null = null;
+  let openMarker = "";
+  const isCode: boolean[] = [];
+  for (const line of lines) {
+    if (opening === null) {
+      const marker = FENCE_OPEN.exec(line.text)?.[1];
+      if (marker !== undefined) {
+        opening = line;
+        openMarker = marker;
+      }
+      isCode.push(marker !== undefined);
+      continue;
+    }
+    const marker = FENCE_CLOSE.exec(line.text)?.[1] ?? "";
+    // A marker is one character throughout, so one that starts with the opening marker is of
+    // the same character and at least as long.
+    if (marker.startsWith(openMarker)) opening = null;
+    isCode.push(true);
+  }
+  return { isCode, unclosed: opening };
+}
+
 /** The lines outside fenced code blocks. */
 function proseLinesOf(lines: readonly Line[]): Line[] {
-  let isInFence = false;
-  return lines.filter(({ text }) => {
-    if (FENCE.test(text)) {
-      isInFence = !isInFence;
-      return false;
-    }
-    return !isInFence;
-  });
+  const { isCode } = fencesOf(lines);
+  return lines.filter((_, index) => !isCode[index]);
 }
 
 function faultsOf(rule: HygieneRule, lines: readonly Line[], isTestFile: boolean): HygieneFault[] {
@@ -292,10 +322,9 @@ interface Heading {
 
 /** The body's first- and second-level headings outside fenced code. */
 function headingsOf(lines: readonly Line[]): Heading[] {
-  let isInFence = false;
+  const { isCode } = fencesOf(lines);
   return lines.flatMap(({ text }, index) => {
-    if (FENCE.test(text)) isInFence = !isInFence;
-    const match = isInFence ? null : SECTION_HEADING.exec(text);
+    const match = isCode[index] === true ? null : SECTION_HEADING.exec(text);
     return match === null ? [] : [{ index, level: match[1]?.length ?? 0, title: match[2] ?? "" }];
   });
 }
@@ -359,12 +388,27 @@ function shapeFaultsOf(lines: readonly Line[]): PullRequestFault[] {
  */
 export function findPullRequestFaults(text: PullRequestText): PullRequestFault[] {
   const bodyLines = linesOf(text.body);
+  const { unclosed } = fencesOf(bodyLines);
+  const fenceFaults: PullRequestFault[] =
+    unclosed === null
+      ? []
+      : [
+          {
+            part: "body",
+            line: unclosed.number,
+            rule: "Unclosed code fence",
+            found: unclosed.text.trim(),
+            reason:
+              "A fence left open hides every line below it from the rules and the sections; close it with the same marker.",
+          },
+        ];
   const bodyFaults = messageFaultsOf(proseLinesOf(bodyLines)).map((fault) =>
     inPart("body", fault.line)(fault),
   );
   return [
     ...branchFaultsOf(text.branch),
     ...messageFaultsOf(linesOf(text.title)).map(inPart("title", null)),
+    ...fenceFaults,
     ...bodyFaults,
     ...shapeFaultsOf(bodyLines),
   ];
