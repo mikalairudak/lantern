@@ -1,11 +1,14 @@
 # Holds each pull request's branch name, title and body to the rules for what is committed
 # (CLAUDE.md, "Everything committed is public"), as the commit-msg hook holds each message: all
 # three are public the moment the branch is pushed. Apart from CI, so that editing a pull request's
-# text runs this check alone. It needs Node and the repository, not an install.
+# text runs this check alone. It needs Node and the repository, not an install. Only pull requests
+# into develop are checked: releases reach main by a fast-forward push, and the pull requests that
+# open against main, such as Dependabot's security updates, are named by their tools.
 name: PR text
 
 on:
   pull_request:
+    branches: [develop]
     types: [opened, edited, reopened, synchronize]
 
 concurrency:
