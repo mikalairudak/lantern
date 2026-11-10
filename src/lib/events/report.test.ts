@@ -2,7 +2,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { MigrationSession } from "@/lib/db/migrate";
 import { migratedDatabase, type TestDatabase } from "@/lib/fixtures/db/pglite";
-import { KYOTO_DRAGGED } from "@/lib/fixtures/events";
+import { KYOTO_DRAGGED, KYOTO_ON_CHART } from "@/lib/fixtures/events";
 import type { ProductEvent } from "./event.schema";
 import { columnsOf } from "./postgres-event-store";
 import { runEventsReport, SHARE_MIN_VISITORS, type ReportCommand } from "./report";
@@ -187,18 +187,18 @@ describe("pnpm events:report", () => {
       "  taken along  not told  1",
       "  taken along  pressed   1",
       "",
-      "Days taken along, by way in (visitors who opened a day that way; a share from 30)",
-      "  via       opened  taken along  share",
-      "  link      1       1            n < 30",
-      "  pressed   1       1            n < 30",
-      "  typed     1       0            n < 30",
-      "  not told  0       1            n < 30",
+      // A day taken along with no day opened that way, as one kept before events told the
+      // way in, counts in no group here.
+      "Days taken along, by way in (visitors who opened a day that way, and of them who took one along; a share from 30)",
+      "  via      opened  taken along  share",
+      "  link     1       1            n < 30",
+      "  pressed  1       1            n < 30",
+      "  typed    1       0            n < 30",
       "",
-      "Days taken along, by view (visitors whose day ended in that view; a share from 30)",
-      "  view      ended  read to end  taken along  share",
-      "  chart     1      1            1            n < 30",
-      "  read      1      0            1            n < 30",
-      "  not told  0      0            1            n < 30",
+      "Days taken along, by view (visitors whose day ended in that view, and of them who did each in it; a share from 30)",
+      "  view   ended  read to end  taken along  share",
+      "  chart  1      1            1            n < 30",
+      "  read   1      0            1            n < 30",
       "",
       "Days opened, by city (a visitor counts once a UTC day)",
       "  city       opened  visitors",
@@ -278,6 +278,43 @@ describe("pnpm events:report", () => {
     expect(out).toContain(
       `  read   ${SHARE_MIN_VISITORS - 1}     0            2            n < 30`,
     );
+  });
+
+  it("counts a day taken along only in the view and way in its visitor's day ended and opened in", async () => {
+    const visitor = (index: number) => index.toString(16).padStart(64, "0");
+    // Each opened a day as pressed and ended it on the chart, then took one along as reached
+    // by its link and read as a list: in neither group is that a day taken along.
+    for (let index = 0; index < SHARE_MIN_VISITORS; index += 1) {
+      await seed(visitor(index), {
+        kind: "day-opened",
+        city: "kyoto",
+        via: "pressed",
+        written: true,
+      });
+      await seed(visitor(index), {
+        kind: "day-ended",
+        city: "kyoto",
+        via: "pressed",
+        written: true,
+        view: "chart",
+        outcome: "complete",
+      });
+      await seed(visitor(index), { kind: "link-shared", ...KYOTO_ON_CHART, view: "read" });
+    }
+    // One more ended a day as a list and took nothing along.
+    await seed(visitor(100), {
+      kind: "day-ended",
+      ...KYOTO_ON_CHART,
+      view: "read",
+      outcome: "cut",
+    });
+
+    const { out } = await report();
+
+    expect(out).toContain(`  pressed  ${SHARE_MIN_VISITORS}      0            0%`);
+    expect(out).toContain(`  chart  ${SHARE_MIN_VISITORS}     0            0            0%`);
+    expect(out).toContain("  read   1      0            0            n < 30");
+    expect(out.some((line) => /\d{3,}%/.test(line))).toBe(false);
   });
 
   it("reads inside a read-only transaction, and ends it", async () => {
