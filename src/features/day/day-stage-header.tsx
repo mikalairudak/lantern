@@ -67,6 +67,8 @@ import {
   widestClauses,
   type SentenceFacts,
 } from "./sentence";
+import { DayMenu, type DayMenuItem } from "./day-menu";
+import { PLAN_ANOTHER_DAY } from "./day-end-line";
 import { Masthead } from "./masthead";
 import {
   BEING_WRITTEN,
@@ -408,6 +410,11 @@ interface DayStageHeaderProps {
   /** As a lab cell draws it: a locked word was pressed while a re-plan is written. */
   isLockSaid?: boolean;
   onCityOpenChange: (openAt: CityFocus | null) => void;
+  /**
+   * The ways to take the day along, for the first impression's day menu, which holds them and
+   * "Plan another day". Without the first impression the masthead keeps its action alone.
+   */
+  takeAlong?: readonly DayMenuItem[];
   /** A written day chosen from the city word's list. */
   onChooseWritten: (request: DayRequest) => void;
   /** A written day the notice offers, chosen; the city word's `onChooseWritten` if not given. */
@@ -530,6 +537,7 @@ export function DayStageHeader({
   openedWord = null,
   isLockSaid = false,
   onCityOpenChange,
+  takeAlong,
   onChooseWritten,
   onOpenWritten = onChooseWritten,
   onChooseCity,
@@ -944,6 +952,23 @@ export function DayStageHeader({
       className={cn("flex shrink-0 flex-col pt-5 pb-5", className)}
     >
       <Masthead
+        menu={
+          takeAlong && (
+            <DayMenu
+              items={[
+                ...takeAlong,
+                {
+                  key: "another",
+                  label: PLAN_ANOTHER_DAY,
+                  note: "Ask for a day somewhere else",
+                  // It opens the city word at its field, locked while a re-plan is written.
+                  onSelect: () => (isReplanWriting ? sayLocked() : onCityOpenChange("elsewhere")),
+                  isApart: takeAlong.length > 0,
+                },
+              ]}
+            />
+          )
+        }
         action={
           <button
             type="button"
