@@ -8,7 +8,7 @@ arguments: [branch]
 
 # Make a branch ready for its pull request
 
-Every change reaches `develop` as a pull request the owner reviews and merges on GitHub. A branch's name, its commits and the pull request's title and body are public the moment the branch is pushed, and a push cannot be taken back (`CLAUDE.md`, "Everything committed is public"). So everything below happens before the push, in this order, and the push waits until all of it is clean. **This skill never merges.**
+Every change reaches `develop` as a pull request the owner reviews and merges on GitHub. A branch's name, its commits and the pull request's title and body are public the moment the branch is pushed, and a push cannot be taken back (`CLAUDE.md`, "Everything committed is public"). So everything below happens before the push, in this order, and the push waits until all of it is clean. **This skill never merges.** It runs in the main session, not in a forked context, because it pushes and opens the pull request.
 
 - **What is reviewed:** `$branch`, against `develop`. Its change is `git diff develop...$branch`, its commits `git log develop..$branch`.
 - **Where:** the branch's own checkout, clean (`git status` shows nothing to commit).
@@ -16,22 +16,23 @@ Every change reaches `develop` as a pull request the owner reviews and merges on
 ## 1. One change, checked
 
 1. Read `git log --oneline develop..$branch` and `git diff --stat develop...$branch`. The branch holds one logical change; split it when a reader would review two things.
-2. The branch's name is `<kind>/<words>`: the kind a commit's subject starts with (`feat`, `fix`, `chore`, `docs`, `test`, `refactor`), then lowercase words joined by hyphens. Rename it locally if not.
+2. The branch's name is `<kind>/<words>`: the kind a commit's subject starts with (`feat`, `fix`, `chore`, `docs`, `test`, `refactor`), then lowercase words joined by hyphens or dots. Rename it locally if not.
 3. `pnpm check` passed on the last commit: the pre-commit hook ran it. Name the other checks the definition of done in `CLAUDE.md` asks for this change, and run each: `pnpm build:check` for any change, `pnpm e2e` and `pnpm e2e:visual` for UI, with screenshots at phone and laptop width in both themes.
 
 ## 2. Write the pull request's text
 
-1. The title is the change in one line, in the form of a conventional commit's subject. For a branch of one commit, the commit's subject.
-2. Write the body in a file outside the repository, in the shape of `.github/pull_request_template.md`: `## What changes`, `## Why`, `## Look at`, `## Checked`, `## Risk`, each with at least one line. Delete the template's comments; a section that holds only its comment is empty.
+1. The pull request is squash-merged: its title becomes the commit's subject on `develop`, and its body the commit's body. The title is a conventional commit's subject (`fix: …`, `feat(scope): …`); for a branch of one commit, that commit's subject.
+2. Write the body in a file outside the repository, in the shape of `.github/pull_request_template.md`: `## What changes`, `## Why`, `## Look at`, `## Checked`, `## Risk`, each with at least one line. Delete every one of the template's HTML comments, since the body becomes the squash commit's body; a section that holds only its comment is empty.
 3. Plain, short English. Say what is true and why. Tell no story of the work: no record of who asked or agreed, no sessions, agents, rounds or reviews, nothing personal. A commit hash is allowed here, as in a commit's message.
-4. Run the check on all three parts, and fix each fault it prints:
+4. Hold the title in a single-quoted shell variable, so a `"` or `$` in it cannot break a command (write a `'` in it as `'\''`). Run the check on all three parts, and fix each fault it prints:
 
    ```sh
+   title='fix: keep the line under the headline'
    node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-pr-text.mts \
-     --branch="$(git branch --show-current)" --title="<title>" --body-file=<body file>
+     --branch="$(git branch --show-current)" --title="$title" --body-file=<body file>
    ```
 
-   The workflow `.github/workflows/pr-text.yml` runs the same check on GitHub, again on every edit of the pull request's text.
+   The workflow `.github/workflows/pr-text.yml` runs the same check on GitHub, on every pull request into `develop` and again on every edit of its text.
 
 ## 3. Review its security
 
@@ -58,15 +59,16 @@ It reports findings only, each with the file and line or the part of the text, a
 
 Only when every step above is clean:
 
-1. Run `git config --show-origin core.hooksPath`. If this clone keeps a push guard, the value names the guard's folder: `pnpm install` sets it to `.githooks`, which holds no pre-push hook, and a guard left unset does not run. Set it back before pushing.
-2. Push the branch alone: `git push -u origin $branch`. Never `develop`, `main`, a tag or another branch.
-3. Open the pull request against `develop`:
+1. Run `git branch --show-current`. If it prints `develop` or `main`, stop: only a change's own branch is pushed.
+2. Run `git config --show-origin core.hooksPath`. If the value is not what the clone's maintainer set (an install resets it to `.githooks`), stop and ask before pushing.
+3. Push the branch alone: `git push -u origin $branch`. Never `develop`, `main`, a tag or another branch.
+4. Open the pull request against `develop`, with the title from the same variable:
 
    ```sh
-   gh pr create --base develop --head $branch --title "<title>" --body-file <body file>
+   gh pr create --base develop --head $branch --title "$title" --body-file <body file>
    ```
 
-4. Give the owner the pull request's address. The owner reviews and merges it on GitHub.
+5. Give the owner the pull request's address. The owner reviews and merges it on GitHub.
 
 ## Done when
 
