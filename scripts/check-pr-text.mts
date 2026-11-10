@@ -1,9 +1,9 @@
 /**
  * `node scripts/check-pr-text.mts --branch <name> --title <title> --body-file <path>`: the pull
- * request check, which `.github/workflows/pr-text.yml` runs on every pull request. It holds the
- * branch's name, the title and the body to the rules in `src/lib/repo-hygiene.ts`, prints each
- * fault, and exits 1 on any (`runPullRequestTextCheck`). It runs on plain Node, with no install,
- * so it imports one module that imports nothing.
+ * request check, which `.github/workflows/pr-text.yml` runs on every pull request into `develop`.
+ * It holds the branch's name, the title and the body to the rules in `src/lib/repo-hygiene.ts`,
+ * prints each fault, and exits 1 on any (`runPullRequestTextCheck`). It runs on plain Node, with
+ * no install, so it imports one module that imports nothing.
  */
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";

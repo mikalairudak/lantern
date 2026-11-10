@@ -3,9 +3,9 @@
  * committed is public", and `docs/decisions.md`, "Everything committed is written for a reader
  * of the code"). `repo-hygiene.test.ts` holds every tracked text file to them,
  * `.githooks/commit-msg` holds each commit's message, through `scripts/check-commit-message.mts`,
- * and `.github/workflows/pr-text.yml` holds each pull request's branch name, title and body,
- * through `scripts/check-pr-text.mts`. The module imports nothing, so those scripts run it on
- * plain Node.
+ * and `.github/workflows/pr-text.yml` holds the branch name, title and body of each pull request
+ * into `develop`, through `scripts/check-pr-text.mts`. The module imports nothing, so those
+ * scripts run it on plain Node.
  */
 
 export interface HygieneRule {

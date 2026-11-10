@@ -14,7 +14,7 @@ Lantern plans one day in a city, hour by hour, as quiet or as lively as the visi
 
 ## Everything committed is public
 
-The repository is public, and so is everything pushed to it, `develop` included: code, comments, docs, fixtures, screenshots, commit messages and branch names. Write each for a reader of the code. `src/lib/repo-hygiene.test.ts`, in `pnpm check`, the `commit-msg` hook, and the pull request check (`scripts/check-pr-text.mts`, run by `.github/workflows/pr-text.yml` on each pull request's branch name, title and body) hold the plainest of these rules; the rest are kept by whoever writes.
+The repository is public, and so is everything pushed to it, `develop` included: code, comments, docs, fixtures, screenshots, commit messages and branch names. Write each for a reader of the code. `src/lib/repo-hygiene.test.ts`, in `pnpm check`, the `commit-msg` hook, and the pull request check (`scripts/check-pr-text.mts`, run by `.github/workflows/pr-text.yml` on the branch name, title and body of each pull request into `develop`) hold the plainest of these rules; the rest are kept by whoever writes.
 
 - **English only,** in code, comments, docs, UI copy and commit messages. The exceptions are test data that exercises other scripts, listed in the hygiene test.
 - **Say what is true and why, never how it was agreed.** No record of conversations, approvals or requests, of who asked for what, and no quotes from a chat. A product call is stated with its reason; a comment cites a decision. Sessions, agents, tickets, rounds of work, worktrees and reviews are how the work gets done, not what the code is, and stay out.
