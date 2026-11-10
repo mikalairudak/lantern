@@ -30,9 +30,9 @@ class FakeObserver {
   }
 }
 
-function Line({ onRead }: { onRead?: () => void }) {
+function Line({ day = "kanazawa", onRead }: { day?: string; onRead?: () => void }) {
   const line = useRef<HTMLParagraphElement>(null);
-  useReadToEnd(line, onRead);
+  useReadToEnd(line, day, onRead);
   return <p ref={line}>Ends at 21:30</p>;
 }
 
@@ -142,6 +142,22 @@ describe("the day read to its end", () => {
 
     expect(onRead).not.toHaveBeenCalled();
     expect(observer().isWatching).toBe(false);
+  });
+
+  it("watches afresh for another day that takes the line's place", () => {
+    const onRead = vi.fn();
+    const { rerender } = render(<Line onRead={onRead} />);
+    act(() => observer().show(1));
+    wait(READ_TO_END_MS);
+    expect(onRead).toHaveBeenCalledTimes(1);
+
+    rerender(<Line day="bologna" onRead={onRead} />);
+    const next = observers.at(-1)!;
+    expect(next.isWatching).toBe(true);
+    act(() => next.show(1));
+    wait(READ_TO_END_MS);
+
+    expect(onRead).toHaveBeenCalledTimes(2);
   });
 
   it("tells the latest listener, without watching the line again", () => {

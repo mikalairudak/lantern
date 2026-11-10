@@ -91,7 +91,8 @@ export function DayEnd({
 }: DayEndProps) {
   const words = useMemo(() => dayEndWordsOf(day, shown, checks), [day, shown, checks]);
   const line = useRef<HTMLDivElement>(null);
-  useReadToEnd(line, onReadToEnd);
+  // Watched afresh for each day the line ends, should one take another's place under it.
+  useReadToEnd(line, day, onReadToEnd);
   const [copied, setCopied] = useState<CopyLabel>(COPY_LINK);
   useEffect(() => {
     if (copied === COPY_LINK) return undefined;

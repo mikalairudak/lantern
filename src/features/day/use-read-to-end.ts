@@ -13,13 +13,15 @@ export const READ_TO_END_SHARE = 0.5;
 
 /**
  * Calls `onRead` once the element has stayed in view for `READ_TO_END_MS`, and never again
- * while it stays drawn. The wait starts again from nothing whenever the element leaves the
- * screen or the page is hidden, and ends unspent when the element goes, as when the visitor
- * plays another day or leaves the page, so a day left first is never counted. Without
- * `onRead`, or in a browser that cannot tell what is on screen, nothing is watched.
+ * for the same `read`, the thing the element ends; another is watched afresh. The wait starts
+ * again from nothing whenever the element leaves the screen or the page is hidden, and ends
+ * unspent when the element goes, as when the visitor plays another day or leaves the page, so
+ * a day left first is never counted. Without `onRead`, or in a browser that cannot tell what
+ * is on screen, nothing is watched.
  */
 export function useReadToEnd(
   ref: RefObject<Element | null>,
+  read: unknown,
   onRead: (() => void) | undefined,
 ): void {
   const latest = useRef(onRead);
@@ -48,7 +50,7 @@ export function useReadToEnd(
       },
       { threshold: READ_TO_END_SHARE },
     );
-    const read = () => {
+    const tell = () => {
       observer.disconnect();
       document.removeEventListener("visibilitychange", waitWhileInView);
       latest.current?.();
@@ -56,7 +58,7 @@ export function useReadToEnd(
     function waitWhileInView() {
       const isShown = isInView && document.visibilityState !== "hidden";
       if (!isShown) stopWaiting();
-      else if (wait === undefined) wait = window.setTimeout(read, READ_TO_END_MS);
+      else if (wait === undefined) wait = window.setTimeout(tell, READ_TO_END_MS);
     }
     observer.observe(element);
     document.addEventListener("visibilitychange", waitWhileInView);
@@ -65,5 +67,5 @@ export function useReadToEnd(
       observer.disconnect();
       document.removeEventListener("visibilitychange", waitWhileInView);
     };
-  }, [ref, isWatched]);
+  }, [ref, read, isWatched]);
 }

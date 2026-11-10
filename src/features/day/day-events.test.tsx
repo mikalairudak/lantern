@@ -654,6 +654,24 @@ describe("the start screen and the day's end, as the product counts them", () =>
     });
   });
 
+  it("tells the next day opened read to its end too", async () => {
+    await withEverythingInView(async () => {
+      const user = await landOnKanazawa();
+      await waitFor(() => expect(sentOf("day-read-to-end")).toHaveLength(1), DAY_TIMEOUT);
+
+      await user.click(within(headline()).getByRole("button", { name: "Kanazawa" }));
+      await user.click(screen.getByRole("button", { name: /^Bologna/ }));
+      await waitFor(() => expect(headline()).toHaveTextContent(/in Bologna/), DAY_TIMEOUT);
+      await waitForTheDay();
+      await waitFor(() => expect(sentOf("day-read-to-end")).toHaveLength(2), DAY_TIMEOUT);
+
+      expect(sentOf("day-read-to-end")).toEqual([
+        { kind: "day-read-to-end", ...KANAZAWA_LINK, ...ON_CHART },
+        { kind: "day-read-to-end", city: "bologna", via: "word", written: true, ...ON_CHART },
+      ]);
+    });
+  });
+
   it("tells no day read to its end where the browser cannot say what is on screen", async () => {
     await landOnKanazawa();
     await new Promise((resolve) => setTimeout(resolve, READ_TO_END_MS * 1.5));
