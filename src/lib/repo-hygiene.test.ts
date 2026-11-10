@@ -470,6 +470,61 @@ describe("the pull request check", () => {
   it("finds every section missing in an empty body", () => {
     expect(faultsIn({ body: "" })).toHaveLength(5);
   });
+
+  describe("as the workflow runs it", () => {
+    const directory = mkdtempSync(join(tmpdir(), "pr-text-"));
+    afterAll(() => rmSync(directory, { recursive: true, force: true }));
+
+    /** Runs `scripts/check-pr-text.mts` on plain Node, as `.github/workflows/pr-text.yml` does. */
+    function scriptOn(args: readonly string[]): { status: number; stderr: string } {
+      try {
+        execFileSync(
+          process.execPath,
+          ["--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", "scripts/check-pr-text.mts", ...args],
+          { cwd: ROOT, encoding: "utf8", stdio: "pipe" },
+        );
+        return { status: 0, stderr: "" };
+      } catch (error) {
+        const { status, stderr } = error as { status: number; stderr: string };
+        return { status, stderr };
+      }
+    }
+
+    function bodyFile(body: string): string {
+      const file = join(directory, "body.md");
+      writeFileSync(file, body);
+      return file;
+    }
+
+    it("lets a clean pull request through, a title starting with a dash among them", () => {
+      expect(
+        scriptOn([
+          `--branch=${CLEAN.branch}`,
+          "--title=-fix: keep the line",
+          `--body-file=${bodyFile(BODY)}`,
+        ]),
+      ).toEqual({ status: 0, stderr: "" });
+    });
+
+    it("fails a bad pull request and says why", () => {
+      const { status, stderr } = scriptOn([
+        "--branch=feature/x",
+        `--title=${CLEAN.title}`,
+        `--body-file=${bodyFile("")}`,
+      ]);
+
+      expect(status).toBe(1);
+      expect(stderr).toContain('branch, Branch name: "feature/x"');
+      expect(stderr).toContain('body, Section missing: "## What changes"');
+    });
+
+    it("prints its usage when a part is missing", () => {
+      const { status, stderr } = scriptOn([`--branch=${CLEAN.branch}`]);
+
+      expect(status).toBe(1);
+      expect(stderr).toContain("Usage: node scripts/check-pr-text.mts");
+    });
+  });
 });
 
 describe("the tracked files", () => {
