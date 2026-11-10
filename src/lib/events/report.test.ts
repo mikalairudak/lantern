@@ -5,7 +5,7 @@ import { migratedDatabase, type TestDatabase } from "@/lib/fixtures/db/pglite";
 import { KYOTO_DRAGGED } from "@/lib/fixtures/events";
 import type { ProductEvent } from "./event.schema";
 import { columnsOf } from "./postgres-event-store";
-import { runEventsReport, type ReportCommand } from "./report";
+import { runEventsReport, SHARE_MIN_VISITORS, type ReportCommand } from "./report";
 
 const NEON_URL = "postgresql://lantern:p%40ss@ep-test-1234.us-east-1.aws.neon.tech/neondb";
 const NOW = new Date("2026-10-30T12:00:00Z");
@@ -175,6 +175,31 @@ describe("pnpm events:report", () => {
       "Target: ep-test-1234.us-east-1.aws.neon.tech/neondb (DATABASE_URL)",
       "production, 2026-10-01 to 2026-10-30, in UTC",
       "",
+      "From the start screen to a day taken along, by way in (visitors, once a UTC day)",
+      "  step         via       visitors",
+      "  home viewed            3",
+      "  day opened   link      1",
+      "  day opened   pressed   1",
+      "  day opened   typed     1",
+      "  day ended    link      1",
+      "  day ended    pressed   1",
+      "  taken along  link      1",
+      "  taken along  not told  1",
+      "  taken along  pressed   1",
+      "",
+      "Days taken along, by way in (visitors who opened a day that way; a share from 30)",
+      "  via       opened  taken along  share",
+      "  link      1       1            n < 30",
+      "  pressed   1       1            n < 30",
+      "  typed     1       0            n < 30",
+      "  not told  0       1            n < 30",
+      "",
+      "Days taken along, by view (visitors whose day ended in that view; a share from 30)",
+      "  view      ended  read to end  taken along  share",
+      "  chart     1      1            1            n < 30",
+      "  read      1      0            1            n < 30",
+      "  not told  0      0            1            n < 30",
+      "",
       "Days opened, by city (a visitor counts once a UTC day)",
       "  city       opened  visitors",
       "  kyoto      3       2",
@@ -226,6 +251,33 @@ describe("pnpm events:report", () => {
     expect(out[1]).toBe("production, 2026-10-30 to 2026-10-30, in UTC");
     expect(out).toContain("  none");
     expect(out).not.toContain("  curve-dragged          1");
+  });
+
+  it(`gives a share only to a group of at least ${SHARE_MIN_VISITORS} visitors, and counts below it`, async () => {
+    const visitor = (index: number) => index.toString(16).padStart(64, "0");
+    const pressed = { city: "kyoto", via: "pressed", written: true } as const;
+    const typed = { city: "kyoto", via: "typed", written: false } as const;
+    // As many pressed a written day and read it on the chart as a share needs, three of them
+    // taking it along; one fewer typed theirs and read it as a list, two taking it along.
+    for (let index = 0; index < SHARE_MIN_VISITORS; index += 1) {
+      await seed(visitor(index), { kind: "day-opened", ...pressed });
+      await seed(visitor(index), { kind: "day-ended", ...pressed, view: "chart", outcome: "cut" });
+      if (index < 3) await seed(visitor(index), { kind: "link-shared", ...pressed, view: "chart" });
+    }
+    for (let index = 100; index < 100 + SHARE_MIN_VISITORS - 1; index += 1) {
+      await seed(visitor(index), { kind: "day-opened", ...typed });
+      await seed(visitor(index), { kind: "day-ended", ...typed, view: "read", outcome: "cut" });
+      if (index < 102) await seed(visitor(index), { kind: "route-opened", ...typed, view: "read" });
+    }
+
+    const { out } = await report();
+
+    expect(out).toContain(`  pressed  ${SHARE_MIN_VISITORS}      3            10%`);
+    expect(out).toContain(`  typed    ${SHARE_MIN_VISITORS - 1}      2            n < 30`);
+    expect(out).toContain(`  chart  ${SHARE_MIN_VISITORS}     0            3            10%`);
+    expect(out).toContain(
+      `  read   ${SHARE_MIN_VISITORS - 1}     0            2            n < 30`,
+    );
   });
 
   it("reads inside a read-only transaction, and ends it", async () => {
