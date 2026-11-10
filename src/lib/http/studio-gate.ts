@@ -30,6 +30,34 @@ export function isStudioPath(pathname: string): boolean {
   return HELD.test(pathname);
 }
 
+/** The path with its escapes read, as `/%6Cab` reads `/lab`, or null when one is malformed. */
+function readEscapesOf(pathname: string): string | null {
+  try {
+    return decodeURIComponent(pathname);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether a path names the studio only once its escapes are read, as `/%6Cab` or `/%73tudio`.
+ * Vercel matches the proxy against the path as written and finds the page by the path read, so
+ * such a path reaches a page of the studio past the proxy; there the page's own lock can answer
+ * only after the response has begun, with a 200 (`docs/security.md`, S14). The studio is at its
+ * plain address alone, so the proxy answers such a path as one that is not there.
+ */
+export function isEscapedStudioPath(pathname: string): boolean {
+  if (isStudioPath(pathname)) return false;
+  const read = readEscapesOf(pathname);
+  return read !== null && isStudioPath(read);
+}
+
+/**
+ * Where the proxy sends an escaped path of the studio: a folder named with an underscore is
+ * never a route, so the site answers it with its not-found page and a 404.
+ */
+export const NOT_A_PAGE_PATH = "/_not-a-page";
+
 /** The variable the studio's password is set by, in Vercel's environment and `.env.local`. */
 export const STUDIO_PASSWORD_VARIABLE = "STUDIO_PASSWORD";
 
