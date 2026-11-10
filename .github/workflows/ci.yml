@@ -1,6 +1,15 @@
 # The commit hook runs `pnpm check` on the laptop; CI runs it again, and the production build, on
-# a clean Linux machine on every push to develop or main and every pull request. `pnpm e2e` runs on
-# pull requests, on pushes to main, which take only releases, and from the "Run workflow" button.
+# a clean Linux machine on every push to develop or main and every pull request (Check).
+#
+# `pnpm e2e` runs on pull requests, on pushes to main, which take only releases, and from the
+# "Run workflow" button; a push to develop runs none of it, since its pull request already did.
+# Detect changes reads which paths a pull request changes, and when every one is a path no page
+# and no e2e test reads, the e2e is skipped. The rest of the suite runs in four shards (E2E 1/4 to
+# 4/4), and E2E result answers for them as one check, the one a pull request needs. The `@frame`
+# tests, which sample the page frame by frame, run in E2E frames on pushes to main and by hand
+# alone: a shared runner drops frames a laptop draws, so there they say more about the runner than
+# about the change, and the laptop runs them before UI work merges (docs/harness.md, "End-to-end").
+#
 # `pnpm e2e:visual` stays local: its baseline is the owner's Mac
 # (`e2e/visual/__screenshots__/darwin`), and Linux draws text differently (docs/harness.md).
 name: CI
@@ -68,14 +77,83 @@ jobs:
       # would install everything again.
       - run: pnpm build:check
 
-  e2e:
-    name: E2E
+  detect:
+    name: Detect changes
     # Pull requests, pushes to main and the "Run workflow" button. A push to develop runs the check
-    # alone: `pnpm e2e` runs on the laptop before a merge that changes UI (CLAUDE.md, "Definition
-    # of done"), and here again when a release reaches main.
+    # alone: `pnpm e2e` ran on its pull request, on the laptop before a merge that changes UI
+    # (CLAUDE.md, "Definition of done"), and runs here again when a release reaches main.
     if: github.event_name != 'push' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 5
+    outputs:
+      e2e: ${{ steps.paths.outputs.e2e }}
+    steps:
+      # A pull request's run checks out the merge of its branch into its base, so the merge's
+      # first parent is the base, and two commits are all the diff needs.
+      - uses: actions/checkout@v7
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      # Inert: paths no page, route or e2e test reads. Docs and the Markdown at the root, the
+      # agents' setup, the pull request's template and text check, the commit message check and
+      # the hooks that run it, and the visual baseline, which runs only on the laptop. Every other
+      # path runs the e2e, the workflow, the Playwright config, package.json and the lockfile
+      # among them. Without renames, a file moved out of src counts by its old path too, and a
+      # diff that lists nothing runs the e2e rather than trust the empty list.
+      - name: Read the changed paths
+        id: paths
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" != pull_request ]; then
+            echo "A $EVENT runs the whole e2e."
+            echo "e2e=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          inert='^(docs|\.claude|\.githooks|e2e/visual)/'
+          inert+='|^[^/]+\.md$'
+          inert+='|^\.github/(pull_request_template\.md|workflows/pr-text\.yml)$'
+          inert+='|^scripts/check-[^/]+\.mts$'
+          changed="$RUNNER_TEMP/changed.txt"
+          # Unquoted, so a path with a letter outside ASCII is read as itself.
+          git -c core.quotePath=false diff --name-only --no-renames HEAD^1 HEAD > "$changed"
+          echo "Changed paths:"
+          cat "$changed"
+          if [ ! -s "$changed" ]; then
+            e2e=true
+          else
+            # grep exits 1 when every path is inert, and 2 or more when it cannot read.
+            status=0
+            grep -Ev "$inert" "$changed" > "$RUNNER_TEMP/relevant.txt" || status=$?
+            case "$status" in
+              0) e2e=true ;;
+              1) e2e=false ;;
+              *) exit "$status" ;;
+            esac
+          fi
+          if [ "$e2e" = true ]; then
+            echo "The e2e runs for:"
+            cat "$RUNNER_TEMP/relevant.txt" 2>/dev/null || echo "(an empty diff)"
+          else
+            echo "Every changed path is inert, so the e2e is skipped."
+          fi
+          echo "e2e=$e2e" >> "$GITHUB_OUTPUT"
+
+  e2e:
+    name: E2E ${{ matrix.shard }}/4
+    needs: detect
+    if: needs.detect.outputs.e2e == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      # Every shard runs to its end, so one run shows each failure, not the first shard's.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v7
 
@@ -123,14 +201,111 @@ jobs:
       # The desktop and phone projects only: the visual project is `default: false` in
       # playwright.config.ts. The HTML report joins the config's GitHub annotations, so a
       # failure's traces open from the artifact.
-      - run: pnpm e2e --add-reporter=html
+      - run: pnpm e2e --shard=${{ matrix.shard }}/4 --grep-invert @frame --add-reporter=html
         env:
           PLAYWRIGHT_HTML_OPEN: never
 
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # The check a pull request needs: the shards' four names, and a skipped job's, are not one
+  # name to require. It passes when every shard passed, or when Detect changes found only inert
+  # paths and the shards were skipped; it fails when Detect changes did not succeed, or a shard
+  # failed or was cancelled. E2E frames is not among its needs.
+  e2e-result:
+    name: E2E result
+    needs: [detect, e2e]
+    if: always() && needs.detect.result != 'skipped'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Answer for the e2e
+        env:
+          DETECT: ${{ needs.detect.result }}
+          RUNS_E2E: ${{ needs.detect.outputs.e2e }}
+          SHARDS: ${{ needs.e2e.result }}
+        run: |
+          echo "Detect changes: $DETECT; e2e needed: ${RUNS_E2E:-unknown}; shards: $SHARDS"
+          if [ "$DETECT" != success ]; then
+            echo "::error::Detect changes did not succeed, so the e2e has no answer."
+            exit 1
+          fi
+          if [ "$RUNS_E2E" = false ] && [ "$SHARDS" = skipped ]; then
+            echo "Every changed path is inert; the e2e was skipped."
+            exit 0
+          fi
+          if [ "$RUNS_E2E" = true ] && [ "$SHARDS" = success ]; then
+            echo "Every shard passed."
+            exit 0
+          fi
+          echo "::error::The e2e shards ended $SHARDS."
+          exit 1
+
+  e2e-frames:
+    name: E2E frames
+    # Not needed by a pull request: these tests read the page frame by frame, and a shared runner
+    # drops frames. Pushes to main and the "Run workflow" button only, with no retry, so a test
+    # that fails once is seen, and each failure keeps its trace.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          pnpm --version
+
+      - name: Find the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-store-
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Read the Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-${{ steps.playwright.outputs.version }}
+
+      - name: Install Chromium and its system libraries
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install Chromium's system libraries
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+
+      - run: pnpm e2e --grep @frame --retries=0 --trace=retain-on-failure --add-reporter=html
+        env:
+          PLAYWRIGHT_HTML_OPEN: never
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report-frames
           path: |
             playwright-report/
             test-results/

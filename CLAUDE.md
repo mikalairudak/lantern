@@ -95,8 +95,10 @@ scripts/                    build check, migrations, reports, the production rea
 e2e/                        Playwright specs; e2e/visual/ holds the matrices' pixel baseline
 assets/fonts/               Fira Sans cut to Latin, for the link card the server draws
 .githooks/, .github/        the commit gate (pnpm check) and the commit message check; CI: pnpm check and build:check
-                            on pushes to develop and main and on pull requests, pnpm e2e on pull requests, on pushes
-                            to main and by hand; the pull request template, and the check of a pull request's text
+                            on pushes to develop and main and on pull requests; pnpm e2e in four shards, all but the
+                            @frame tests, on pull requests that change more than inert paths, on pushes to main and
+                            by hand, answered as one check, E2E result; the @frame tests alone on pushes to main and
+                            by hand; the pull request template, and the check of a pull request's text
 docs/                       decisions, harness, design direction, security, ops, roadmap, case study, the contracts
                             (targeted re-plan, grounding, voice), discoverability; brand/ and media/ (the README's demo)
 ```

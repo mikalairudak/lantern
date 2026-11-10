@@ -18,12 +18,22 @@ const SCREENSHOT_PIXEL_THRESHOLD = 0.01;
 // One test shoots every matrix the lab lists, over a thousand cells in both themes, which takes
 // about 5 minutes on a laptop, so it gets 12.
 const VISUAL_TEST_TIMEOUT_MS = 12 * 60_000;
+// CI's runner is several times slower than the laptop, so the defaults a test takes, 30 s for
+// the test and 5 s for an `expect`, are doubled there. A spec that sets its own keeps it.
+const TEST_TIMEOUT_MS = isCI ? 60_000 : 30_000;
+const EXPECT_TIMEOUT_MS = isCI ? 10_000 : 5_000;
+// The first page the dev server compiles is the slowest, and Playwright waits 60 s for it.
+const WEB_SERVER_TIMEOUT_MS = isCI ? 120_000 : 60_000;
 
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
   forbidOnly: isCI,
-  retries: isCI ? 2 : 0,
+  // One retry on CI, which reports a test that passed on it as flaky; the `@frame` tests take
+  // none there (`.github/workflows/ci.yml`).
+  retries: isCI ? 1 : 0,
+  timeout: TEST_TIMEOUT_MS,
+  expect: { timeout: EXPECT_TIMEOUT_MS },
   reporter: isCI ? "github" : "list",
   use: {
     baseURL: BASE_URL,
@@ -73,6 +83,7 @@ export default defineConfig({
     // production does (`src/lib/http/studio-gate.ts`).
     env: { NEXT_DIST_DIR: DIST_DIR, DATABASE_URL: "", ...E2E_STUDIO_ENV },
     url: BASE_URL,
+    timeout: WEB_SERVER_TIMEOUT_MS,
     // Never attach to whatever already listens on the port: it may be another app.
     reuseExistingServer: false,
   },
