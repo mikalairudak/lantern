@@ -13,3 +13,8 @@ minimumReleaseAge: 1440
 # `pnpm audit` reads clean.
 overrides:
   "zod@<4.6.6": 4.6.7
+  # The copy of minimatch older than its globparts denial-of-service fix (GHSA-g3hv-75wg-m249)
+  # comes through eslint-config-next → typescript-eslint → @typescript-eslint/typescript-estree,
+  # in lint alone; no released typescript-eslint takes minimatch 11 yet, so it is lifted here and
+  # the entry goes once one does. ESLint's own minimatch 3 is outside the advisory's range.
+  "minimatch@>=7.0.0 <11.0.1": 11.0.5
