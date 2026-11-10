@@ -55,8 +55,11 @@ export function isRenderingCrawler(userAgent: string): boolean {
   return RENDERING_CRAWLERS.some((word) => agent.includes(word));
 }
 
-/** Whether this page runs in a search engine's renderer. Never on the server. */
-function isInRenderingCrawler(): boolean {
+/**
+ * Whether this page runs in a search engine's renderer, which sends no product event either
+ * (`use-day-events.ts`). Never on the server.
+ */
+export function isInRenderingCrawler(): boolean {
   return typeof navigator !== "undefined" && isRenderingCrawler(navigator.userAgent);
 }
 

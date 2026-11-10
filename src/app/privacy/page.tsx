@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 };
 
 /** When the page last changed what it says. */
-const UPDATED = "4 November 2026";
+const UPDATED = "10 November 2026";
 
 /**
  * Who handles what Lantern keeps, by what each does rather than by name: the recipients'
@@ -147,10 +147,12 @@ async function Notice() {
             counts too, and the counts start again at midnight UTC.
           </li>
           <li>
-            <span className={TERM_CLASSES}>How the page is used.</span> Short notes such as &ldquo;a
-            day was opened&rdquo; or &ldquo;a stop was swapped&rdquo;, with the city and the date.
-            They carry a code that changes every day and can&apos;t be traced back to you after that
-            day. They never hold your IP address, your device or what you typed.
+            <span className={TERM_CLASSES}>How the page is used.</span> Short notes such as
+            &ldquo;the start page was opened&rdquo;, &ldquo;a day was opened&rdquo;, &ldquo;a stop
+            was swapped&rdquo; or &ldquo;a day was read to its end&rdquo;, with the city, the date,
+            how you came to the day and whether you were reading it on the chart or as a list. They
+            carry a code that changes every day and can&apos;t be traced back to you after that day.
+            They never hold your IP address, your device or what you typed.
           </li>
           <li>
             <span className={TERM_CLASSES}>Page views.</span> Our host&apos;s analytics notes each

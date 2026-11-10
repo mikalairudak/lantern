@@ -9,7 +9,8 @@ import {
 } from "./event-store";
 
 /**
- * The product's events in Postgres (`db/migrations/0005_product_events.sql`). A day's salt
+ * The product's events in Postgres (`db/migrations/0005_product_events.sql`, and the view's
+ * column from `0009_event_view_tile_answer.sql`). A day's salt
  * is read once per process and day; after that an event is one statement, which counts the
  * visitor, counts the app and keeps the row together, or does none of it.
  */
@@ -55,10 +56,10 @@ const RECORD = `
     RETURNING 1
   )
   INSERT INTO product_events (
-    id, environment, utc_day, visitor_key, kind, city, via, written, outcome, stage, word
+    id, environment, utc_day, visitor_key, kind, city, via, written, outcome, stage, word, view
   )
   SELECT $6::uuid, $1, $2::date, $3, $7, $8::text, $9::text, $10::boolean, $11::text,
-    $12::text, $13::text
+    $12::text, $13::text, $14::text
   WHERE EXISTS (SELECT 1 FROM app)
   RETURNING id`;
 
@@ -70,6 +71,7 @@ export function columnsOf(event: ProductEvent): {
   outcome: string | null;
   stage: string | null;
   word: string | null;
+  view: string | null;
 } {
   return {
     city: "city" in event ? event.city : null,
@@ -78,6 +80,7 @@ export function columnsOf(event: ProductEvent): {
     outcome: "outcome" in event ? event.outcome : null,
     stage: "stage" in event ? event.stage : null,
     word: "word" in event ? event.word : null,
+    view: "view" in event ? event.view : null,
   };
 }
 
@@ -109,7 +112,7 @@ export class PostgresEventStore implements EventStore {
   }
 
   async record({ id, visitor, day, event }: EventEntry): Promise<boolean> {
-    const { city, via, written, outcome, stage, word } = columnsOf(event);
+    const { city, via, written, outcome, stage, word, view } = columnsOf(event);
     const rows = await this.sql.query(RECORD, [
       this.environment,
       day,
@@ -124,6 +127,7 @@ export class PostgresEventStore implements EventStore {
       outcome,
       stage,
       word,
+      view,
     ]);
     return rows.length === 1;
   }
