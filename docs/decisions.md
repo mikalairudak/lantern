@@ -107,6 +107,7 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 - [2026-10-21 — The request sentence is the input](#2026-10-21--the-request-sentence-is-the-input)
 - [2026-10-28 — The first screen asks one question, and no day is drawn until a press](#2026-10-28--the-first-screen-asks-one-question-and-no-day-is-drawn-until-a-press)
 - [2026-11-03 — A written day's page is built whole, and plays only for a visitor who has not seen it](#2026-11-03--a-written-days-page-is-built-whole-and-plays-only-for-a-visitor-who-has-not-seen-it)
+- [2026-11-10 — Pictures may help a visitor choose a way in; a day needs none](#2026-11-10--pictures-may-help-a-visitor-choose-a-way-in-a-day-needs-none)
 
 **The look: type, colour and tokens**
 
@@ -122,6 +123,7 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 - [2026-11-09 — Work lands on develop, and main takes only releases](#2026-11-09--work-lands-on-develop-and-main-takes-only-releases)
 - [2026-11-09 — Everything committed is written for a reader of the code, and a check holds the plainest rules](#2026-11-09--everything-committed-is-written-for-a-reader-of-the-code-and-a-check-holds-the-plainest-rules)
 - [2026-11-10 — A pull request's text is held to the rules for what is committed](#2026-11-10--a-pull-requests-text-is-held-to-the-rules-for-what-is-committed)
+- [2026-11-10 — Every change reaches develop as a pull request the owner merges](#2026-11-10--every-change-reaches-develop-as-a-pull-request-the-owner-merges)
 
 **Privacy and security**
 
@@ -528,3 +530,19 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 **Why.** A branch's name and a pull request's text are public the moment the branch is pushed, as a commit's message is, and a reviewer reads them before the diff. A pull request is squash-merged, so its title becomes the commit's subject on `develop` and its body the commit's body, which is why both are held to what a commit is, and why the body carries the co-author trailer: the work is written with Claude, and every commit on `develop` says so. One shape makes every pull request read the same way, with its risk and its checks stated where a reviewer looks. The check is its own workflow, which needs Node and no install, so it runs again on every edit of the text. Only pull requests into `develop` are checked: releases reach `main` by a fast-forward push, and the pull requests that open against `main`, such as dependency updates, are named by their tools. The text reaches the shell only through environment variables, so a title or body cannot run as code.
 
 **Cost.** The same limits as the commit check: a pattern sees only words, so the fresh read is still needed for tone, private context and what a fact reveals. A branch into `develop` that GitHub names, such as a revert's, fails the name rule until it is renamed. A pull request's text can be edited after it passes; the check runs again on each edit, but what an earlier version said stays in GitHub's history.
+
+## 2026-11-10 — Every change reaches develop as a pull request the owner merges
+
+**Decision.** A change is committed on its own branch, named `<kind>/<words>`. Once the definition of done holds and `/pr-ready` is clean, the engineering session pushes the branch and opens a pull request into `develop`, and the owner reviews it and squash-merges it on GitHub. Each pull request becomes one commit on `develop`: its title the subject, its body the message, ending with the co-author trailer. The repository allows only squash merges and deletes a branch once it is merged. `develop` moves only by a merged pull request, which replaces the merge and push of `develop` in "Work lands on develop, and main takes only releases"; releases stay as that entry says.
+
+**Why.** The site is in production and the repository is public, so every change is read by eye before it lands, in a size one sitting can review. A pull request puts that reading in one place: the diff, the checks CI runs on it, the preview Vercel builds, and the text that says what to look at and what could break. Squashing keeps `develop` at one commit per change, so a release reads as a list of changes and a revert takes one commit.
+
+**Cost.** A change waits for a review before it lands. A branch and its text are public from the push, before anyone has reviewed them, which is why `/pr-ready` runs first. A branch's own commits are kept only in its pull request on GitHub.
+
+## 2026-11-10 — Pictures may help a visitor choose a way in; a day needs none
+
+**Decision.** The non-goal "photos as part of the showcase" is lifted. Images may stand on the start screen's ways in, such as a tile for a mood or an occasion, in one style chosen before any is made. A day itself still stands on its type and its light, with no picture.
+
+**Why.** Many visitors will not know which city to name, and a way in by mood or occasion has to be read at a glance, which an image does faster than a line of words. The non-goal kept the design honest while every screen had to stand without pictures; that still holds for the day, where the type, the hours and the light carry it.
+
+**Cost.** Images to make, to keep in one style and to keep light on a phone, and an exception to the principle that the design stands without photos (`docs/roadmap.md`).
