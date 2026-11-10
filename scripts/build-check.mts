@@ -38,14 +38,14 @@ const SERVER_ERROR = /Error:|⨯|NEXT_STATIC_GEN_BAILOUT|Error revalidating/;
 /**
  * The pages asked of the served app: the start screen, a written day's address, prerendered by
  * the build, a day written by hand's old address, now a city with no day, which search engines
- * still hold, a kept day's id the build never saw, the page every page leads to, the two
+ * still hold, and a city written with an accent, a kept day's id the build never saw, the page every page leads to, the two
  * files crawlers ask for first, and the card and the icon a link and a tab show.
  */
 function pagesToAsk(): string[] {
   return [
     "/",
     "/day/kanazawa",
-    "/day/kyoto",
+    ...NOT_FOUND_PATHS,
     `/day/${randomUUID()}`,
     "/privacy",
     "/robots.txt",
@@ -64,6 +64,21 @@ const FILE_TYPES: Readonly<Record<string, string>> = {
 };
 
 const HTTP_OK = 200;
+const HTTP_NOT_FOUND = 404;
+
+/**
+ * Addresses that name no day, each answered with the not-found page and a 404 from its first
+ * visit: the route's prerendered shell would answer it 200 before the page's `notFound()` ran
+ * (`notADaySource` in `src/lib/days/address.ts`). Asked once each, so the first visit is the one
+ * checked.
+ */
+const NOT_FOUND_PATHS: readonly string[] = ["/day/kyoto", "/day/caf%C3%A9"];
+
+/** What is wrong with an address that names no day's answer, or null when it is a 404. */
+function notFoundProblemOf(path: string, response: Response): string | null {
+  if (!NOT_FOUND_PATHS.includes(path) || response.status === HTTP_NOT_FOUND) return null;
+  return `${path} answered ${response.status} on its first visit, not ${HTTP_NOT_FOUND}`;
+}
 
 /** What is wrong with a file's answer, or null when it is the file it should be. */
 function fileProblemOf(path: string, response: Response): string | null {
@@ -159,6 +174,8 @@ async function serveCheck(): Promise<string[]> {
         problems.push(`${path} answered ${response.status}`);
       const fileProblem = fileProblemOf(path, response);
       if (fileProblem !== null) problems.push(fileProblem);
+      const notFoundProblem = notFoundProblemOf(path, response);
+      if (notFoundProblem !== null) problems.push(notFoundProblem);
     }
     await wait(SETTLE_MS);
   } finally {

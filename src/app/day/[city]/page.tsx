@@ -90,10 +90,11 @@ export async function generateMetadata({ params }: PageProps<"/day/[city]">): Pr
  * A day Lantern has written, at its own address, so it can be sent as a link: written from
  * the route on arrival, as the stream plays it. The address follows the day on screen when
  * the city word plays another. A day's id in the log is a visitor's day, opened whole as it
- * ended, or what stands in for it (`KeptDayPage`). Cache Components renders a city with no
- * written day at request time rather than refusing it, so the page answers it with Lantern's
- * page for no day: a 404 once the route knows the address, but the first visit streams from
- * the prerendered shell and answers 200, with `noindex` and the page's own title.
+ * ended, or what stands in for it (`KeptDayPage`). An address that is neither never reaches
+ * the page: a rewrite answers it with the not-found page and a 404 (`notADaySource`), since
+ * here its first visit would stream from the route's prerendered shell with a 200 before
+ * `notFound()` ran. The page's own `notFound()` stays for what the rewrite leaves to it, a
+ * written day's slug in capitals among them.
  *
  * A written day is drawn in the page's static shell, served as built: it reads nothing of the
  * visit, and holds the day whole, for a reader without the page's script; a visitor who has
