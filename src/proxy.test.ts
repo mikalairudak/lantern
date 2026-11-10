@@ -51,7 +51,14 @@ describe("the proxy", () => {
 
   it("sends a name of the studio written with escapes to the not-found page, password or none", () => {
     vi.stubEnv("STUDIO_PASSWORD", PASSWORD);
-    for (const path of ["/%6Cab", "/%6cab/stream", "/l%61b", "/%73tudio"]) {
+    for (const path of [
+      "/%6Cab",
+      "/%6cab/stream",
+      "/l%61b",
+      "/%73tudio",
+      "/%6Cab/matrix/%E0%A4%A",
+      "/%6Cab/concepts/invitation/%ZZ",
+    ]) {
       for (const response of [proxy(requestFor(path)), proxy(requestFor(path, PASSWORD))]) {
         expect(rewrittenTo(response), path).toBe(NOT_A_PAGE_PATH);
         expect(response.headers.get("cache-control"), path).toBe("private, no-store");

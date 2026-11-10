@@ -30,13 +30,22 @@ export function isStudioPath(pathname: string): boolean {
   return HELD.test(pathname);
 }
 
-/** The path with its escapes read, as `/%6Cab` reads `/lab`, or null when one is malformed. */
-function readEscapesOf(pathname: string): string | null {
-  try {
-    return decodeURIComponent(pathname);
-  } catch {
-    return null;
-  }
+/** A run of escapes side by side, which may spell one letter between them, as `%C3%A9`. */
+const ESCAPE_RUN = /(?:%[0-9A-Fa-f]{2})+/g;
+
+/**
+ * The path with its escapes read, as `/%6Cab` reads `/lab`. Each run is read on its own, and
+ * a run that spells no text is left as it is written, so a malformed escape further on cannot
+ * hide a name of the studio before it.
+ */
+function readEscapesOf(pathname: string): string {
+  return pathname.replace(ESCAPE_RUN, (run) => {
+    try {
+      return decodeURIComponent(run);
+    } catch {
+      return run;
+    }
+  });
 }
 
 /**
@@ -47,9 +56,7 @@ function readEscapesOf(pathname: string): string | null {
  * plain address alone, so the proxy answers such a path as one that is not there.
  */
 export function isEscapedStudioPath(pathname: string): boolean {
-  if (isStudioPath(pathname)) return false;
-  const read = readEscapesOf(pathname);
-  return read !== null && isStudioPath(read);
+  return !isStudioPath(pathname) && isStudioPath(readEscapesOf(pathname));
 }
 
 /**

@@ -73,8 +73,27 @@ describe("the studio's paths", () => {
     }
     // A path the studio holds as written, one of the public site, and one whose escape is
     // malformed are none.
-    for (const path of ["/lab", "/lab/stream", "/LAB", "/%4Cab", "/day/%6Cab", "/%E0%A4%A"]) {
+    for (const path of [
+      "/lab",
+      "/lab/stream",
+      "/LAB",
+      "/%4Cab",
+      "/day/%6Cab",
+      "/day/caf%C3%A9",
+      "/%E0%A4%A",
+      "/%ZZ/lab",
+    ]) {
       expect(isEscapedStudioPath(path), path).toBe(false);
+    }
+  });
+
+  it("is not hidden by a malformed escape further on", () => {
+    for (const path of [
+      "/%6Cab/x/%E0%A4%A",
+      "/%6Cab/matrix/%E0%A4%A",
+      "/%6Cab/concepts/invitation/%ZZ",
+    ]) {
+      expect(isEscapedStudioPath(path), path).toBe(true);
     }
   });
 });
