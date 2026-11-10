@@ -93,8 +93,8 @@ export async function generateMetadata({ params }: PageProps<"/day/[city]">): Pr
  * ended, or what stands in for it (`KeptDayPage`). An address that is neither never reaches
  * the page: a rewrite answers it with the not-found page and a 404 (`notADaySource`), since
  * here its first visit would stream from the route's prerendered shell with a 200 before
- * `notFound()` ran. The page's own `notFound()` stays for what the rewrite leaves to it, a
- * slug followed by a dot.
+ * `notFound()` ran. The page's own `notFound()` stays for what the rewrite leaves to it: a
+ * slug in other case, or followed by a dot.
  *
  * A written day is drawn in the page's static shell, served as built: it reads nothing of the
  * visit, and holds the day whole, for a reader without the page's script; a visitor who has

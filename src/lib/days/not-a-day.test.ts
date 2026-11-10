@@ -19,9 +19,6 @@ describe("notADaySource", () => {
     ["a day written by hand's old address", `/day/${daySlugOf(KYOTO_REQUEST)}`],
     ["a written day's slug with more after it", "/day/bologna-x"],
     ["a written day's slug inside another", "/day/xbologna"],
-    ["a written day's slug with a capital", "/day/Bologna"],
-    ["a written day's slug in capitals", "/day/BOLOGNA"],
-    ["a written day's file in capitals", "/day/BOLOGNA.rsc"],
     ["an id a digit short", `/day/${KEPT_DAY_ID.slice(1)}`],
     ["an id with more after it", `/day/${KEPT_DAY_ID}0`],
     ["the route's own name", "/day/[city]"],
@@ -37,6 +34,7 @@ describe("notADaySource", () => {
   it.each([
     ["a day's id", `/day/${KEPT_DAY_ID}`],
     ["a day's id in capitals, as a UUID may be written", `/day/${KEPT_DAY_ID.toUpperCase()}`],
+    ["a written day's slug with a capital, as the router reads it", "/day/Bologna"],
     ["a written day's file beside its page", "/day/bologna.rsc"],
     ["a written day's segments beside its page", "/day/bologna.segments"],
     ["a path deeper than a day", "/day/nope/x"],
