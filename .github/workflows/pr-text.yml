@@ -1,0 +1,42 @@
+# Holds each pull request's branch name, title and body to the rules for what is committed
+# (CLAUDE.md, "Everything committed is public"), as the commit-msg hook holds each message: all
+# three are public the moment the branch is pushed. Apart from CI, so that editing a pull request's
+# text runs this check alone. It needs Node and the repository, not an install.
+name: PR text
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  text:
+    name: Text
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      # The title, body and branch are anyone's words, so they reach the shell only as variables,
+      # never written into the script, where a quote in a title would run as code.
+      - name: Check the branch name, title and body
+        env:
+          PR_BRANCH: ${{ github.head_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
+          node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-pr-text.mts \
+            --branch="$PR_BRANCH" --title="$PR_TITLE" --body-file="$RUNNER_TEMP/pr-body.md"

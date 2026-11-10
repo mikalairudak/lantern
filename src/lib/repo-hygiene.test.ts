@@ -471,6 +471,16 @@ describe("the pull request check", () => {
     expect(faultsIn({ body: "" })).toHaveLength(5);
   });
 
+  it("finds every section of the template empty until it is written", () => {
+    const template = readFileSync(join(ROOT, ".github", "pull_request_template.md"), "utf8");
+
+    expect(faultsIn({ body: template })).toEqual(
+      ["What changes", "Why", "Look at", "Checked", "Risk"].map(
+        (title) => `body: Section empty "## ${title}"`,
+      ),
+    );
+  });
+
   describe("as the workflow runs it", () => {
     const directory = mkdtempSync(join(tmpdir(), "pr-text-"));
     afterAll(() => rmSync(directory, { recursive: true, force: true }));
