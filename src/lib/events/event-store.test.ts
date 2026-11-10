@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { KYOTO_DRAGGED } from "@/lib/fixtures/events";
 import { InMemoryEventStore, newSalt, type EventEntry } from "./event-store";
 
 const TODAY = "2026-10-30";
@@ -7,7 +8,7 @@ const VISITOR = "a".repeat(64);
 const OTHER_VISITOR = "b".repeat(64);
 
 function entry(visitor: string, day: string = TODAY, id: string = crypto.randomUUID()): EventEntry {
-  return { id, visitor, day, event: { kind: "curve-dragged", city: "kyoto" } };
+  return { id, visitor, day, event: KYOTO_DRAGGED };
 }
 
 describe("a day's salt", () => {

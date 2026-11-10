@@ -30,6 +30,23 @@ export const DAY_VIAS = ["typed", "pressed", "link", "word", "kept"] as const;
  */
 export const LEFT_STAGES = ["before-first-stop", "before-end"] as const;
 
+/** How the day on screen is read: on the chart, or as a list (`DayView`, which is these words). */
+export const DAY_VIEWS = ["read", "chart"] as const;
+
+/**
+ * What the visitor does with the day on screen, each counted once a day opened and told with
+ * the day and the view it is read in: the curve dragged, a stop swapped, the day taken along
+ * by one of the three ways under it, and the day read to its end.
+ */
+export const DAY_ACTS = [
+  "curve-dragged",
+  "stop-swapped",
+  "link-shared",
+  "calendar-saved",
+  "route-opened",
+  "day-read-to-end",
+] as const;
+
 /** The header's words a visitor can change: the city, and each word of the request. */
 export const HEADER_WORDS = ["city", ...FACT_KEYS] as const;
 
@@ -75,24 +92,38 @@ const DAY_FIELDS = {
   written: z.boolean(),
 };
 
+/** The day's fields, and the view it is read in as the event happens. */
+const DAY_IN_VIEW_FIELDS = { ...DAY_FIELDS, view: z.enum(DAY_VIEWS) };
+
 export const ProductEventSchema = z.discriminatedUnion("kind", [
+  /** The start screen was opened. */
+  z.strictObject({ kind: z.literal("home-viewed") }),
   /** A day started on screen. */
   z.strictObject({ kind: z.literal("day-opened"), ...DAY_FIELDS }),
   /** A day's stream ended while the visitor was there. */
-  z.strictObject({ kind: z.literal("day-ended"), ...DAY_FIELDS, outcome: z.enum(DAY_OUTCOMES) }),
+  z.strictObject({
+    kind: z.literal("day-ended"),
+    ...DAY_IN_VIEW_FIELDS,
+    outcome: z.enum(DAY_OUTCOMES),
+  }),
   /** The visitor left a day before its stream ended. */
   z.strictObject({ kind: z.literal("day-left"), ...DAY_FIELDS, stage: z.enum(LEFT_STAGES) }),
   /** The energy curve was dragged and let go. */
-  z.strictObject({ kind: z.literal("curve-dragged"), city: CitySchema }),
+  z.strictObject({ kind: z.literal("curve-dragged"), ...DAY_IN_VIEW_FIELDS }),
   /** A stop was swapped for one of its alternatives. */
-  z.strictObject({ kind: z.literal("stop-swapped"), city: CitySchema }),
+  z.strictObject({ kind: z.literal("stop-swapped"), ...DAY_IN_VIEW_FIELDS }),
   /**
    * The day was taken along from the line under it: its link sent, copied or shared from a
    * phone's sheet; its calendar file saved; its walking route opened in a map.
    */
-  z.strictObject({ kind: z.literal("link-shared"), city: CitySchema }),
-  z.strictObject({ kind: z.literal("calendar-saved"), city: CitySchema }),
-  z.strictObject({ kind: z.literal("route-opened"), city: CitySchema }),
+  z.strictObject({ kind: z.literal("link-shared"), ...DAY_IN_VIEW_FIELDS }),
+  z.strictObject({ kind: z.literal("calendar-saved"), ...DAY_IN_VIEW_FIELDS }),
+  z.strictObject({ kind: z.literal("route-opened"), ...DAY_IN_VIEW_FIELDS }),
+  /**
+   * The line under the whole day stayed in view for a moment, the visitor still there
+   * (`READ_TO_END_MS`).
+   */
+  z.strictObject({ kind: z.literal("day-read-to-end"), ...DAY_IN_VIEW_FIELDS }),
   /** A word of the header was changed. */
   z.strictObject({
     kind: z.literal("word-changed"),
@@ -106,5 +137,6 @@ export const ProductEventSchema = z.discriminatedUnion("kind", [
 export type ProductEvent = z.infer<typeof ProductEventSchema>;
 export type ProductEventKind = ProductEvent["kind"];
 export type DayVia = (typeof DAY_VIAS)[number];
+export type DayAct = (typeof DAY_ACTS)[number];
 export type LeftStage = (typeof LEFT_STAGES)[number];
 export type HeaderWord = (typeof HEADER_WORDS)[number];

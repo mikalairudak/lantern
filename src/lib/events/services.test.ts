@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { neonConfig } from "@neondatabase/serverless";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { KYOTO_DRAGGED } from "@/lib/fixtures/events";
 import type { LiveEnv } from "@/lib/live/flag";
 import { answerEventRequest } from "./answer-event-request";
 import { InMemoryEventStore } from "./event-store";
@@ -8,7 +9,7 @@ import { PostgresEventStore } from "./postgres-event-store";
 import { eventDepsOf, eventStoreFor } from "./services";
 
 const NEON_URL = "postgresql://lantern:s3cret@ep-test-1234.us-east-1.aws.neon.tech/neondb";
-const DRAGGED = JSON.stringify({ kind: "curve-dragged", city: "kyoto" });
+const DRAGGED = JSON.stringify(KYOTO_DRAGGED);
 
 function beacon(): Request {
   return new Request("http://lantern.test/api/events", {

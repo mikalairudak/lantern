@@ -30,7 +30,7 @@ export const BROWSER_STORAGE = {
   view: {
     key: "lantern-day-view",
     keeps: "whether you read a day on the chart or as a list",
-    sent: null,
+    sent: "with its notes on how the page is used, the page tells Lantern whether you are reading the day on the chart or as a list",
   },
   days: {
     key: "lantern.days.v1",

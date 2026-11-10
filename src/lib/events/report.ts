@@ -5,19 +5,116 @@ export type { ReportCommand } from "../db/report.ts";
 
 /**
  * `pnpm events:report [--environment production] [--days 30]`: prints the product's counts
- * for one environment over the last days, in UTC: the days opened by city, how they were
+ * for one environment over the last days, in UTC: the way from the start screen to a day taken
+ * along, the days taken along by way in and by view, the days opened by city, how they were
  * reached, how attempts ended, whether visitors waited, the gestures, the days taken along,
- * the days opened again and the cities Lantern could not do. It reads the database as `pnpm db:migrate` does, and
- * reads only, inside a read-only transaction (`src/lib/db/report.ts`).
+ * the days opened again and the cities Lantern could not do. It reads the database as
+ * `pnpm db:migrate` does, and reads only, inside a read-only transaction
+ * (`src/lib/db/report.ts`).
  */
 
 export const EVENTS_REPORT_DEFAULT_DAYS = 30;
 
+/**
+ * The fewest visitors a group needs before the report gives it a share, as a percentage beside
+ * its counts: below it a share moves by several points with one visitor, so the group gets its
+ * counts alone, and two groups are compared by share only when both have this many.
+ */
+export const SHARE_MIN_VISITORS = 30;
+
 const EVENTS_IN_SPAN = `FROM product_events WHERE environment = $1 AND utc_day >= $2::date`;
 const DAY_SOURCE = `CASE WHEN written THEN 'written' ELSE 'model' END`;
+/** The three ways a day is taken along from the line under it. */
+const TAKEN_ALONG = `'link-shared', 'calendar-saved', 'route-opened'`;
+/**
+ * Visitors, each once a UTC day. A visitor key is made under its day's salt, and the day is
+ * counted with it, so the rule never rests on two days' keys being unalike.
+ */
+const VISITORS = `count(DISTINCT (utc_day, visitor_key))::integer`;
+
+/**
+ * Whether the visitor of the row `base` (in `base`'s UTC day) also sent an event of `kinds`
+ * with the same `group` (`via` or `view`), so a count of it is a part of the group's whole
+ * and its share never passes 100%.
+ */
+function alsoSent(base: string, kinds: string, group: string): string {
+  return `EXISTS (
+    SELECT 1 FROM product_events AS also
+    WHERE also.environment = $1 AND also.utc_day = ${base}.utc_day
+      AND also.visitor_key = ${base}.visitor_key AND also.${group} = ${base}.${group}
+      AND also.kind IN (${kinds}))`;
+}
+
+/**
+ * Each visitor once a UTC day who sent `whole` in a group, with whether they also sent each
+ * of `parts` in it: the rows a share's whole and its parts are counted from.
+ */
+function visitorsOf(group: string, whole: string, parts: Record<string, string>): string {
+  const flags = Object.entries(parts).map(
+    ([name, kinds]) => `${alsoSent("whole", kinds, group)} AS ${name}`,
+  );
+  return `
+    SELECT DISTINCT whole.${group}, whole.utc_day, whole.visitor_key, ${flags.join(", ")}
+    FROM product_events AS whole
+    WHERE whole.environment = $1 AND whole.utc_day >= $2::date AND whole.kind = '${whole}'`;
+}
+
+/** What a group is called whose events were kept before they said it. */
+const NOT_TOLD = `'not told'`;
+
+/** `part` of `whole` as a whole percentage, or how few `whole` is for one. */
+function shareOf(part: string, whole: string): string {
+  return `CASE WHEN ${whole} >= ${SHARE_MIN_VISITORS}
+    THEN round(100.0 * ${part} / ${whole})::integer || '%'
+    ELSE 'n < ${SHARE_MIN_VISITORS}' END`;
+}
 
 /** The sections read from the product's own tables, which hold no visitor's words. */
 export const EVENT_TABLE_SECTIONS: readonly ReportSection[] = [
+  {
+    title: "From the start screen to a day taken along, by way in (visitors, once a UTC day)",
+    columns: ["step", "via", "visitors"],
+    text: `
+      SELECT step, via, ${VISITORS} AS visitors FROM (
+        SELECT CASE kind WHEN 'home-viewed' THEN 1 WHEN 'day-opened' THEN 2
+            WHEN 'day-ended' THEN 3 ELSE 4 END AS rank,
+          CASE kind WHEN 'home-viewed' THEN 'home viewed' WHEN 'day-opened' THEN 'day opened'
+            WHEN 'day-ended' THEN 'day ended' ELSE 'taken along' END AS step,
+          CASE WHEN kind = 'home-viewed' THEN '' ELSE coalesce(via, ${NOT_TOLD}) END AS via,
+          utc_day, visitor_key
+        ${EVENTS_IN_SPAN} AND kind IN ('home-viewed', 'day-opened', 'day-ended', ${TAKEN_ALONG})
+      ) AS steps
+      GROUP BY rank, step, via ORDER BY rank, visitors DESC, via`,
+  },
+  {
+    title: `Days taken along, by way in (visitors who opened a day that way, and of them who took one along; a share from ${SHARE_MIN_VISITORS})`,
+    columns: ["via", "opened", "taken along", "share"],
+    text: `
+      SELECT via, opened, taken AS "taken along", ${shareOf("taken", "opened")} AS share FROM (
+        SELECT coalesce(via, ${NOT_TOLD}) AS via, count(*)::integer AS opened,
+          (count(*) FILTER (WHERE taken))::integer AS taken
+        FROM (${visitorsOf("via", "day-opened", { taken: TAKEN_ALONG })}) AS visitors
+        GROUP BY 1
+      ) AS ways
+      ORDER BY opened DESC, taken DESC, via`,
+  },
+  {
+    title: `Days taken along, by view (visitors whose day ended in that view, and of them who did each in it; a share from ${SHARE_MIN_VISITORS})`,
+    columns: ["view", "ended", "read to end", "taken along", "share"],
+    text: `
+      SELECT view, ended, read_to_end AS "read to end", taken AS "taken along",
+        ${shareOf("taken", "ended")} AS share FROM (
+        SELECT coalesce(view, ${NOT_TOLD}) AS view, count(*)::integer AS ended,
+          (count(*) FILTER (WHERE read_to_end))::integer AS read_to_end,
+          (count(*) FILTER (WHERE taken))::integer AS taken
+        FROM (${visitorsOf("view", "day-ended", {
+          read_to_end: "'day-read-to-end'",
+          taken: TAKEN_ALONG,
+        })}) AS visitors
+        GROUP BY 1
+      ) AS views
+      ORDER BY ended DESC, taken DESC, view`,
+  },
   {
     title: "Days opened, by city (a visitor counts once a UTC day)",
     columns: ["city", "opened", "visitors"],

@@ -2,26 +2,14 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import type { DayStream } from "@/features/itinerary/use-day-stream";
-import type { DayVia, ProductEvent, ProductEventKind } from "@/lib/events/event.schema";
+import type { DayAct, DayVia, ProductEvent } from "@/lib/events/event.schema";
 import type { DayOutcome } from "@/lib/stream/outcome";
-import { sendProductEvent } from "@/lib/events/send-event";
+import { sendProductEvent, type SendOptions } from "@/lib/events/send-event";
 import { isWrittenRequest } from "@/lib/days/written/requests";
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
 import { daySlugOf } from "@/lib/days/address";
-
-/**
- * The chart's gestures and the ways a day is taken along, sent once for each day opened:
- * whether the visitor dragged, swapped or took the day along is the question, and a held
- * arrow key, one pull a step, or a link copied again and again would otherwise spend a
- * visitor's events for the day.
- */
-const ONCE_A_DAY: readonly ProductEventKind[] = [
-  "curve-dragged",
-  "stop-swapped",
-  "link-shared",
-  "calendar-saved",
-  "route-opened",
-];
+import { isInRenderingCrawler } from "./seen-days";
+import { readDayView } from "./view-choice";
 
 /** What every event about a day says of it. */
 interface OpenedDay {
@@ -39,13 +27,21 @@ interface Opening {
   hasStop: boolean;
   /** Its `day-ended` or `day-left` is sent: nothing more is said of how it streamed. */
   isClosed: boolean;
-  /** The gestures sent for it already, of those sent once a day. */
-  gestures: Set<ProductEventKind>;
+  /** What the visitor has done with this day already, each told once. */
+  acts: Set<DayAct>;
 }
 
 export interface DayEvents {
-  /** Sends an event, when the page counts them; a gesture only the first time on a day. */
+  /** Sends an event that says what it is about itself, when the page counts them. */
   send: (event: ProductEvent) => void;
+  /**
+   * Tells what the visitor did with the day on screen, with the day as it was opened and the
+   * view it is read in, the first time on that day alone: whether the visitor dragged, swapped,
+   * took the day along or read it to its end is the question, and a held arrow key, one pull a
+   * step, or a link copied again and again would otherwise spend a visitor's events for the day.
+   * Nothing is told before a day is opened.
+   */
+  act: (act: DayAct) => void;
   /**
    * A day starts playing, reached this way. A day still streaming before it was left. The
    * request played again as the same object, as React's Strict Mode plays a day on mount in
@@ -56,6 +52,15 @@ export interface DayEvents {
   open: (request: DayRequest, via: DayVia, ended?: DayOutcome["kind"]) => void;
   /** The day streaming was stopped with no day played in its place yet. */
   leave: () => void;
+}
+
+/**
+ * Sends one product event from a page that counts them. A search engine's renderer sends none,
+ * so a crawl never reads as a visitor (`isInRenderingCrawler`).
+ */
+function sendCounted(event: ProductEvent, options: SendOptions): void {
+  if (isInRenderingCrawler()) return;
+  sendProductEvent(event, options);
 }
 
 /**
@@ -73,7 +78,7 @@ export function useDayEvents(
 
   const sendOut = useCallback(
     (event: ProductEvent, isLeaving: boolean) => {
-      if (isCounted) sendProductEvent(event, { isLeaving });
+      if (isCounted) sendCounted(event, { isLeaving });
     },
     [isCounted],
   );
@@ -95,27 +100,23 @@ export function useDayEvents(
       leaveDay(false);
       const day = { city: daySlugOf(request), via, written: isWrittenRequest(request) };
       const isEnded = ended !== undefined;
-      opening.current = {
-        request,
-        day,
-        hasStop: isEnded,
-        isClosed: isEnded,
-        gestures: new Set(),
-      };
+      opening.current = { request, day, hasStop: isEnded, isClosed: isEnded, acts: new Set() };
       sendOut({ kind: "day-opened", ...day }, false);
-      if (isEnded) sendOut({ kind: "day-ended", ...day, outcome: ended }, false);
+      if (isEnded) {
+        sendOut({ kind: "day-ended", ...day, view: readDayView(), outcome: ended }, false);
+      }
     },
     [leaveDay, sendOut],
   );
 
-  const send = useCallback(
-    (event: ProductEvent) => {
-      const gestures = opening.current?.gestures;
-      if (gestures && ONCE_A_DAY.includes(event.kind)) {
-        if (gestures.has(event.kind)) return;
-        gestures.add(event.kind);
-      }
-      sendOut(event, false);
+  const send = useCallback((event: ProductEvent) => sendOut(event, false), [sendOut]);
+
+  const act = useCallback(
+    (kind: DayAct) => {
+      const current = opening.current;
+      if (current === null || current.acts.has(kind)) return;
+      current.acts.add(kind);
+      sendOut({ kind, ...current.day, view: readDayView() }, false);
     },
     [sendOut],
   );
@@ -127,7 +128,10 @@ export function useDayEvents(
     if ((partial?.stops?.length ?? 0) > 0) current.hasStop = true;
     if (outcome === null) return;
     current.isClosed = true;
-    sendOut({ kind: "day-ended", ...current.day, outcome: outcome.kind }, false);
+    sendOut(
+      { kind: "day-ended", ...current.day, view: readDayView(), outcome: outcome.kind },
+      false,
+    );
   }, [request, partial, outcome, sendOut]);
 
   useEffect(() => {
@@ -137,5 +141,45 @@ export function useDayEvents(
   }, [leaveDay]);
 
   const leave = useCallback(() => leaveDay(false), [leaveDay]);
-  return { send, open, leave };
+  return { send, act, open, leave };
+}
+
+/** What a page remembers of having told that the start screen was opened. */
+export interface HomeViewMemory {
+  /** Told already on this page. */
+  readonly isTold: boolean;
+  onTold: () => void;
+}
+
+/** Whether this page load has told that the start screen was opened. */
+let isHomeToldThisLoad = false;
+
+/**
+ * The page load's memory, kept by the module, so a client navigation back to the start screen,
+ * as from the privacy page, tells nothing again, and only a load of the page starts it afresh.
+ */
+export const PAGE_HOME_VIEW_MEMORY: HomeViewMemory = {
+  get isTold() {
+    return isHomeToldThisLoad;
+  },
+  onTold: () => {
+    isHomeToldThisLoad = true;
+  },
+};
+
+/**
+ * Tells that the start screen was opened, once a page load, whatever days it plays after or
+ * however often it is drawn again: the top of the way from the start screen to a day taken
+ * along. Counted only on the product's own page, and never from a search engine's renderer.
+ */
+export function useHomeViewed(
+  isCounted: boolean,
+  memory: HomeViewMemory = PAGE_HOME_VIEW_MEMORY,
+): void {
+  useEffect(() => {
+    // Read and set in one step, so React's Strict Mode, which runs effects twice, tells once.
+    if (!isCounted || memory.isTold) return;
+    memory.onTold();
+    sendCounted({ kind: "home-viewed" }, { isLeaving: false });
+  }, [isCounted, memory]);
 }
