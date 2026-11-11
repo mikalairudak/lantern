@@ -86,6 +86,8 @@ async function snapToWholePixels(figure: Locator): Promise<void> {
  * nothing.
  */
 async function awaitPictures(figure: Locator): Promise<void> {
+  // Only a figure with pictures is scrolled to: moving the page shifts how others' text is drawn.
+  if ((await figure.locator("rect[data-layer]").count()) === 0) return;
   await figure.scrollIntoViewIfNeeded();
   await expect
     .poll(() =>
