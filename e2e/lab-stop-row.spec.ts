@@ -1,9 +1,9 @@
-import { expect, test } from "./fixtures";
+import { expect, test, waitMs } from "./fixtures";
 
 test.use({ reducedMotion: "reduce" });
 
 /** The stop row's matrix has every state of every example to read and draw. */
-const MATRIX_TIMEOUT_MS = 20_000;
+const MATRIX_TIMEOUT_MS = waitMs(20_000);
 
 test("sets the stop row in every state at the schema's extremes", async ({ page }) => {
   await page.goto("/lab/matrix/stop-row");

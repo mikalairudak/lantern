@@ -1,6 +1,6 @@
 import { dayContextOf } from "@/features/abacus/light";
 import { daySlugOf } from "@/lib/days/address";
-import { writtenDayAt } from "@/lib/days/written/days";
+import { shownWrittenDayAt } from "@/lib/days/written/days";
 import { QUICK_STARTS } from "@/lib/days/written/quick-starts";
 import type { DayContext } from "@/lib/geo/sun";
 import type { DayRequest, Stop } from "@/lib/schema/itinerary.schema";
@@ -24,12 +24,15 @@ export interface StartExcerpt {
   daylight: DayContext;
 }
 
-/** The first quick start's day, cut to its first stops; null if its day is not written. */
-export function startExcerptOf(): StartExcerpt | null {
+/**
+ * The first quick start's day as its page shows it now, its season and date included, cut to its
+ * first stops; null if its day is not written.
+ */
+export function startExcerptOf(now: Date): StartExcerpt | null {
   const first = QUICK_STARTS[0];
   if (!first) return null;
   const slug = daySlugOf(first.request);
-  const written = writtenDayAt(slug);
+  const written = shownWrittenDayAt(slug, now);
   if (!written) return null;
   const { itinerary } = written;
   return {

@@ -1,19 +1,17 @@
 import { defineConfig, devices } from "@playwright/test";
+import { waitMs } from "./e2e/ci-wait";
+import {
+  BASE_URL,
+  DIST_DIR,
+  FIRST_IMPRESSION_DIST_DIR,
+  FIRST_IMPRESSION_PORT,
+  FIRST_IMPRESSION_SPECS,
+  FIRST_IMPRESSION_URL,
+  isFirstImpressionRun,
+  PORT,
+} from "./e2e/servers";
 import { E2E_STUDIO_AUTHORIZATION, E2E_STUDIO_ENV } from "./e2e/studio-login";
 
-const PORT = Number(process.env.E2E_PORT ?? 3417);
-// Its own build directory lets e2e run while `pnpm dev` is up (see next.config.ts).
-const DIST_DIR = ".next-e2e";
-const BASE_URL = `http://localhost:${PORT}`;
-/**
- * The first impression's own server, with its flag on (`src/lib/first-impression.ts`), which a
- * page takes at its render: its specs in `e2e/first-impression/` run against it, and every other
- * spec keeps testing the site with the flag off.
- */
-const FIRST_IMPRESSION_PORT = Number(process.env.E2E_FIRST_IMPRESSION_PORT ?? PORT + 1);
-const FIRST_IMPRESSION_DIST_DIR = ".next-e2e-fi";
-const FIRST_IMPRESSION_URL = `http://localhost:${FIRST_IMPRESSION_PORT}`;
-const FIRST_IMPRESSION_SPECS = "**/first-impression/**";
 const isCI = Boolean(process.env.CI);
 
 // The visual baseline (`pnpm e2e:visual`): one phone-wide cell per shot, in a viewport no
@@ -27,12 +25,24 @@ const SCREENSHOT_PIXEL_THRESHOLD = 0.01;
 // One test shoots every matrix the lab lists, over a thousand cells in both themes, which takes
 // about 5 minutes on a laptop, so it gets 12.
 const VISUAL_TEST_TIMEOUT_MS = 12 * 60_000;
+// Playwright's defaults for a test and an `expect`, and its wait for the dev server's first
+// page, the slowest it compiles; on CI each is longer by the factor every spec's waits take
+// (`e2e/ci-wait.ts`).
+const TEST_TIMEOUT_MS = waitMs(30_000);
+const EXPECT_TIMEOUT_MS = waitMs(5_000);
+const WEB_SERVER_TIMEOUT_MS = waitMs(60_000);
 
 export default defineConfig({
   testDir: "./e2e",
+  // Asks the server for every route the specs open before the first test (`e2e/warm-up.ts`).
+  globalSetup: "./e2e/warm-up.ts",
   fullyParallel: true,
   forbidOnly: isCI,
-  retries: isCI ? 2 : 0,
+  // One retry on CI, which reports a test that passed on it as flaky; the `@frame` tests take
+  // none there (`.github/workflows/ci.yml`).
+  retries: isCI ? 1 : 0,
+  timeout: TEST_TIMEOUT_MS,
+  expect: { timeout: EXPECT_TIMEOUT_MS },
   reporter: isCI ? "github" : "list",
   use: {
     baseURL: BASE_URL,
@@ -93,20 +103,28 @@ export default defineConfig({
       // production does (`src/lib/http/studio-gate.ts`).
       env: { NEXT_DIST_DIR: DIST_DIR, DATABASE_URL: "", ...E2E_STUDIO_ENV },
       url: BASE_URL,
+      timeout: WEB_SERVER_TIMEOUT_MS,
       // Never attach to whatever already listens on the port: it may be another app.
       reuseExistingServer: false,
     },
-    {
-      command: `pnpm dev --port ${FIRST_IMPRESSION_PORT}`,
-      // The same, with the first impression's flag on, in a build directory of its own.
-      env: {
-        NEXT_DIST_DIR: FIRST_IMPRESSION_DIST_DIR,
-        DATABASE_URL: "",
-        FIRST_IMPRESSION: "1",
-        ...E2E_STUDIO_ENV,
-      },
-      url: FIRST_IMPRESSION_URL,
-      reuseExistingServer: false,
-    },
+    // The same with the first impression's flag on, in a build directory of its own, started
+    // only when a run takes its projects: a bare run, as CI's shards make, or one that names
+    // them. A run of other projects alone, as `pnpm e2e:visual` is, compiles one server.
+    ...(isFirstImpressionRun(process.argv)
+      ? [
+          {
+            command: `pnpm dev --port ${FIRST_IMPRESSION_PORT}`,
+            env: {
+              NEXT_DIST_DIR: FIRST_IMPRESSION_DIST_DIR,
+              DATABASE_URL: "",
+              FIRST_IMPRESSION: "1",
+              ...E2E_STUDIO_ENV,
+            },
+            url: FIRST_IMPRESSION_URL,
+            timeout: WEB_SERVER_TIMEOUT_MS,
+            reuseExistingServer: false,
+          },
+        ]
+      : []),
   ],
 });

@@ -4,7 +4,7 @@ import {
   OPEN_IN_GOOGLE_MAPS,
   SEARCH_IN_GOOGLE_MAPS,
 } from "../src/features/abacus/map-action";
-import { expect, test, type Locator, type Page } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
 
 /**
  * An open stop's "map" row on the written days a visitor opens: Bologna's places carry the
@@ -14,7 +14,7 @@ import { expect, test, type Locator, type Page } from "./fixtures";
  * place-check matrix's cell stands for it.
  */
 
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 /** Where every map link goes, which the tests answer themselves rather than ask Google. */
 const GOOGLE_MAPS = "https://www.google.com/maps/**";
 

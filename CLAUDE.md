@@ -28,17 +28,17 @@ The repository is public, and so is everything pushed to it, `develop` included:
 
 Node 24 (`.nvmrc`) and pnpm (pinned in `package.json`; run `corepack enable` once). `pnpm install` also turns on the commit gate in `.githooks/`; an install that is already up to date skips that, so run `pnpm run prepare` once. In Claude Code, a SessionStart hook (`.claude/hooks/use-project-node.sh`) puts this Node first on PATH; if `node --version` is not 24, the hook did not run.
 
-| Command                | What it does                                                                                                                                                 |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm dev`             | Dev server on port 3000                                                                                                                                      |
-| `pnpm dev:lan`         | The same, reachable from a phone on the local network at `http://<computer's IP>:3000`                                                                       |
-| `pnpm check`           | Format check, lint, typecheck, and unit tests with an 80% coverage gate (routes are excluded and covered by e2e). Runs on every commit.                      |
-| `pnpm e2e`             | Playwright on desktop and phone. Its own server (port 3417, `.next-e2e`) runs alongside `pnpm dev`; a parallel session sets `E2E_PORT`                       |
-| `pnpm e2e:visual`      | The matrices' visual baseline at a phone's width, in both themes. Never beside `pnpm e2e` in one checkout: they share `.next-e2e`                            |
-| `pnpm e2e:busy`        | `pnpm e2e` with each page's CPU twice as slow, as on a busy machine; `E2E_CPU_RATE=4` for one spec. Before a frame-by-frame spec lands                       |
-| `pnpm e2e:replan-pace` | The fork's story on the Elche bench (`e2e/replan-story.spec.ts`) alone, at the bench's live pace, which `pnpm e2e` plays too. Before a re-plan change merges |
-| `pnpm build:check`     | The production build Vercel runs, in `.next-build` beside a running `pnpm dev`, then served and asked for its pages, as production renders them              |
-| `pnpm format`          | Prettier, including Tailwind class sorting                                                                                                                   |
+| Command                | What it does                                                                                                                                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`             | Dev server on port 3000                                                                                                                                                                                                                     |
+| `pnpm dev:lan`         | The same, reachable from a phone on the local network at `http://<computer's IP>:3000`                                                                                                                                                      |
+| `pnpm check`           | Format check, lint, typecheck, and unit tests with an 80% coverage gate (routes are excluded and covered by e2e). Runs on every commit.                                                                                                     |
+| `pnpm e2e`             | Playwright on desktop and phone. Its own server (port 3417, `.next-e2e`) runs alongside `pnpm dev`, and a second with the first impression's flag on (3418, `.next-e2e-fi`) for `e2e/first-impression/`; a parallel session sets `E2E_PORT` |
+| `pnpm e2e:visual`      | The matrices' visual baseline at a phone's width, in both themes. Never beside `pnpm e2e` in one checkout: they share `.next-e2e`                                                                                                           |
+| `pnpm e2e:busy`        | `pnpm e2e` with each page's CPU twice as slow, as on a busy machine; `E2E_CPU_RATE=4` for one spec. Before a frame-by-frame spec lands                                                                                                      |
+| `pnpm e2e:replan-pace` | The fork's story on the Elche bench (`e2e/replan-story.spec.ts`) alone, at the bench's live pace, which `pnpm e2e` plays too. Before a re-plan change merges                                                                                |
+| `pnpm build:check`     | The production build Vercel runs, in `.next-build` beside a running `pnpm dev`, then served and asked for its pages, as production renders them                                                                                             |
+| `pnpm format`          | Prettier, including Tailwind class sorting                                                                                                                                                                                                  |
 
 ## Architecture
 
@@ -95,8 +95,10 @@ scripts/                    build check, migrations, reports, the production rea
 e2e/                        Playwright specs; e2e/visual/ holds the matrices' pixel baseline
 assets/fonts/               Fira Sans cut to Latin, for the link card the server draws
 .githooks/, .github/        the commit gate (pnpm check) and the commit message check; CI: pnpm check and build:check
-                            on pushes to develop and main and on pull requests, pnpm e2e on pull requests, on pushes
-                            to main and by hand; the pull request template, and the check of a pull request's text
+                            on pushes to develop and main and on pull requests; pnpm e2e in four shards, all but the
+                            @frame tests, on pull requests that change more than inert paths, on pushes to main and
+                            by hand, answered as one check, E2E result; the @frame tests alone on pushes to main and
+                            by hand; the pull request template, and the check of a pull request's text
 docs/                       decisions, harness, design direction, security, ops, roadmap, case study, the contracts
                             (targeted re-plan, grounding, voice), discoverability; brand/ and media/ (the README's demo)
 ```

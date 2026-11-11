@@ -62,7 +62,7 @@ export const START_INDEX_MATRIX: LabMatrix = labMatrix<StartIndexCellProps>({
   // Every count, a day's first stops under each: the default view.
   baseline: [{ rows: 0, columns: 1 }],
   render: ({ count, hasExcerpt }) => {
-    const excerpt = hasExcerpt ? startExcerptOf() : null;
+    const excerpt = hasExcerpt ? startExcerptOf(new Date()) : null;
     return (
       <FirstImpressionProvider isOn>
         <div data-first-impression="">

@@ -31,46 +31,50 @@ function distancesToTrackEnd(markers: Element[]): number[] {
   });
 }
 
-test("animates every spring marker to the end of its track", async ({ page }) => {
-  const markers = page.locator("[data-spring]");
-  await expect(markers).toHaveCount(3);
-  const startDistances = await markers.evaluateAll(distancesToTrackEnd);
+test(
+  "animates every spring marker to the end of its track",
+  { tag: "@frame" },
+  async ({ page }) => {
+    const markers = page.locator("[data-spring]");
+    await expect(markers).toHaveCount(3);
+    const startDistances = await markers.evaluateAll(distancesToTrackEnd);
 
-  // Sampled every frame inside the page, so a marker that jumps straight to the end fails.
-  const framesDuringPlay = markers.evaluateAll(
-    (elements, sampleMs) =>
-      new Promise<number[][]>((resolve) => {
-        const frames: number[][] = [];
-        const stopAt = performance.now() + sampleMs;
-        const sample = () => {
-          frames.push(
-            elements.map((marker) => {
-              const trackEnd = marker.parentElement?.getBoundingClientRect().right ?? 0;
-              return trackEnd - marker.getBoundingClientRect().right;
-            }),
-          );
-          if (performance.now() < stopAt) requestAnimationFrame(sample);
-          else resolve(frames);
-        };
-        requestAnimationFrame(sample);
-      }),
-    SAMPLE_MS,
-  );
-  await page.getByRole("button", { name: "Play" }).click();
-  const frames = await framesDuringPlay;
+    // Sampled every frame inside the page, so a marker that jumps straight to the end fails.
+    const framesDuringPlay = markers.evaluateAll(
+      (elements, sampleMs) =>
+        new Promise<number[][]>((resolve) => {
+          const frames: number[][] = [];
+          const stopAt = performance.now() + sampleMs;
+          const sample = () => {
+            frames.push(
+              elements.map((marker) => {
+                const trackEnd = marker.parentElement?.getBoundingClientRect().right ?? 0;
+                return trackEnd - marker.getBoundingClientRect().right;
+              }),
+            );
+            if (performance.now() < stopAt) requestAnimationFrame(sample);
+            else resolve(frames);
+          };
+          requestAnimationFrame(sample);
+        }),
+      SAMPLE_MS,
+    );
+    await page.getByRole("button", { name: "Play" }).click();
+    const frames = await framesDuringPlay;
 
-  startDistances.forEach((start, index) => {
-    const isInFlight = frames.some((frame) => {
-      const distance = frame[index] ?? start;
-      return distance > 1 && distance < start - 1;
+    startDistances.forEach((start, index) => {
+      const isInFlight = frames.some((frame) => {
+        const distance = frame[index] ?? start;
+        return distance > 1 && distance < start - 1;
+      });
+      expect(isInFlight, `marker ${index} moves through the track`).toBe(true);
     });
-    expect(isInFlight, `marker ${index} moves through the track`).toBe(true);
-  });
-  await expect
-    .poll(async () => (await markers.evaluateAll(distancesToTrackEnd)).map(Math.round))
-    .toEqual(startDistances.map(() => 0));
-  await expect(page.getByRole("button", { name: "Rewind" })).toBeVisible();
-});
+    await expect
+      .poll(async () => (await markers.evaluateAll(distancesToTrackEnd)).map(Math.round))
+      .toEqual(startDistances.map(() => 0));
+    await expect(page.getByRole("button", { name: "Rewind" })).toBeVisible();
+  },
+);
 
 const REDUCED_MOTION_NOTE = "Reduced motion is on";
 

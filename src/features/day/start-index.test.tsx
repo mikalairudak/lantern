@@ -33,14 +33,14 @@ describe("the start screen's index", () => {
 
 describe("the start screen's excerpt", () => {
   it("holds the first stops of the first start's day, and its address", () => {
-    const excerpt = startExcerptOf()!;
+    const excerpt = startExcerptOf(new Date())!;
     expect(excerpt.stops).toHaveLength(EXCERPT_STOPS);
     expect(excerpt.total).toBeGreaterThan(EXCERPT_STOPS);
     expect(excerpt.address).toBe(`/day/${STARTS[0]!.request.city.toLowerCase()}`);
   });
 
   it("shows them still, with nothing to press but the link to the whole day", () => {
-    const excerpt = startExcerptOf()!;
+    const excerpt = startExcerptOf(new Date())!;
     render(<StartExcerptView excerpt={excerpt} />);
     expect(screen.getAllByRole("heading", { level: 2 }).length).toBeGreaterThan(EXCERPT_STOPS);
     expect(

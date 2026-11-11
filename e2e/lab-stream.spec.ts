@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, type Page, waitMs } from "./fixtures";
 
 /** Waits for the day's frames, then returns the frame slider. */
 async function frameSlider(page: Page) {
@@ -62,7 +62,7 @@ test("plays the day through the app's stream hook, shows it arriving, and ends i
 
   await expect(player.getByRole("list", { name: "Stops so far" })).toBeVisible();
   await expect(page.getByTestId("played-outcome")).toContainText(/complete: 8 stops, \d+ swaps/, {
-    timeout: 15_000,
+    timeout: waitMs(15_000),
   });
 });
 
@@ -78,7 +78,7 @@ test("plays the day at every pace", async ({ page }) => {
     await player.getByRole("button", { name: "Play" }).click();
     // Each pace reaches the stops; a live model's takes a few seconds to.
     await expect(player.getByRole("list", { name: "Stops so far" })).toBeVisible({
-      timeout: 15_000,
+      timeout: waitMs(15_000),
     });
     await player.getByRole("button", { name: "Stop" }).click();
     await expect(page.getByTestId("played-outcome")).toHaveText("Play the day to watch it arrive.");
@@ -112,10 +112,10 @@ test("plays a written day from the app's own route, which finishes it", async ({
   await player.getByRole("button", { name: "Play" }).click();
 
   await expect(player.getByRole("list", { name: "Stops so far" })).toBeVisible({
-    timeout: 15_000,
+    timeout: waitMs(15_000),
   });
   await expect(page.getByTestId("played-outcome")).toContainText(/complete: 8 stops, \d+ swaps/, {
-    timeout: 30_000,
+    timeout: waitMs(30_000),
   });
 });
 
@@ -137,5 +137,7 @@ test("the route plays the written days alone, so a lab page never asks a model f
   );
   await expect(source).toHaveValue("page");
   await player.getByRole("button", { name: "Play" }).click();
-  await expect(page.getByTestId("played-outcome")).toContainText("complete", { timeout: 15_000 });
+  await expect(page.getByTestId("played-outcome")).toContainText("complete", {
+    timeout: waitMs(15_000),
+  });
 });
