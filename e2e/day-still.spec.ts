@@ -767,9 +767,11 @@ test.describe("with motion", { tag: "@frame" }, () => {
   }) => {
     await page.goto("/");
 
+    // Paris's, a calm day: a lively day's last rows can glide faster than a row may, as
+    // `CITIES` says.
     await page
       .getByRole("list", { name: "No city in mind? Start from one of these" })
-      .getByRole("button", { name: /^Kanazawa / })
+      .getByRole("button", { name: /^Paris / })
       .click();
 
     await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
@@ -794,13 +796,16 @@ test.describe("with motion", { tag: "@frame" }, () => {
   }) => {
     // On a phone at Lantern's narrowest, where a name beside its hollow bead and the same
     // name at rest wrapped apart: Porto's "Francesinha in Cedofeita" went from one line to
-    // two as its bead was weighed. A laptop's columns never wrapped one apart.
+    // two as its bead was weighed. A laptop's columns never wrapped one apart. Seoul's day,
+    // of those the index offers, rests the most names on two lines that the next wider
+    // column holds on one: "Gyeongbokgung Palace", and "Ikseon-dong Hanok Village" and
+    // "Coffee on Jahamun-ro 7-gil", 10 and 14 px past their columns.
     test.skip(!isMobile, "names wrap apart only in a phone's columns");
     await page.setViewportSize(PHONE);
     await page.goto("/");
     await page
       .getByRole("list", { name: "No city in mind? Start from one of these" })
-      .getByRole("button", { name: /^Porto / })
+      .getByRole("button", { name: /^Seoul / })
       .click();
     await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
       "aria-busy",

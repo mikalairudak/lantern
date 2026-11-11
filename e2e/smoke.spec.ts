@@ -1,3 +1,4 @@
+import { INDEX_REQUESTS } from "../src/lib/days/written/city-days";
 import { expect, test, waitMs } from "./fixtures";
 
 /** A written day lands in about twelve seconds; a cold dev server adds a few. */
@@ -25,7 +26,9 @@ test("lands on the start screen: one question over the index of written days, an
     "One day in a city, planned hour by hour, as quiet or as lively as you want it.",
   );
   await expect(page.getByRole("textbox", { name: "Where, and anything else" })).toBeVisible();
-  await expect(page.getByRole("list", { name: INDEX_LABEL }).getByRole("button")).toHaveCount(6);
+  await expect(page.getByRole("list", { name: INDEX_LABEL }).getByRole("button")).toHaveCount(
+    INDEX_REQUESTS.length,
+  );
   await expect(page.locator('svg[role="group"]')).toHaveCount(0);
 });
 
@@ -110,7 +113,7 @@ test(
     // The index's last cell, scrolled to the screen's foot, so the press itself scrolls nothing.
     const lastStart = page
       .getByRole("list", { name: INDEX_LABEL })
-      .getByRole("button", { name: /^Nafplio / });
+      .getByRole("button", { name: new RegExp(`^${INDEX_REQUESTS.at(-1)!.city} `) });
     // Drawn once the visitor's days are read, so the page is tall enough to scroll.
     await expect(lastStart).toBeAttached();
     await lastStart.evaluate((cell) => cell.scrollIntoView({ block: "end" }));

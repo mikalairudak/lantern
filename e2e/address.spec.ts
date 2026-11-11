@@ -67,11 +67,11 @@ test("a city pressed on the start screen is named in the address once its day ta
 
   await page
     .getByRole("list", { name: INDEX_LABEL })
-    .getByRole("button", { name: /^Kanazawa / })
+    .getByRole("button", { name: /^Paris / })
     .click();
 
-  await expect(page).toHaveURL(/\/day\/kanazawa$/);
-  await expect(page).toHaveTitle("A calm Saturday in Kanazawa, early start · Lantern");
+  await expect(page).toHaveURL(/\/day\/paris$/);
+  await expect(page).toHaveTitle("A calm Sunday in Paris, slow morning, with a partner · Lantern");
   // Pushed once, so Back comes back to the start screen; the router kept the start screen's
   // tree, so no route was fetched.
   expect(await page.evaluate(() => window.history.length)).toBe(entries + 1);
@@ -92,13 +92,15 @@ test("a city pressed on the start screen is named in the address once its day ta
   await expect(page.getByRole("list", { name: INDEX_LABEL })).toBeVisible();
   await expect(headline(page)).toBeFocused();
   await page.goForward();
-  await expect(page).toHaveURL(/\/day\/kanazawa$/);
-  await expect(headline(page)).toContainText("A lively Saturday in Kanazawa");
-  await expect(page).toHaveTitle("A lively Saturday in Kanazawa, early start · Lantern");
+  await expect(page).toHaveURL(/\/day\/paris$/);
+  await expect(headline(page)).toContainText("A lively Sunday in Paris");
+  await expect(page).toHaveTitle(
+    "A lively Sunday in Paris, slow morning, with a partner · Lantern",
+  );
   await expect(page.getByRole("region", { name: /^About / })).toBeVisible();
   if (about !== null) await expect(page.getByRole("region", { name: about })).toBeVisible();
 
-  await chooseWrittenCity(page, "Kanazawa", "Bologna");
+  await chooseWrittenCity(page, "Paris", "Bologna");
 
   await expect(page).toHaveURL(/\/day\/bologna$/);
   await expect(page).toHaveTitle("A lively Saturday in Bologna, with friends · Lantern");
@@ -138,10 +140,10 @@ test("the lab's start screen keeps its own address whatever day it shows", async
 
   await page
     .getByRole("list", { name: INDEX_LABEL })
-    .getByRole("button", { name: /^Kanazawa / })
+    .getByRole("button", { name: /^Paris / })
     .click();
   await waitForTheDay(page);
-  await chooseWrittenCity(page, "Kanazawa", "Bologna");
+  await chooseWrittenCity(page, "Paris", "Bologna");
 
   await expect(headline(page)).toContainText("A lively Saturday in Bologna");
   expect(pathOf(page)).toBe("/lab/concepts/start");

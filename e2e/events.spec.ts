@@ -85,15 +85,16 @@ test("a day the page leaves while it is written is counted as left, once, by bea
   productEvents,
 }) => {
   await page.goto("/");
+  // Barcelona's, the longest day the index offers, so it is still being written as it is left.
   await page
     .getByRole("list", { name: INDEX_LABEL })
-    .getByRole("button", { name: /^Kanazawa / })
+    .getByRole("button", { name: /^Barcelona / })
     .click();
-  const kanazawa = { city: "kanazawa", via: "pressed", written: true };
+  const barcelona = { city: "barcelona", via: "pressed", written: true };
   // The start screen is counted first, once, as its page opens.
   await expect
     .poll(() => productEvents)
-    .toEqual([{ kind: "home-viewed" }, { kind: "day-opened", ...kanazawa }]);
+    .toEqual([{ kind: "home-viewed" }, { kind: "day-opened", ...barcelona }]);
 
   await page.evaluate(() => {
     window.dispatchEvent(new Event("pagehide"));
@@ -104,8 +105,8 @@ test("a day the page leaves while it is written is counted as left, once, by bea
     .poll(() => productEvents)
     .toEqual([
       { kind: "home-viewed" },
-      { kind: "day-opened", ...kanazawa },
-      expect.objectContaining({ kind: "day-left", ...kanazawa }),
+      { kind: "day-opened", ...barcelona },
+      expect.objectContaining({ kind: "day-left", ...barcelona }),
     ]);
   // Left, it is never ended as well.
   await waitForTheDay(page);
