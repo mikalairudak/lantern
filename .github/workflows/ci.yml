@@ -6,9 +6,12 @@
 # Detect changes reads which paths a pull request changes, and when every one is a path no page
 # and no e2e test reads, the e2e is skipped. The rest of the suite runs in four shards (E2E 1/4 to
 # 4/4), and E2E result answers for them as one check, the one a pull request needs. The `@frame`
-# tests, which sample the page frame by frame, run in E2E frames on pushes to main and by hand
-# alone: a shared runner drops frames a laptop draws, so there they say more about the runner than
-# about the change, and the laptop runs them before UI work merges (docs/harness.md, "End-to-end").
+# tests, which sample the page frame by frame, run in E2E frames by hand alone: a shared runner
+# drops frames a laptop draws, so there they say more about the runner than about the change, and
+# the laptop runs them before UI work merges and before a release (docs/harness.md, "End-to-end").
+#
+# The e2e jobs run in Playwright's own image at the version package.json pins, which holds Chromium
+# and every system library it needs, so no job installs a browser or asks Ubuntu's mirrors for one.
 #
 # `pnpm e2e:visual` stays local: its baseline is the owner's Mac
 # (`e2e/visual/__screenshots__/darwin`), and Linux draws text differently (docs/harness.md).
@@ -87,14 +90,30 @@ jobs:
     timeout-minutes: 5
     outputs:
       e2e: ${{ steps.paths.outputs.e2e }}
+      playwright: ${{ steps.playwright.outputs.version }}
     steps:
       # A pull request's run checks out the merge of its branch into its base, so the merge's
       # first parent is the base, and two commits are all the diff needs.
       - uses: actions/checkout@v7
-        if: github.event_name == 'pull_request'
         with:
           fetch-depth: 2
           persist-credentials: false
+
+      # The e2e jobs' image is named by this version, so package.json pins it exactly.
+      - name: Read the Playwright version
+        id: playwright
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').devDependencies['@playwright/test']")
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            # The value itself is not printed: a pull request writes it, and a line of its own could
+            # read as a command to the runner.
+            echo "::error::package.json must pin @playwright/test to an exact version (1.2.3): the e2e jobs run in the image of that version."
+            exit 1
+          fi
+          echo "Playwright $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       # Inert: paths no page, route or e2e test reads. Docs and the Markdown at the root, the
       # agents' setup, the pull request's template and text check, the commit message check and
@@ -148,6 +167,11 @@ jobs:
     needs: detect
     if: needs.detect.outputs.e2e == 'true'
     runs-on: ubuntu-24.04
+    container:
+      # Chromium and its libraries, at the version the tests are written for; --ipc=host gives
+      # Chromium the shared memory a container lacks.
+      image: mcr.microsoft.com/playwright:v${{ needs.detect.outputs.playwright }}-noble
+      options: --ipc=host
     timeout-minutes: 45
     strategy:
       # Every shard runs to its end, so one run shows each failure, not the first shard's.
@@ -177,26 +201,6 @@ jobs:
           restore-keys: ${{ runner.os }}-pnpm-store-
 
       - run: pnpm install --frozen-lockfile
-
-      - name: Read the Playwright version
-        id: playwright
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      # The desktop and phone projects are both Chromium, so Chromium is the only browser.
-      - uses: actions/cache@v6
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-chromium-${{ steps.playwright.outputs.version }}
-
-      - name: Install Chromium and its system libraries
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
-
-      # The cache holds the browser, not the system libraries it needs.
-      - name: Install Chromium's system libraries
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
 
       # The desktop and phone projects only: the visual project is `default: false` in
       # playwright.config.ts. The HTML report joins the config's GitHub annotations, so a
@@ -250,11 +254,18 @@ jobs:
 
   e2e-frames:
     name: E2E frames
-    # Not needed by a pull request: these tests read the page frame by frame, and a shared runner
-    # drops frames. Pushes to main and the "Run workflow" button only, with no retry, so a test
-    # that fails once is seen, and each failure keeps its trace.
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    # Not needed by a pull request or a release: these tests read the page frame by frame, and a
+    # shared runner drops frames, so on a push they failed on the runner's pace rather than the
+    # change's. The "Run workflow" button only, with no retry, so a test that fails once is seen,
+    # and each failure keeps its trace.
+    needs: detect
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
+    container:
+      # Chromium and its libraries, at the version the tests are written for; --ipc=host gives
+      # Chromium the shared memory a container lacks.
+      image: mcr.microsoft.com/playwright:v${{ needs.detect.outputs.playwright }}-noble
+      options: --ipc=host
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
@@ -279,24 +290,6 @@ jobs:
           restore-keys: ${{ runner.os }}-pnpm-store-
 
       - run: pnpm install --frozen-lockfile
-
-      - name: Read the Playwright version
-        id: playwright
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache@v6
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-chromium-${{ steps.playwright.outputs.version }}
-
-      - name: Install Chromium and its system libraries
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
-
-      - name: Install Chromium's system libraries
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
 
       - run: pnpm e2e --grep @frame --retries=0 --trace=retain-on-failure --add-reporter=html
         env:

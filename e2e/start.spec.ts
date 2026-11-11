@@ -1,3 +1,5 @@
+import { daySlugOf } from "../src/lib/days/slug";
+import { INDEX_REQUESTS } from "../src/lib/days/written/city-days";
 import { expect, test } from "./fixtures";
 
 /**
@@ -12,7 +14,7 @@ test("the start screen offers the question and an index of written days, with a 
 }) => {
   await page.goto("/");
   const index = page.getByRole("list", { name: "No city in mind? Start from one of these" });
-  await expect(index.getByRole("listitem")).toHaveCount(6);
+  await expect(index.getByRole("listitem")).toHaveCount(INDEX_REQUESTS.length);
 
   // Both ways in on a phone's first screen: the field and two lines of the index.
   const second = await index.getByRole("listitem").nth(1).boundingBox();
@@ -51,7 +53,13 @@ test("a city's cell draws its engraving from one file, its theme's, kept forever
     "data-state",
     "unasked",
   );
-  expect(asked).toHaveLength(1);
-  expect(asked[0]).toMatchObject({ status: 200, cache: "public, max-age=31536000, immutable" });
-  expect(asked[0]!.url).toMatch(/\/pictures\/madrid-scene-\d+\.[0-9a-f]{8}\.avif$/);
+  // Every city the index offers is drawn: one file a cell, its scene, each kept forever.
+  await expect.poll(() => asked.length).toBe(INDEX_REQUESTS.length);
+  const slugs = asked.map(
+    ({ url }) => /\/pictures\/([a-z-]+)-scene-\d+\.[0-9a-f]{8}\.avif$/.exec(url)?.[1],
+  );
+  expect(new Set(slugs)).toEqual(new Set(INDEX_REQUESTS.map(daySlugOf)));
+  for (const each of asked) {
+    expect(each).toMatchObject({ status: 200, cache: "public, max-age=31536000, immutable" });
+  }
 });

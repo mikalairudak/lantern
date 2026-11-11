@@ -5,9 +5,9 @@ import { firstSeasonOf, type WrittenSeason } from "@/lib/days/written/seasons";
 import type { WrittenGist } from "./day";
 
 /**
- * The days Lantern has written, as the start screen needs them: each day's request, with the
- * facts of one season of it. A page calls it on the server, so the client gets each day's words
- * without the normalizer or the days themselves.
+ * Every day Lantern has written, the quick starts' and the city days', as the start screen needs
+ * them: each day's request, with the facts of one season of it. A page calls it on the server, so
+ * the client gets each day's words without the normalizer or the days themselves.
  */
 function poolOf(seasonAt: (slug: string) => WrittenSeason | null): WrittenGist[] {
   return WRITTEN_REQUESTS.map((request) => {

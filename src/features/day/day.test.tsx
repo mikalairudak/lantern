@@ -3,8 +3,7 @@ import { createRef } from "react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { KANAZAWA_START_DAY } from "@/lib/days/written/kanazawa";
-import { KANAZAWA_START_REQUEST } from "@/lib/days/written/quick-starts";
-import { WRITTEN_REQUESTS } from "@/lib/days/written/requests";
+import { KANAZAWA_START_REQUEST, START_REQUESTS } from "@/lib/days/written/quick-starts";
 import { writtenDayAt } from "@/lib/days/written/days";
 import { writtenVersionOf } from "@/lib/days/written/version";
 import { normalizeDay } from "@/lib/normalizer/normalize";
@@ -177,9 +176,9 @@ async function expectNotice(line: string): Promise<void> {
 
 /** The written days the header offers in place of the day, by their sentences. */
 /** The written days a notice offers over a day that is not one of them: the starts'. */
-const OFFERED_SENTENCES = WRITTEN_REQUESTS.map(requestSentenceOf);
+const OFFERED_SENTENCES = START_REQUESTS.map(requestSentenceOf);
 /** The written days a notice over Kanazawa's own offers: every one but its own. */
-const SENTENCES_BESIDES_KANAZAWA = WRITTEN_REQUESTS.filter(
+const SENTENCES_BESIDES_KANAZAWA = START_REQUESTS.filter(
   (request) => request !== KANAZAWA_START_REQUEST,
 ).map(requestSentenceOf);
 

@@ -49,7 +49,7 @@ const PORTO: DayRequest = {
 };
 
 const KANAZAWA_LINK = { city: "kanazawa", via: "link", written: true } as const;
-const PRESSED_KANAZAWA = { city: "kanazawa", via: "pressed", written: true } as const;
+const PRESSED_TOKYO = { city: "tokyo", via: "pressed", written: true } as const;
 /** The view every test's page starts on (`vitest.setup.ts`), which the events say. */
 const ON_CHART = { view: "chart" } as const;
 /** What the start screen tells as its page opens, before anything else. */
@@ -298,13 +298,13 @@ describe("the days played, as the product counts them", () => {
     const user = userEvent.setup();
     render(<StartDay pool={POOL} isLive={false} isCounted homeViewMemory={homeMemory} />);
 
-    await user.click(writtenCity("Kanazawa"));
+    await user.click(writtenCity("Tokyo"));
     await waitForTheDay();
 
     expect(sent()).toEqual([
       HOME_VIEWED,
-      { kind: "day-opened", ...PRESSED_KANAZAWA },
-      { kind: "day-ended", ...PRESSED_KANAZAWA, ...ON_CHART, outcome: "complete" },
+      { kind: "day-opened", ...PRESSED_TOKYO },
+      { kind: "day-ended", ...PRESSED_TOKYO, ...ON_CHART, outcome: "complete" },
     ]);
   });
 
@@ -349,18 +349,18 @@ describe("the days played, as the product counts them", () => {
     const user = userEvent.setup();
     render(<StartDay pool={POOL} isLive={false} isCounted homeViewMemory={homeMemory} />);
 
-    await user.click(writtenCity("Bologna"));
-    await user.click(writtenCity("Nafplio"));
+    await user.click(writtenCity("Paris"));
+    await user.click(writtenCity("Rome"));
     await waitForTheDay();
 
-    const lisbon = { city: "bologna", via: "pressed", written: true } as const;
-    const alicante = { city: "nafplio", via: "pressed", written: true } as const;
+    const paris = { city: "paris", via: "pressed", written: true } as const;
+    const rome = { city: "rome", via: "pressed", written: true } as const;
     expect(sent()).toEqual([
       HOME_VIEWED,
-      { kind: "day-opened", ...lisbon },
-      { kind: "day-left", ...lisbon, stage: "before-first-stop" },
-      { kind: "day-opened", ...alicante },
-      { kind: "day-ended", ...alicante, ...ON_CHART, outcome: "complete" },
+      { kind: "day-opened", ...paris },
+      { kind: "day-left", ...paris, stage: "before-first-stop" },
+      { kind: "day-opened", ...rome },
+      { kind: "day-ended", ...rome, ...ON_CHART, outcome: "complete" },
     ]);
   });
 
@@ -686,7 +686,7 @@ describe("the start screen and the day's end, as the product counts them", () =>
     );
     await waitFor(() => expect(sentOf("home-viewed")).toEqual([HOME_VIEWED]));
 
-    await user.click(writtenCity("Kanazawa"));
+    await user.click(writtenCity("Tokyo"));
     await waitForTheDay();
 
     expect(sentOf("home-viewed")).toEqual([HOME_VIEWED]);
@@ -757,7 +757,7 @@ describe("the start screen and the day's end, as the product counts them", () =>
       await withEverythingInView(async () => {
         const user = userEvent.setup();
         render(<StartDay pool={POOL} isLive={false} isCounted homeViewMemory={homeMemory} />);
-        await user.click(writtenCity("Kanazawa"));
+        await user.click(writtenCity("Tokyo"));
         await waitForTheDay();
         await new Promise((resolve) => setTimeout(resolve, READ_TO_END_MS * 1.5));
       });

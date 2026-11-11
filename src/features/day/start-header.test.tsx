@@ -4,7 +4,8 @@ import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { LISBON_REQUEST } from "@/lib/fixtures/curated/requests";
-import { BOLOGNA_START_REQUEST, PORTO_START_REQUEST } from "@/lib/days/written/quick-starts";
+import { INDEX_REQUESTS, PARIS_REQUEST } from "@/lib/days/written/city-days";
+import { MADRID_START_REQUEST } from "@/lib/days/written/quick-starts";
 import { MAX_INTAKE_TEXT_CHARS, type IntakeWords } from "@/lib/schema/intake.schema";
 import { NOT_LIVE_NOTE, PROMISE, StartHeader, type StartHeaderProps } from "./start-header";
 import { INDEX_LABEL } from "./start-index";
@@ -55,33 +56,28 @@ describe("StartHeader", () => {
     expect(screen.getByRole("textbox", { name: "Where, and anything else" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Plan this day" })).toBeInTheDocument();
     const cells = within(writtenDays()).getAllByRole("button");
-    expect(cells.map((cell) => cell.textContent?.split(" ")[0])).toEqual([
-      "Bologna",
-      "Porto",
-      "Kanazawa",
-      "Madrid",
-      "Utrecht",
-      "Nafplio",
-    ]);
+    expect(cells.map((cell) => cell.textContent)).toEqual(
+      INDEX_REQUESTS.map(({ city }) => expect.stringMatching(new RegExp(`^${city} `))),
+    );
   });
 
   it("writes a start's day when it is pressed, from the keyboard too", async () => {
     const user = userEvent.setup();
     const { onChooseWritten } = renderStart();
 
-    await user.click(within(writtenDays()).getByRole("button", { name: /^Bologna / }));
-    expect(onChooseWritten).toHaveBeenLastCalledWith(BOLOGNA_START_REQUEST);
+    await user.click(within(writtenDays()).getByRole("button", { name: /^Paris / }));
+    expect(onChooseWritten).toHaveBeenLastCalledWith(PARIS_REQUEST);
 
     // After the field and its button, the starts, in the order they are written.
     screen.getByRole("textbox").focus();
     await user.tab();
     expect(screen.getByRole("button", { name: "Plan this day" })).toHaveFocus();
     await user.tab();
-    expect(within(writtenDays()).getByRole("button", { name: /^Bologna / })).toHaveFocus();
+    expect(within(writtenDays()).getByRole("button", { name: /^Paris / })).toHaveFocus();
     await user.tab();
-    expect(within(writtenDays()).getByRole("button", { name: /^Porto / })).toHaveFocus();
+    expect(within(writtenDays()).getByRole("button", { name: /^Madrid / })).toHaveFocus();
     await user.keyboard("{Enter}");
-    expect(onChooseWritten).toHaveBeenLastCalledWith(PORTO_START_REQUEST);
+    expect(onChooseWritten).toHaveBeenLastCalledWith(MADRID_START_REQUEST);
   });
 
   it("keeps the starts on screen while a day is on its way, and the field its words", () => {
@@ -99,7 +95,7 @@ describe("StartHeader", () => {
     const { rerender, ...handlers } = renderStart();
     // The written days are named once, as the index below, not again in the note.
     expect(screen.getByText(NOT_LIVE_NOTE)).toBeInTheDocument();
-    expect(screen.getAllByText("Bologna")).toHaveLength(1);
+    expect(screen.getAllByText("Paris")).toHaveLength(1);
 
     rerender(
       <HeldStart
@@ -352,9 +348,9 @@ describe("StartHeader", () => {
     // Said once, in place of the note, and the days are offered once, as the index below.
     expect(screen.queryByText(NOT_LIVE_NOTE)).not.toBeInTheDocument();
     expect(within(line).queryByRole("button")).not.toBeInTheDocument();
-    expect(screen.getAllByText("Bologna")).toHaveLength(1);
-    await user.click(within(writtenDays()).getByRole("button", { name: /^Bologna / }));
-    expect(onChooseWritten).toHaveBeenCalledWith(BOLOGNA_START_REQUEST);
+    expect(screen.getAllByText("Paris")).toHaveLength(1);
+    await user.click(within(writtenDays()).getByRole("button", { name: /^Paris / }));
+    expect(onChooseWritten).toHaveBeenCalledWith(PARIS_REQUEST);
   });
 
   it("says with live generation on that the text could not be read, rather than that no days are written", () => {

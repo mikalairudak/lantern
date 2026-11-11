@@ -51,6 +51,7 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 - [2026-11-08 — A written day is shown on the next date of its weekday](#2026-11-08--a-written-day-is-shown-on-the-next-date-of-its-weekday)
 - [2026-11-10 — A day taken along is what the events measure, and each event about a day says how it was reached and the view it is read in](#2026-11-10--a-day-taken-along-is-what-the-events-measure-and-each-event-about-a-day-says-how-it-was-reached-and-the-view-it-is-read-in)
 - [2026-11-11 — A city's written day is one of its seasons, picked by the date it is shown on](#2026-11-11--a-citys-written-day-is-one-of-its-seasons-picked-by-the-date-it-is-shown-on)
+- [2026-11-11 — Seven more cities have a written day at their own address](#2026-11-11--seven-more-cities-have-a-written-day-at-their-own-address)
 
 **The data contract and the normalizer**
 
@@ -118,6 +119,7 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 - [2026-11-11 — A day's end asks one question, answered in one tap](#2026-11-11--a-days-end-asks-one-question-answered-in-one-tap)
 - [2026-11-11 — The index's pictures are engravings of a city's everyday thing](#2026-11-11--the-indexs-pictures-are-engravings-of-a-citys-everyday-thing)
 - [2026-11-11 — The first impression is the site's only look](#2026-11-11--the-first-impression-is-the-sites-only-look)
+- [2026-11-11 — The e2e runs in Playwright's own image, and the frame tests only by hand](#2026-11-11--the-e2e-runs-in-playwrights-own-image-and-the-frame-tests-only-by-hand)
 
 **The look: type, colour and tokens**
 
@@ -134,6 +136,7 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 - [2026-11-09 — Everything committed is written for a reader of the code, and a check holds the plainest rules](#2026-11-09--everything-committed-is-written-for-a-reader-of-the-code-and-a-check-holds-the-plainest-rules)
 - [2026-11-10 — A pull request's text is held to the rules for what is committed](#2026-11-10--a-pull-requests-text-is-held-to-the-rules-for-what-is-committed)
 - [2026-11-10 — Every change reaches develop as a pull request the owner merges](#2026-11-10--every-change-reaches-develop-as-a-pull-request-the-owner-merges)
+- [2026-11-11 — The engineering session merges a pull request into develop once its checks pass](#2026-11-11--the-engineering-session-merges-a-pull-request-into-develop-once-its-checks-pass)
 - [2026-11-10 — CI runs the e2e in four shards, skips it for inert paths, and runs the frame tests apart](#2026-11-10--ci-runs-the-e2e-in-four-shards-skips-it-for-inert-paths-and-runs-the-frame-tests-apart)
 
 **Privacy and security**
@@ -651,3 +654,31 @@ Each layer is a grey mask of its own tones, white where the ink is, served as an
 **Why.** Each part was built behind the flag, so production stayed as it was until the new look was whole; once it was, two looks meant two of every surface to keep, test and shoot in the lab, and an e2e server of its own, for a look no visitor would see again. A view the visitor chose is theirs, whichever came first when they chose it.
 
 **Cost.** Nothing on the site shows the old look beside the new any more; what each part traded is in its own entry, and the look it replaced is in `docs/design-direction.md`, "How the look was found". A visitor of the chart-first site who never chose a view now lands on the plan.
+
+## 2026-11-11 — The e2e runs in Playwright's own image, and the frame tests only by hand
+
+**Decision.** The e2e jobs run in Playwright's container image at the version `package.json` pins, which holds Chromium and the system libraries it needs, so no job installs a browser. The pin is exact, and Detect changes reads it and fails with a plain message when it is not, since the image is named by it. E2E frames runs from the "Run workflow" button alone, no longer on a push to `main`. This revises "CI runs the e2e in four shards, skips it for inert paths, and runs the frame tests apart".
+
+**Why.** Every shard installed Chromium's libraries from Ubuntu's mirrors, and when the runner could not reach them all four failed in their first ten minutes, a red pull request with nothing wrong in it. The image brings what the mirrors did. On a push to `main` the frame tests failed on the runner's pace, a beat drawn at 333 ms against a letter at 400, which a laptop draws in order; that is the reason they left the pull request, and it holds on `main` too. The laptop runs them in the release gate, which every release passes before `main` moves.
+
+**Cost.** The image is large, so a shard spends its first minute pulling it. A Playwright upgrade must move the exact pin, which the image follows by itself. A release reaches `main` without CI's word on the frame rules; that rests on the laptop's gate.
+
+## 2026-11-11 — Seven more cities have a written day at their own address
+
+**Decision.** Paris, Tokyo, Rome, New York, Amsterdam, Barcelona and Seoul each have a written day, which with Madrid's start makes a day in eight cities from Euromonitor's Top 100 City Destinations Index 2025 (`CITY_DAYS` in `src/lib/days/written/city-days.ts`). Each is a recorded live day, as the starts' are: it plays from its file at `/day/<city>`, is listed in the sitemap, carries the place checks its run recorded (`city-checks.ts`), and is one open-ended season from the date it was written for. The start screen's index offers the seven and Madrid's start, in the Index's order (`INDEX_REQUESTS`), each line's picture named by its day's slug, and the excerpt under it shows Barcelona's first three stops (`EXCERPT_REQUEST`); the quick starts' other five days keep their pages, their addresses and the sitemap. The list a page with no day offers, the endings that offer a written day, the city word's list and the intake that stands in with live generation off keep to the starts' six (`START_REQUESTS`). Every list that names the written days for an address, its static page, the sitemap, the signature a city needs and the eval's rounds, reads all thirteen (`WRITTEN_REQUESTS`). The requests' words differ across the set: calm, balanced and lively; a slow morning, an early start, eating late and out late; alone, for two, with family and with friends.
+
+Each day was picked from three written by the day's live prompt in one round, by a rule fixed before the results were read: the hard checks pass, the light-sense check holds on the date its page shows, places confirmed at 0.6 or more, and the day holds for 21 days or more (`freshUntil`), so `pnpm days:fresh` does not flag it on its first run; among those, the most scored checks passed. Each pick was then read by hand. Rome's best-scored day was set aside for one whose dinner keeps the late hour its request asks for: `time-words` passes a day that keeps two of its three words, and the word missed was the visitor's.
+
+The hand read found lines that are not true on every date a day is shown, and a written day is written again rather than edited, so Paris, Tokyo, Rome, Amsterdam and Seoul were written again in a third round, the same words a week later, under the same rule and a veto read by hand and fixed before the round: no word that pins a month or a season, no clock time the computed sun disagrees with, no stop at an hour its place is likely shut, dinner from 20:30 where a late one is asked or assumed, and a place of worship at a service time only if the day says so. No day replaced one: in Paris, Tokyo and Rome every day that passed the checks named November or autumn, none of Amsterdam's passed them, and Seoul's one day past the veto ended its dinner at 23:00, which leaves a re-plan to an early end no room, and the commit gate holds every written day to 45 minutes (`src/lib/replan/windows.test.ts`).
+
+**Why.** A day in each of the cities most visitors know shows the product on a city they can judge. Recorded days keep the claim the starts make: every word a visitor reads was the model's. The index offers the eight because a visitor with no city in mind is likelier to pick one they know; the other lists keep the starts' six, since a list of thirteen sentences would make each of them a page of its own to design. Barcelona's excerpt is one walk through El Born, coffee, the Picasso museum and the Santa Caterina market, each confirmed by its place check and none of its lines naming a month; Tokyo and Seoul sit down to dinner before a late hour, and Madrid's day calls the Rastro a Saturday market, which it is on Sundays. Amsterdam was asked for an early start first, and none of its three days held three weeks: the stop after a November sunrise turns golden as the sunrise moves later, so its request became a slow morning, and Tokyo keeps the early start.
+
+**Cost.** Three rounds, $3.36 in all on the development key, and 1,261 Geoapify lookups. The model writes for the light of the date it is given, so it names the month: of the eight days in the third round that passed the checks, seven named November or autumn. Every day's words were written for mid-November, and several pin it ("the low November sun", "sunset is around half past five"), which no check reads, so each city needs its next season by the date `pnpm days:fresh` gives: between 2 January (Tokyo) and 13 February (Barcelona), read on 11 November. Tokyo and Seoul assumed a late dinner and sit down before 20:30, which the sentence then says, and Seoul's last stop is street food in Myeongdong at 23:55, when its stalls may be shut. The end-to-end specs that play every start's day do not play the city days.
+
+## 2026-11-11 — The engineering session merges a pull request into develop once its checks pass
+
+**Decision.** The engineering session squash-merges each pull request into `develop` itself, once `/pr-ready` is clean and Check, PR text / Text and E2E result pass, with the pull request's body as the commit's message (`.claude/skills/pr-ready/SKILL.md`, step 6). The owner reads what lands and merges releases into `main`. This revises "Every change reaches develop as a pull request the owner merges"; everything else in it holds.
+
+**Why.** A pull request already passes the definition of done, a security review and a fresh reader before it is pushed, and three checks on GitHub before it merges, so a merge waiting for the owner held the next change back without adding a check. A release is what reaches visitors, so that merge stays the owner's.
+
+**Cost.** A change lands on `develop` without the owner's eyes on it first; the owner reads it there, and the release gate and the owner's look at the preview stand before `main`.

@@ -1,5 +1,5 @@
 import { isSameRequest } from "@/lib/days/request";
-import { QUICK_STARTS } from "@/lib/days/written/quick-starts";
+import { INDEX_REQUESTS } from "@/lib/days/written/city-days";
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
 import type { WrittenGist } from "./day";
 
@@ -10,12 +10,12 @@ export interface StartOffer {
 }
 
 /**
- * The written days, in the order the start screen's index offers them, each checked against the
- * days the page handed over. A start without its day is a fixture out of step with the registry,
- * and says so rather than offer a day that cannot open.
+ * The days the start screen's index offers (`INDEX_REQUESTS`), in its order, each checked against
+ * the days the page handed over. A start without its day is a fixture out of step with the
+ * registry, and says so rather than offer a day that cannot open.
  */
 export function startOffersOf(pool: readonly WrittenGist[]): StartOffer[] {
-  return QUICK_STARTS.map(({ request }) => {
+  return INDEX_REQUESTS.map((request) => {
     if (!pool.some((each) => isSameRequest(each.request, request))) {
       throw new Error(`The start for ${request.city} has no written day`);
     }

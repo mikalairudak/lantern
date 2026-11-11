@@ -9,7 +9,7 @@ import {
   ELCHE_REQUEST,
 } from "@/lib/fixtures/replan/elche-dinner";
 import { KANAZAWA_START_DAY } from "@/lib/days/written/kanazawa";
-import { WRITTEN_REQUESTS } from "@/lib/days/written/requests";
+import { START_REQUESTS } from "@/lib/days/written/quick-starts";
 import { normalizeDay } from "@/lib/normalizer/normalize";
 import { mergeShownReplan } from "@/lib/replan/merge";
 import {
@@ -141,7 +141,7 @@ function headerAt({
       notice={null}
       isEnabled={controls === undefined || controls.status !== "writing"}
       isWaiting={false}
-      written={WRITTEN_REQUESTS}
+      written={START_REQUESTS}
       cityOpenAt={null}
       isCityFocused={false}
       replan={controls}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { WRITTEN_REQUESTS } from "@/lib/days/written/requests";
+import { START_REQUESTS } from "@/lib/days/written/quick-starts";
 import type { CityReading } from "@/lib/schema/intake.schema";
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
 import { cn } from "@/components/ui/cn";
@@ -45,7 +45,7 @@ export function CityWordCell({
         A <span className="text-energy">lively</span> <span className="text-ink">Saturday</span> in{" "}
         <CityWord
           city={request.city}
-          written={WRITTEN_REQUESTS}
+          written={START_REQUESTS}
           current={request}
           readings={readings}
           playedReading={playedReading}

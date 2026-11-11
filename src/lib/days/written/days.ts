@@ -7,14 +7,17 @@ import { isSameRequest } from "../request";
 import { firstStartOf } from "./requests";
 import { firstSeasonOf, seasonOn, type WrittenSeason } from "./seasons";
 import { isShownNear, shownDateOf } from "./shown-date";
-import { START_SEASONS } from "./start-days";
+import { CITY_SEASONS, START_SEASONS } from "./start-days";
 import { writtenVersionFor } from "./version";
 
 /**
  * Every city Lantern has written a day for, as its seasons, in the order of `WRITTEN_REQUESTS`:
- * the starts', the only days the public site serves from a file.
+ * the quick starts' and the city days', the only days the public site serves from a file.
  */
-export const WRITTEN_SEASONS: readonly (readonly WrittenSeason[])[] = START_SEASONS;
+export const WRITTEN_SEASONS: readonly (readonly WrittenSeason[])[] = [
+  ...START_SEASONS,
+  ...CITY_SEASONS,
+];
 
 /** Every day Lantern has written ahead of time, each season of each city, in the same order. */
 export const WRITTEN_DAYS: readonly WrittenDay[] = WRITTEN_SEASONS.flatMap((seasons) =>

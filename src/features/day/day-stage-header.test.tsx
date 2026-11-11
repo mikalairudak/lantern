@@ -4,9 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { motionValue, type MotionValue } from "motion/react";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { CURATED_REQUESTS, KYOTO_REQUEST, LISBON_REQUEST } from "@/lib/fixtures/curated/requests";
-import { KANAZAWA_START_REQUEST } from "@/lib/days/written/quick-starts";
+import { KANAZAWA_START_REQUEST, START_REQUESTS } from "@/lib/days/written/quick-starts";
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
-import { WRITTEN_REQUESTS } from "@/lib/days/written/requests";
 import type { PartialDay } from "@/lib/stream/outcome";
 import { noticeOf } from "./stream-ending";
 import { requestSentenceOf, sentenceFactsOf } from "./sentence";
@@ -17,7 +16,7 @@ const ignore = () => undefined;
 /** Two `gentle` springs, one in and one out, settle well within this. */
 const SPRINGS_TIMEOUT = { timeout: 3000 };
 /** The written days a notice offers: the starts'. */
-const OFFERED_SENTENCES = WRITTEN_REQUESTS.map(requestSentenceOf);
+const OFFERED_SENTENCES = START_REQUESTS.map(requestSentenceOf);
 
 /** jsdom lays nothing out; the header's gliding box only needs to be told nothing moved. */
 class SilentObserver {
@@ -484,7 +483,7 @@ describe("DayStageHeader", () => {
     await user.click(retry);
     expect(onRetry).toHaveBeenCalledOnce();
     await user.click(offered[0]!);
-    expect(onChooseWritten).toHaveBeenCalledWith(WRITTEN_REQUESTS[0]);
+    expect(onChooseWritten).toHaveBeenCalledWith(START_REQUESTS[0]);
   });
 
   it("says a notice set from its first frame whole, as a still does", () => {
@@ -880,7 +879,7 @@ describe("DayStageHeader", () => {
     );
     expect(screen.queryByRole("button", { name: "Write it again" })).not.toBeInTheDocument();
     expect(within(screen.getByRole("list")).getAllByRole("listitem")).toHaveLength(
-      WRITTEN_REQUESTS.length,
+      START_REQUESTS.length,
     );
   });
 

@@ -1,7 +1,7 @@
 import { ELCHE_REQUEST } from "@/lib/fixtures/replan/elche-dinner";
-import { MADRID_START_REQUEST } from "@/lib/days/written/quick-starts";
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
-import type { StartOffer } from "./start-offers";
+import { startOffersOf, type StartOffer } from "./start-offers";
+import { writtenPool } from "./written-pool";
 
 /** A start as the index offers it, for a city and the words its day was asked with. */
 function offerOf(words: Partial<DayRequest> & Pick<DayRequest, "city" | "timezone">): StartOffer {
@@ -22,45 +22,10 @@ function offerOf(words: Partial<DayRequest> & Pick<DayRequest, "city" | "timezon
 }
 
 /**
- * The eight cities with an engraving, Madrid as the start screen offers it and the seven as their
- * days are asked, so the index shows every picture it ships, a short gist of one line and of two.
+ * The eight cities with an engraving, as the index offers them (`startOffersOf`): Madrid's start
+ * and the seven city days, each with its own words, a gist of one line and of two.
  */
-export const DRAWN_STARTS: readonly StartOffer[] = [
-  offerOf({
-    city: "Paris",
-    timezone: "Europe/Paris",
-    date: "2026-11-15",
-    energy: "calm",
-    start: "slow",
-  }),
-  offerOf({ city: "Tokyo", timezone: "Asia/Tokyo", energy: "lively", start: "early" }),
-  offerOf({ city: "Rome", timezone: "Europe/Rome", dinner: "late", company: "family" }),
-  offerOf({
-    city: "New York",
-    timezone: "America/New_York",
-    energy: "lively",
-    end: "late",
-  }),
-  offerOf({
-    city: "Amsterdam",
-    timezone: "Europe/Amsterdam",
-    date: "2026-11-15",
-    energy: "calm",
-  }),
-  offerOf({
-    city: "Barcelona",
-    timezone: "Europe/Madrid",
-    energy: "lively",
-    dinner: "late",
-  }),
-  offerOf({
-    city: "Seoul",
-    timezone: "Asia/Seoul",
-    date: "2026-11-13",
-    end: "late",
-  }),
-  { request: MADRID_START_REQUEST },
-];
+export const DRAWN_STARTS: readonly StartOffer[] = startOffersOf(writtenPool());
 
 /**
  * A city with no picture, among drawn ones: Lisbon, which has none. Its cell keeps its caption

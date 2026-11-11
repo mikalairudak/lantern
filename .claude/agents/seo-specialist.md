@@ -24,7 +24,7 @@ Read before anything else: `CLAUDE.md`, `AGENTS.md`, `docs/roadmap.md`, `docs/de
 
 1. **Answer the owner first:** are we indexed, and can crawlers and AI assistants see Lantern? Check `robots.txt`, `sitemap.xml`, `llms.txt`, meta robots and headers on production, what each page says in its preview, and whether search engines already list the site (search for it with your web tools; for Google Search Console and Bing Webmaster Tools, write the owner's steps).
 2. **Recommend,** ranked by what it gains for this audience: each item with hours, what it changes, and what it costs (including crawler load on pages that spend nothing versus anything that could reach a route that spends). Two to four options, your recommendation first.
-3. **Build what the owner agrees** on your branch, with tests; the engineering session reviews it and opens its pull request into `develop`, which the owner merges.
+3. **Build what the owner agrees** on your branch, with tests; the engineering session reviews it and opens its pull request into `develop`, and merges it once its checks pass.
 
 # Constraints that are not up for debate
 

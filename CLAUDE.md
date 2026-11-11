@@ -7,7 +7,7 @@ Lantern plans one day in a city, hour by hour, as quiet or as lively as the visi
 ## Ground rules
 
 - **Current stage: v1.0 (from 2026-11-09).** Live calls to Claude and Geoapify run only behind the `LIVE_GENERATION` flag. It has been on in production since 2026-10-31, behind per-visitor limits and the app's daily and monthly spend caps (`src/lib/live/limits.ts`); a schema change that a live day writes needs production migrated before the release that carries it (`docs/harness.md`, "Database"). Provider API keys and secrets, the studio's password (`STUDIO_PASSWORD`) among them, live only in `.env.local` and Vercel's environment, never in the repository. One credential lives elsewhere: the production read-only role's connection string, in the owner's macOS Keychain, read only by `pnpm prod:read` (`docs/ops.md`). Tests never call a live service: they run on mock models and recorded responses.
-- **Work reaches `develop` through pull requests; `main` holds only releases.** Commit on a branch named `<kind>/<words>`, one change each, with conventional commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`). Once the definition of done holds and `/pr-ready` is clean, the engineering session pushes the branch and opens a pull request into `develop`; the owner reviews it and squash-merges it on GitHub, and Vercel builds `develop` as a preview. A release, on the owner's word, fast-forwards `main` to a `develop` that passed the gate and is tagged (`v1.1`, or `v1.0.1` for fixes alone); Vercel builds production from `main`. Only the engineering session pushes, and only a work branch, or `main` and its tag for a release; `develop` moves only by a merged pull request. Agents never push and never merge.
+- **Work reaches `develop` through pull requests; `main` holds only releases.** Commit on a branch named `<kind>/<words>`, one change each, with conventional commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`). Once the definition of done holds and `/pr-ready` is clean, the engineering session pushes the branch and opens a pull request into `develop`; once its checks on GitHub pass, the engineering session squash-merges it, and Vercel builds `develop` as a preview. A release, on the owner's word, fast-forwards `main` to a `develop` that passed the gate and is tagged (`v1.1`, or `v1.0.1` for fixes alone); Vercel builds production from `main`. Only the engineering session pushes, and only a work branch, or `main` and its tag for a release; `develop` moves only by a merged pull request. Agents never push and never merge.
 - A pre-commit hook runs `pnpm check`. Never bypass it with `--no-verify`; fix what it reports.
 - **Comments say what is true now.** State the rule and one clause of why, in the present tense; name a state ("with live generation off"), not a stage or a date, and cite a decision by its heading in `docs/decisions.md`. What used to be true belongs in the decision's entry and in git.
 - When a decision is worth explaining to someone who reads the code later, add an entry to `docs/decisions.md`.
@@ -76,7 +76,7 @@ src/lib/                    everything under the React layer, mapped in its READ
   live/                     live generation on the server: model calls, prompts, limits and spend, the generation log
   intake/                   POST /api/intake: the model reads the text, the city is looked up and signed
   replan/                   a targeted re-plan: its request, windows and merge
-  days/                     the six written days the site serves (written/), a day's address, a kept day's
+  days/                     the thirteen written days the site serves (written/), a day's address, a kept day's
                             record, and what GET /api/day/<id> answers
   places/                   Geoapify and place matching
   quality/                  checks over one generation, recorded on every live day
@@ -97,8 +97,8 @@ assets/fonts/               Fira Sans cut to Latin, for the link card the server
 .githooks/, .github/        the commit gate (pnpm check) and the commit message check; CI: pnpm check and build:check
                             on pushes to develop and main and on pull requests; pnpm e2e in four shards, all but the
                             @frame tests, on pull requests that change more than inert paths, on pushes to main and
-                            by hand, answered as one check, E2E result; the @frame tests alone on pushes to main and
-                            by hand; the pull request template, and the check of a pull request's text
+                            by hand, answered as one check, E2E result, in Playwright's own image; the @frame tests
+                            alone by hand; the pull request template, and the check of a pull request's text
 docs/                       decisions, harness, design direction, security, ops, roadmap, case study, the contracts
                             (targeted re-plan, grounding, voice), discoverability; brand/ and media/ (the README's demo)
 ```
