@@ -72,6 +72,17 @@ describe("a city's day across a season's end", () => {
     expect(writtenDayFor(kanazawaOn(WINTER_FROM), AFTER)).toBe(WINTER!.written);
   });
 
+  it("plays a date inside a season that is not its written date, from a page drawn before the end", () => {
+    // The 14th is autumn's, written for the 7th; the page that showed it is replayed on
+    // Sunday the 15th in Tokyo, after winter began to be shown.
+    const sunday = new Date("2026-11-15T00:00:00Z");
+    expect(writtenSeasonFor(kanazawaOn("2026-11-14"), sunday)).toBe(AUTUMN);
+    // Two days on, the 14th is past the yesterday a written day is still played for ("A
+    // written day is shown on the next date of its weekday"): a day of its own, as before.
+    const tuesday = new Date("2026-11-16T15:00:00Z");
+    expect(writtenSeasonFor(kanazawaOn("2026-11-14"), tuesday)).toBeNull();
+  });
+
   it("plays each season's own request word for word, however far its date", () => {
     const longBefore = new Date("2026-09-01T00:00:00Z");
     expect(writtenSeasonFor(KANAZAWA_START_REQUEST, longBefore)).toBe(AUTUMN);
