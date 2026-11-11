@@ -47,6 +47,14 @@ export const DAY_ACTS = [
   "day-read-to-end",
 ] as const;
 
+/**
+ * The one-tap answer at a day's end, "Would you follow this day?": yes, or not quite. Asked once
+ * a day opened, with nothing kept in the browser, and never in free text.
+ */
+export const DAY_ANSWERS = ["yes", "not-quite"] as const;
+
+export type DayAnswer = (typeof DAY_ANSWERS)[number];
+
 /** The header's words a visitor can change: the city, and each word of the request. */
 export const HEADER_WORDS = ["city", ...FACT_KEYS] as const;
 
@@ -124,6 +132,12 @@ export const ProductEventSchema = z.discriminatedUnion("kind", [
    * (`READ_TO_END_MS`).
    */
   z.strictObject({ kind: z.literal("day-read-to-end"), ...DAY_IN_VIEW_FIELDS }),
+  /** The visitor answered the day's end: would they follow it. Once a day opened. */
+  z.strictObject({
+    kind: z.literal("day-answered"),
+    ...DAY_IN_VIEW_FIELDS,
+    answer: z.enum(DAY_ANSWERS),
+  }),
   /** A word of the header was changed. */
   z.strictObject({
     kind: z.literal("word-changed"),

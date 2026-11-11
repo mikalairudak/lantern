@@ -28,6 +28,7 @@ export const ONE_EVENT_OF_EACH_KIND: readonly ProductEvent[] = [
   { kind: "calendar-saved", ...KYOTO_ON_CHART },
   { kind: "route-opened", city: "kanazawa", via: "typed", written: false, view: "read" },
   { kind: "day-read-to-end", ...KYOTO_ON_CHART },
+  { kind: "day-answered", ...KYOTO_ON_CHART, answer: "yes" },
   { kind: "word-changed", city: "lisbon", word: "company" },
   { kind: "intake-ended", outcome: "question" },
 ];

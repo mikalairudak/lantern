@@ -10,6 +10,8 @@ import { ICON_SIZES } from "@/lib/tokens/icon";
 import { dayEndWordsOf, routeLabelOf } from "./day-end-words";
 import { LINK_CLASSES, TARGET_CLASSES } from "./link-classes";
 import { useReadToEnd } from "./use-read-to-end";
+import { DayAnswerLine } from "./day-answer";
+import type { DayAnswer } from "@/lib/events/event.schema";
 import {
   COPIED_FOR_MS,
   COPY_LINK,
@@ -66,6 +68,13 @@ export interface DayEndProps {
    * first impression's masthead does.
    */
   hasWaysAlong?: boolean;
+  /**
+   * Asks the one-tap question under the day's summary and tells the answer; left out, nothing is
+   * asked. A day cut short is not asked: it is not the day that was planned.
+   */
+  onAnswer?: (answer: DayAnswer) => void;
+  /** The answer given for the day opened, which the line thanks for rather than asks again. */
+  answered?: DayAnswer | null;
   className?: string;
 }
 
@@ -87,6 +96,8 @@ export function DayEnd({
   onExport,
   onReadToEnd,
   hasWaysAlong = true,
+  onAnswer,
+  answered = null,
   className,
 }: DayEndProps) {
   const words = useMemo(() => dayEndWordsOf(day, shown, checks), [day, shown, checks]);
@@ -168,6 +179,7 @@ export function DayEnd({
             </p>
           </noscript>
         )}
+        {onAnswer && !isCut && <DayAnswerLine answered={answered} onAnswer={onAnswer} />}
         {hasWaysAlong && actions.length > 0 && (
           // Lines apart, as the list's versions are, so a press reaching past its words
           // reaches into the line above or below it as little as it can.

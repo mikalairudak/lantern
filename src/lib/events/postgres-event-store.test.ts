@@ -6,6 +6,7 @@ import { KYOTO_DRAGGED, KYOTO_ON_CHART, ONE_EVENT_OF_EACH_KIND } from "@/lib/fix
 import {
   DAY_OUTCOMES,
   DAY_VIAS,
+  DAY_ANSWERS,
   DAY_VIEWS,
   HEADER_WORDS,
   INTAKE_OUTCOMES,
@@ -196,12 +197,13 @@ describe("the Postgres event store", () => {
       ),
       ...HEADER_WORDS.map((word) => ({ kind: "word-changed", city: "kyoto", word }) as const),
       ...INTAKE_OUTCOMES.map((outcome) => ({ kind: "intake-ended", outcome }) as const),
+      ...DAY_ANSWERS.map((answer) => ({ ...KYOTO_DRAGGED, kind: "day-answered", answer }) as const),
     ];
 
     for (const event of everyWord) expect(await store.record(entry(VISITOR, event))).toBe(true);
 
     const rows = await database.session.query<Record<string, unknown>>(
-      "SELECT kind, city, via, written, outcome, stage, word, view FROM product_events",
+      "SELECT kind, city, via, written, outcome, stage, word, view, answer FROM product_events",
     );
     expect(rows).toHaveLength(everyWord.length);
     expect(rows).toEqual(
