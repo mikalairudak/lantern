@@ -149,15 +149,16 @@ export function ReadingList({
   const names = useRef(new Map<string, HTMLHeadingElement>());
   // Rows a new energy changes together glide as one, in about 1.5 s.
   const [glideGroup] = useState(createGlideGroup);
-  // On the plan the list says it is written once its rows are at rest too, so the last row's
-  // final form, its versions come in, is part of the day written rather than after it.
-  const [isGliding, setIsGliding] = useState(false);
-  const glideOf = useGlidesTold((isNow) => {
-    setIsGliding(isNow);
-    onGlide?.(isNow);
-  });
   const drawing = useDrawing();
   const isRail = useFirstImpression();
+  // On the plan the list says it is written once its rows are at rest too, so the last row's
+  // final form, its versions come in, is part of the day written rather than after it. Off the
+  // plan it renders nothing more for its glides.
+  const [isGliding, setIsGliding] = useState(false);
+  const glideOf = useGlidesTold((isNow) => {
+    if (isRail) setIsGliding(isNow);
+    onGlide?.(isNow);
+  });
   const sunLines = isRail ? sunLinesOf(sunsOf(daylight), spans, isWritten) : [];
   // The first stop on the plan with a version to swipe to leans once, when the day is whole.
   const firstSwappable = shown.findIndex(
