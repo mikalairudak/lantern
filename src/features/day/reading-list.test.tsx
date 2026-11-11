@@ -295,6 +295,21 @@ describe("the list as the day's plan, under the first impression", () => {
     expect(container.querySelector(".border-t.py-4")).toBeNull();
   });
 
+  it("lets a stop swipe along its versions in place of the line of them, and swaps through the list", async () => {
+    const user = userEvent.setup();
+    const onChoose = vi.fn();
+    render(
+      <FirstImpressionProvider isOn>
+        <ReadingList {...KYOTO} onChoose={onChoose} />
+      </FirstImpressionProvider>,
+    );
+    const arrows = screen.getAllByRole("button", { name: /^(Quieter|Livelier|Same energy): / });
+    expect(arrows.length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^or$/)).toBeNull();
+    await user.click(arrows[0]!);
+    expect(onChoose).toHaveBeenCalledOnce();
+  });
+
   it("draws today's list, with no rail and no sun's line, with the first impression off", () => {
     const { container } = render(<ReadingList {...KYOTO} />);
     expect(container.querySelector("svg line")).toBeNull();

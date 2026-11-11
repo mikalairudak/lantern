@@ -38,19 +38,60 @@ function isDotted(quality: LightQuality): boolean {
   return quality === "blue" || quality === "dark";
 }
 
-/** The light over a stretch of minutes, one span for each quality. */
-function spansOf(daylight: DayContext, from: number, to: number) {
-  const runs = lightRuns(daylight, from, Math.max(to, from + 1));
-  return runs.map((run, index) => ({
+/** A day's light, minute by minute, worked out once for a day and a place. */
+interface DayLightTable {
+  runs: { quality: LightQuality; from: number; to: number }[];
+  suns: Sun[];
+}
+
+/** The day and the night after it, as the plan's running minutes go past midnight. */
+const TABLE_MINUTES = 2 * 24 * 60;
+/** Days kept worked out: a page shows one day, a bench a few. */
+const TABLES_KEPT = 8;
+const tables = new Map<string, DayLightTable>();
+
+/**
+ * The day's light at every minute and its sunrise and sunset, worked out once for a day and a
+ * place and kept: the sun's position over a day is two thousand minutes of arithmetic, and the
+ * plan asks for it on every render of every row.
+ */
+function tableOf(daylight: DayContext): DayLightTable {
+  const key = `${daylight.date}|${daylight.position.lat}|${daylight.position.lng}|${daylight.utcOffsetMinutes}`;
+  const kept = tables.get(key);
+  if (kept) return kept;
+  const found = lightRuns(daylight, 0, TABLE_MINUTES);
+  const runs = found.map((run, index) => ({
     quality: run.quality,
     from: run.fromMinutes,
-    to: runs[index + 1]?.fromMinutes ?? Math.max(to, from + 1),
+    to: found[index + 1]?.fromMinutes ?? TABLE_MINUTES,
   }));
+  const rise = sunCrossing(daylight, SUNRISE_ALTITUDE, "rising");
+  const set = sunCrossing(daylight, SUNRISE_ALTITUDE, "setting");
+  const suns: Sun[] = [
+    ...(rise === null ? [] : [{ minute: rise, word: "Sunrise" as const }]),
+    ...(set === null ? [] : [{ minute: set, word: "Sunset" as const }]),
+  ];
+  const table = { runs, suns };
+  if (tables.size >= TABLES_KEPT) tables.delete(tables.keys().next().value ?? "");
+  tables.set(key, table);
+  return table;
+}
+
+/** The light over a stretch of minutes, one span for each quality. */
+function spansOf(daylight: DayContext, from: number, to: number) {
+  const end = Math.max(to, from + 1);
+  return tableOf(daylight)
+    .runs.filter((run) => run.to > from && run.from < end)
+    .map((run) => ({
+      quality: run.quality,
+      from: Math.max(run.from, from),
+      to: Math.min(run.to, end),
+    }));
 }
 
 /** Whether a minute of the day is in golden hour, where a stop's time is said in amber. */
 export function isGoldenAt(daylight: DayContext, minute: number): boolean {
-  return lightRuns(daylight, minute, minute + 1)[0]?.quality === "golden";
+  return spansOf(daylight, minute, minute + 1)[0]?.quality === "golden";
 }
 
 export interface Sun {
@@ -60,12 +101,7 @@ export interface Sun {
 
 /** The day's sunrise and sunset, where the sun crosses the horizon at all. */
 export function sunsOf(daylight: DayContext): Sun[] {
-  const rise = sunCrossing(daylight, SUNRISE_ALTITUDE, "rising");
-  const set = sunCrossing(daylight, SUNRISE_ALTITUDE, "setting");
-  return [
-    ...(rise === null ? [] : [{ minute: rise, word: "Sunrise" as const }]),
-    ...(set === null ? [] : [{ minute: set, word: "Sunset" as const }]),
-  ];
+  return tableOf(daylight).suns;
 }
 
 /** The rail down a stretch of the day, as tall as the row it stands beside. */
