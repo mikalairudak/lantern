@@ -2,7 +2,7 @@ import type { IndexPicture } from "./index-pictures";
 
 /**
  * Each city's engraving, by its day's slug: its two layers' boxes on the field and their files in
- * `public/pictures/`. Written from the pictures' recipe, outside the repository, with the files.
+ * `public/pictures/`. Each box is measured from its file, and a file's name ends in a hash of its bytes.
  */
 export const INDEX_PICTURES: Readonly<Record<string, IndexPicture>> = {
   paris: {
