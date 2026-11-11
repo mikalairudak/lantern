@@ -30,11 +30,22 @@ function isDayView(value: unknown): value is DayView {
   return value === "chart" || value === "read";
 }
 
+/** The view kept in storage, or the one a day opens on where none is kept. */
+function storedViewOf(stored: string | null, isPlanFirst: boolean): DayView {
+  if (isDayView(stored)) return stored;
+  return isPlanFirst ? "read" : "chart";
+}
+
 /**
- * Run in `<head>` before the page paints: the stored view, or the chart, on `<html>`.
- * Storage can be unavailable, as in a private window, and the page then shows the chart.
+ * Run in `<head>` before the page paints: the stored view on `<html>`, or where none is stored
+ * the chart, or under the first impression the plan (`src/lib/first-impression.ts`). Storage can
+ * be unavailable, as in a private window, and the page then shows the view a day opens on.
  */
-export const DAY_VIEW_SCRIPT = `(function(){var v="chart";try{if(localStorage.getItem(${JSON.stringify(DAY_VIEW_STORAGE_KEY)})==="read")v="read"}catch(e){}document.documentElement.setAttribute(${JSON.stringify(DAY_VIEW_ATTRIBUTE)},v)})()`;
+export function dayViewScriptOf(isPlanFirst: boolean): string {
+  const key = JSON.stringify(DAY_VIEW_STORAGE_KEY);
+  const first = JSON.stringify(isPlanFirst ? "read" : "chart");
+  return `(function(){var v=${first};try{var s=localStorage.getItem(${key});if(s==="read"||s==="chart")v=s}catch(e){}document.documentElement.setAttribute(${JSON.stringify(DAY_VIEW_ATTRIBUTE)},v)})()`;
+}
 
 /** The view the page shows: what `<html>` carries, the list where nothing set it. */
 export function readDayView(): DayView {
@@ -55,25 +66,25 @@ export function serverDayView(): DayView {
  * Sets the stored view on `<html>` where the head script has not run, as on a page React
  * drew in the browser, where no script it draws runs.
  */
-export function restoreDayView(): void {
+export function restoreDayView(isPlanFirst = false): void {
   const root = document.documentElement;
   if (root.hasAttribute(DAY_VIEW_ATTRIBUTE)) return;
-  let view: DayView = "chart";
+  let stored: string | null = null;
   try {
-    if (localStorage.getItem(DAY_VIEW_STORAGE_KEY) === "read") view = "read";
+    stored = localStorage.getItem(DAY_VIEW_STORAGE_KEY);
   } catch {
-    // Without storage the page shows the chart, as the head script does.
+    // Without storage the page shows the view a day opens on, as the head script does.
   }
-  root.setAttribute(DAY_VIEW_ATTRIBUTE, view);
+  root.setAttribute(DAY_VIEW_ATTRIBUTE, storedViewOf(stored, isPlanFirst));
   window.dispatchEvent(new Event(DAY_VIEW_EVENT));
 }
 
 /** Shows a view at once, keeps it for the next visit, and tells every switch on the page. */
 export function applyDayView(view: DayView): void {
   document.documentElement.setAttribute(DAY_VIEW_ATTRIBUTE, view);
+  // Kept by its value, the chart's too, so a choice holds whichever view a day opens on.
   try {
-    if (view === "chart") localStorage.removeItem(DAY_VIEW_STORAGE_KEY);
-    else localStorage.setItem(DAY_VIEW_STORAGE_KEY, view);
+    localStorage.setItem(DAY_VIEW_STORAGE_KEY, view);
   } catch {
     // Without storage the view holds for this page only.
   }
@@ -86,7 +97,9 @@ export function subscribeDayView(onChange: () => void): () => void {
     if (event.key !== null && event.key !== DAY_VIEW_STORAGE_KEY) return;
     document.documentElement.setAttribute(
       DAY_VIEW_ATTRIBUTE,
-      event.newValue === "read" ? "read" : "chart",
+      // A choice cleared, as a browser's own storage was before the chart was kept by its value,
+      // reads as the chart.
+      storedViewOf(event.newValue, false),
     );
     onChange();
   };

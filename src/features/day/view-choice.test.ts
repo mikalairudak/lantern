@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DAY_VIEW_ATTRIBUTE,
-  DAY_VIEW_SCRIPT,
+  dayViewScriptOf,
   DAY_VIEW_STORAGE_KEY,
   applyDayView,
   readDayView,
@@ -21,11 +21,11 @@ describe("the day's view", () => {
   });
 
   it("is the chart from the head script, unless the visitor chose the list", () => {
-    new Function(DAY_VIEW_SCRIPT)();
+    new Function(dayViewScriptOf(false))();
     expect(readDayView()).toBe("chart");
 
     localStorage.setItem(DAY_VIEW_STORAGE_KEY, "read");
-    new Function(DAY_VIEW_SCRIPT)();
+    new Function(dayViewScriptOf(false))();
     expect(readDayView()).toBe("read");
   });
 
@@ -37,8 +37,36 @@ describe("the day's view", () => {
     expect(readDayView()).toBe("read");
     expect(localStorage.getItem(DAY_VIEW_STORAGE_KEY)).toBe("read");
     applyDayView("chart");
-    expect(localStorage.getItem(DAY_VIEW_STORAGE_KEY)).toBeNull();
+    // Kept by its value, so it holds whichever view a day opens on.
+    expect(localStorage.getItem(DAY_VIEW_STORAGE_KEY)).toBe("chart");
     expect(onChange).toHaveBeenCalledTimes(2);
+    stop();
+  });
+
+  it("opens a day on its plan under the first impression, unless the visitor chose the chart", () => {
+    new Function(dayViewScriptOf(true))();
+    expect(readDayView()).toBe("read");
+
+    localStorage.setItem(DAY_VIEW_STORAGE_KEY, "chart");
+    new Function(dayViewScriptOf(true))();
+    expect(readDayView()).toBe("chart");
+
+    document.documentElement.removeAttribute(DAY_VIEW_ATTRIBUTE);
+    localStorage.clear();
+    restoreDayView(true);
+    expect(readDayView()).toBe("read");
+  });
+
+  it("reads a choice cleared in another tab as the chart, as storage before the chart was kept", () => {
+    const stop = subscribeDayView(() => undefined);
+    window.dispatchEvent(
+      new StorageEvent("storage", { key: DAY_VIEW_STORAGE_KEY, newValue: null }),
+    );
+    expect(readDayView()).toBe("chart");
+    window.dispatchEvent(
+      new StorageEvent("storage", { key: DAY_VIEW_STORAGE_KEY, newValue: "read" }),
+    );
+    expect(readDayView()).toBe("read");
     stop();
   });
 

@@ -33,7 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         {/* A stored theme is on <html> before the first paint, so no frame shows another. */}
         <ThemeScript />
-        <DayViewScript />
+        <DayViewScript isPlanFirst={isFirstImpression(process.env)} />
       </head>
       <body className={BODY_CLASSES}>
         <BrowserTextSize />
