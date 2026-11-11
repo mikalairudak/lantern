@@ -1,4 +1,10 @@
-import { expect, test, type Page, waitMs } from "./fixtures";
+import { expect, test, type Page, waitMs, chooseTheChart } from "./fixtures";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 /**
  * The page grows on a large screen: from 1440 px wide the root's size grows with the

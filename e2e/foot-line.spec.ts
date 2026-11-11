@@ -5,11 +5,10 @@ const DAY_TIMEOUT_MS = waitMs(30_000);
 const PHONE = { width: 390, height: 844 };
 const LAPTOP = { width: 1440, height: 900 };
 /**
- * The short pages, each on a screen taller than it. Since the six quick starts the start
- * screen is taller than a phone's, so it is short on a laptop alone.
+ * The short pages, each on a screen taller than it. With its index and a day's first stops the
+ * start screen is taller than a laptop's, so the page for no day is the short one.
  */
 const SHORT_PAGES = [
-  { address: "/", screen: LAPTOP },
   { address: "/nope", screen: PHONE },
   { address: "/nope", screen: LAPTOP },
 ];
@@ -60,8 +59,9 @@ for (const screen of [PHONE, LAPTOP]) {
     );
 
     const privacy = foot.getByRole("link", { name: "Privacy and terms" });
-    // The day's end's last way, after the masthead's own.
-    const end = page.getByRole("button", { name: "Plan another day" }).last();
+    // The day's end's last line, its one question.
+    const end = page.getByRole("button", { name: "Not quite" });
+    await expect(end).toBeVisible({ timeout: DAY_TIMEOUT_MS });
     const [creditBox, privacyBox, footBox, endBox] = await Promise.all([
       credit.boundingBox(),
       privacy.boundingBox(),

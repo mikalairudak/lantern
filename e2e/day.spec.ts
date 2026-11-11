@@ -1,6 +1,12 @@
 import { dayAddressOf } from "../src/lib/days/address";
 import { START_DAYS } from "../src/lib/days/written/start-days";
-import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs, chooseTheChart } from "./fixtures";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 /** The route lands a written day in about twelve seconds; a cold server adds a few. */
 const DAY_TIMEOUT_MS = waitMs(30_000);
@@ -386,7 +392,7 @@ test("a day's page ends with its sources, crediting OpenStreetMap in the page's 
 /** How far past its words a small link still takes a press. */
 const TARGET_REACH_PX = 6;
 
-test("the masthead's action and the foot's credit take a press a little past their words", async ({
+test("the day's end answer and the foot's credit take a press a little past their words", async ({
   page,
   isMobile,
 }) => {
@@ -395,7 +401,7 @@ test("the masthead's action and the foot's credit take a press a little past the
   const credit = page.getByRole("link", { name: "© OpenStreetMap contributors" });
   await expect(credit).toBeAttached({ timeout: DAY_TIMEOUT_MS });
 
-  for (const target of [page.getByRole("button", { name: "Plan another day" }).first(), credit]) {
+  for (const target of [page.getByRole("button", { name: "Yes" }), credit]) {
     // In the middle of the screen, so every side's probe is inside it.
     await target.evaluate((element) => element.scrollIntoView({ block: "center" }));
     const reached = await target.evaluate((element, reach) => {

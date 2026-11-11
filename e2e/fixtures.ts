@@ -1,4 +1,4 @@
-import { test as base } from "@playwright/test";
+import { test as base, type Page } from "@playwright/test";
 
 export * from "@playwright/test";
 export { waitMs } from "./ci-wait";
@@ -19,6 +19,24 @@ function cpuRateOf(value: string | undefined): number {
     throw new Error(`E2E_CPU_RATE is "${value}": give how many times slower to run, 1 or more.`);
   }
   return rate;
+}
+
+/** Where a day's page keeps the view the visitor chose (`src/lib/browser-storage.ts`). */
+const DAY_VIEW_KEY = "lantern-day-view";
+
+/**
+ * Opens the test's pages as a visitor who once chose the chart, for the specs that drive the
+ * chart's own gestures and frames: a day opens on its plan otherwise. A view the test chooses
+ * after stands, as the visitor's own choice would.
+ */
+export async function chooseTheChart(page: Page): Promise<void> {
+  await page.addInitScript((key) => {
+    try {
+      if (localStorage.getItem(key) === null) localStorage.setItem(key, "chart");
+    } catch {
+      // A page without storage opens on the plan.
+    }
+  }, DAY_VIEW_KEY);
 }
 
 /** The product's events route, which a page posts to as the visitor plays days. */

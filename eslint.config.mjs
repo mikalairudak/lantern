@@ -215,7 +215,7 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     ".next-e2e/**",
-    // The first impression's e2e server, with its flag on.
+    // A build directory of an e2e server the run no longer starts, which a checkout may still hold.
     ".next-e2e-fi/**",
     // `pnpm build:check`'s production build, apart from the dev server's `.next`.
     ".next-build/**",

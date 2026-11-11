@@ -10,8 +10,8 @@ const STEP_FRAMES = 2;
 const STILL_PX = 0.5;
 const TALL_LAPTOP = { width: 1440, height: 900 };
 const PHONE = { width: 390, height: 844 };
-/** What the start screen says over the cities Lantern has written. */
-const WRITTEN_HEADING = "Or watch Lantern write a day it knows";
+/** What the start screen says over its index of the days Lantern has written. */
+const INDEX_LABEL = "No city in mind? Start from one of these";
 /** A fade seen as one: the notice's opacity passes through at least this many values. */
 const FADE_VALUES = 3;
 /**
@@ -296,7 +296,7 @@ async function expectFocusMovesOnce(
 
 /** A place on the day, which shows its name on the chart and in the list. */
 function place(page: Page, name: string) {
-  return page.getByText(name, { exact: true }).first();
+  return page.getByText(name, { exact: true }).filter({ visible: true }).first();
 }
 
 async function openStart(page: Page): Promise<void> {
@@ -304,13 +304,14 @@ async function openStart(page: Page): Promise<void> {
   await page.goto(URL);
 }
 
-/** The cities Lantern has written, as words under the question. */
+/** The cities Lantern has written, as the index under the question. */
 function writtenCities(page: Page) {
-  return page.getByRole("list", { name: WRITTEN_HEADING });
+  return page.getByRole("list", { name: INDEX_LABEL });
 }
 
+/** A city's cell in the index, named by its city and its day in a few words. */
 function cityWord(page: Page, city: string) {
-  return writtenCities(page).getByRole("button", { name: new RegExp(` in ${city}[,.]`) });
+  return writtenCities(page).getByRole("button", { name: new RegExp(`^${city} `) });
 }
 
 /** The lab's days at a warm live start's pace, so a day on its way stays on its way for the hold. */
@@ -331,19 +332,19 @@ test("asks one question over the cities Lantern has written, with no day on scre
   await expect(page.getByRole("textbox", { name: "Where, and anything else" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Plan this day" })).toBeVisible();
   await expect(writtenCities(page).getByRole("button")).toHaveText([
-    /^A lively Saturday in Bologna, with friends\.\s*Italy$/,
-    /^A calm Sunday in Porto, slow morning\.\s*Portugal$/,
-    /^A calm Saturday in Kanazawa, early start\.\s*Japan$/,
-    /^A lively Saturday in Madrid, out late, with friends\.\s*Spain$/,
-    /^A balanced Sunday in Utrecht, with family\.\s*Netherlands$/,
-    /^A quiet Saturday in Nafplio, slow morning\.\s*Greece$/,
+    /^Bologna\s/,
+    /^Porto\s/,
+    /^Kanazawa\s/,
+    /^Madrid\s/,
+    /^Utrecht\s/,
+    /^Nafplio\s/,
   ]);
   // No day, no chart and no stream until the visitor asks.
   await expect(page.locator('svg[role="group"]')).toHaveCount(0);
   await expect(page.getByRole("list", { name: "The day" })).toHaveCount(0);
 });
 
-test("a city's word writes its day where the question was, and the day's city word takes the focus", async ({
+test("a city's cell writes its day where the question was, and the day's city word takes the focus", async ({
   page,
 }) => {
   await openStart(page);

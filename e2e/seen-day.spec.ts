@@ -102,12 +102,19 @@ test.describe("with motion", () => {
   test.use({ reducedMotion: "no-preference" });
 
   test(
-    "a day watched to its end on the chart opens whole as a list from another city, and after a reload",
+    "a day watched to its end on the chart opens whole on its plan from another city, and after a reload",
     { tag: "@frame" },
     async ({ page }) => {
       test.setTimeout(4 * DAY_TIMEOUT_MS);
       // The owner's words: a day opened on the chart and played to its end, another day, the
       // list chosen there, and back to the first day: no playing.
+      // The chart chosen once, before the first day: a day opens on its plan otherwise.
+      await page.addInitScript(() => {
+        if (sessionStorage.getItem("chosen") === null) {
+          localStorage.setItem("lantern-day-view", "chart");
+        }
+        sessionStorage.setItem("chosen", "yes");
+      });
       await page.goto("/day/bologna");
       await waitForTheDay(page);
 
@@ -116,7 +123,7 @@ test.describe("with motion", () => {
       await page.getByRole("button", { name: /^Porto/ }).click();
       await expect(headline).toContainText("Porto");
       await waitForTheDay(page);
-      await page.getByRole("group", { name: "View" }).getByRole("button", { name: "Read" }).click();
+      await page.getByRole("group", { name: "View" }).getByRole("button", { name: "Plan" }).click();
 
       // Back to Bologna: its list whole, not one frame of the pen.
       await page.evaluate(sampleTheList);

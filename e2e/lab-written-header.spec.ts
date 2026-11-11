@@ -36,7 +36,7 @@ test("says busy over a written day and not yet over any other when nothing came"
     .locator("section")
     .filter({ has: page.getByRole("heading", { level: 2, name: /^unavailable: / }) });
 
-  const notices = unavailable.locator('[data-theme="light"] [role="status"]');
+  const notices = unavailable.locator('[data-theme="light"] p[role="status"]');
   // Kanazawa's is a written day; Lisbon's, written by hand, is no day of the site's.
   await expect(notices).toHaveText([
     "Lantern couldn't write this day just now. Write it again",

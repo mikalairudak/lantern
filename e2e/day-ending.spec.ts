@@ -1,4 +1,18 @@
-import { CPU_RATE, expect, test, type Locator, type Page, waitMs } from "./fixtures";
+import {
+  CPU_RATE,
+  expect,
+  test,
+  type Locator,
+  type Page,
+  waitMs,
+  chooseTheChart,
+} from "./fixtures";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 /**
  * How a day with a chart on screen leaves when its stream ends without one: the chart and
