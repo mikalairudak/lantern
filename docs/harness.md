@@ -19,7 +19,7 @@ The layers overlap on purpose. The quality checks are the eval's measures and th
 | ---------------------------- | -------------------------------------------------------------- | --------------------------------------------------------- |
 | `pnpm check`                 | Format, lint, types, about 6,300 unit tests in 275 files       | Every commit, and in CI                                   |
 | `pnpm build:check`           | A page the production build or its first request refuses       | Before a merge, and in CI                                 |
-| `pnpm e2e`                   | 722 tests in 44 specs, on a laptop and a phone, frame by frame | Pull requests and pushes to `main`; before UI work merges |
+| `pnpm e2e`                   | 724 tests in 44 specs, on a laptop and a phone, frame by frame | Before UI work merges; CI: "Continuous integration" below |
 | `pnpm e2e:busy`              | Faults of frame order that a busy machine brings               | Before a frame-by-frame spec lands                        |
 | `pnpm e2e:replan-pace`       | The re-plan's story at production's pace                       | Before a re-plan change merges                            |
 | `pnpm e2e:visual`            | A changed pixel in any `/lab` matrix cell, both themes         | Before UI work merges                                     |
@@ -35,7 +35,24 @@ The layers overlap on purpose. The quality checks are the eval's measures and th
 
 `.githooks/pre-commit` runs `pnpm check`: Prettier, ESLint, the typecheck, and Vitest with coverage held at 80% of lines, functions, branches and statements. Route handlers are left out of coverage and covered by e2e. `pre-merge-commit` runs the same gate, since a clean merge skips `pre-commit`. Nobody commits with `--no-verify`. A SessionStart hook puts the project's Node first on the PATH, because every new agent session otherwise started on an older Node with no `pnpm`.
 
-A `commit-msg` hook (`scripts/check-commit-message.mts`) holds a commit's message to the rules `src/lib/repo-hygiene.test.ts` holds the files to (`CLAUDE.md`, "Everything committed is public"), and `.github/workflows/pr-text.yml` holds the branch name, title and body of each pull request into `develop` to them (`scripts/check-pr-text.mts`), the body to the five sections of `.github/pull_request_template.md` too. CI (`.github/workflows/ci.yml`) runs `pnpm check` and `pnpm build:check` on every push to `develop` or `main` and every pull request, and `pnpm e2e` on pull requests, on pushes to `main`, which take only releases, and by hand. It holds no secrets: no test calls a live service.
+A `commit-msg` hook (`scripts/check-commit-message.mts`) holds a commit's message to the rules `src/lib/repo-hygiene.test.ts` holds the files to (`CLAUDE.md`, "Everything committed is public"), and `.github/workflows/pr-text.yml` holds the branch name, title and body of each pull request into `develop` to them (`scripts/check-pr-text.mts`), the body to the five sections of `.github/pull_request_template.md` too.
+
+### Continuous integration
+
+`.github/workflows/ci.yml` holds no secrets: no test calls a live service. Its jobs, as their checks are named:
+
+| Check              | Runs                                                             | When                                                                   |
+| ------------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Check              | `pnpm check` and `pnpm build:check`                              | Every push to `develop` or `main`, every pull request                  |
+| PR text / Text     | The branch name, title and body (`pr-text.yml`)                  | Pull requests into `develop`, and each text edit                       |
+| Detect changes     | Which paths a pull request changes, against its base             | Pull requests, pushes to `main`, by hand                               |
+| E2E 1/4 to E2E 4/4 | `pnpm e2e` without the `@frame` tests, a quarter each, one retry | When Detect changes finds a path that is not inert, on `main`, by hand |
+| E2E result         | Passes when every shard passed, or none was needed               | With the shards                                                        |
+| E2E frames         | The `@frame` tests alone, with no retry                          | Pushes to `main`, by hand                                              |
+
+A pull request needs Check, PR text / Text and E2E result. E2E result fails when Detect changes did not succeed or a shard failed or was cancelled. A path is inert when no page, route or e2e test reads it: `docs/`, the Markdown at the root, `.claude/`, `.githooks/`, `.github/pull_request_template.md`, `.github/workflows/pr-text.yml`, `scripts/check-*.mts` and `e2e/visual/`. A pull request that changes only inert paths skips the e2e; any other path runs it, the workflow, `playwright.config.ts`, `package.json` and the lockfile among them. The unit tests that read the docs and the template run in Check, which every pull request runs. A push to `develop` runs Check alone, since its pull request ran the rest.
+
+On CI, Playwright retries a test once, and every wait is twice the laptop's: Playwright's defaults for a test and an `expect`, and each limit a spec sets, through `waitMs` (`e2e/ci-wait.ts`). Limits set at the laptop's measure ran out on CI's runner while the page was still at work, a day still streaming at 30 s and the stop row's matrix not drawn at 20 s. Before the first test, `e2e/warm-up.ts` asks the dev server for each route the specs open, one after another, about 9 s from a cold start on the laptop, so no test pays for a first compile. Not all at once: from a cold start, pages compiled at the same moment answered 500 in one of three runs. A shard uploads its report only when it fails. On one runner the whole suite did not finish in 60 minutes, which is why it is split in four, and four tests that sample frames failed in its first run, which is why those run apart.
 
 ### Lint and tokens
 
@@ -53,6 +70,8 @@ A unit test that asserts a moment inside a Motion animation, a sheet still rolli
 ### End-to-end
 
 `pnpm e2e` runs Chromium as a laptop and as a phone against its own server (port 3417, `.next-e2e`), with live generation off: days stream from fixtures at a live model's uneven pace. Many specs read the page on every animation frame and hold rules about motion, such as "no row moves more than 3 px a frame". A spec that fails in two full runs in a row is not called flaky until it passes alone with `--workers=1`.
+
+**What earns `@frame`.** A test carries Playwright's `@frame` tag (`{ tag: "@frame" }` on the test or its `describe`) when its assertion rests on frames sampled from the page: a bound every frame keeps, what the first frame draws, or a change that must land in one frame. 196 of the 724 tests carry it. A frame read only to wait for the page to rest does not earn it. Nor does a test about a slow server's answer that also reads frames: it stays on every pull request (`e2e/replan.spec.ts`, the first day that comes back empty). A shared runner drops frames a laptop draws, so these tests run in CI on pushes to `main` and by hand, in E2E frames, which no pull request needs. The laptop still runs the whole `pnpm e2e`, the `@frame` tests among them, before UI work merges, with `pnpm e2e:busy` before a frame-by-frame spec lands and `pnpm e2e:visual` (`CLAUDE.md`, "Definition of done"). `pnpm e2e --list --grep @frame` lists them.
 
 ### Test harness: a busy machine on demand
 

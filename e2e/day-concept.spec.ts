@@ -1,8 +1,8 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, type Page, waitMs } from "./fixtures";
 
 const URL = "/lab/concepts/day";
 /** The route lands a written day in about twelve seconds; a cold dev server adds a few. */
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 const NOT_YET = "Lantern isn't writing new days right now. These are written:";
 
 /** What each family of endings says over a day, the retry's words included. */

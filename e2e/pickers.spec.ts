@@ -1,9 +1,9 @@
-import { expect, test, type Locator, type Page } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
 
 /** The route lands a written day in about twelve seconds; a cold dev server adds a few. */
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 /** The day, its invitation and five reopenings, on a dev server that compiles. */
-const TEST_TIMEOUT_MS = 60_000;
+const TEST_TIMEOUT_MS = waitMs(60_000);
 /** How long a list's height must hold to count as unfolded. */
 const UNFOLD_STEP_MS = 150;
 /**
@@ -166,44 +166,46 @@ const OPENERS = [
 ];
 
 for (const opener of OPENERS) {
-  test(`${opener.name} stays where it is while its list opens, the list inside the page`, async ({
-    page,
-  }) => {
-    const trigger = opener.find(page);
-    // Read in the page, frame by frame, from the press to the list at rest.
-    const { moves, edges, width } = await trigger.evaluate(async (element, openingMs) => {
-      const boxOf = (each: Element) => each.getBoundingClientRect();
-      const closed = boxOf(element);
-      const seen: { moves: number[]; edges: { left: number; right: number }[] } = {
-        moves: [],
-        edges: [],
-      };
-      (element as HTMLElement).click();
-      const start = performance.now();
-      while (performance.now() - start < openingMs) {
-        await new Promise((resolve) => requestAnimationFrame(resolve));
-        const now = boxOf(element);
-        seen.moves.push(
-          Math.max(
-            Math.abs(now.x - closed.x),
-            Math.abs(now.y - closed.y),
-            Math.abs(now.width - closed.width),
-            Math.abs(now.height - closed.height),
-          ),
-        );
-        const list = document.querySelector("[data-word-list]");
-        if (list) seen.edges.push({ left: boxOf(list).left, right: boxOf(list).right });
-      }
-      return { ...seen, width: document.documentElement.clientWidth };
-    }, OPENING_MS);
+  test(
+    `${opener.name} stays where it is while its list opens, the list inside the page`,
+    { tag: "@frame" },
+    async ({ page }) => {
+      const trigger = opener.find(page);
+      // Read in the page, frame by frame, from the press to the list at rest.
+      const { moves, edges, width } = await trigger.evaluate(async (element, openingMs) => {
+        const boxOf = (each: Element) => each.getBoundingClientRect();
+        const closed = boxOf(element);
+        const seen: { moves: number[]; edges: { left: number; right: number }[] } = {
+          moves: [],
+          edges: [],
+        };
+        (element as HTMLElement).click();
+        const start = performance.now();
+        while (performance.now() - start < openingMs) {
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+          const now = boxOf(element);
+          seen.moves.push(
+            Math.max(
+              Math.abs(now.x - closed.x),
+              Math.abs(now.y - closed.y),
+              Math.abs(now.width - closed.width),
+              Math.abs(now.height - closed.height),
+            ),
+          );
+          const list = document.querySelector("[data-word-list]");
+          if (list) seen.edges.push({ left: boxOf(list).left, right: boxOf(list).right });
+        }
+        return { ...seen, width: document.documentElement.clientWidth };
+      }, OPENING_MS);
 
-    // The word is never drawn again over itself, so not one frame moves it.
-    expect(Math.max(...moves)).toBe(0);
-    expect(edges.length).toBeGreaterThan(0);
-    const last = edges.at(-1);
-    expect(last?.left).toBeGreaterThanOrEqual(LIST_GUTTER);
-    expect(last?.right).toBeLessThanOrEqual(width - LIST_GUTTER);
-  });
+      // The word is never drawn again over itself, so not one frame moves it.
+      expect(Math.max(...moves)).toBe(0);
+      expect(edges.length).toBeGreaterThan(0);
+      const last = edges.at(-1);
+      expect(last?.left).toBeGreaterThanOrEqual(LIST_GUTTER);
+      expect(last?.right).toBeLessThanOrEqual(width - LIST_GUTTER);
+    },
+  );
 }
 
 test("the theme's list hangs under its icon, its right edge on the masthead's", async ({

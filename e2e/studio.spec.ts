@@ -1,6 +1,6 @@
 import { readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
-import { expect, request as requests, test, type APIRequestContext } from "./fixtures";
+import { expect, request as requests, test, type APIRequestContext, waitMs } from "./fixtures";
 import { E2E_STUDIO_LOGIN } from "./studio-login";
 
 // The studio and the lab are the owner's alone: every path of theirs asks for the password, and no
@@ -94,7 +94,7 @@ async function expectLocked(client: APIRequestContext, path: string): Promise<st
 test("every page of the studio and the lab asks for the password, and opens with it", async ({
   baseURL,
 }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(waitMs(240_000));
   const client = await withoutLogin(baseURL);
   const fixed = ROUTES.filter((route) => !route.includes("["));
   expect(fixed).toEqual(expect.arrayContaining(["/studio", "/lab", "/lab/stream"]));
@@ -152,7 +152,7 @@ test("a name of the studio written with escapes is not found, password or none",
 });
 
 test("no page of the public site leads to the studio or the lab", async ({ page, baseURL }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(waitMs(90_000));
   const client = await withoutLogin(baseURL);
   for (const address of [
     "/",

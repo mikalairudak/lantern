@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures";
+import { expect, test, waitMs } from "./fixtures";
 
 /**
  * A fork's Compare draws the version not taken beside the day again (`docs/decisions.md`, "A
@@ -12,8 +12,8 @@ import { expect, test } from "./fixtures";
 const BENCH = "/lab/concepts/replan";
 const PHONE = { width: 390, height: 664 };
 /** The bench's day, the page and its proposal, at the live pace: about 35 s in all. */
-const STORY_TIMEOUT_MS = 120_000;
-const DAY_TIMEOUT_MS = 60_000;
+const STORY_TIMEOUT_MS = waitMs(120_000);
+const DAY_TIMEOUT_MS = waitMs(60_000);
 /** Long enough for Compare's rows to come to rest, and the wires with them. */
 const COMPARE_WATCHED_MS = 5000;
 
@@ -53,60 +53,67 @@ function sampleTheRings(): void {
   requestAnimationFrame(sample);
 }
 
-test("Compare draws the version not taken with its wire and ring under its own words, never across another row's", async ({
-  page,
-}) => {
-  test.setTimeout(STORY_TIMEOUT_MS);
-  await page.setViewportSize(PHONE);
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  await page.goto(BENCH);
-  const controls = page.getByRole("complementary", { name: "Lab controls" });
-  await controls.getByRole("button", { name: "Re-plan" }).click();
-  await controls.getByRole("group", { name: "Day" }).getByRole("button", { name: "Elche" }).click();
-  await controls.getByRole("button", { name: "Re-plan" }).click();
-  await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
-    "aria-busy",
-    "false",
-    { timeout: DAY_TIMEOUT_MS },
-  );
+test(
+  "Compare draws the version not taken with its wire and ring under its own words, never across another row's",
+  { tag: "@frame" },
+  async ({ page }) => {
+    test.setTimeout(STORY_TIMEOUT_MS);
+    await page.setViewportSize(PHONE);
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.goto(BENCH);
+    const controls = page.getByRole("complementary", { name: "Lab controls" });
+    await controls.getByRole("button", { name: "Re-plan" }).click();
+    await controls
+      .getByRole("group", { name: "Day" })
+      .getByRole("button", { name: "Elche" })
+      .click();
+    await controls.getByRole("button", { name: "Re-plan" }).click();
+    await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+      "aria-busy",
+      "false",
+      { timeout: DAY_TIMEOUT_MS },
+    );
 
-  await page
-    .getByRole("heading", { level: 1 })
-    .getByRole("button", { name: /^early dinner/ })
-    .click();
-  await page.getByRole("option", { name: /eating late/ }).click();
-  // Whole once the fork row says what it would change.
-  await expect(page.getByText(/, not \d\d:\d\d/).first()).toBeVisible({ timeout: DAY_TIMEOUT_MS });
-  await page
-    .getByRole("radio", { name: /eating late/ })
-    .first()
-    .click();
-  await expect(page.getByRole("button", { name: "Compare" }).first()).toBeVisible();
-  await page.evaluate(sampleTheRings);
-  await page.getByRole("button", { name: "Compare" }).first().click();
-  await page.waitForTimeout(COMPARE_WATCHED_MS);
+    await page
+      .getByRole("heading", { level: 1 })
+      .getByRole("button", { name: /^early dinner/ })
+      .click();
+    await page.getByRole("option", { name: /eating late/ }).click();
+    // Whole once the fork row says what it would change.
+    await expect(page.getByText(/, not \d\d:\d\d/).first()).toBeVisible({
+      timeout: DAY_TIMEOUT_MS,
+    });
+    await page
+      .getByRole("radio", { name: /eating late/ })
+      .first()
+      .click();
+    await expect(page.getByRole("button", { name: "Compare" }).first()).toBeVisible();
+    await page.evaluate(sampleTheRings);
+    await page.getByRole("button", { name: "Compare" }).first().click();
+    await page.waitForTimeout(COMPARE_WATCHED_MS);
 
-  const frames = await page.evaluate(
-    () =>
-      (
-        window as unknown as {
-          ringFrames: {
-            words: { top: number; bottom: number; isSeen: boolean }[];
-            rings: number[];
-          }[];
-        }
-      ).ringFrames,
-  );
-  expect(
-    frames.some(({ rings }) => rings.length > 0),
-    "the version compared was drawn",
-  ).toBe(true);
-  const across = frames.flatMap(({ words, rings }, at) =>
-    rings.flatMap((ring) =>
-      words.some(({ top, bottom, isSeen }) => isSeen && ring > top && ring < bottom)
-        ? [`frame ${at}: a ring at ${Math.round(ring)} px`]
-        : [],
-    ),
-  );
-  expect(across).toEqual([]);
-});
+    const frames = await page.evaluate(
+      () =>
+        (
+          window as unknown as {
+            ringFrames: {
+              words: { top: number; bottom: number; isSeen: boolean }[];
+              rings: number[];
+            }[];
+          }
+        ).ringFrames,
+    );
+    expect(
+      frames.some(({ rings }) => rings.length > 0),
+      "the version compared was drawn",
+    ).toBe(true);
+    const across = frames.flatMap(({ words, rings }, at) =>
+      rings.flatMap((ring) =>
+        words.some(({ top, bottom, isSeen }) => isSeen && ring > top && ring < bottom)
+          ? [`frame ${at}: a ring at ${Math.round(ring)} px`]
+          : [],
+      ),
+    );
+    expect(across).toEqual([]);
+  },
+);

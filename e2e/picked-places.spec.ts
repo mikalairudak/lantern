@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, type Page, waitMs } from "./fixtures";
 import { BROWSER_STORAGE } from "../src/lib/browser-storage";
 import { writtenVersionOf } from "../src/lib/days/written/version";
 import { ENERGY_LEVELS } from "../src/lib/schema/itinerary.schema";
@@ -7,7 +7,7 @@ import { writtenDayAt } from "../src/lib/days/written/days";
 // The places a visitor chose on a day are kept on this device, so the day opens as they left it; a
 // day rewritten in a later build opens as written, and nothing of it leaves the browser.
 
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 const PICKS_KEY = BROWSER_STORAGE.picks.key;
 const SEEN_KEY = BROWSER_STORAGE.seen.key;
 const KANAZAWA = writtenDayAt("kanazawa")!.itinerary;

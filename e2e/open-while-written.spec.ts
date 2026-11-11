@@ -1,9 +1,9 @@
-import { expect, test } from "./fixtures";
+import { expect, test, waitMs } from "./fixtures";
 
 /** Where a day is played at a live model's pace. */
 const BENCH = "/lab/concepts/day";
 /** A live model writes a stop in a few seconds; a cold dev server adds a few. */
-const STOP_TIMEOUT_MS = 30_000;
+const STOP_TIMEOUT_MS = waitMs(30_000);
 
 test.use({ reducedMotion: "reduce" });
 

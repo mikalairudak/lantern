@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, type Page, waitMs } from "./fixtures";
 
 /**
  * The product's events as the browser posts them (`docs/decisions.md`, "Product events are kept
@@ -7,7 +7,7 @@ import { expect, test, type Page } from "./fixtures";
  */
 
 /** The route lands a written day in about twelve seconds; a cold server adds a few. */
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 /** What the start screen says over the cities Lantern has written. */
 const WRITTEN_HEADING = "Or watch Lantern write a day it knows";
 
