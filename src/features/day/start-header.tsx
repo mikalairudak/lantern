@@ -24,7 +24,10 @@ import {
 import { unplacedLineOf } from "./start";
 import { LINK_CLASSES } from "./link-classes";
 import { AskedSentence } from "./asked-sentence";
+import { useFirstImpression } from "./first-impression";
 import { Masthead } from "./masthead";
+import type { StartExcerpt } from "./start-excerpt";
+import { StartExcerptView, StartIndex } from "./start-index";
 import { ShapeRow } from "./shape-row";
 import { YourDaysList, type YourDaysListProps } from "./your-days-list";
 import type { StartOffer } from "./start-offers";
@@ -39,6 +42,8 @@ export const PROMISE = SITE_DESCRIPTION;
 export const NOT_LIVE_NOTE = "Lantern isn't writing new days right now.";
 /** After a line that can write no day: the way on, to the written days' words below. */
 const TO_THE_WRITTEN = "Watch one it knows, below.";
+/** Under the first impression the way on is the index of days below the question. */
+const TO_THE_INDEX = "Start from one of the days below.";
 /** Under the field: a text that plays a written day just as it says, with nothing said back. */
 const EXAMPLE = "For example: Bologna, with friends";
 /** Under the field from the visitor's Enter, while Lantern reads their words. */
@@ -101,6 +106,8 @@ export interface StartHeaderProps {
   yourDays?: YourDaysListProps;
   /** Shown again by Back from a day: its headline takes the focus the day had. */
   isReturnedTo?: boolean;
+  /** Under the first impression, a written day's first stops, still, under the ways in. */
+  excerpt?: StartExcerpt | null;
 }
 
 /**
@@ -120,7 +127,9 @@ export function StartHeader({
   onChooseReading,
   yourDays,
   isReturnedTo = false,
+  excerpt = null,
 }: StartHeaderProps) {
+  const isIndex = useFirstImpression();
   const writtenHeading = useId();
   const promise = useRef<HTMLHeadingElement>(null);
   const startsList = useRef<HTMLUListElement>(null);
@@ -182,7 +191,13 @@ export function StartHeader({
       {yourDays && areStartsDrawn && <YourDaysList {...yourDays} onForget={forget} />}
       {/* A container, so the starts follow the room the header has, in a phone cell of the
           lab as on a phone; nothing set by the screen's width sits inside it. */}
-      {areStartsDrawn && (
+      {areStartsDrawn && isIndex && (
+        <>
+          <StartIndex starts={starts} onChoose={onChooseWritten} listRef={startsList} />
+          {excerpt && <StartExcerptView excerpt={excerpt} />}
+        </>
+      )}
+      {areStartsDrawn && !isIndex && (
         <div className="@container mt-12 flex flex-col gap-4">
           <p id={writtenHeading} className="type-note text-muted">
             {WRITTEN_HEADING}
@@ -479,6 +494,7 @@ function SaidLine({ className, children }: { className: string; children: ReactN
 
 /** Under the field: an example, or what Lantern made of the text. */
 function QuestionLine({ line, text, isLive, onChooseReading }: QuestionLineProps) {
+  const isIndex = useFirstImpression();
   if (line === null) {
     // At rest, the example takes the line's size, so the line takes its place as it is.
     return <SaidLine className="text-muted">{EXAMPLE}</SaidLine>;
@@ -522,7 +538,7 @@ function QuestionLine({ line, text, isLive, onChooseReading }: QuestionLineProps
   // The written days are offered once, as the words below, which this points to.
   return (
     <p role="status" className="mt-1 type-voice text-quote text-ink-soft">
-      {said} {TO_THE_WRITTEN}
+      {said} {isIndex ? TO_THE_INDEX : TO_THE_WRITTEN}
     </p>
   );
 }
