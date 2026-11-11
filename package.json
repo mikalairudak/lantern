@@ -21,6 +21,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:coverage",
+    "days:fresh": "vitest run --config vitest.days-fresh.config.mts",
     "db:migrate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/db-migrate.mts",
     "eval:live": "node --env-file-if-exists=.env.local node_modules/vitest/vitest.mjs run --config vitest.live-eval.config.mts",
     "eval:table": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/eval-table.mts",

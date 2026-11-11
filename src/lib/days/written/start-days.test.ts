@@ -10,31 +10,49 @@ import {
   shownRequestOf,
   writtenRequestOf,
 } from "./requests";
-import { shownWrittenDayAt, writtenDayAt, writtenDayFor, writtenDayOn } from "./days";
+import { shownWrittenDayAt, WRITTEN_DAYS, writtenDayAt, writtenDayFor, writtenDayOn } from "./days";
 import { daySlugOf } from "../address";
+import { dayOnDate } from "./freshness";
 import { KANAZAWA_START_REQUEST, QUICK_STARTS, START_REQUESTS } from "./quick-starts";
-import { START_DAYS } from "./start-days";
+import { isInSeason, type WrittenSeason } from "./seasons";
+import { dateAfter, isOnItsWeekday } from "./shown-date";
+import { START_DAYS, START_SEASONS } from "./start-days";
+
+const DAYS_PER_WEEK = 7;
+
+/** The dates of a season's weekday its range holds, from the first to the last. */
+function datesOf({ from, through, written }: WrittenSeason & { through: string }): string[] {
+  let first = written.request.date;
+  while (dateAfter(first, -DAYS_PER_WEEK) >= from) first = dateAfter(first, -DAYS_PER_WEEK);
+  const dates: string[] = [];
+  for (let date = first; date <= through; date = dateAfter(date, DAYS_PER_WEEK)) dates.push(date);
+  return dates;
+}
 
 // The starts open days the product wrote, kept as written: these hold that each is still a
-// day the app reads as it read it then, not that its words meet the voice's rubric.
-describe.each(START_DAYS)("the start day in $request.city", ({ request, day }) => {
-  it("answers a valid request", () => {
-    expect(DayRequestSchema.parse(request)).toEqual(request);
-  });
+// day the app reads as it read it then, not that its words meet the voice's rubric. Every
+// season of every city is one.
+describe.each(WRITTEN_DAYS)(
+  "the written day in $request.city on $request.date",
+  ({ request, day }) => {
+    it("answers a valid request", () => {
+      expect(DayRequestSchema.parse(request)).toEqual(request);
+    });
 
-  it("is exactly what the generation schema allows", () => {
-    expect(GeneratedDaySchema.parse(day)).toEqual(day);
-  });
+    it("is exactly what the generation schema allows", () => {
+      expect(GeneratedDaySchema.parse(day)).toEqual(day);
+    });
 
-  it("normalizes, as the route's day would", () => {
-    const normalized = normalizeDay(request, day);
-    expect(normalized.ok, normalized.ok ? "" : normalized.reason).toBe(true);
-  });
+    it("normalizes, as the route's day would", () => {
+      const normalized = normalizeDay(request, day);
+      expect(normalized.ok, normalized.ok ? "" : normalized.reason).toBe(true);
+    });
 
-  it("spells every letter as a letter, as the reader shows it", () => {
-    expect(escapedLettersIn(JSON.stringify(day))).toEqual([]);
-  });
-});
+    it("spells every letter as a letter, as the reader shows it", () => {
+      expect(escapedLettersIn(JSON.stringify(day))).toEqual([]);
+    });
+  },
+);
 
 describe("the quick starts", () => {
   it("offer the days in the order of the start days", () => {
@@ -87,6 +105,42 @@ describe("the written days", () => {
     expect(writtenDayFor(naples, new Date())).toBeNull();
   });
 });
+
+describe.each(QUICK_STARTS.map((start, index) => [start, START_SEASONS[index] ?? []] as const))(
+  "the seasons of $request.city",
+  (start, seasons) => {
+    it("begin with the start's own request", () => {
+      expect(seasons[0]?.written.request).toBe(start.request);
+    });
+
+    it("keep the start's words, weekday and first hour, which a page reads without the day", () => {
+      for (const { written } of seasons) {
+        expect(isOnItsWeekday(start.request, written.request)).toBe(true);
+        expect(written.day.stops[0]?.startTime).toBe(start.firstStart);
+      }
+    });
+
+    it("run oldest first, none overlapping, each holding the date its day was written for", () => {
+      seasons.forEach((season, index) => {
+        expect(isInSeason(season, season.written.request.date)).toBe(true);
+        const next = seasons[index + 1];
+        if (next === undefined) return;
+        expect(season.through).not.toBeNull();
+        expect(season.through! < next.from).toBe(true);
+      });
+    });
+
+    it("hold their day on every date of a closed range", () => {
+      for (const season of seasons) {
+        const { through } = season;
+        if (through === null) continue;
+        for (const date of datesOf({ ...season, through })) {
+          expect(dayOnDate(season.written, date).holds, date).toBe(true);
+        }
+      }
+    });
+  },
+);
 
 describe("a written day's date", () => {
   // Wednesday 11 November in Tokyo: Kanazawa's Saturday is the 14th.

@@ -8,14 +8,12 @@ import { dayAddressOf, daySlugOf } from "@/lib/days/address";
 import { KeptDayPage } from "@/features/day/kept-day-page";
 import { LiveFlag } from "@/features/day/live-flag";
 import { seenKeyOf, seenScriptOf } from "@/features/day/seen-days";
-import { writtenVersionOf } from "@/lib/days/written/version";
 import { InlineScript } from "@/components/ui/inline-script";
 import type { PlaceChecks } from "@/features/itinerary/use-day-stream";
-import { writtenChecksOf } from "@/lib/days/written/checks";
 import { placeCheckOf } from "@/lib/stream/place-checks";
 import { STILL_WRITING_TITLE } from "@/features/day/no-day-here";
 import { requestSentenceOf } from "@/features/day/sentence";
-import { shownWrittenDayAt, writtenDayAt, type NormalizedDay } from "@/lib/days/written/days";
+import { shownWrittenDayAt, type ShownDay } from "@/lib/days/written/days";
 import { isDayId, type StoredDay } from "@/lib/days/stored-day";
 import { WRITTEN_REQUESTS } from "@/lib/days/written/requests";
 import { isLiveNow } from "@/lib/live/live-now";
@@ -77,13 +75,14 @@ export async function generateMetadata({ params }: PageProps<"/day/[city]">): Pr
       robots: { index: false, follow: false },
     };
   }
-  const written = writtenDayAt(city);
-  if (!written) notFound();
+  // The season the page shows, so its line is the day's on screen.
+  const shown = await shownDayAt(city);
+  if (!shown) notFound();
   const summary = {
-    title: requestSentenceOf(written.request),
-    description: written.itinerary.dek,
+    title: requestSentenceOf(shown.request),
+    description: shown.itinerary.dek,
   };
-  return { ...summary, ...listedPageMetadata(dayAddressOf(written.request), summary) };
+  return { ...summary, ...listedPageMetadata(dayAddressOf(shown.request), summary) };
 }
 
 /**
@@ -112,12 +111,11 @@ export default async function WrittenDayPage({ params }: PageProps<"/day/[city]"
       </Suspense>
     );
   }
-  const written = writtenDayAt(city);
   const shown = await shownDayAt(city);
-  if (!written || !shown) notFound();
-  // The day's version, worked out from it as built: a day rewritten plays as new, and one
-  // whose date moved on is the same day.
-  const version = writtenVersionOf(written.itinerary);
+  if (!shown) notFound();
+  // The season's version, worked out from its day as built, as the route's: a day rewritten or
+  // a new season plays as new, and one whose date moved on within its season is the same day.
+  const { version } = shown;
   // The day holds its own main, with the page's last line after it.
   return (
     <>
@@ -130,7 +128,7 @@ export default async function WrittenDayPage({ params }: PageProps<"/day/[city]"
         written={{
           itinerary: shown.itinerary,
           version,
-          checks: placeChecksOf(written.request.city),
+          checks: placeChecksOf(shown.checks),
         }}
         isAddressed
         isCounted
@@ -149,12 +147,14 @@ const SHOWN_DAY_REVALIDATE_SECONDS = 15 * 60;
 const SHOWN_DAY_EXPIRE_SECONDS = 60 * 60;
 
 /**
- * A written day on the date it is shown on (`shownDateOf`), drawn into the page's first HTML
- * and drawn again within the hour: a page is at most an hour behind its date, which moves on
- * once a week. An `expire` under five minutes would take the day out of the prerender, and a
- * page read without its script would have nothing in it.
+ * A written day on the date it is shown on (`shownDateOf`), from the season that date picks
+ * (`seasonOn`), with that season's version and place checks: drawn into the page's first HTML
+ * and drawn again within the hour, so a page is at most an hour behind its date, which moves on
+ * once a week, and a new season comes in with no build. The clock is read here alone, so the
+ * page, its line and its version all name one season. An `expire` under five minutes would take
+ * the day out of the prerender, and a page read without its script would have nothing in it.
  */
-async function shownDayAt(slug: string): Promise<NormalizedDay | null> {
+async function shownDayAt(slug: string): Promise<ShownDay | null> {
   "use cache";
   cacheLife({
     stale: SHOWN_DAY_STALE_SECONDS,
@@ -165,8 +165,7 @@ async function shownDayAt(slug: string): Promise<NormalizedDay | null> {
 }
 
 /** A written day's place checks as the run that wrote it had them, as the route plays them. */
-function placeChecksOf(city: string): PlaceChecks {
-  const recorded = writtenChecksOf(city);
+function placeChecksOf(recorded: ShownDay["checks"]): PlaceChecks {
   return Object.fromEntries(
     Object.entries(recorded).map(([placeId, result]) => [placeId, placeCheckOf(placeId, result)]),
   );

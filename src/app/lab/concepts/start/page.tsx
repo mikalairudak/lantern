@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { writtenPool } from "@/features/day/written-pool";
+import { shownPool } from "@/features/day/written-pool";
 import { StartConcept } from "./start-concept";
 import { requireStudioLogin, studioMetadataOf } from "@/lib/http/studio-access";
 
@@ -16,5 +16,5 @@ export const instant = false;
 
 export default async function StartConceptPage() {
   await requireStudioLogin();
-  return <StartConcept pool={writtenPool()} />;
+  return <StartConcept pool={shownPool(new Date())} />;
 }

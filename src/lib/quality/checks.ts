@@ -613,7 +613,7 @@ function runningVisits(stops: GeneratedDay["stops"]): (MinuteSpan | null)[] {
 }
 
 /** Share of the stops with a best light window that are visited in it. */
-function checkLightSense(request: DayRequest, day: GeneratedDay): CheckResult {
+export function checkLightSense(request: DayRequest, day: GeneratedDay): CheckResult {
   const offset = utcOffsetMinutes(request.timezone, request.date);
   const visits = runningVisits(day.stops);
   const findings: string[] = [];

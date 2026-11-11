@@ -1,6 +1,5 @@
-import { writtenDayAt } from "@/lib/days/written/days";
+import { normalizedDayOf, writtenSeasonsAt } from "@/lib/days/written/days";
 import { DAY_LINK_DAYS, isDayId, type StoredDay } from "@/lib/days/stored-day";
-import { writtenChecksOf } from "@/lib/days/written/checks";
 import { normalizeDay } from "@/lib/normalizer/normalize";
 import { mergeReplan } from "@/lib/replan/merge";
 import { replanIdPrefix } from "@/lib/replan/request";
@@ -122,24 +121,22 @@ function placeNamesOf(itinerary: Itinerary): Map<string, string> {
 
 /**
  * The checks a written day's run recorded (`src/lib/days/written/checks.ts`), as its page
- * plays them, for the places of the day as a re-plan read it from its file. A place the file,
- * written again since, holds under another name at that id takes none: its check is another
- * place's.
+ * plays them, for the places of the day as a re-plan read it from its file, from the first of
+ * the city's seasons whose day holds that place under that name. A place no season's file, written
+ * again since, holds under that name at that id takes none: its check is another place's.
  */
 function writtenChecksFor(slug: string, read: Itinerary): Record<string, PlaceCheck> {
-  const written = writtenDayAt(slug);
-  if (written === null) return {};
-  const names = placeNamesOf(written.itinerary);
   const namesRead = placeNamesOf(read);
-  const recorded = Object.entries(writtenChecksOf(written.request.city));
-  return Object.fromEntries(
-    recorded.flatMap(([id, result]) => {
+  const found: Record<string, PlaceCheck> = {};
+  for (const { written, checks } of writtenSeasonsAt(slug) ?? []) {
+    const names = placeNamesOf(normalizedDayOf(written).itinerary);
+    for (const [id, result] of Object.entries(checks)) {
       const name = names.get(id);
-      return name !== undefined && name === namesRead.get(id)
-        ? [[id, placeCheckOf(id, result)]]
-        : [];
-    }),
-  );
+      const isSamePlace = name !== undefined && name === namesRead.get(id);
+      if (isSamePlace && found[id] === undefined) found[id] = placeCheckOf(id, result);
+    }
+  }
+  return found;
 }
 
 /**

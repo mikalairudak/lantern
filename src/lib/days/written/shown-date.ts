@@ -56,6 +56,16 @@ function dateOf(dayNumber: number): string {
   return new Date(dayNumber * MS_PER_DAY).toISOString().slice(0, 10);
 }
 
+/** The calendar date some days after another. */
+export function dateAfter(date: string, days: number): string {
+  return dateOf(dayNumberOf(date) + days);
+}
+
+/** How many days one calendar date stands after another. */
+export function daysFrom(from: string, to: string): number {
+  return dayNumberOf(to) - dayNumberOf(from);
+}
+
 /** A calendar date's weekday, Sunday 0. */
 function weekdayOf(date: string): number {
   return new Date(dayNumberOf(date) * MS_PER_DAY).getUTCDay();
