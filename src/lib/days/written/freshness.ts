@@ -86,10 +86,10 @@ export function dayOnDate(written: WrittenDay, date: string): DayOnDate {
 }
 
 /**
- * The last date, a week at a time from `from`, on which the day a city's page shows still
- * holds (`dayOnDate`), each date's day from the season it picks (`seasonOn`): the date before the
- * first one that fails, or the last of a year followed when none does. Null when the day fails
- * on `from` itself. `from` is a date its days are shown on.
+ * The last weekly date that holds: the day a city's page shows is sampled once a week from
+ * `from`, a date its days are shown on, each date's day from the season it picks (`seasonOn`),
+ * and this is the sampled date before the first on which it fails (`dayOnDate`), or the last of
+ * a year sampled when none does. Returns null when the day already fails on `from` itself.
  */
 export function freshUntil(seasons: readonly WrittenSeason[], from: string): string | null {
   let last: string | null = null;

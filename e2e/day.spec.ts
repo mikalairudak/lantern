@@ -243,6 +243,8 @@ test("the day's first address, which names no day, sends a visitor on to the sta
   await expect(page).toHaveURL(/\/$/);
 });
 
+const HTTP_NOT_FOUND = 404;
+
 /** The written days, as the not-found page offers them: the starts', each and its address. */
 const WRITTEN_DAYS = [
   {
@@ -273,10 +275,11 @@ const WRITTEN_DAYS = [
   },
 ];
 
-// Not by its status: a production server streams the first visit to an unlisted city from
-// the route's prerendered shell, so it answers 200 with `noindex`, and 404 after.
+// A 404 from the first visit: an address under /day that names no day is rewritten to no page
+// before the route could send its shell with a 200 (`notADaySource`).
 for (const [what, address] of [
   ["a city Lantern has not written", "/day/vienna"],
+  ["a city written with an accent", "/day/caf%C3%A9"],
   ["an address Lantern does not have", "/nope"],
   // The days written by hand are fixtures, no days of the site's (`docs/decisions.md`, "The public
   // site offers only days the product wrote").
@@ -285,9 +288,10 @@ for (const [what, address] of [
   ["Alicante's old address", "/day/alicante"],
 ] as const) {
   test(`${what} gets Lantern's page for no day, with the days it has written`, async ({ page }) => {
-    await page.goto(address);
+    const response = await page.goto(address);
     const main = page.getByRole("main");
 
+    expect(response?.status()).toBe(HTTP_NOT_FOUND);
     await expect(page).toHaveTitle("No day here · Lantern");
     await expect(main.getByRole("heading", { level: 1 })).toHaveText(
       "Lantern has no day at this address.",

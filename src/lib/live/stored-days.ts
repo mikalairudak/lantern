@@ -1,4 +1,5 @@
 import { normalizedDayOf, writtenSeasonsAt } from "@/lib/days/written/days";
+import { seasonOn } from "@/lib/days/written/seasons";
 import { DAY_LINK_DAYS, isDayId, type StoredDay } from "@/lib/days/stored-day";
 import { normalizeDay } from "@/lib/normalizer/normalize";
 import { mergeReplan } from "@/lib/replan/merge";
@@ -121,22 +122,25 @@ function placeNamesOf(itinerary: Itinerary): Map<string, string> {
 
 /**
  * The checks a written day's run recorded (`src/lib/days/written/checks.ts`), as its page
- * plays them, for the places of the day as a re-plan read it from its file, from the first of
- * the city's seasons whose day holds that place under that name. A place no season's file, written
- * again since, holds under that name at that id takes none: its check is another place's.
+ * plays them, for the places of the day as a re-plan read it from its file: the checks of the
+ * season the day's date picks, which is the season the re-plan read (`writtenDayOn`). A place
+ * that season's file, written again since, holds under another name at that id takes none: its
+ * check is another place's.
  */
 function writtenChecksFor(slug: string, read: Itinerary): Record<string, PlaceCheck> {
+  const seasons = writtenSeasonsAt(slug);
+  if (seasons === null) return {};
+  const { written, checks } = seasonOn(seasons, read.date);
+  const names = placeNamesOf(normalizedDayOf(written).itinerary);
   const namesRead = placeNamesOf(read);
-  const found: Record<string, PlaceCheck> = {};
-  for (const { written, checks } of writtenSeasonsAt(slug) ?? []) {
-    const names = placeNamesOf(normalizedDayOf(written).itinerary);
-    for (const [id, result] of Object.entries(checks)) {
+  return Object.fromEntries(
+    Object.entries(checks).flatMap(([id, result]) => {
       const name = names.get(id);
-      const isSamePlace = name !== undefined && name === namesRead.get(id);
-      if (isSamePlace && found[id] === undefined) found[id] = placeCheckOf(id, result);
-    }
-  }
-  return found;
+      return name !== undefined && name === namesRead.get(id)
+        ? [[id, placeCheckOf(id, result)]]
+        : [];
+    }),
+  );
 }
 
 /**
