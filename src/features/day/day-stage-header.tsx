@@ -963,6 +963,8 @@ export function DayStageHeader({
                   note: "Ask for a day somewhere else",
                   // It opens the city word at its field, locked while a re-plan is written.
                   onSelect: () => (isReplanWriting ? sayLocked() : onCityOpenChange("elsewhere")),
+                  isLocked: isReplanWriting,
+                  movesFocus: !isReplanWriting,
                   isApart: takeAlong.length > 0,
                 },
               ]}

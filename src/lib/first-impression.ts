@@ -1,6 +1,6 @@
 /**
- * The first impression's flag: the start screen as an index, the day opening on its plan, and
- * the masthead's day menu. Off unless `FIRST_IMPRESSION` is exactly "1", so production renders
+ * The first impression's flag: the masthead set as one group, and on a day the menu that holds
+ * the ways to take it along. Off unless `FIRST_IMPRESSION` is exactly "1", so production renders
  * as it does until the new look is whole. It is read where the page is rendered, as the root
  * layout reads it, so a prerendered page takes it at its build and a deploy turns it on.
  */

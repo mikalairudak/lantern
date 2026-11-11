@@ -22,6 +22,13 @@ export interface DayMenuItem {
   keepsOpen?: boolean;
   /** Set apart from the items above it by a rule. */
   isApart?: boolean;
+  /** Chosen, it moves the focus itself, as "Plan another day" opens the city's field. */
+  movesFocus?: boolean;
+  /**
+   * Locked for now, as "Plan another day" is while a re-plan is written: drawn as waiting and
+   * marked so, but chosen it still runs, to say why it is locked.
+   */
+  isLocked?: boolean;
   /** What a screen reader hears once it is chosen, as "The day's link is copied". */
   status?: string;
 }
@@ -122,13 +129,18 @@ export function DayMenu({
   const choose = (item: DayMenuItem) => {
     if (item.isDisabled) return;
     item.onSelect?.();
-    if (!item.keepsOpen) setIsOpen(false);
+    if (item.keepsOpen) return;
+    // The focus goes back to the button, unless the item has sent it somewhere on purpose.
+    if (item.movesFocus) setIsOpen(false);
+    else close();
   };
 
   const status = items.find((item) => item.status)?.status ?? "";
   return (
+    // The menu hangs from the masthead's row, which stands it inside the page's gutters at any
+    // width: from the button alone, at 360 px it ran 25 px off the screen's left edge.
     <span
-      className="relative inline-flex shrink-0"
+      className="inline-flex shrink-0"
       // The focus leaving the button and its menu, by Tab or otherwise, closes it.
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsOpen(false);
@@ -164,7 +176,7 @@ export function DayMenu({
           role="menu"
           aria-labelledby={buttonId}
           onKeyDown={onMenuKey}
-          className="absolute top-full right-0 z-30 mt-2 flex w-list flex-col rounded-md border border-line bg-surface p-1 text-left whitespace-normal"
+          className="absolute top-full right-0 z-30 mt-1 flex w-full max-w-intro flex-col rounded-md border border-line bg-surface p-1 text-left whitespace-normal"
         >
           {items.map((item) => (
             <div key={item.key} className={cn(item.isApart && "mt-1 border-t border-line pt-1")}>
@@ -185,7 +197,7 @@ export function DayMenu({
                   type="button"
                   role="menuitem"
                   tabIndex={-1}
-                  aria-disabled={item.isDisabled || undefined}
+                  aria-disabled={item.isDisabled || item.isLocked || undefined}
                   onClick={() => choose(item)}
                   className={ITEM_CLASSES}
                 >
@@ -203,7 +215,9 @@ export function DayMenu({
 function ItemWords({ item }: { item: DayMenuItem }) {
   return (
     <>
-      <span className={cn("text-body", item.isDisabled ? "text-muted" : "text-ink")}>
+      <span
+        className={cn("text-body", item.isDisabled || item.isLocked ? "text-muted" : "text-ink")}
+      >
         {item.label}
       </span>
       <span className="text-small text-muted">{item.note}</span>

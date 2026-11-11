@@ -5,6 +5,7 @@ import { CURATED_REQUESTS, KYOTO_REQUEST } from "@/lib/fixtures/curated/requests
 import { COPY_LINK, LINK_COPIED, LINK_NOT_COPIED } from "./day-export-words";
 import type { DayExports } from "./day-exports";
 import { DAY_END_EXAMPLES } from "./day-end-examples";
+import { DayEnd } from "./day-end-line";
 import { DayMenu, TAKE_THIS_DAY, type DayMenuItem } from "./day-menu";
 import { DayStageHeader } from "./day-stage-header";
 import { FirstImpressionProvider } from "./first-impression";
@@ -134,6 +135,35 @@ describe("the day menu", () => {
     await user.click(screen.getByRole("menuitem", { name: /Add to your calendar/ }));
     expect(onCalendar).toHaveBeenCalledOnce();
     expect(screen.queryByRole("menu")).toBeNull();
+    // The focus goes back to the button, not to the page's body.
+    expect(screen.getByRole("button", { name: TAKE_THIS_DAY })).toHaveFocus();
+  });
+
+  it("leaves the focus where an item sends it, and runs a locked item to say why", async () => {
+    const user = userEvent.setup();
+    const onAnother = vi.fn(() => screen.getByRole("textbox").focus());
+    const onLocked = vi.fn();
+    const { rerender } = render(
+      <>
+        <DayMenu items={[{ ...ITEMS[3]!, onSelect: onAnother, movesFocus: true }]} />
+        <input aria-label="City" />
+      </>,
+    );
+    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
+    expect(screen.getByRole("textbox")).toHaveFocus();
+
+    rerender(
+      <>
+        <DayMenu items={[{ ...ITEMS[3]!, onSelect: onLocked, isLocked: true }]} />
+        <input aria-label="City" />
+      </>,
+    );
+    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+    const locked = screen.getByRole("menuitem", { name: /Plan another day/ });
+    expect(locked).toHaveAttribute("aria-disabled", "true");
+    await user.click(locked);
+    expect(onLocked).toHaveBeenCalledOnce();
   });
 
   it("lists a waiting item without running it, and says an item's status to a screen reader", async () => {
@@ -212,7 +242,7 @@ describe("the ways to take a day along", () => {
     const oneStop = { ...KANAZAWA.day, stops: KANAZAWA.day.stops.slice(0, 1) };
     const single = takeAlongOf({ ...options, day: oneStop, shown: [0], exports: exportsOf() });
     expect(single.map((item) => item.key)).toEqual(["link", "calendar"]);
-    expect(single[1]?.note).toMatch(/^1 event, one for each stop/);
+    expect(single[1]?.note).toMatch(/^1 event, for the day's one stop/);
   });
 
   it("says how the link's send went, in its words and to a screen reader", () => {
@@ -227,6 +257,17 @@ describe("the ways to take a day along", () => {
       label: "Link not copied",
       status: "The day's link could not be copied",
     });
+  });
+});
+
+describe("the line under a day whose ways the menu holds", () => {
+  it("offers no way but keeps its summary, and its walking route for a page without script", () => {
+    const { container } = render(
+      <DayEnd {...KANAZAWA} calendarKey="kanazawa" hasWaysAlong={false} />,
+    );
+    expect(screen.getByText(/8 stops/)).toBeInTheDocument();
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(container.querySelector("noscript")).not.toBeNull();
   });
 });
 

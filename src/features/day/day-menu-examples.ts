@@ -1,10 +1,20 @@
-import { COPY_LINK, LINK_COPIED } from "./day-export-words";
+import { ELCHE_ITINERARY } from "@/lib/fixtures/replan/elche-dinner";
+import { COPY_LINK, LINK_COPIED, LINK_NOT_COPIED } from "./day-export-words";
 import type { DayExports } from "./day-exports";
-import { DAY_END_EXAMPLES } from "./day-end-examples";
+import { DAY_END_EXAMPLES, writtenPicksOf } from "./day-end-examples";
 import type { DayMenuItem } from "./day-menu";
 import { takeAlongOf } from "./take-along";
 
 const KANAZAWA = DAY_END_EXAMPLES[0]!;
+
+function exampleOf(label: string) {
+  const found = DAY_END_EXAMPLES.find((example) => example.label === label);
+  if (!found) throw new Error(`No day's end example "${label}"`);
+  return found;
+}
+
+const ONE_STOP = exampleOf("one stop: no way between places");
+const CROWDED = exampleOf("twelve stops, past the route's nine waypoints");
 const ignore = () => undefined;
 
 function exportsOf(copied: DayExports["copied"]): DayExports {
@@ -61,6 +71,42 @@ export const DAY_MENU_STATES: readonly DayMenuState[] = [
     isOpen: true,
   },
   { label: "a day cut short", page: "day", items: itemsOf({ isCut: true }), isOpen: true },
+  {
+    label: "a long city name: Elx / Elche",
+    page: "day",
+    items: itemsOf({ day: ELCHE_ITINERARY, shown: writtenPicksOf(ELCHE_ITINERARY), checks: {} }),
+    isOpen: true,
+  },
+  {
+    label: "twelve stops: the route takes the first of them",
+    page: "day",
+    items: itemsOf({ day: CROWDED.day, shown: CROWDED.shown, checks: CROWDED.checks }),
+    isOpen: true,
+  },
+  {
+    label: "one stop: one event, no route",
+    page: "day",
+    items: itemsOf({ day: ONE_STOP.day, shown: ONE_STOP.shown, checks: ONE_STOP.checks }),
+    isOpen: true,
+  },
+  {
+    label: "no address of its own: no link",
+    page: "day",
+    items: itemsOf({ hasLink: false, exports: { ...exportsOf(COPY_LINK), sendLink: null } }),
+    isOpen: true,
+  },
+  {
+    label: "its link not copied",
+    page: "day",
+    items: itemsOf({ exports: exportsOf(LINK_NOT_COPIED) }),
+    isOpen: true,
+  },
+  {
+    label: "while a re-plan is written: another day locked",
+    page: "day",
+    items: [...itemsOf({}).slice(0, -1), { ...PLAN_ANOTHER, isLocked: true }],
+    isOpen: true,
+  },
   {
     label: "a stream that ended without a day",
     page: "day",

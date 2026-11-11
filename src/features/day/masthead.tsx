@@ -37,7 +37,9 @@ interface MastheadProps {
  */
 export function Masthead({ action, isHome = false, menu }: MastheadProps) {
   const isFirstImpression = useFirstImpression();
-  if (isFirstImpression) return <GroupedMasthead action={menu ?? action} isHome={isHome} />;
+  if (isFirstImpression) {
+    return <GroupedMasthead action={menu ?? action} isHome={isHome} isMenu={menu !== undefined} />;
+  }
   const wordmark = (
     <>
       <LanternMark />
@@ -81,7 +83,15 @@ export function Masthead({ action, isHome = false, menu }: MastheadProps) {
  * page's action, or the day's menu, and the theme as one group, a short rule between them. Every
  * item stands on one centre line and is a 24 px target.
  */
-function GroupedMasthead({ action, isHome }: { action?: ReactNode; isHome: boolean }) {
+function GroupedMasthead({
+  action,
+  isHome,
+  isMenu,
+}: {
+  action?: ReactNode;
+  isHome: boolean;
+  isMenu: boolean;
+}) {
   const wordmark = (
     <>
       <LanternMark isSetInEms />
@@ -90,7 +100,7 @@ function GroupedMasthead({ action, isHome }: { action?: ReactNode; isHome: boole
   );
   const wordmarkClasses = "type-voice text-body whitespace-nowrap text-ink italic";
   return (
-    <div className="flex min-h-12 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+    <div className="relative flex min-h-12 flex-wrap items-center justify-between gap-x-3 gap-y-1">
       {isHome ? (
         <span className={wordmarkClasses}>{wordmark}</span>
       ) : (
@@ -102,10 +112,12 @@ function GroupedMasthead({ action, isHome }: { action?: ReactNode; isHome: boole
       )}
       <span className="flex items-center gap-3 type-note whitespace-nowrap text-ink-soft">
         {action && (
-          <>
+          // A menu needs the page's script, so without it the menu and its rule stand aside, as
+          // the view's switch does; the line under the day keeps its walking route then.
+          <span className={cn("flex items-center gap-3", isMenu && "view-unset:hidden")}>
             {action}
             <span aria-hidden className="h-4 w-px bg-line" />
-          </>
+          </span>
         )}
         <span className={THEME_LINE_CLASSES}>
           <ThemeChoice />

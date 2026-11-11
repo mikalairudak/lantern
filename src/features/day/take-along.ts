@@ -66,7 +66,9 @@ export function takeAlongOf({
     key: "calendar",
     label: ADD_TO_YOUR_CALENDAR,
     note: day
-      ? `${stops} ${stops === 1 ? "event" : "events"}, one for each stop, at its hour in ${day.city}`
+      ? stops === 1
+        ? `1 event, for the day's one stop, at its hour in ${day.city}`
+        : `${stops} events, one for each stop, at its hour in ${day.city}`
       : WAITING_NOTE,
     onSelect: exports.saveCalendar,
     isDisabled: isWaiting,

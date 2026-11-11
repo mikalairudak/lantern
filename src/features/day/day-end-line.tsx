@@ -157,6 +157,17 @@ export function DayEnd({
             />
           </p>
         )}
+        {!hasWaysAlong && !isCut && words.route && (
+          // The menu that holds the ways needs the page's script; without it the walking route,
+          // a link of its own, stays here.
+          <noscript>
+            <p>
+              <a href={words.route.url} className={ACTION_CLASSES}>
+                {routeLabelOf(words.route)}
+              </a>
+            </p>
+          </noscript>
+        )}
         {hasWaysAlong && actions.length > 0 && (
           // Lines apart, as the list's versions are, so a press reaching past its words
           // reaches into the line above or below it as little as it can.
