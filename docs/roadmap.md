@@ -72,7 +72,7 @@ After it: `/studio` as a walk through the project, and a digest of the decisions
 - the page has a footer: the sources on its left, Lantern's links on its right;
 - a written day is shown on the next date of its weekday, and its page shows its day whatever its play ends with, which is also what a search engine reads;
 
-Next: the milestones below. Each of the six written days gets its next season before `pnpm days:fresh` says its light stops holding, from mid-March by its count on 11 November (`docs/decisions.md`, "A city's written day is one of its seasons, picked by the date it is shown on").
+Next: the milestones below. Each of the six written days gets its next season before `pnpm days:fresh` says its light stops holding: early December for Kanazawa and late January to early February for the rest, by its count on 11 November (`docs/decisions.md`, "A city's written day is one of its seasons, picked by the date it is shown on").
 
 ## After v1.0: three milestones
 

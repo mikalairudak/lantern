@@ -32,12 +32,13 @@ const AXIS_PHASES: Readonly<Record<LightQuality, AxisPhase>> = {
 };
 
 /**
- * How many stops may begin in another light than on the day's own date while the day holds: as
- * the light-sense check does, one passes and two fail. One stop's move is often into light its
- * words still fit: Kanazawa's garden at half past seven, whose words speak of low sun through
- * the maples, is in golden hour by December.
+ * How many stops may begin in another light than on the day's own date while the day holds.
+ * None: the first stop to change in most days is an evening one whose words say it is dark
+ * ("Dark by now", "the square turns blue") and which moves into golden hour, though a few
+ * changes still fit their words, as Kanazawa's garden at half past seven, whose words speak of
+ * low sun, does in golden hour.
  */
-export const MAX_STOPS_IN_OTHER_LIGHT = 1;
+export const MAX_STOPS_IN_OTHER_LIGHT = 0;
 
 /** How far ahead a day is followed: a year of its weekday's dates. */
 const WEEKS_FOLLOWED = 52;
