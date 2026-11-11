@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { completeDraftOf } from "@/features/abacus/day-draft";
@@ -39,7 +40,47 @@ describe("a stop's versions along its wire", () => {
   });
 });
 
+/** The carousel as the list holds it: the version shown is the one last taken. */
+function Picking() {
+  const [pick, setPick] = useState(0);
+  return (
+    <VersionCarousel
+      stop={BOTH}
+      pick={pick}
+      name="The stop"
+      onPick={setPick}
+      renderVersion={(candidate) => <p>{`version ${candidate}`}</p>}
+    >
+      <h2>The stop</h2>
+    </VersionCarousel>
+  );
+}
+
 describe("the carousel", () => {
+  it("keeps the focus on the stop when the arrow pressed goes with the version it named", async () => {
+    const user = userEvent.setup();
+    render(<Picking />);
+    const { before } = neighboursOf(BOTH, 0);
+    await user.click(screen.getByRole("button", { name: `Quieter: ${before?.name}` }));
+    // The version taken is shown; the arrow that named it may be gone, and the focus is not lost.
+    expect(screen.getByRole("group", { name: "The stop" })).toHaveFocus();
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it("is drawn as it will stand while the day is written, its arrows waiting", async () => {
+    const user = userEvent.setup();
+    render(
+      <VersionCarousel stop={BOTH} pick={0} name="The stop" renderVersion={() => null}>
+        <h2>The stop</h2>
+      </VersionCarousel>,
+    );
+    const { before } = neighboursOf(BOTH, 0);
+    const arrow = screen.getByRole("button", { name: `Quieter: ${before?.name}` });
+    expect(arrow).toHaveAttribute("aria-disabled", "true");
+    await user.click(arrow);
+    expect(screen.getByRole("group", { name: "The stop" })).not.toHaveAttribute("tabindex", "0");
+  });
+
   it("swaps from its arrows and from the arrow keys, leaving the focus on the stop", async () => {
     const user = userEvent.setup();
     const onPick = vi.fn();

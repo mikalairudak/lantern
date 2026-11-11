@@ -11,8 +11,8 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "@/components/ui/cn";
-import { beadOrderOf, candidatesOf, energyOf, type CurveStop } from "@/features/abacus/curve";
-import type { StopDraft } from "@/features/abacus/day-draft";
+import { beadOrderOf, candidatesOf, energyOf } from "@/features/abacus/curve";
+import { hasEnergy, type StopDraft } from "@/features/abacus/day-draft";
 import { SPRINGS } from "@/lib/tokens/motion";
 import { TARGET_CLASSES } from "./link-classes";
 
@@ -53,10 +53,12 @@ export function neighboursOf(
   stop: StopDraft,
   pick: number,
 ): { before: Neighbour | null; after: Neighbour | null } {
-  const curveStop = stop as unknown as CurveStop;
-  const order = beadOrderOf(curveStop);
+  // A stop is let into the list once its place's energy is written, and a version joins it
+  // with its own; one without is not placed on the wire.
+  if (!hasEnergy(stop)) return { before: null, after: null };
+  const order = beadOrderOf(stop);
   const at = order.indexOf(pick);
-  const candidates = candidatesOf(curveStop);
+  const candidates = candidatesOf(stop);
   const energies = candidates.map(energyOf);
   const shown = energies[pick] ?? 0;
   const neighbourAt = (index: number | undefined): Neighbour | null => {
@@ -64,7 +66,7 @@ export function neighboursOf(
     const energy = energies[index] ?? shown;
     return {
       index,
-      name: (candidates[index] as { name?: string } | undefined)?.name ?? "",
+      name: candidates[index]?.name ?? "",
       side: energy < shown ? "Quieter" : energy > shown ? "Livelier" : "Same energy",
     };
   };
@@ -73,7 +75,7 @@ export function neighboursOf(
 
 const ARROW_CLASSES = cn(
   TARGET_CLASSES,
-  "flex min-w-0 basis-1/2 items-baseline rounded-sm text-left type-note text-swap focus-ring",
+  "flex min-w-0 basis-1/2 items-baseline rounded-sm text-left type-note text-swap focus-ring aria-disabled:cursor-default",
 );
 
 type Side = "before" | "after";
@@ -91,7 +93,11 @@ export function VersionCarousel({
   pick: number;
   /** The stop's name as shown, which names the stop to a screen reader. */
   name: string;
-  onPick: (candidate: number) => void;
+  /**
+   * Takes a version; left out while the day is written, when the carousel is drawn as it will
+   * stand, its arrows said and waiting, so nothing about the stop changes when the day is done.
+   */
+  onPick?: (candidate: number) => void;
   /** The words a version would show, drawn beside the stop while it waits there. */
   renderVersion: (candidate: number) => ReactNode;
   /** This stop leans once toward each side it has, to show it can be pulled. */
@@ -107,6 +113,10 @@ export function VersionCarousel({
   /** Where the version taken stands as it becomes the stop: a stride to the side it came from. */
   const shift = useRef<number | null>(null);
   const canSwipe = before !== null || after !== null;
+  const isEnabled = onPick !== undefined;
+  const hasBefore = before !== null;
+  const hasAfter = after !== null;
+  const groupRef = useRef<HTMLDivElement>(null);
   const stride = width + GAP_PX;
 
   useLayoutEffect(() => {
@@ -130,35 +140,42 @@ export function VersionCarousel({
   }, [pick, x, isReduced]);
 
   useEffect(() => {
-    if (!isNudged || isReduced || !canSwipe) return undefined;
+    if (!isNudged || isReduced || !canSwipe || !isEnabled) return undefined;
     // Toward the side the drag to the right shows first, the one on the stop's left.
-    const first = before ? NUDGE_PX : -NUDGE_PX;
-    const steps = [first, before && after ? -first / 2 : 0, 0];
+    const first = hasBefore ? NUDGE_PX : -NUDGE_PX;
+    const steps = [first, hasBefore && hasAfter ? -first / 2 : 0, 0];
     let isCurrent = true;
+    let isLeaning = false;
     let move: { stop: () => void } | null = null;
     const timer = window.setTimeout(async () => {
+      isLeaning = true;
       for (const to of steps) {
         if (!isCurrent) return;
         const step = animate(x, to, SPRINGS.gentle);
         move = step;
         await step;
       }
+      isLeaning = false;
     }, NUDGE_DELAY_MS);
     return () => {
       isCurrent = false;
       window.clearTimeout(timer);
       move?.stop();
+      // A lean cut short goes home at once, rather than leave the stop off its place.
+      if (isLeaning) x.set(0);
     };
-  }, [isNudged, isReduced, canSwipe, before, after, x]);
+  }, [isNudged, isReduced, canSwipe, isEnabled, hasBefore, hasAfter, x]);
 
   if (!canSwipe) return <>{children}</>;
 
-  const take = (side: Side) => {
+  const take = (side: Side, isPressed = false) => {
     const version = side === "before" ? before : after;
-    if (!version) return;
+    if (!version || !onPick) return;
     // The version on the left waits a stride to the left, so once taken it starts from there.
     shift.current = side === "before" ? -stride : stride;
     onPick(version.index);
+    // An arrow pressed may go with the version it named: the focus stays with the stop.
+    if (isPressed) groupRef.current?.focus();
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -175,15 +192,17 @@ export function VersionCarousel({
   ].filter(Boolean);
 
   return (
-    <div className="flex flex-col gap-1">
+    // The arrows' targets stand below the stop's last line, not over its words.
+    <div className="flex flex-col gap-2">
       <div ref={boxRef} className="overflow-hidden">
         <motion.div
+          ref={groupRef}
           role="group"
-          tabIndex={0}
+          tabIndex={isEnabled ? 0 : -1}
           aria-label={name}
           aria-describedby={hintId}
           onKeyDown={onKeyDown}
-          drag="x"
+          drag={isEnabled ? "x" : false}
           dragDirectionLock
           dragMomentum={false}
           dragConstraints={{ left: after ? -stride : 0, right: before ? stride : 0 }}
@@ -195,7 +214,10 @@ export function VersionCarousel({
             else animate(x, 0, SPRINGS.layout);
           }}
           style={{ x }}
-          className="relative flex cursor-grab touch-pan-y flex-col gap-1 rounded-sm focus-ring-inset active:cursor-grabbing"
+          className={cn(
+            "relative flex touch-pan-y flex-col gap-1 rounded-sm focus-ring-inset",
+            isEnabled && "cursor-grab active:cursor-grabbing",
+          )}
         >
           {children}
           {before && (
@@ -218,7 +240,8 @@ export function VersionCarousel({
           <button
             type="button"
             aria-label={`${before.side}: ${before.name}`}
-            onClick={() => take("before")}
+            aria-disabled={!isEnabled || undefined}
+            onClick={() => take("before", true)}
             className={ARROW_CLASSES}
           >
             <span className="min-w-0 text-pretty">
@@ -233,7 +256,8 @@ export function VersionCarousel({
           <button
             type="button"
             aria-label={`${after.side}: ${after.name}`}
-            onClick={() => take("after")}
+            aria-disabled={!isEnabled || undefined}
+            onClick={() => take("after", true)}
             className={cn(ARROW_CLASSES, "justify-end text-right")}
           >
             <span className="min-w-0 text-pretty">

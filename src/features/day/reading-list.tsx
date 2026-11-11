@@ -405,8 +405,9 @@ function ReadingRow({
   // Versions let in after the row was drawn are written in; those it came in with, with it.
   const [isVersionsFirst] = useState(isVersionsShown);
   // On the plan a stop swipes along its versions, once they are written; the line of them goes.
-  const isCarousel =
-    railTo !== null && onPick !== undefined && isVersionsShown && !isProposed && others.length > 0;
+  // Drawn from the moment its versions are written, waiting until the day can be changed, so the
+  // stop's form never changes as the day is done.
+  const isCarousel = railTo !== null && isVersionsShown && !isProposed && others.length > 0;
   const words = (
     <>
       {/* Focused after a swap, ringed as the product's buttons are, round its name. */}
