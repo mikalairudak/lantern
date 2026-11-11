@@ -151,7 +151,7 @@ describe("replanPlanOf", () => {
     });
   });
 
-  it("takes into an early end the stops before it that end after eleven", () => {
+  it("takes into an early end the stops before it that end after ten, a late dinner among them", () => {
     // A late dinner from 21:30 to 23:30 names no end; the drink after it does.
     const late = {
       [STOPS - 2]: { startTime: "21:30", durationMinutes: 120 },
@@ -174,7 +174,64 @@ describe("replanPlanOf", () => {
     });
   });
 
-  it("takes into an evening end the stops before it that end after eight, a late dinner among them", () => {
+  /** Kyoto's day with its second-last stop ending at `endsAt`, kept, and its last naming the end. */
+  function dayEndingAfter(keptFrom: string, endsAt: string, lastFrom: string): Itinerary {
+    const words: FactKey[][] = KYOTO.stops.map(() => []);
+    words[STOPS - 1] = ["end"];
+    const stops = {
+      [STOPS - 2]: {
+        startTime: keptFrom,
+        durationMinutes: minutesOf(endsAt) - minutesOf(keptFrom),
+      },
+      [STOPS - 1]: { startTime: lastFrom, durationMinutes: 30 },
+    };
+    return {
+      ...dayNaming(words),
+      stops: dayNaming(words).stops.map((stop, index) => ({ ...stop, ...stops[index] })),
+    };
+  }
+
+  // A stop over by eleven left an early end's last stop no room after it, as a dinner to 23:00 did.
+  it.each([
+    { endsAt: "22:00", from: STOPS - 1 },
+    { endsAt: "22:01", from: STOPS - 2 },
+    { endsAt: "22:59", from: STOPS - 2 },
+    { endsAt: "23:00", from: STOPS - 2 },
+    { endsAt: "23:01", from: STOPS - 2 },
+  ])(
+    "leaves an early end the hour before eleven, a stop that ends at $endsAt before it",
+    ({ endsAt, from }) => {
+      const day = dayEndingAfter("21:00", endsAt, "23:15");
+      const early: DayRequest = { ...EARLY, end: "early" };
+      const plan = replanPlanOf(day, early, "end");
+
+      expect(plan).toEqual({ kind: "targeted", windows: [{ from, to: STOPS - 1 }] });
+      if (plan.kind !== "targeted") return;
+      for (const minutes of windowMinutesOf(day, early, "end", plan.windows)) {
+        expect(minutes).toBeGreaterThanOrEqual(MIN_WINDOW_MINUTES);
+      }
+    },
+  );
+
+  it.each([
+    { endsAt: "19:00", from: STOPS - 1 },
+    { endsAt: "19:01", from: STOPS - 2 },
+  ])(
+    "leaves an evening end the hour before eight, a stop that ends at $endsAt before it",
+    ({ endsAt, from }) => {
+      const day = dayEndingAfter("18:00", endsAt, "19:15");
+      const evening: DayRequest = { ...EARLY, end: "evening" };
+      const plan = replanPlanOf(day, evening, "end");
+
+      expect(plan).toEqual({ kind: "targeted", windows: [{ from, to: STOPS - 1 }] });
+      if (plan.kind !== "targeted") return;
+      for (const minutes of windowMinutesOf(day, evening, "end", plan.windows)) {
+        expect(minutes).toBeGreaterThanOrEqual(MIN_WINDOW_MINUTES);
+      }
+    },
+  );
+
+  it("takes into an evening end the stops before it that end after seven, a late dinner among them", () => {
     // A late dinner from 20:30 to 22:00 names no end; the walk after it does.
     const late = {
       [STOPS - 2]: { startTime: "20:30", durationMinutes: 90 },
