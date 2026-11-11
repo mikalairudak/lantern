@@ -10,6 +10,25 @@ const ORIGIN = "http://lantern.test";
 const QUICK = { deltaChars: 64 };
 const DAY_TIMEOUT = { timeout: 5000 };
 
+/**
+ * The page's markup once it has held still between two reads: after the chart stops being busy,
+ * the rest of the page can still be settling, and a read taken then differs from the next on its
+ * own, whatever the flag does.
+ */
+async function stillMarkup(container: HTMLElement): Promise<string> {
+  let last: string | null = null;
+  await vi.waitFor(
+    () => {
+      const now = container.innerHTML;
+      const isStill = now === last;
+      last = now;
+      expect(isStill).toBe(true);
+    },
+    { ...DAY_TIMEOUT, interval: 250 },
+  );
+  return container.innerHTML;
+}
+
 /** jsdom has no layout, so a box reports a laptop's size. */
 class FixedSizeObserver {
   constructor(private readonly callback: ResizeObserverCallback) {}
@@ -73,7 +92,7 @@ describe("whether Lantern writes new days, for a page built ahead", () => {
     const page = render(<Day first={KANAZAWA_START_REQUEST} isAddressed isCounted />);
     const chart = await screen.findByRole("group", { name: /The day's energy/ }, DAY_TIMEOUT);
     await vi.waitFor(() => expect(chart).toHaveAttribute("aria-busy", "false"), DAY_TIMEOUT);
-    const before = page.container.innerHTML;
+    const before = await stillMarkup(page.container);
 
     // The answer for this visit arrives after the day, from the page's part of its own.
     act(() => {
