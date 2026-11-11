@@ -27,6 +27,7 @@ import type { DayContext } from "@/lib/geo/sun";
 import { formatClock, runningSpans } from "@/lib/time/clock";
 import { ROW_REACH_PX, SPRINGS } from "@/lib/tokens/motion";
 import { useFirstImpression } from "./first-impression";
+import { VersionCarousel } from "./version-carousel";
 import { isGoldenAt, LightRail, sunLinesOf, sunsOf, SunLine } from "./light-rail";
 import { TARGET_CLASSES } from "./link-classes";
 
@@ -152,6 +153,11 @@ export function ReadingList({
   const drawing = useDrawing();
   const isRail = useFirstImpression();
   const sunLines = isRail ? sunLinesOf(sunsOf(daylight), spans, isWritten) : [];
+  // The first stop on the plan with a version to swipe to leans once, when the day is whole.
+  const firstSwappable = shown.findIndex(
+    ({ stop }) =>
+      versionsShown.has(stop.id) && !proposed.has(stop.id) && stop.alternatives.length > 0,
+  );
   const list = useRef<HTMLOListElement>(null);
   const noteFocus = useForkFocusKept(list, fork?.anchors ?? NO_ANCHORS);
   return (
@@ -212,6 +218,8 @@ export function ReadingList({
                 ))}
               <ReadingRow
                 railTo={isRail ? (sunLines[at]?.railTo ?? 0) : null}
+                onPick={onChoose && ((candidate) => onChoose(index, candidate))}
+                isNudged={isWritten && at === firstSwappable}
                 stop={stop}
                 span={spans[at] ?? { from: 0, to: 0 }}
                 pick={picks[index] ?? 0}
@@ -343,6 +351,10 @@ interface ReadingRowProps {
   onGlide: (isGliding: boolean) => void;
   nameRef: Ref<HTMLHeadingElement>;
   onChoose?: (candidateIndex: number) => void;
+  /** On the plan, a version taken by the carousel, which keeps the focus where it is. */
+  onPick?: (candidateIndex: number) => void;
+  /** On the plan, the first stop that can swipe leans once to show it. */
+  isNudged?: boolean;
 }
 
 /** One stop: its time, its name and sun, what and where until when, its line, its versions. */
@@ -360,6 +372,8 @@ function ReadingRow({
   onGlide,
   nameRef,
   onChoose,
+  onPick,
+  isNudged = false,
 }: ReadingRowProps) {
   const candidates = candidatesOf(stop);
   const shown = candidates[pick] ?? stop.primary;
@@ -390,6 +404,34 @@ function ReadingRow({
     .filter(({ candidate }) => candidate !== pick);
   // Versions let in after the row was drawn are written in; those it came in with, with it.
   const [isVersionsFirst] = useState(isVersionsShown);
+  // On the plan a stop swipes along its versions, once they are written; the line of them goes.
+  const isCarousel =
+    railTo !== null && onPick !== undefined && isVersionsShown && !isProposed && others.length > 0;
+  const words = (
+    <>
+      {/* Focused after a swap, ringed as the product's buttons are, round its name. */}
+      <h2 ref={nameRef} tabIndex={-1} className={NAME_CLASSES}>
+        <PennedText text={name} written={afterTime} isActive={false} />
+        {light && (
+          <BestLightIcon
+            light={light}
+            className={cn(
+              "ml-2 inline-block align-middle text-lamp",
+              afterTime < name.length && "invisible",
+            )}
+          />
+        )}
+      </h2>
+      <p className="type-note text-muted">
+        <PennedText text={what} written={afterName} isActive={false} />
+      </p>
+      {summary !== "" && (
+        <p className="mt-0.5 type-prose text-ink-soft">
+          <PennedText text={summary} written={afterWhat} isActive={false} />
+        </p>
+      )}
+    </>
+  );
   return (
     // A swap, or versions let in, changes the row's height: the rows below glide.
     <GlidingHeight
@@ -434,38 +476,58 @@ function ReadingRow({
           />
         )}
         <div className={cn("flex min-w-0 flex-col gap-1", railTo !== null && "pb-6")}>
-          {/* Focused after a swap, ringed as the product's buttons are, round its name. */}
-          <h2 ref={nameRef} tabIndex={-1} className={NAME_CLASSES}>
-            <PennedText text={name} written={afterTime} isActive={false} />
-            {light && (
-              <BestLightIcon
-                light={light}
-                className={cn(
-                  "ml-2 inline-block align-middle text-lamp",
-                  afterTime < name.length && "invisible",
-                )}
-              />
-            )}
-          </h2>
-          <p className="type-note text-muted">
-            <PennedText text={what} written={afterName} isActive={false} />
-          </p>
-          {summary !== "" && (
-            <p className="mt-0.5 type-prose text-ink-soft">
-              <PennedText text={summary} written={afterWhat} isActive={false} />
-            </p>
-          )}
-          {isVersionsShown && !isProposed && others.length > 0 && (
-            <VersionsLine
+          {isCarousel ? (
+            <VersionCarousel
               stop={stop}
-              others={others}
-              isPenned={isPenned || !isVersionsFirst}
-              onChoose={onChoose}
-            />
+              pick={pick}
+              name={name}
+              onPick={onPick}
+              isNudged={isNudged}
+              renderVersion={(candidate) => (
+                <VersionWords place={candidates[candidate] ?? stop.primary} span={span} />
+              )}
+            >
+              {words}
+            </VersionCarousel>
+          ) : (
+            <>
+              {words}
+              {isVersionsShown && !isProposed && others.length > 0 && (
+                <VersionsLine
+                  stop={stop}
+                  others={others}
+                  isPenned={isPenned || !isVersionsFirst}
+                  onChoose={onChoose}
+                />
+              )}
+            </>
           )}
         </div>
       </div>
     </GlidingHeight>
+  );
+}
+
+/**
+ * A version's words as it waits beside its stop on the plan: its name, what and where, and its
+ * line, as the row would say them once it is taken, with no pen.
+ */
+function VersionWords({ place, span }: { place: PlaceDraft; span: { from: number; to: number } }) {
+  const name = place.name ?? "";
+  const quarter = place.neighborhood ?? "";
+  const what = [
+    kindWordOf(place.kind, span.from),
+    quarter !== "" && !isQuarterNamed(name, quarter) ? quarter : null,
+    `until ${formatClock(span.to)}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <>
+      <p className="type-name">{name}</p>
+      <p className="type-note text-muted">{what}</p>
+      {place.summary && <p className="mt-0.5 type-prose text-ink-soft">{place.summary}</p>}
+    </>
   );
 }
 

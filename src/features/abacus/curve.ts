@@ -284,7 +284,7 @@ export function keyStepOf(stop: CurveStop, shownIndex: number, step: EnergyStep)
  * A stop's versions in the order their beads run along the wire, quietest first. Twins at
  * one energy run toward the middle of the scale, as they are drawn.
  */
-function beadOrderOf(stop: CurveStop): number[] {
+export function beadOrderOf(stop: CurveStop): number[] {
   const along = (index: number) => {
     const energy = energyOf(candidatesOf(stop)[index] ?? stop.primary);
     const inward = energy <= MAX_ENERGY / 2 ? 1 : -1;

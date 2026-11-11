@@ -61,3 +61,34 @@ test("the masthead's menu holds the ways along, and the chart is kept once chose
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-day-view", "chart");
 });
+
+test("a stop swipes along its versions, from a drag and from the keys", async ({ page }) => {
+  await page.goto("/day/kanazawa");
+  await dayIsWhole(page);
+  const plan = page.getByRole("list", { name: "The day, to read" });
+  const names = () => plan.getByRole("heading", { level: 2 }).allTextContents();
+  const stop = plan.locator('[role="group"][tabindex="0"]').nth(1);
+  await stop.scrollIntoViewIfNeeded();
+  const before = await names();
+
+  // A short drag springs back; one past a third of the stop takes the version beside it.
+  const box = (await stop.boundingBox())!;
+  const y = box.y + 12;
+  await page.mouse.move(box.x + box.width - 16, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 46, y, { steps: 4 });
+  await page.mouse.up();
+  await expect.poll(names).toEqual(before);
+  await expect.poll(async () => (await stop.boundingBox())?.x).toBe(box.x);
+  await page.mouse.move(box.x + box.width - 16, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 16, y, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(names).not.toEqual(before);
+
+  // The arrow key on the stop takes it back, and the focus stays on the stop.
+  await stop.focus();
+  await page.keyboard.press("ArrowLeft");
+  await expect.poll(names).toEqual(before);
+  await expect(stop).toBeFocused();
+});
