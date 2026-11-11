@@ -27,8 +27,24 @@ export const LIGHT_FAR_RADIUS = 8;
 const WIRE_LEFT = "M1 10.5 Q3.75 11.25 6.5 11.63";
 const WIRE_RIGHT = "M17.5 11.63 Q20.25 11.25 23 10.5";
 
+/**
+ * Set in ems of the word beside it, the mark stands `MARK_EM` words tall and sinks below the
+ * baseline so that its bead's centre stands on the middle of the word's x-height, Fira Sans's
+ * 0.527 em, at every size: the mark and the word read as one line, where the mark set in pixels
+ * is true for one size of word alone.
+ */
+const MARK_EM = 1.75;
+const X_HEIGHT_EM = 0.527;
+const BOX_UNITS = BOX_WIDTH * UNITS_PER_PX;
+const EM_VIEW_BOX = `0 0 ${BOX_UNITS} ${GRID}`;
+const EM_HEIGHT = `${MARK_EM}em`;
+const EM_WIDTH = `${(MARK_EM * BOX_UNITS) / GRID}em`;
+const EM_SINK = `${-(MARK_EM * ((GRID - BEAD.cy) / GRID) - X_HEIGHT_EM / 2)}em`;
+
 interface LanternMarkProps {
   className?: string;
+  /** Drawn in ems of the word beside it, as the first impression's masthead sets it. */
+  isSetInEms?: boolean;
 }
 
 /**
@@ -37,15 +53,21 @@ interface LanternMarkProps {
  * sits in the word's line, on its baseline, and carries its own gap; the word beside it says
  * the name, so the mark is unheard.
  */
-export function LanternMark({ className }: LanternMarkProps) {
+export function LanternMark({ className, isSetInEms = false }: LanternMarkProps) {
+  const box = isSetInEms
+    ? {
+        viewBox: EM_VIEW_BOX,
+        style: { height: EM_HEIGHT, width: EM_WIDTH, verticalAlign: EM_SINK },
+        className: cn("inline overflow-visible", className),
+      }
+    : {
+        width: BOX_WIDTH,
+        height: MARK_PX,
+        viewBox: VIEW_BOX,
+        className: cn("inline overflow-visible align-baseline", className),
+      };
   return (
-    <svg
-      aria-hidden
-      width={BOX_WIDTH}
-      height={MARK_PX}
-      viewBox={VIEW_BOX}
-      className={cn("inline overflow-visible align-baseline", className)}
-    >
+    <svg aria-hidden {...box}>
       <circle cx={BEAD.cx} cy={BEAD.cy} r={LIGHT_FAR_RADIUS} className="fill-lamp-haze" />
       <circle cx={BEAD.cx} cy={BEAD.cy} r={LIGHT_NEAR_RADIUS} className="fill-lamp-glow" />
       <path
