@@ -145,7 +145,7 @@ An address with no day, `/day/paris` as much as `/nope`, gets one page: the word
 
 **The line about the day** is the model's, in italic. While any stop shows another place than the one it was written around, it is led by "As first planned:". The facts line gives the date, sunrise and sunset.
 
-**The masthead** holds the wordmark, which leads to the start screen, the theme as an icon (Monitor, Sun, Moon), and "Plan another day".
+**The masthead** holds the wordmark, which leads to the start screen, the theme as an icon (Monitor, Sun, Moon), and "Plan another day". Behind the first impression's flag it is one line of two weights: the wordmark alone on the left at the body's size, its mark drawn in ems of the word so the bead stands on the word's lowercase middle, and on the right one group, the page's action and the theme with a short rule between them. On a day the action is the menu "Take this day", which holds "Copy the link", "Add to your calendar", "Walk it in Google Maps" and, set apart, "Plan another day", each with a line saying what it does; the line under the finished day keeps its summary alone (`docs/decisions.md`, "The day's ways along live in one menu, in the masthead").
 
 **The chart** is the abacus above, and "Chart · Read" switches it with a list. Each day has its own address. Back returns to the start screen while the day writes on, and a link opens a kept day for 30 days for anyone who has it.
 

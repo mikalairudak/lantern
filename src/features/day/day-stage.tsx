@@ -102,6 +102,9 @@ import {
 } from "./sentence";
 import { FootLine, ProgressLine, SOURCES } from "./foot-line";
 import { DayEnd, type DayExport } from "./day-end-line";
+import { useDayExports } from "./day-exports";
+import { takeAlongOf } from "./take-along";
+import { useFirstImpression } from "./first-impression";
 import { progressOf, progressWordsOf } from "./progress";
 import { readDayView, serverDayView, subscribeDayView } from "./view-choice";
 import { DayViewSwitch } from "./view-switch";
@@ -1006,6 +1009,33 @@ export function DayStage({
   }, [isEndAtOnce, isEndShown, isHydrated]);
   // A day the salvage rule kept, cut or dropped inside its swaps, offers its link alone.
   const isCut = ended !== null && shownOutcome?.kind !== "complete";
+  // The first impression's day menu holds the ways to take the day along, which the line
+  // under the day then leaves out: there once the day is whole, waiting till then.
+  const isFirstImpression = useFirstImpression();
+  const takeable = isEndShown ? ended : null;
+  const dayExports = useDayExports({
+    day: takeable,
+    shown: energy.committed,
+    checks,
+    address,
+    calendarKey: picksKey ?? city,
+    onExport: (way) => onDayAct?.(EXPORT_EVENTS[way]),
+  });
+  // A stream that ended with no day leaves nothing to take along: the menu holds "Plan another
+  // day" alone.
+  const takeAlong = !isFirstImpression
+    ? undefined
+    : isEndedWithoutDay
+      ? []
+      : takeAlongOf({
+          day: takeable,
+          shown: energy.committed,
+          checks,
+          isCut,
+          exports: dayExports,
+          onRoute: () => onDayAct?.(EXPORT_EVENTS.route),
+          hasLink: address !== null,
+        });
   // The line under the chart as it last said how far the day was written, and the frame's
   // height then. Once the day is whole its end waits for the frame to rise to the day's own
   // last hour (Kanazawa's by 60 px on a phone, over about a second): meanwhile the line
@@ -1234,6 +1264,7 @@ export function DayStage({
       // A changed word re-plans the day once it is written to its end, live: each answer then
       // says what it would do, from the plan the route runs.
       replanDay={onReplan && shownOutcome?.kind === "complete" ? shownOutcome.itinerary : null}
+      takeAlong={takeAlong}
       onCityOpenChange={(openAt) => {
         setCityOpenAt(openAt);
         if (openAt === null && typedCity !== null) onTypedCityDropped?.();
@@ -1422,7 +1453,10 @@ export function DayStage({
                       address={address}
                       isCut={isCut}
                       calendarKey={picksKey ?? city}
-                      onPlanAnother={() => setCityOpenAt("elsewhere")}
+                      onPlanAnother={
+                        isFirstImpression ? undefined : () => setCityOpenAt("elsewhere")
+                      }
+                      hasWaysAlong={!isFirstImpression}
                       onExport={(way) => onDayAct?.(EXPORT_EVENTS[way])}
                       onReadToEnd={onDayAct && (() => onDayAct("day-read-to-end"))}
                       className={cn(END_CLASSES, wholeClasses)}

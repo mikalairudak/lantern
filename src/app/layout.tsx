@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { BrowserTextSize } from "@/components/ui/browser-text-size";
 import { PageViews } from "@/features/analytics/page-views";
+import { FirstImpressionProvider } from "@/features/day/first-impression";
 import { DayViewScript } from "@/features/day/view-switch";
 import { ThemeScript } from "@/features/theme/theme-script";
 import { isCountingPageViews } from "@/lib/analytics/page-views";
+import { isFirstImpression } from "@/lib/first-impression";
 import { SITE_AUTHOR, SITE_DESCRIPTION, SITE_NAME, SITE_OPEN_GRAPH, SITE_URL } from "@/lib/site";
 import { BODY_CLASSES, firaSans } from "./root-document";
 import "./globals.css";
@@ -35,7 +37,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className={BODY_CLASSES}>
         <BrowserTextSize />
-        {children}
+        <FirstImpressionProvider isOn={isFirstImpression(process.env)}>
+          {children}
+        </FirstImpressionProvider>
         {isCountingPageViews(process.env) && <PageViews />}
       </body>
     </html>
