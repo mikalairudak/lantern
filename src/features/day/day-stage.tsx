@@ -1,5 +1,6 @@
 "use client";
 
+import { scrollToPlace } from "@/components/ui/reveal-in-view";
 import { animate, motion, useMotionValue, useReducedMotion } from "motion/react";
 import {
   cloneElement,
@@ -663,7 +664,7 @@ export function DayStage({
     const rows = [...document.querySelectorAll<HTMLElement>(`[${FORK_ROW_ATTRIBUTE}="0"]`)];
     const row = rows.find((each) => each.getClientRects().length > 0 && each.offsetHeight > 0);
     if (!row) return;
-    row.scrollIntoView({ block: "center", behavior: isReducedMotion ? "instant" : "smooth" });
+    scrollToPlace(row, { block: "center", behavior: isReducedMotion ? "instant" : "smooth" });
     row.querySelector<HTMLElement>('[role="radio"][tabindex="0"]')?.focus({ preventScroll: true });
   };
   // Where the visitor looks once they have pressed a word, the facts line says what its fork is
