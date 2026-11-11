@@ -30,6 +30,7 @@ The layers overlap on purpose. The quality checks are the eval's measures and th
 | The quality checks           | A broken or off-measure day in production                      | On every live day; they never block one                   |
 | `pnpm eval:live`             | A prompt or model change that hurts quality                    | On a change, after a spend confirmation                   |
 | `pnpm log:report`            | Production's calls, outcomes, checks and spend                 | By need, in a read-only transaction                       |
+| `pnpm days:fresh`            | A written day whose light no longer holds, or soon will not    | Weekly, beside the production report                      |
 
 ### The commit gate
 
@@ -75,6 +76,12 @@ Every component registers a `labMatrix` entry (`src/lib/lab-matrix.ts`): its sta
 ### Live-eval rounds and the spend confirmation
 
 `pnpm eval:live` first prints its plan: the calls, the expected cost and the worst case, each call held at its token caps. It sends nothing until `EVAL_CONFIRM_USD` covers that worst case, compared to the micro-dollar, and each round runs under its own cap. A round runs the routes' own code in its own process, so it skips the visitor limits and can read what the model wrote before the route reshapes it. Nothing reaches the generation log or the spend tables; its saved JSON lines are its ledger, and every report can be written again from them for free. A day round on the golden set costs about $1.10. Geoapify's free plan gives 3,000 credits a day, shared with production, so a round checks only the days' places, about 420 lookups, and one round with days runs a day at most.
+
+### Eval harness: how long a written day holds
+
+A written day is shown on a date that moves on every week, and a city's next season comes in on its own date ("A city's written day is one of its seasons, picked by the date it is shown on"), so someone has to know when a season is due before its light runs out. `pnpm days:fresh` moves each city's day, a week at a time from the date its page shows now, through the light-sense check and through each stop's light at its hour as the time axis draws it (`src/lib/days/written/freshness.ts`). It prints the date each day holds until and the days left, and flags and fails on a city with fewer than 21. It reads the clock and the files only: no model, no service, no key. It runs under Vitest, as `pnpm eval:live` does, because the days import by `@/`, with its own config so `pnpm test` never collects it.
+
+It sits beside the weekly production report, not in the commit gate: a test that reads the clock would start failing every commit on a date that no change made. The gate keeps what needs no clock: `freshUntil` on fixed dates, the report's lines for a fixed instant, and a season with a closed range holding on every date of it. On 11 November 2026 it flagged Porto, whose shown Sunday met two of its five light windows for 19 and 16 minutes against the 20 the check asks, and held the others until mid-March to mid-June. It cannot read a line that pins an hour or a season, such as "the low November sun".
 
 ## Runtime harness
 
