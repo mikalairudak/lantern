@@ -116,14 +116,14 @@ export function IndexPictureView({ slug }: { slug: string }) {
     const ask = () => {
       if (!isNear) return;
       const density = densityFor(element.getBoundingClientRect().width, window.devicePixelRatio);
+      // What the theme draws now, read before the state is set, so the update reads nothing.
+      const drawn = LAYERS.filter((name) => {
+        const rect = layers.current[name];
+        return rect !== undefined && isFilled(rect);
+      });
       setSrcs((asked) => {
         const next = { ...asked };
-        for (const name of LAYERS) {
-          const rect = layers.current[name];
-          if (next[name] === null && rect !== undefined && isFilled(rect)) {
-            next[name] = pictureSrcOf(picture[name], density);
-          }
-        }
+        for (const name of drawn) next[name] ??= pictureSrcOf(picture[name], density);
         return next.scene === asked.scene && next.subject === asked.subject ? asked : next;
       });
     };
