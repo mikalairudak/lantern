@@ -1,6 +1,7 @@
 import { cn } from "@/components/ui/cn";
 import { labMatrix, type LabMatrix } from "@/lib/lab-matrix";
 import { DayStageHeaderCell, type DayStageHeaderCellProps } from "./day-stage-header-cell";
+import { FirstImpressionProvider } from "./first-impression";
 import { HEADER_DAYS, HEADER_MOMENTS, isListOpenAt } from "./day-stage-header-examples";
 
 /**
@@ -14,12 +15,14 @@ const LAPTOP_GUTTER_CLASSES = "px-16";
  * to each ending, on five days. The header says the same at every width and energy, so
  * there is no density axis: its density is the one the page gives it.
  */
-export const DAY_STAGE_HEADER_MATRIX: LabMatrix = labMatrix<DayStageHeaderCellProps>({
+type HeaderMatrixProps = DayStageHeaderCellProps & { isFirstImpression: boolean };
+
+export const DAY_STAGE_HEADER_MATRIX: LabMatrix = labMatrix<HeaderMatrixProps>({
   // The header's first name: the baseline's file names are built from the key, so it stays.
   key: "written-header",
   title: "Day stage header",
   note: "The day's header from the visitor's words to every ending, and through a word's re-plan and after. It has one density, so no density axis. The wide screen is a laptop's page column in its gutter, so the header is 1024 px wide, as on a laptop; its type follows the screen, so a laptop's lines are read on a laptop's screen",
-  base: { moment: "asked", day: 0 },
+  base: { moment: "asked", day: 0, isFirstImpression: false },
   axes: [
     {
       name: "moment",
@@ -29,21 +32,34 @@ export const DAY_STAGE_HEADER_MATRIX: LabMatrix = labMatrix<DayStageHeaderCellPr
       name: "day",
       values: HEADER_DAYS.map(({ label }, day) => ({ label, props: { day } })),
     },
+    {
+      // The first impression's headline: "with anyone", Lantern's words dotted in muted ink,
+      // the lead lighter and the hint a caption (`docs/decisions.md`, "A day opens on its plan,
+      // lit by the day's light"), noted on the cell's own box as the root layout notes it.
+      name: "look",
+      values: [
+        { label: "today's", props: { isFirstImpression: false } },
+        { label: "the first impression's", props: { isFirstImpression: true } },
+      ],
+    },
   ],
   // In the day's own gutter, as the page sets it on a phone or a laptop. Positioned, so the
   // header's unseen status line stays inside its cell and the grid, not the page, scrolls
   // sideways.
   // A word's list drawn open hangs below the header, so its cell makes room under it.
-  render: (props, width) => (
-    <div
-      className={cn(
-        "relative",
-        width === "wide" && LAPTOP_GUTTER_CLASSES,
-        isListOpenAt(props.moment) && "pb-day",
-      )}
-    >
-      <DayStageHeaderCell {...props} />
-    </div>
+  render: ({ isFirstImpression, ...props }, width) => (
+    <FirstImpressionProvider isOn={isFirstImpression}>
+      <div
+        data-first-impression={isFirstImpression ? "" : undefined}
+        className={cn(
+          "relative",
+          width === "wide" && LAPTOP_GUTTER_CLASSES,
+          isListOpenAt(props.moment) && "pb-day",
+        )}
+      >
+        <DayStageHeaderCell {...props} />
+      </div>
+    </FirstImpressionProvider>
   ),
   wide: "page",
   // Every moment on the hero day and every day at the visitor's words: the grid's default

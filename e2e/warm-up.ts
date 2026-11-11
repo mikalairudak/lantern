@@ -1,4 +1,5 @@
 import type { FullConfig } from "@playwright/test";
+import { BASE_URL, FIRST_IMPRESSION_URL, isFirstImpressionRun } from "./servers";
 import { E2E_STUDIO_AUTHORIZATION } from "./studio-login";
 
 /**
@@ -23,6 +24,8 @@ const PAGES = [
 ];
 /** An API route compiles on any method, so a GET it refuses still warms it, and posts nothing. */
 const API_ROUTES = ["/api/day", "/api/day/warm-up", "/api/intake", "/api/replan", "/api/events"];
+/** The pages the first impression's specs open, on its own server. */
+const FIRST_IMPRESSION_PAGES = ["/", "/day/kanazawa"];
 
 const HTTP_OK = 200;
 const HTTP_SERVER_ERROR = 500;
@@ -36,12 +39,17 @@ const MS_PER_SECOND = 1000;
  * fails, stops the run here: the list is stale, or the server is broken, and every test would
  * say so later and less plainly.
  */
-export default async function warmUp(config: FullConfig): Promise<void> {
-  const baseURL = config.webServer?.url;
-  if (!baseURL) throw new Error("The e2e config names no web server to warm up");
+export default async function warmUp(_config: FullConfig): Promise<void> {
+  // The site's server takes every route; the first impression's, when the run starts it, its own.
+  const visits = [
+    ...[...PAGES, ...API_ROUTES].map((route) => ({ route, baseURL: BASE_URL })),
+    ...(isFirstImpressionRun(process.argv)
+      ? FIRST_IMPRESSION_PAGES.map((route) => ({ route, baseURL: FIRST_IMPRESSION_URL }))
+      : []),
+  ];
   const started = performance.now();
   const answers: { route: string; status: number }[] = [];
-  for (const route of [...PAGES, ...API_ROUTES]) {
+  for (const { route, baseURL } of visits) {
     const response = await fetch(new URL(route, baseURL), {
       headers: { Authorization: E2E_STUDIO_AUTHORIZATION },
     });

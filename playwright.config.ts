@@ -1,11 +1,17 @@
 import { defineConfig, devices } from "@playwright/test";
 import { waitMs } from "./e2e/ci-wait";
+import {
+  BASE_URL,
+  DIST_DIR,
+  FIRST_IMPRESSION_DIST_DIR,
+  FIRST_IMPRESSION_PORT,
+  FIRST_IMPRESSION_SPECS,
+  FIRST_IMPRESSION_URL,
+  isFirstImpressionRun,
+  PORT,
+} from "./e2e/servers";
 import { E2E_STUDIO_AUTHORIZATION, E2E_STUDIO_ENV } from "./e2e/studio-login";
 
-const PORT = Number(process.env.E2E_PORT ?? 3417);
-// Its own build directory lets e2e run while `pnpm dev` is up (see next.config.ts).
-const DIST_DIR = ".next-e2e";
-const BASE_URL = `http://localhost:${PORT}`;
 const isCI = Boolean(process.env.CI);
 
 // The visual baseline (`pnpm e2e:visual`): one phone-wide cell per shot, in a viewport no
@@ -50,8 +56,18 @@ export default defineConfig({
   },
   // Chromium only: the desktop and phone layouts matter more than engine coverage here.
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "phone", use: { ...devices["Pixel 7"] } },
+    { name: "desktop", testIgnore: FIRST_IMPRESSION_SPECS, use: { ...devices["Desktop Chrome"] } },
+    { name: "phone", testIgnore: FIRST_IMPRESSION_SPECS, use: { ...devices["Pixel 7"] } },
+    {
+      name: "first-impression-desktop",
+      testMatch: FIRST_IMPRESSION_SPECS,
+      use: { ...devices["Desktop Chrome"], baseURL: FIRST_IMPRESSION_URL },
+    },
+    {
+      name: "first-impression-phone",
+      testMatch: FIRST_IMPRESSION_SPECS,
+      use: { ...devices["Pixel 7"], baseURL: FIRST_IMPRESSION_URL },
+    },
     {
       // Out of a bare `playwright test`: its baselines are this Mac's, and every design
       // round changes pixels on purpose, so updating them is its own act (docs/harness.md).
@@ -77,17 +93,38 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    command: `pnpm dev --port ${PORT}`,
-    // No database: Next never lets `.env.local` override a variable already set, so the
-    // product events a run's pages send are kept in the dev server's memory, never in
-    // `lantern-dev` (the events spec catches its own in the browser).
-    // The studio's login is the run's own, so the dev server asks for a password as
-    // production does (`src/lib/http/studio-gate.ts`).
-    env: { NEXT_DIST_DIR: DIST_DIR, DATABASE_URL: "", ...E2E_STUDIO_ENV },
-    url: BASE_URL,
-    timeout: WEB_SERVER_TIMEOUT_MS,
-    // Never attach to whatever already listens on the port: it may be another app.
-    reuseExistingServer: false,
-  },
+  webServer: [
+    {
+      command: `pnpm dev --port ${PORT}`,
+      // No database: Next never lets `.env.local` override a variable already set, so the
+      // product events a run's pages send are kept in the dev server's memory, never in
+      // `lantern-dev` (the events spec catches its own in the browser).
+      // The studio's login is the run's own, so the dev server asks for a password as
+      // production does (`src/lib/http/studio-gate.ts`).
+      env: { NEXT_DIST_DIR: DIST_DIR, DATABASE_URL: "", ...E2E_STUDIO_ENV },
+      url: BASE_URL,
+      timeout: WEB_SERVER_TIMEOUT_MS,
+      // Never attach to whatever already listens on the port: it may be another app.
+      reuseExistingServer: false,
+    },
+    // The same with the first impression's flag on, in a build directory of its own, started
+    // only when a run takes its projects: a bare run, as CI's shards make, or one that names
+    // them. A run of other projects alone, as `pnpm e2e:visual` is, compiles one server.
+    ...(isFirstImpressionRun(process.argv)
+      ? [
+          {
+            command: `pnpm dev --port ${FIRST_IMPRESSION_PORT}`,
+            env: {
+              NEXT_DIST_DIR: FIRST_IMPRESSION_DIST_DIR,
+              DATABASE_URL: "",
+              FIRST_IMPRESSION: "1",
+              ...E2E_STUDIO_ENV,
+            },
+            url: FIRST_IMPRESSION_URL,
+            timeout: WEB_SERVER_TIMEOUT_MS,
+            reuseExistingServer: false,
+          },
+        ]
+      : []),
+  ],
 });

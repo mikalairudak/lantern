@@ -2,6 +2,7 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import { DAY_VIEW_ATTRIBUTE, DAY_VIEW_STORAGE_KEY } from "./view-choice";
+import { FirstImpressionProvider } from "./first-impression";
 import { DayViewScript, DayViewSwitch } from "./view-switch";
 
 afterEach(() => {
@@ -39,7 +40,7 @@ describe("the view's switch", () => {
     expect(pressed()).toEqual(["Read"]);
 
     await user.click(screen.getByRole("button", { name: "Chart" }));
-    expect(localStorage.getItem(DAY_VIEW_STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem(DAY_VIEW_STORAGE_KEY)).toBe("chart");
     expect(pressed()).toEqual(["Chart"]);
   });
 
@@ -60,5 +61,19 @@ describe("the view's switch", () => {
       window.dispatchEvent(new StorageEvent("storage", { key: "lantern.days.v1", newValue: "" }));
     });
     expect(pressed()).toEqual(["Read"]);
+  });
+});
+
+describe("the view's switch under the first impression", () => {
+  it("names the list the day's plan and sets it first", () => {
+    render(
+      <FirstImpressionProvider isOn>
+        <DayViewSwitch />
+      </FirstImpressionProvider>,
+    );
+    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual([
+      "Plan",
+      "Chart",
+    ]);
   });
 });

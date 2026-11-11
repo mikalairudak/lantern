@@ -28,6 +28,10 @@
 /* A written day drawn whole in the page's HTML that this device has not watched to its end:
    unseen until the page's script plays it from its empty frame (seen-days.ts). */
 @custom-variant unseen (:root[data-day-seen="no"] &);
+/* The first impression's look (src/lib/first-impression.ts), as the root layout notes it on
+   <html> while the flag is on, so a style can follow it from the page's first HTML; a lab cell
+   notes it on its own box to draw that look on any server. */
+@custom-variant first-impression (:where([data-first-impression]) &);
 
 /*
  * Design tokens: every value the interface may use (decisions.md, "Tokens are enforced, not
