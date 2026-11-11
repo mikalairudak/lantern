@@ -73,7 +73,7 @@ import { NO_CHECKS, type PlaceChecks } from "@/features/itinerary/use-day-stream
 import { useElementSize, type ElementSize } from "@/components/ui/use-element-size";
 import { GlidingHeight } from "@/components/ui/gliding-height";
 import { useEnergyCurve, type EnergyCurve } from "@/features/abacus/use-energy-curve";
-import type { DayAct, HeaderWord, ProductEvent } from "@/lib/events/event.schema";
+import type { DayAct, DayAnswer, HeaderWord, ProductEvent } from "@/lib/events/event.schema";
 import { useSprung } from "@/components/ui/use-sprung";
 import { SPRINGS, gentleOver } from "@/lib/tokens/motion";
 import { bareStopOf, waitingInBareRow, waitingOver } from "@/features/abacus/waiting";
@@ -310,6 +310,8 @@ interface DayStageProps {
    * staying in view (`READ_TO_END_MS`).
    */
   onDayAct?: (act: DayAct) => void;
+  /** Tells the visitor's answer at the day's end, asked under the first impression. */
+  onDayAnswer?: (answer: DayAnswer) => void;
   /**
    * The page's memory of the chart's invitation to drag, which it shows once across the days
    * it draws (`useInvitation`); left out, each day invites its own.
@@ -375,6 +377,7 @@ export function DayStage({
   replan,
   onEvent,
   onDayAct,
+  onDayAnswer,
   invitationMemory,
   heldRoom = null,
   roomRef,
@@ -1480,6 +1483,7 @@ export function DayStage({
                         isFirstImpression ? undefined : () => setCityOpenAt("elsewhere")
                       }
                       hasWaysAlong={!isFirstImpression}
+                      onAnswer={isFirstImpression ? onDayAnswer : undefined}
                       onExport={(way) => onDayAct?.(EXPORT_EVENTS[way])}
                       onReadToEnd={onDayAct && (() => onDayAct("day-read-to-end"))}
                       className={cn(END_CLASSES, wholeClasses)}

@@ -115,6 +115,7 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 - [2026-11-11 — The day's ways along live in one menu, in the masthead](#2026-11-11--the-days-ways-along-live-in-one-menu-in-the-masthead)
 - [2026-11-11 — A day opens on its plan, lit by the day's light](#2026-11-11--a-day-opens-on-its-plan-lit-by-the-days-light)
 - [2026-11-11 — A stop on the plan swipes along its versions](#2026-11-11--a-stop-on-the-plan-swipes-along-its-versions)
+- [2026-11-11 — A day's end asks one question, answered in one tap](#2026-11-11--a-days-end-asks-one-question-answered-in-one-tap)
 
 **The look: type, colour and tokens**
 
@@ -622,3 +623,11 @@ How long a day holds is worked out by code (`freshUntil` in `src/lib/days/writte
 **Why.** A swap is the product's gesture, and on a phone a stop is where a thumb already is; the arrows say what each side holds before anyone drags, so it needs no tutorial, and the same press works with a mouse and the keys. The wire's order makes the plan's left and right mean what the chart's do. The rule on speed protects a reader from rows that move under them; here the visitor moves the stop themselves to replace it, and nothing else on the screen moves while it slides.
 
 **Cost.** A vertical scroll that starts on a stop must be told from a swipe; the drag locks to its first direction and the stop lets the page pan up and down. A version waiting beside a stop is drawn whole, which a long day draws many times over, unseen. Until the flag goes the list has two ways to swap.
+
+## 2026-11-11 — A day's end asks one question, answered in one tap
+
+**Decision.** Behind the first impression's flag, under a finished day's summary, the day asks one quiet line, "Would you follow this day? Yes · Not quite" (`day-answer.tsx`). A press sends `day-answered` with `answer: yes | not-quite`, the day's city, how it was reached, whether Lantern wrote it, and the view it is read in, through the product's events, once a day opened; "Thank you." then stands in the question's place, and the line keeps the room of the taller of the two, so nothing moves. It is asked again each time a day is shown, and nothing is kept in the browser. A day cut short is not asked. Never a modal, never free text. The answer is kept in the `answer` column migration 0009 added; `pnpm events:report` prints the answers beside the days that ended, by view, with a share of yes only from 30 answers. The privacy page names the answer among the notes on how the page is used while the flag is on.
+
+**Why.** A day taken along says a visitor used a day, but not whether a visitor who read it would follow it, and five people in a test are not enough to tell. One tap at the place a reader reaches when the day is read is the least a question can ask and still be answered. Asking each time a day is shown keeps no key and asks nothing the visitor cannot see, at the cost of an answer counted twice by a visitor who opens the same day twice, which the report's visitors once a UTC day limit.
+
+**Cost.** A line under every finished day, read by everyone who reaches it and answered by few. An answer is yes or not quite, never why. Until the flag goes the day's end has two forms.

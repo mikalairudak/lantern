@@ -1892,6 +1892,7 @@ export function Day({
             }}
             onEvent={events.send}
             onDayAct={events.act}
+            onDayAnswer={events.answer}
             // The chart's invitation to drag shows once a page load, not on each day that lands
             // here nor again after a client navigation away and back (`useInvitation`).
             invitationMemory={PAGE_INVITATION_MEMORY}

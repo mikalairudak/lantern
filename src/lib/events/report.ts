@@ -6,8 +6,8 @@ export type { ReportCommand } from "../db/report.ts";
 /**
  * `pnpm events:report [--environment production] [--days 30]`: prints the product's counts
  * for one environment over the last days, in UTC: the way from the start screen to a day taken
- * along, the days taken along by way in and by view, the days opened by city, how they were
- * reached, how attempts ended, whether visitors waited, the gestures, the days taken along,
+ * along, the days taken along by way in and by view, the days answered by view, the days opened
+ * by city, how they were reached, how attempts ended, whether visitors waited, the gestures, the days taken along,
  * the days opened again and the cities Lantern could not do. It reads the database as
  * `pnpm db:migrate` does, and reads only, inside a read-only transaction
  * (`src/lib/db/report.ts`).
@@ -114,6 +114,31 @@ export const EVENT_TABLE_SECTIONS: readonly ReportSection[] = [
         GROUP BY 1
       ) AS views
       ORDER BY ended DESC, taken DESC, view`,
+  },
+  {
+    title: `Days answered, by view (visitors whose day ended in that view, and of them who answered "Would you follow this day?"; a share of yes from ${SHARE_MIN_VISITORS} answers)`,
+    columns: ["view", "ended", "answered", "yes", "not quite", "yes share"],
+    text: `
+      SELECT view, ended, answered, yes, not_quite AS "not quite",
+        ${shareOf("yes", "answered")} AS "yes share" FROM (
+        SELECT coalesce(view, ${NOT_TOLD}) AS view, count(*)::integer AS ended,
+          (count(*) FILTER (WHERE answer IS NOT NULL))::integer AS answered,
+          (count(*) FILTER (WHERE answer = 'yes'))::integer AS yes,
+          (count(*) FILTER (WHERE answer = 'not-quite'))::integer AS not_quite
+        FROM (
+          SELECT DISTINCT whole.view, whole.utc_day, whole.visitor_key, (
+            SELECT also.answer FROM product_events AS also
+            WHERE also.environment = $1 AND also.utc_day = whole.utc_day
+              AND also.visitor_key = whole.visitor_key AND also.view = whole.view
+              AND also.kind = 'day-answered'
+            ORDER BY also.answer LIMIT 1
+          ) AS answer
+          FROM product_events AS whole
+          WHERE whole.environment = $1 AND whole.utc_day >= $2::date AND whole.kind = 'day-ended'
+        ) AS visitors
+        GROUP BY 1
+      ) AS views
+      ORDER BY ended DESC, answered DESC, view`,
   },
   {
     title: "Days opened, by city (a visitor counts once a UTC day)",

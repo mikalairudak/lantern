@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import type { DayStream } from "@/features/itinerary/use-day-stream";
-import type { DayAct, DayVia, ProductEvent } from "@/lib/events/event.schema";
+import type { DayAct, DayAnswer, DayVia, ProductEvent } from "@/lib/events/event.schema";
 import type { DayOutcome } from "@/lib/stream/outcome";
 import { sendProductEvent, type SendOptions } from "@/lib/events/send-event";
 import { isWrittenRequest } from "@/lib/days/written/requests";
@@ -29,6 +29,8 @@ interface Opening {
   isClosed: boolean;
   /** What the visitor has done with this day already, each told once. */
   acts: Set<DayAct>;
+  /** The day's end was answered: once a day opened. */
+  isAnswered: boolean;
 }
 
 export interface DayEvents {
@@ -42,6 +44,8 @@ export interface DayEvents {
    * Nothing is told before a day is opened.
    */
   act: (act: DayAct) => void;
+  /** The visitor's answer at the day's end, told once a day opened, with the view it is read in. */
+  answer: (answer: DayAnswer) => void;
   /**
    * A day starts playing, reached this way. A day still streaming before it was left. The
    * request played again as the same object, as React's Strict Mode plays a day on mount in
@@ -100,7 +104,14 @@ export function useDayEvents(
       leaveDay(false);
       const day = { city: daySlugOf(request), via, written: isWrittenRequest(request) };
       const isEnded = ended !== undefined;
-      opening.current = { request, day, hasStop: isEnded, isClosed: isEnded, acts: new Set() };
+      opening.current = {
+        request,
+        day,
+        hasStop: isEnded,
+        isClosed: isEnded,
+        acts: new Set(),
+        isAnswered: false,
+      };
       sendOut({ kind: "day-opened", ...day }, false);
       if (isEnded) {
         sendOut({ kind: "day-ended", ...day, view: readDayView(), outcome: ended }, false);
@@ -117,6 +128,16 @@ export function useDayEvents(
       if (current === null || current.acts.has(kind)) return;
       current.acts.add(kind);
       sendOut({ kind, ...current.day, view: readDayView() }, false);
+    },
+    [sendOut],
+  );
+
+  const answer = useCallback(
+    (given: DayAnswer) => {
+      const current = opening.current;
+      if (current === null || current.isAnswered) return;
+      current.isAnswered = true;
+      sendOut({ kind: "day-answered", ...current.day, view: readDayView(), answer: given }, false);
     },
     [sendOut],
   );
@@ -141,7 +162,7 @@ export function useDayEvents(
   }, [leaveDay]);
 
   const leave = useCallback(() => leaveDay(false), [leaveDay]);
-  return { send, act, open, leave };
+  return { send, act, answer, open, leave };
 }
 
 /** What a page remembers of having told that the start screen was opened. */

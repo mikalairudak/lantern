@@ -639,6 +639,22 @@ describe("the gestures on a day, as the product counts them", () => {
     ]);
   });
 
+  it("tells the day's end answer once a day opened, with the day and the view, under the first impression", async () => {
+    const user = userEvent.setup();
+    render(
+      <FirstImpressionProvider isOn>
+        <Day first={KANAZAWA_START_REQUEST} isCounted />
+      </FirstImpressionProvider>,
+    );
+    await waitForTheDay();
+    await user.click(await screen.findByRole("button", { name: "Yes" }, DAY_TIMEOUT));
+    expect(screen.getByText("Thank you.")).toBeInTheDocument();
+
+    expect(sentOf("day-answered")).toEqual([
+      { kind: "day-answered", ...KANAZAWA_LINK, ...ON_CHART, answer: "yes" },
+    ]);
+  });
+
   it("counts them again on the next day opened", async () => {
     const user = await landOnKanazawa();
     // Two stops a day, so a second pull on each day shows it is not counted again, as in the

@@ -12,6 +12,7 @@ import { DAY_SHAPE_MATRIX } from "@/features/day/day-shape-matrix";
 import { YOUR_DAYS_MATRIX } from "@/features/day/your-days-matrix";
 import { PROGRESS_LINE_MATRIX } from "@/features/day/progress-line-matrix";
 import { DAY_MENU_MATRIX } from "@/features/day/day-menu-matrix";
+import { DAY_ANSWER_MATRIX } from "@/features/day/day-answer-matrix";
 import { START_INDEX_MATRIX } from "@/features/day/start-index-matrix";
 import { PLAN_MATRIX } from "@/features/day/plan-matrix";
 import { PLAN_BAR_MATRIX } from "@/features/day/plan-bar-matrix";
@@ -36,6 +37,7 @@ export const MATRICES: readonly LabMatrix[] = [
   FORK_ROW_MATRIX,
   PROGRESS_LINE_MATRIX,
   DAY_END_MATRIX,
+  DAY_ANSWER_MATRIX,
   FOOT_LINE_MATRIX,
   DAY_MENU_MATRIX,
   START_HEADER_MATRIX,
