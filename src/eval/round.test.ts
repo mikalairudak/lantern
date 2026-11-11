@@ -182,6 +182,7 @@ describe("liveEvalSettingsOf", () => {
       voiceDays: [],
       voiceReport: null,
       shadow: { effort: null, rule: null },
+      dayRule: null,
       outDir: null,
       confirmation: "2",
     });
@@ -256,6 +257,20 @@ describe("liveEvalSettingsOf", () => {
     });
     expect(liveEvalSettingsOf({ ...day, EVAL_SHADOW_RULE: "venues" })).toEqual({
       problem: 'EVAL_SHADOW_RULE is "venues"; it is one of versions.',
+    });
+  });
+
+  it("says the rule EVAL_DAY_RULE names to the day's call, in a day round alone", () => {
+    const day = { EVAL_ROUND: "day", EVAL_DAY_BODIES: "b" };
+    expect(liveEvalSettingsOf({ ...day, EVAL_DAY_RULE: "undated" })).toMatchObject({
+      dayRule: "undated",
+      shadow: { effort: null, rule: null },
+    });
+    expect(liveEvalSettingsOf({ ...day, EVAL_DAY_RULE: "dated" })).toEqual({
+      problem: 'EVAL_DAY_RULE is "dated"; it is one of undated.',
+    });
+    expect(liveEvalSettingsOf({ EVAL_ROUND: "intake", EVAL_DAY_RULE: "undated" })).toEqual({
+      problem: "EVAL_DAY_RULE changes a day round's call; set EVAL_ROUND=day.",
     });
   });
 

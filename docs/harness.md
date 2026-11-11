@@ -238,7 +238,7 @@ The hand-made days score 1 on walk radius, swap direction and light sense, which
 
 ### The prompt versions
 
-A prompt change is judged on numbers. A round prints each check before and after against a baseline round on the same requests. A version string covers every word the model reads, schema descriptions included, so the log never compares two prompts under one name. Each prompt's header comment (`src/lib/live/day-prompt.ts`, `intake-prompt.ts`, `replan-prompt.ts`) says what each version changed.
+A prompt change is judged on numbers. A round prints each check before and after against a baseline round on the same requests. A version string covers every word the model reads, schema descriptions included, so the log never compares two prompts under one name. A round may say one rule more to a call in its own process, never in the route's: the shadow's (`EVAL_SHADOW_RULE`), or the day's for a day the site keeps (`EVAL_DAY_RULE=undated`, no month, season or clock time for the sun; "The public site offers only days the product wrote"). Its records keep the prompt's version, since the route writes them, so the round's report names the rule, and so does the header of each written day the round wrote. Each prompt's header comment (`src/lib/live/day-prompt.ts`, `intake-prompt.ts`, `replan-prompt.ts`) says what each version changed.
 
 The day, written by Sonnet 5.5, its shadow by Haiku 5.5:
 

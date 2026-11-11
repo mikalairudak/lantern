@@ -35,6 +35,9 @@
  *                       sent and Haiku runs at its default (src/eval/shadow-experiment.ts)
  *   EVAL_SHADOW_RULE    versions: the day's rules for versions said again, last, on the shadow's
  *                       call alone; the visitor's day and its prompt stay as production sends them
+ *   EVAL_DAY_RULE       undated: for a day the site keeps, a rule said last on the day's own call,
+ *                       no month, season or clock time for the sun (src/eval/written-day-rule.ts);
+ *                       the route and the live prompt never send it
  *   EVAL_OUT            where the runs and the report go (a new folder under eval-runs/ if unset,
  *                       which git ignores: the system's temp folder lost the rounds kept there)
  *   EVAL_REPLAN_SET     the re-plan set a replan round sends: golden (if unset), the golden
@@ -87,6 +90,7 @@ import {
 } from "@/eval/round";
 import { experimentLabel, shadowModelFor } from "@/eval/shadow-experiment";
 import { goldenLinesOf } from "@/eval/voice/lines";
+import { dayModelFor, dayRuleLabel } from "@/eval/written-day-rule";
 import {
   labelledBatches,
   planVoiceRound,
@@ -258,8 +262,11 @@ test("the live eval round", { timeout: TEST_TIMEOUT_MS }, async () => {
     places: settings.places,
   });
   const experiment = experimentLabel(settings.shadow);
-  const experimentLine =
-    experiment === null ? [] : [`  Shadow changed for this round: ${experiment}.`];
+  const dayRule = dayRuleLabel(settings.dayRule);
+  const experimentLine = [
+    ...(experiment === null ? [] : [`  Shadow changed for this round: ${experiment}.`]),
+    ...(dayRule === null ? [] : [`  Day changed for this round: ${dayRule}.`]),
+  ];
   say([...planReport(plan), ...experimentLine]);
   const confirmation = confirmationOf(settings.confirmation, plan);
   if (confirmation.kind === "refused") {
@@ -330,7 +337,7 @@ test("the live eval round", { timeout: TEST_TIMEOUT_MS }, async () => {
   if (bodies.length > 0) {
     const save = saver(join(outDir, "day-runs.jsonl"));
     const models = {
-      day: anthropic(MODEL_IDS.day),
+      day: dayModelFor(anthropic(MODEL_IDS.day), settings.dayRule),
       shadow: shadowModelFor(anthropic(MODEL_IDS.shadow), settings.shadow),
     };
     const round = await runDayRound(
