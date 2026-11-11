@@ -111,6 +111,7 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 - [2026-11-03 — A written day's page is built whole, and plays only for a visitor who has not seen it](#2026-11-03--a-written-days-page-is-built-whole-and-plays-only-for-a-visitor-who-has-not-seen-it)
 - [2026-11-10 — Pictures may help a visitor choose a way in; a day needs none](#2026-11-10--pictures-may-help-a-visitor-choose-a-way-in-a-day-needs-none)
 - [2026-11-11 — An address that names no day is refused by the router, before the day's route renders](#2026-11-11--an-address-that-names-no-day-is-refused-by-the-router-before-the-days-route-renders)
+- [2026-11-11 — The start screen is an index, with a day's first stops under it](#2026-11-11--the-start-screen-is-an-index-with-a-days-first-stops-under-it)
 - [2026-11-11 — The day's ways along live in one menu, in the masthead](#2026-11-11--the-days-ways-along-live-in-one-menu-in-the-masthead)
 - [2026-11-11 — A day opens on its plan, lit by the day's light](#2026-11-11--a-day-opens-on-its-plan-lit-by-the-days-light)
 
@@ -586,6 +587,14 @@ Since 2026-11-10, `develop` moves only by a merged pull request, not by a merge 
 **Why.** The three ways stood in the smallest type under the last stop, where someone following the day does not look, and a quiet word in their place went unseen. One button at the screen's top right is where a visitor looks for what a page can do, on every day in the same place, and it gives the day no extra line. A menu names what each way does, so "Add to your calendar" can say it makes one event for each stop at its local hour. The mark drawn in pixels stands true beside one size of word only; in ems it moves with the word, and Fira Sans's x-height, 0.527 em, is measured from the loaded face. Read at render, a prerendered page takes the flag at its build, so a deploy turns it on, and no page waits on the request to know its masthead.
 
 **Cost.** The ways are one press further than links in a line, and a visitor who never opens the menu does not see them. Until the flag is removed there are two mastheads, and the line under a day has two forms. Turning the flag on or off needs a new deploy, not a changed variable alone.
+
+## 2026-11-11 — The start screen is an index, with a day's first stops under it
+
+**Decision.** Behind the first impression's flag (`FIRST_IMPRESSION=1`), the start screen offers its written days as an index (`start-index.tsx`) under "No city in mind? Start from one of these", the second way in beside the question. Each line is a small picture, the city in the voice's size, and its country and its day in a few words; a press opens the day where the question was, as a quick start did. Under the index stands a still excerpt of the first start's day (`start-excerpt.ts`): its sentence, its line, its first three stops in the day's own list, the plan's once the list is the plan, nothing in it to press, and "The whole day, N stops" as its one link. The excerpt is worked out on the server, so the page holds three stops rather than a day, and nothing streams. A line that pointed below to the written days now points to the index. The index holds the six written days until the eight cities people go to most are written for it; "The cities people go to most, with a day ready in each" joins it then, when it is true. The pictures stand in for ones not yet made. This revises "The first screen asks one question, and no day is drawn until a press": a day is drawn, still and under both ways in.
+
+**Why.** Nothing on the first screen showed what a visitor gets, and a visitor with no city in mind had no way in of their own. Words lead each line, so a line reads whole without its picture and the screen does not read as a travel app's grid; at a phone's 390 px the field and two lines end by about 550 px, inside the 664 px a phone's browser shows. A day drawn still under the ways in shows the product without competing with them or loading the screen with a playing day, which is what the earlier rule turned down.
+
+**Cost.** The first screen is longer, and the excerpt is a day's words the start screen did not have. A line in the index for a city whose day is not written cannot be offered, so the index waits on the written days.
 
 ## 2026-11-11 — A day opens on its plan, lit by the day's light
 
