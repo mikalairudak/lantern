@@ -116,6 +116,7 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 - [2026-11-11 — A day opens on its plan, lit by the day's light](#2026-11-11--a-day-opens-on-its-plan-lit-by-the-days-light)
 - [2026-11-11 — A stop on the plan swipes along its versions](#2026-11-11--a-stop-on-the-plan-swipes-along-its-versions)
 - [2026-11-11 — A day's end asks one question, answered in one tap](#2026-11-11--a-days-end-asks-one-question-answered-in-one-tap)
+- [2026-11-11 — The e2e runs in Playwright's own image, and the frame tests only by hand](#2026-11-11--the-e2e-runs-in-playwrights-own-image-and-the-frame-tests-only-by-hand)
 
 **The look: type, colour and tokens**
 
@@ -631,3 +632,11 @@ How long a day holds is worked out by code (`freshUntil` in `src/lib/days/writte
 **Why.** A day taken along says a visitor used a day, but not whether a visitor who read it would follow it, and five people in a test are not enough to tell. One tap at the place a reader reaches when the day is read is the least a question can ask and still be answered. Asking each time a day is shown keeps no key and asks nothing the visitor cannot see, at the cost of an answer counted twice by a visitor who opens the same day twice, which the report's visitors once a UTC day limit.
 
 **Cost.** A line under every finished day, read by everyone who reaches it and answered by few. An answer is yes or not quite, never why. Until the flag goes the day's end has two forms.
+
+## 2026-11-11 — The e2e runs in Playwright's own image, and the frame tests only by hand
+
+**Decision.** The e2e jobs run in Playwright's container image at the version `package.json` pins, which holds Chromium and the system libraries it needs, so no job installs a browser. The pin is exact, and Detect changes reads it and fails with a plain message when it is not, since the image is named by it. E2E frames runs from the "Run workflow" button alone, no longer on a push to `main`. This revises "CI runs the e2e in four shards, skips it for inert paths, and runs the frame tests apart".
+
+**Why.** Every shard installed Chromium's libraries from Ubuntu's mirrors, and when the runner could not reach them all four failed in their first ten minutes, a red pull request with nothing wrong in it. The image brings what the mirrors did. On a push to `main` the frame tests failed on the runner's pace, a beat drawn at 333 ms against a letter at 400, which a laptop draws in order; that is the reason they left the pull request, and it holds on `main` too. The laptop runs them in the release gate, which every release passes before `main` moves.
+
+**Cost.** The image is large, so a shard spends its first minute pulling it. A Playwright upgrade must move the exact pin, which the image follows by itself. A release reaches `main` without CI's word on the frame rules; that rests on the laptop's gate.
