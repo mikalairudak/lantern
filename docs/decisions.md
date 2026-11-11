@@ -135,6 +135,7 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 - [2026-11-09 — Everything committed is written for a reader of the code, and a check holds the plainest rules](#2026-11-09--everything-committed-is-written-for-a-reader-of-the-code-and-a-check-holds-the-plainest-rules)
 - [2026-11-10 — A pull request's text is held to the rules for what is committed](#2026-11-10--a-pull-requests-text-is-held-to-the-rules-for-what-is-committed)
 - [2026-11-10 — Every change reaches develop as a pull request the owner merges](#2026-11-10--every-change-reaches-develop-as-a-pull-request-the-owner-merges)
+- [2026-11-11 — The engineering session merges a pull request into develop once its checks pass](#2026-11-11--the-engineering-session-merges-a-pull-request-into-develop-once-its-checks-pass)
 - [2026-11-10 — CI runs the e2e in four shards, skips it for inert paths, and runs the frame tests apart](#2026-11-10--ci-runs-the-e2e-in-four-shards-skips-it-for-inert-paths-and-runs-the-frame-tests-apart)
 
 **Privacy and security**
@@ -664,3 +665,11 @@ The hand read found lines that are not true on every date a day is shown, and a 
 **Why.** A day in each of the cities most visitors know shows the product on a city they can judge. Recorded days keep the claim the starts make: every word a visitor reads was the model's. The index offers the eight because a visitor with no city in mind is likelier to pick one they know; the other lists stay as they were, since a list of thirteen sentences would change pages the first impression has not designed. Barcelona's excerpt is one walk through El Born, coffee, the Picasso museum and the Santa Caterina market, each confirmed by its place check and none of its lines naming a month; Tokyo and Seoul sit down to dinner before a late hour, and Madrid's day calls the Rastro a Saturday market, which it is on Sundays. Amsterdam was asked for an early start first, and none of its three days held three weeks: the stop after a November sunrise turns golden as the sunrise moves later, so its request became a slow morning, and Tokyo keeps the early start.
 
 **Cost.** Three rounds, $3.36 in all on the development key, and 1,261 Geoapify lookups. The model writes for the light of the date it is given, so it names the month: of the eight days in the third round that passed the checks, seven named November or autumn. Every day's words were written for mid-November, and several pin it ("the low November sun", "sunset is around half past five"), which no check reads, so each city needs its next season by the date `pnpm days:fresh` gives: between 2 January (Tokyo) and 13 February (Barcelona), read on 11 November. Tokyo and Seoul assumed a late dinner and sit down before 20:30, which the sentence then says, and Seoul's last stop is street food in Myeongdong at 23:55, when its stalls may be shut. The end-to-end specs that play every start's day do not play the city days.
+
+## 2026-11-11 — The engineering session merges a pull request into develop once its checks pass
+
+**Decision.** The engineering session squash-merges each pull request into `develop` itself, once `/pr-ready` is clean and Check, PR text / Text and E2E result pass, with the pull request's body as the commit's message (`.claude/skills/pr-ready/SKILL.md`, step 6). The owner reads what lands and merges releases into `main`. This revises "Every change reaches develop as a pull request the owner merges"; everything else in it holds.
+
+**Why.** A pull request already passes the definition of done, a security review and a fresh reader before it is pushed, and three checks on GitHub before it merges, so a merge waiting for the owner held the next change back without adding a check. A release is what reaches visitors, so that merge stays the owner's.
+
+**Cost.** A change lands on `develop` without the owner's eyes on it first; the owner reads it there, and the release gate and the owner's look at the preview stand before `main`.
