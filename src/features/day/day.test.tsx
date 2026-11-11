@@ -557,9 +557,9 @@ describe("the day", () => {
     await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
     await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
     expect(screen.getByRole("textbox", { name: "Somewhere else" })).toHaveFocus();
-    await user.keyboard("Paris{Enter}");
+    await user.keyboard("Lisbon{Enter}");
 
-    expect(headline()).toHaveTextContent(/^A calm Saturday in Paris, early start$/);
+    expect(headline()).toHaveTextContent(/^A calm Saturday in Lisbon, early start$/);
     await expectNotice(NOT_WRITING_YET);
     expect(screen.queryByRole("group", { name: /The day's energy/ })).not.toBeInTheDocument();
 
@@ -679,7 +679,7 @@ describe("the day", () => {
     await waitForTheDay();
     await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
     await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
-    await user.keyboard("Paris{Enter}");
+    await user.keyboard("Lisbon{Enter}");
 
     await expectNotice(NOT_WRITING_YET);
     expect(screen.queryByText(BUSY, { exact: false })).not.toBeInTheDocument();

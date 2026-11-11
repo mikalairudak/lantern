@@ -124,11 +124,11 @@ test("a written day's address gives way to the start screen's for a city Lantern
   await page.getByRole("button", { name: "Take this day" }).click();
   await page.getByRole("menuitem", { name: /^Plan another day/ }).click();
   await expect(page.getByRole("textbox", { name: "Somewhere else" })).toBeFocused();
-  await page.keyboard.type("Paris");
+  await page.keyboard.type("Lisbon");
   await page.keyboard.press("Enter");
 
   // Kanazawa's own words go with it: its early start is the visitor's.
-  await expect(headline(page)).toHaveText("A calm Saturday in Paris, early start");
+  await expect(headline(page)).toHaveText("A calm Saturday in Lisbon, early start");
   expect(pathOf(page)).toBe("/");
   await expect(page).toHaveTitle("Lantern");
   expect(seen).toEqual({ routeFetches: [], errors: [] });

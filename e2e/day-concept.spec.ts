@@ -217,10 +217,10 @@ test("a city Lantern has no day for is said back as asked, with the days that ar
   await page.getByRole("button", { name: "Take this day" }).click();
   await page.getByRole("menuitem", { name: /^Plan another day/ }).click();
   await expect(page.getByRole("textbox", { name: "Somewhere else" })).toBeFocused();
-  await page.keyboard.type("Paris");
+  await page.keyboard.type("Lisbon");
   await page.keyboard.press("Enter");
 
-  await expect(headline).toHaveText("A calm Saturday in Paris");
+  await expect(headline).toHaveText("A calm Saturday in Lisbon");
   await expect(endingLine(page).filter({ hasText: NOT_YET })).toBeVisible();
   await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveCount(0);
 
