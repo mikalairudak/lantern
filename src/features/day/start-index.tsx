@@ -1,7 +1,6 @@
 "use client";
 
 import { useId, type Ref } from "react";
-import { cn } from "@/components/ui/cn";
 import { modelPicks } from "@/features/abacus/curve";
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
 import { ReadingList } from "./reading-list";
@@ -12,8 +11,7 @@ import type { StartOffer } from "./start-offers";
 /** Over the index: it speaks to the visitor the index is for, the one with no city in mind. */
 export const INDEX_LABEL = "No city in mind? Start from one of these";
 
-const ROW_CLASSES =
-  "flex w-full items-center gap-3 rounded-sm py-3 text-left transition-colors focus-ring hover:text-ink-soft";
+const ROW_CLASSES = "group flex w-full items-center gap-3 rounded-sm py-3 text-left focus-ring";
 
 /**
  * The start screen's index under the first impression (`docs/decisions.md`, "The start screen is
@@ -50,7 +48,8 @@ export function StartIndex({
                 className="size-14 shrink-0 rounded-md border border-line bg-surface"
               />
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="type-voice text-quote text-pretty text-ink">
+                {/* A pointer over a line underlines its city, as the page's links are. */}
+                <span className="type-voice text-quote text-pretty text-ink decoration-line underline-offset-4 group-hover:underline">
                   {start.request.city}
                 </span>
                 <span className="type-note text-muted">
@@ -88,7 +87,8 @@ export function StartExcerptView({ excerpt }: { excerpt: StartExcerpt }) {
         </p>
         <p className="type-prose text-small text-pretty text-ink-soft">{excerpt.dek}</p>
       </div>
-      <div inert className={cn("pointer-events-none")}>
+      {/* Nothing in it can be pressed or focused; it stays in what a screen reader reads. */}
+      <div className="pointer-events-none">
         <ReadingList
           stops={excerpt.stops}
           entered={excerpt.stops.length}

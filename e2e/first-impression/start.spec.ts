@@ -20,7 +20,8 @@ test("the start screen offers the question and an index of written days, with a 
   if ((page.viewportSize()?.width ?? 0) < 500) expect(second!.y + second!.height).toBeLessThan(664);
 
   const excerpt = page.getByRole("region", { name: "What a day looks like" });
-  await expect(excerpt.getByRole("heading", { level: 2 })).toHaveCount(3);
+  // The day's first three stops, each named, in its list.
+  await expect(excerpt.getByRole("list").getByRole("heading")).toHaveCount(3);
   const whole = excerpt.getByRole("link", { name: /^The whole day, \d+ stops$/ });
   await expect(whole).toHaveAttribute("href", /^\/day\//);
 
