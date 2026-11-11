@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StrictMode } from "react";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { CANDIDATE_ATTRIBUTE } from "@/features/abacus/chart-stop";
 import { DAY_ROUTE } from "@/features/itinerary/day-route";
 import type { ProductEvent } from "@/lib/events/event.schema";
@@ -14,6 +14,8 @@ import type { DayRequest } from "@/lib/schema/itinerary.schema";
 import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { simulateDayStream } from "@/lib/stream/simulate-day-stream";
 import { Day } from "./day";
+import { TAKE_THIS_DAY } from "./day-menu";
+import { FirstImpressionProvider } from "./first-impression";
 import { INTAKE_ROUTE } from "./intake-route";
 import { StartDay } from "./start-day";
 import { WRITTEN_HEADING } from "./start-header";
@@ -586,6 +588,54 @@ describe("the gestures on a day, as the product counts them", () => {
     expect(sentOf("link-shared")).toEqual([{ kind: "link-shared", ...KANAZAWA_LINK, ...ON_CHART }]);
     expect(sentOf("route-opened")).toEqual([
       { kind: "route-opened", ...KANAZAWA_LINK, ...ON_CHART },
+    ]);
+  });
+
+  it("takes the day along from the masthead's menu under the first impression, counting each way", async () => {
+    const user = userEvent.setup();
+    // The calendar's file is made in the page and saved by a link's click, which jsdom has not.
+    const saved = vi.fn(() => "blob:calendar");
+    const made = { create: URL.createObjectURL, revoke: URL.revokeObjectURL };
+    URL.createObjectURL = saved;
+    URL.revokeObjectURL = () => undefined;
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    onTestFinished(() => {
+      URL.createObjectURL = made.create;
+      URL.revokeObjectURL = made.revoke;
+      click.mockRestore();
+    });
+    render(
+      <FirstImpressionProvider isOn>
+        <Day first={KANAZAWA_START_REQUEST} isCounted />
+      </FirstImpressionProvider>,
+    );
+    await waitForTheDay();
+    // The line under the day keeps its summary and leaves the ways to the menu.
+    expect(screen.queryByRole("button", { name: /^Copy link/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add to calendar" })).toBeNull();
+
+    const menu = () => screen.getByRole("button", { name: TAKE_THIS_DAY });
+    await user.click(menu());
+    const route = screen.getByRole("menuitem", { name: /Walk it in Google Maps/ });
+    expect(route).toHaveAttribute("href", expect.stringMatching(/google\.com\/maps/));
+    route.addEventListener("click", (event) => event.preventDefault());
+    await user.click(route);
+
+    await user.click(menu());
+    await user.click(screen.getByRole("menuitem", { name: /Add to your calendar/ }));
+    expect(saved).toHaveBeenCalledOnce();
+
+    await user.click(menu());
+    await user.click(screen.getByRole("menuitem", { name: /Copy the link/ }));
+
+    await waitFor(() => expect(sentOf("link-shared")).toHaveLength(1));
+    expect(sentOf("route-opened")).toEqual([
+      { kind: "route-opened", ...KANAZAWA_LINK, ...ON_CHART },
+    ]);
+    expect(sentOf("calendar-saved")).toEqual([
+      { kind: "calendar-saved", ...KANAZAWA_LINK, ...ON_CHART },
     ]);
   });
 

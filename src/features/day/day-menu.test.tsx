@@ -69,6 +69,26 @@ describe("the day menu", () => {
     expect(button).toHaveFocus();
   });
 
+  it("closes from its button with Escape, and on Tab past it, after a press opened it", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <DayMenu items={ITEMS} />
+        <button type="button">Next</button>
+      </>,
+    );
+    const button = screen.getByRole("button", { name: TAKE_THIS_DAY });
+    await user.click(button);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(button).toHaveFocus();
+
+    await user.click(button);
+    await user.tab();
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.getByRole("button", { name: "Next" })).toHaveFocus();
+  });
+
   it("opens on its last item from the up arrow, and closes on Tab and on a press outside", async () => {
     const user = userEvent.setup();
     render(

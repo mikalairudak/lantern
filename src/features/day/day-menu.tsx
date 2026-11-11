@@ -83,6 +83,11 @@ export function DayMenu({
   };
 
   const onButtonKey = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (isOpen && event.key === "Escape") {
+      event.preventDefault();
+      setIsOpen(false);
+      return;
+    }
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
     event.preventDefault();
     const focus = event.key === "ArrowDown" ? "first" : "last";
@@ -122,7 +127,13 @@ export function DayMenu({
 
   const status = items.find((item) => item.status)?.status ?? "";
   return (
-    <span className="relative inline-flex shrink-0">
+    <span
+      className="relative inline-flex shrink-0"
+      // The focus leaving the button and its menu, by Tab or otherwise, closes it.
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsOpen(false);
+      }}
+    >
       <span role="status" className="sr-only">
         {status}
       </span>

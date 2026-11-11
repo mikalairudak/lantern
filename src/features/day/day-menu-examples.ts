@@ -34,10 +34,39 @@ function itemsOf(options: Partial<Parameters<typeof takeAlongOf>[0]>): DayMenuIt
   ];
 }
 
-/** The day menu's items in each state worth a look, on Kanazawa's written day. */
-export const DAY_MENU_STATES: readonly { label: string; items: DayMenuItem[] }[] = [
-  { label: "the day whole", items: itemsOf({}) },
-  { label: "while the day is written", items: itemsOf({ day: null }) },
-  { label: "its link just copied", items: itemsOf({ exports: exportsOf(LINK_COPIED) }) },
-  { label: "a day cut short", items: itemsOf({ isCut: true }) },
+/** Which masthead a cell draws: a day's with its menu, the start screen's, or a page's action. */
+export type MastheadPage = "day" | "start" | "action";
+
+export interface DayMenuState {
+  label: string;
+  page: MastheadPage;
+  items: DayMenuItem[];
+  isOpen: boolean;
+}
+
+/** The masthead and its menu in each state worth a look, on Kanazawa's written day. */
+export const DAY_MENU_STATES: readonly DayMenuState[] = [
+  { label: "a day, its menu open", page: "day", items: itemsOf({}), isOpen: true },
+  { label: "a day, its menu closed", page: "day", items: itemsOf({}), isOpen: false },
+  {
+    label: "while the day is written",
+    page: "day",
+    items: itemsOf({ day: null }),
+    isOpen: true,
+  },
+  {
+    label: "its link just copied",
+    page: "day",
+    items: itemsOf({ exports: exportsOf(LINK_COPIED) }),
+    isOpen: true,
+  },
+  { label: "a day cut short", page: "day", items: itemsOf({ isCut: true }), isOpen: true },
+  {
+    label: "a stream that ended without a day",
+    page: "day",
+    items: [{ ...PLAN_ANOTHER, isApart: false }],
+    isOpen: true,
+  },
+  { label: "the start screen", page: "start", items: [], isOpen: false },
+  { label: "a page with an action", page: "action", items: [], isOpen: false },
 ];

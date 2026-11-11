@@ -1021,17 +1021,21 @@ export function DayStage({
     calendarKey: picksKey ?? city,
     onExport: (way) => onDayAct?.(EXPORT_EVENTS[way]),
   });
-  const takeAlong = isFirstImpression
-    ? takeAlongOf({
-        day: takeable,
-        shown: energy.committed,
-        checks,
-        isCut,
-        exports: dayExports,
-        onRoute: () => onDayAct?.(EXPORT_EVENTS.route),
-        hasLink: address !== null,
-      })
-    : undefined;
+  // A stream that ended with no day leaves nothing to take along: the menu holds "Plan another
+  // day" alone.
+  const takeAlong = !isFirstImpression
+    ? undefined
+    : isEndedWithoutDay
+      ? []
+      : takeAlongOf({
+          day: takeable,
+          shown: energy.committed,
+          checks,
+          isCut,
+          exports: dayExports,
+          onRoute: () => onDayAct?.(EXPORT_EVENTS.route),
+          hasLink: address !== null,
+        });
   // The line under the chart as it last said how far the day was written, and the frame's
   // height then. Once the day is whole its end waits for the frame to rise to the day's own
   // last hour (Kanazawa's by 60 px on a phone, over about a second): meanwhile the line

@@ -1,14 +1,10 @@
 import { labMatrix, type LabMatrix } from "@/lib/lab-matrix";
-import { DayMenu, type DayMenuItem } from "./day-menu";
-import { DAY_MENU_STATES } from "./day-menu-examples";
+import { DayMenu } from "./day-menu";
+import { DAY_MENU_STATES, type DayMenuState } from "./day-menu-examples";
 import { FirstImpressionProvider } from "./first-impression";
 import { Masthead } from "./masthead";
 
-interface DayMenuCellProps {
-  page: "day" | "start" | "action";
-  items: DayMenuItem[];
-  isOpen: boolean;
-}
+type DayMenuCellProps = Omit<DayMenuState, "label">;
 
 /**
  * The first impression's masthead (`docs/decisions.md`, "The day's ways along live in one menu,
@@ -24,17 +20,8 @@ export const DAY_MENU_MATRIX: LabMatrix = labMatrix<DayMenuCellProps>({
   wide: "page",
   axes: [
     {
-      name: "menu",
-      values: DAY_MENU_STATES.map(({ label, items }) => ({ label, props: { items } })),
-    },
-    {
-      name: "page",
-      values: [
-        { label: "a day, its menu open", props: { page: "day", isOpen: true } },
-        { label: "a day, its menu closed", props: { page: "day", isOpen: false } },
-        { label: "the start screen", props: { page: "start", isOpen: false } },
-        { label: "a page with an action", props: { page: "action", isOpen: false } },
-      ],
+      name: "state",
+      values: DAY_MENU_STATES.map(({ label, ...props }) => ({ label, props })),
     },
   ],
   render: ({ page, items, isOpen }) => (
