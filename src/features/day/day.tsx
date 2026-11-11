@@ -102,6 +102,7 @@ import { ASKED_LABELS, FACT_OPTIONS, optionOf, type FactKey } from "./facts";
 import { useDayEvents } from "./use-day-events";
 import { NO_CONFIRMED, DayStage } from "./day-stage";
 import { shownDayOf, wholeInPlaceOf, type EndedDay } from "./shown-day";
+import type { StartExcerpt } from "./start-excerpt";
 import { startOffersOf } from "./start-offers";
 import { keptKeyOf, type KeptLanding } from "./kept-day";
 import type { StartReader, StartResult } from "./written-reader";
@@ -411,6 +412,8 @@ export interface DayStart {
   pool: readonly WrittenGist[];
   /** Reads the visitor's text into a request or a question. */
   read: StartReader;
+  /** A written day's first stops, still, under the start screen's ways in. */
+  excerpt?: StartExcerpt | null;
 }
 
 /** What a page around the day can ask of it. */
@@ -1899,6 +1902,7 @@ export function Day({
         <div className="mx-auto flex min-h-svh max-w-page flex-col px-4 md:px-10 lg:px-16">
           <main className="grow">
             <StartHeader
+              excerpt={start?.excerpt ?? null}
               starts={starts}
               line={line}
               text={text}

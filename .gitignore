@@ -22,6 +22,7 @@
 # next.js
 /.next/
 /.next-e2e/
+/.next-e2e-fi/
 # `pnpm build:check`'s production build (scripts/build-check.mts)
 /.next-build/
 /out/

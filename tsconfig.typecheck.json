@@ -3,5 +3,5 @@
   // and e2e servers keep their own copies, which go stale when routes change or branches
   // switch, and would fail the check for routes that no longer exist.
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", ".next/dev", ".next-e2e", "eval-runs"]
+  "exclude": ["node_modules", ".next/dev", ".next-e2e", ".next-e2e-fi", "eval-runs"]
 }

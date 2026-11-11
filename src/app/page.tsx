@@ -3,7 +3,9 @@ import { Suspense } from "react";
 import { START_ADDRESS } from "@/lib/days/address";
 import { StartDay } from "@/features/day/start-day";
 import { writtenPool } from "@/features/day/written-pool";
+import { isFirstImpression } from "@/lib/first-impression";
 import { isLiveNow } from "@/lib/live/live-now";
+import { startExcerptOf } from "@/features/day/start-excerpt";
 import { listedPageMetadata, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = listedPageMetadata(START_ADDRESS, {
@@ -29,5 +31,12 @@ export default function Home() {
 }
 
 async function LiveStartDay() {
-  return <StartDay pool={writtenPool()} isLive={await isLiveNow()} isCounted />;
+  return (
+    <StartDay
+      pool={writtenPool()}
+      excerpt={isFirstImpression(process.env) ? startExcerptOf() : null}
+      isLive={await isLiveNow()}
+      isCounted
+    />
+  );
 }

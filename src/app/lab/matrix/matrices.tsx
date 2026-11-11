@@ -12,6 +12,7 @@ import { DAY_SHAPE_MATRIX } from "@/features/day/day-shape-matrix";
 import { YOUR_DAYS_MATRIX } from "@/features/day/your-days-matrix";
 import { PROGRESS_LINE_MATRIX } from "@/features/day/progress-line-matrix";
 import { DAY_MENU_MATRIX } from "@/features/day/day-menu-matrix";
+import { START_INDEX_MATRIX } from "@/features/day/start-index-matrix";
 import { FOOT_LINE_MATRIX } from "@/features/day/foot-line-matrix";
 import { DAY_END_MATRIX } from "@/features/day/day-end-matrix";
 import { START_HEADER_MATRIX } from "@/features/day/start-header-matrix";
@@ -36,6 +37,7 @@ export const MATRICES: readonly LabMatrix[] = [
   FOOT_LINE_MATRIX,
   DAY_MENU_MATRIX,
   START_HEADER_MATRIX,
+  START_INDEX_MATRIX,
   DAY_SHAPE_MATRIX,
   YOUR_DAYS_MATRIX,
   CITY_WORD_MATRIX,
