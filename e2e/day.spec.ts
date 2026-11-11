@@ -461,6 +461,10 @@ async function writeMadrid(page: Page, isMobile: boolean): Promise<void> {
     "false",
     { timeout: DAY_TIMEOUT_MS },
   );
+  // The day's end lands under the chart once the frame has risen to its last hour.
+  await expect(page.getByRole("button", { name: "Not quite" })).toBeVisible({
+    timeout: DAY_TIMEOUT_MS,
+  });
 }
 
 /** Opens Madrid's last stop, whose sheet the day has no room for below it. */
