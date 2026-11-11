@@ -10,7 +10,7 @@ import { FACT_OPTIONS, optionOf, type Fact, type FactKey, type FactSource } from
 
 /**
  * The request as a sentence, for any request: "A calm Saturday in Kyoto, on foot, early
- * start, early dinner, home by eight, with …?". The visitor's words are there before the
+ * start, early dinner, home by eight, with anyone". The visitor's words are there before the
  * first token; Lantern's arrive one by one, each once it is final, and the word it asks
  * about arrives as the open question.
  */

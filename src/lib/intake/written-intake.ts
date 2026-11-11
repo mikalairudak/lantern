@@ -1,10 +1,12 @@
-import { QUICK_STARTS, START_REQUESTS } from "@/lib/days/written/quick-starts";
+import { CITY_DAYS } from "@/lib/days/written/city-days";
+import { QUICK_STARTS } from "@/lib/days/written/quick-starts";
+import { WRITTEN_REQUESTS } from "@/lib/days/written/requests";
 import type { IntakeReader, IntakeResult } from "@/lib/schema/intake.schema";
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
 
 /**
- * The intake with live generation off, when no model reads the text. A city a quick start opens,
- * named anywhere in the text, plays that day, and nothing else the text says is said back:
+ * The intake with live generation off, when no model reads the text. A city Lantern has written,
+ * a quick start's or a city day's, named anywhere in the text, plays that day, and nothing else the text says is said back:
  * a phrase the stand-in cannot read may be one that is not about the day, which is dropped unsaid
  * (`docs/decisions.md`, "The intake's expected answers are product calls"). Any other text gets
  * what an intake that cannot run gets, `unavailable`. Live generation replaces it with the
@@ -16,16 +18,16 @@ const JOINING_WORDS = new Set(["in", "at", "to", "for", "around", "near", "of", 
 
 /** Each written city's country, which belongs to the city when it is typed beside it. */
 const COUNTRIES: Readonly<Record<string, string>> = Object.fromEntries(
-  QUICK_STARTS.map(({ request, country }) => [request.city, country]),
+  [...QUICK_STARTS, ...CITY_DAYS].map(({ request, country }) => [request.city, country]),
 );
 
 /** "the Netherlands" as typed with or without its article. */
 const ARTICLE = /^the\s+/;
 
-/** A start's written request for a city as typed, whatever its case; null when there is none. */
+/** The written request for a city as typed, whatever its case; null when there is none. */
 export function writtenRequestFor(city: string): DayRequest | null {
   const typed = city.trim().toLowerCase();
-  return START_REQUESTS.find((request) => request.city.toLowerCase() === typed) ?? null;
+  return WRITTEN_REQUESTS.find((request) => request.city.toLowerCase() === typed) ?? null;
 }
 
 interface Found {
@@ -36,7 +38,7 @@ interface Found {
 
 /** The written city the text names first, as a whole word. */
 function firstWrittenCityIn(text: string): Found | null {
-  const found = START_REQUESTS.flatMap((request): Found[] => {
+  const found = WRITTEN_REQUESTS.flatMap((request): Found[] => {
     const match = new RegExp(`\\b${escaped(request.city)}\\b`, "i").exec(text);
     return match ? [{ request, at: match.index, length: request.city.length }] : [];
   });

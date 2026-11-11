@@ -45,7 +45,7 @@ describe("sentenceFactsOf", () => {
       "early start",
       "early dinner",
       "home by eight",
-      "with …?",
+      "with anyone",
     ]);
     expect(all.company?.source).toBe("asked");
   });

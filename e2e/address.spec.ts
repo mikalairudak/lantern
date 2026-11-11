@@ -1,10 +1,16 @@
-import { expect, test, type Page, type Request, waitMs } from "./fixtures";
+import { expect, test, type Page, type Request, waitMs, chooseTheChart } from "./fixtures";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 /** The route lands a written day in about twelve seconds; a cold server adds a few. */
 const DAY_TIMEOUT_MS = waitMs(30_000);
 const DAY_LIST = 'ol[aria-label="The day"]';
-/** What the start screen says over the cities Lantern has written. */
-const WRITTEN_HEADING = "Or watch Lantern write a day it knows";
+/** What the start screen says over its index of the days Lantern has written. */
+const INDEX_LABEL = "No city in mind? Start from one of these";
 
 /** A fetch of a route's server components, as a router navigation makes. */
 function isRouteFetch(request: Request): boolean {
@@ -60,12 +66,12 @@ test("a city pressed on the start screen is named in the address once its day ta
   const entries = await page.evaluate(() => window.history.length);
 
   await page
-    .getByRole("list", { name: WRITTEN_HEADING })
-    .getByRole("button", { name: / in Kanazawa,/ })
+    .getByRole("list", { name: INDEX_LABEL })
+    .getByRole("button", { name: /^Paris / })
     .click();
 
-  await expect(page).toHaveURL(/\/day\/kanazawa$/);
-  await expect(page).toHaveTitle("A calm Saturday in Kanazawa, early start · Lantern");
+  await expect(page).toHaveURL(/\/day\/paris$/);
+  await expect(page).toHaveTitle("A calm Sunday in Paris, slow morning, with a partner · Lantern");
   // Pushed once, so Back comes back to the start screen; the router kept the start screen's
   // tree, so no route was fetched.
   expect(await page.evaluate(() => window.history.length)).toBe(entries + 1);
@@ -83,16 +89,18 @@ test("a city pressed on the start screen is named in the address once its day ta
   await page.goBack();
   expect(pathOf(page)).toBe("/");
   await expect(page).toHaveTitle("Lantern");
-  await expect(page.getByRole("list", { name: WRITTEN_HEADING })).toBeVisible();
+  await expect(page.getByRole("list", { name: INDEX_LABEL })).toBeVisible();
   await expect(headline(page)).toBeFocused();
   await page.goForward();
-  await expect(page).toHaveURL(/\/day\/kanazawa$/);
-  await expect(headline(page)).toContainText("A lively Saturday in Kanazawa");
-  await expect(page).toHaveTitle("A lively Saturday in Kanazawa, early start · Lantern");
+  await expect(page).toHaveURL(/\/day\/paris$/);
+  await expect(headline(page)).toContainText("A lively Sunday in Paris");
+  await expect(page).toHaveTitle(
+    "A lively Sunday in Paris, slow morning, with a partner · Lantern",
+  );
   await expect(page.getByRole("region", { name: /^About / })).toBeVisible();
   if (about !== null) await expect(page.getByRole("region", { name: about })).toBeVisible();
 
-  await chooseWrittenCity(page, "Kanazawa", "Bologna");
+  await chooseWrittenCity(page, "Paris", "Bologna");
 
   await expect(page).toHaveURL(/\/day\/bologna$/);
   await expect(page).toHaveTitle("A lively Saturday in Bologna, with friends · Lantern");
@@ -113,13 +121,14 @@ test("a written day's address gives way to the start screen's for a city Lantern
   await waitForTheDay(page);
   const seen = watch(page);
 
-  await page.getByRole("button", { name: "Plan another day" }).first().click();
+  await page.getByRole("button", { name: "Take this day" }).click();
+  await page.getByRole("menuitem", { name: /^Plan another day/ }).click();
   await expect(page.getByRole("textbox", { name: "Somewhere else" })).toBeFocused();
-  await page.keyboard.type("Paris");
+  await page.keyboard.type("Lisbon");
   await page.keyboard.press("Enter");
 
   // Kanazawa's own words go with it: its early start is the visitor's.
-  await expect(headline(page)).toHaveText("A calm Saturday in Paris, early start");
+  await expect(headline(page)).toHaveText("A calm Saturday in Lisbon, early start");
   expect(pathOf(page)).toBe("/");
   await expect(page).toHaveTitle("Lantern");
   expect(seen).toEqual({ routeFetches: [], errors: [] });
@@ -130,11 +139,11 @@ test("the lab's start screen keeps its own address whatever day it shows", async
   const title = await page.title();
 
   await page
-    .getByRole("list", { name: WRITTEN_HEADING })
-    .getByRole("button", { name: / in Kanazawa,/ })
+    .getByRole("list", { name: INDEX_LABEL })
+    .getByRole("button", { name: /^Paris / })
     .click();
   await waitForTheDay(page);
-  await chooseWrittenCity(page, "Kanazawa", "Bologna");
+  await chooseWrittenCity(page, "Paris", "Bologna");
 
   await expect(headline(page)).toContainText("A lively Saturday in Bologna");
   expect(pathOf(page)).toBe("/lab/concepts/start");

@@ -43,7 +43,7 @@ const EM_SINK = `${-(MARK_EM * ((GRID - BEAD.cy) / GRID) - X_HEIGHT_EM / 2)}em`;
 
 interface LanternMarkProps {
   className?: string;
-  /** Drawn in ems of the word beside it, as the first impression's masthead sets it. */
+  /** Drawn in ems of the word beside it, as the masthead sets it. */
   isSetInEms?: boolean;
 }
 

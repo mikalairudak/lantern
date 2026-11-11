@@ -19,7 +19,7 @@ const ignore = () => undefined;
 
 /**
  * The one-tap answer at a day's end (`docs/decisions.md`, "A day's end asks one question,
- * answered in one tap"): under the first impression's day end, the question, the thanks in its
+ * answered in one tap"): under the day's end, the question, the thanks in its
  * place once answered (one thanks for either answer), a day cut short, which is not asked, a day
  * with no "found" line, and the narrowest phone, where the answers wrap under the question.
  */
@@ -55,8 +55,6 @@ export const DAY_ANSWER_MATRIX: LabMatrix = labMatrix<DayAnswerCellProps>({
       <DayEnd
         {...(hasFoundLine ? CHECKED : BY_HAND)}
         isCut={isCut}
-        calendarKey="kanazawa"
-        hasWaysAlong={false}
         onAnswer={ignore}
         answered={isAnswered ? "yes" : null}
       />

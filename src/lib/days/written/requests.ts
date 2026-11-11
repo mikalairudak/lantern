@@ -10,7 +10,8 @@ import { isOnItsWeekday, shownDateOf } from "./shown-date";
  * "The public site offers only days the product wrote"): the three written by hand, Kyoto's,
  * Alicante's and Lisbon's, stay as fixtures for the tests and the lab, and a visitor gets them as
  * any other city. Each written day has its address and plays from the route without a model
- * call; the lists a page offers days from are the starts' (`START_REQUESTS`).
+ * call. The start screen's index offers eight of them (`INDEX_REQUESTS`), and the other lists
+ * the quick starts' (`START_REQUESTS`).
  */
 export const WRITTEN_REQUESTS: readonly DayRequest[] = [...START_REQUESTS, ...CITY_REQUESTS];
 

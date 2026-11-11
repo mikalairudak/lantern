@@ -210,6 +210,13 @@ function slowMorning(step: Partial<ReplanControls>): ReplanControls {
   };
 }
 
+/** The header's own live line; the day menu beside it holds one of its own, for a copied link. */
+function headerStatus(): HTMLElement {
+  const status = screen.getAllByRole("status").find((each) => each.tagName === "P");
+  if (!status) throw new Error("The header has no live line");
+  return status;
+}
+
 describe("DayStageHeader", () => {
   it("keeps a fork note's dot with its press, so a note that wraps never ends a line on the dot", async () => {
     const onPress = vi.fn();
@@ -493,7 +500,7 @@ describe("DayStageHeader", () => {
     const notice = noticeOf({ kind: "cut", itinerary: null }, KYOTO_REQUEST);
     renderHeader(KYOTO_REQUEST, null, notice, { isNoticeWrittenIn: true });
     const line = noticeLine();
-    const status = screen.getByRole("status");
+    const status = headerStatus();
     const heard: string[] = [];
     const listen = new MutationObserver(() => heard.push(status.textContent ?? ""));
     listen.observe(status, { subtree: true, characterData: true, childList: true });
@@ -799,7 +806,7 @@ describe("DayStageHeader", () => {
     );
     await waitFor(() =>
       expect(seenTextOf(headline)).toBe(
-        "A calm Saturday in Kyoto, on foot, early start, early dinner, home by eleven, with …?",
+        "A calm Saturday in Kyoto, on foot, early start, early dinner, home by eleven, with anyone",
       ),
     );
   });
@@ -844,7 +851,7 @@ describe("DayStageHeader", () => {
     const view = renderHeader(KYOTO_REQUEST, null, null, { assumptions: KYOTO_ASSUMPTIONS });
     const headline = screen.getByRole("heading", { level: 1 });
     expect(headline).toHaveTextContent(
-      "A calm Saturday in Kyoto, on foot, early start, early dinner, home by eleven, with …?",
+      "A calm Saturday in Kyoto, on foot, early start, early dinner, home by eleven, with anyone",
     );
 
     view.rerender(
@@ -867,7 +874,7 @@ describe("DayStageHeader", () => {
   it("offers no retry for a day Lantern will not plan", () => {
     renderHeader(KYOTO_REQUEST, null, noticeOf({ kind: "refused" }, KYOTO_REQUEST));
 
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(headerStatus()).toHaveTextContent(
       /^Lantern can't plan this day\. Open one it has written:$/,
     );
     expect(screen.queryByRole("button", { name: "Write it again" })).not.toBeInTheDocument();
@@ -888,7 +895,7 @@ describe("DayStageHeader", () => {
       /^Write it again$/,
     );
 
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(headerStatus()).toHaveTextContent(
       /^Lantern couldn't write this day just now\. Write it again$/,
     );
     expect(screen.queryByRole("list")).not.toBeInTheDocument();

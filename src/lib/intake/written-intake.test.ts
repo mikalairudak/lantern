@@ -4,6 +4,7 @@ import {
   MADRID_START_REQUEST,
   PORTO_START_REQUEST,
 } from "@/lib/days/written/quick-starts";
+import { NEW_YORK_REQUEST, PARIS_REQUEST } from "@/lib/days/written/city-days";
 import {
   readWrittenIntake,
   writtenIntakeOf,
@@ -48,12 +49,23 @@ describe("writtenIntakeOf", () => {
   });
 
   it("says Lantern cannot plan yet for a city without a written day", () => {
-    expect(writtenIntakeOf("Paris, a slow morning")).toEqual({ kind: "unavailable" });
+    expect(writtenIntakeOf("Valencia, a slow morning")).toEqual({ kind: "unavailable" });
     // The days written by hand are fixtures, not the site's: their cities are any city's.
     expect(writtenIntakeOf("Kyoto")).toEqual({ kind: "unavailable" });
     expect(writtenIntakeOf("Lisbon, with friends")).toEqual({ kind: "unavailable" });
     expect(writtenIntakeOf("Portonians' favourite bars")).toEqual({ kind: "unavailable" });
     expect(writtenIntakeOf("   ")).toEqual({ kind: "unavailable" });
+  });
+
+  it("plays a city day as it plays a quick start's", () => {
+    expect(writtenIntakeOf("Paris, a slow morning")).toEqual({
+      kind: "request",
+      request: PARIS_REQUEST,
+      readings: [],
+      unplaced: [],
+    });
+    const result = writtenIntakeOf("a night out in new york");
+    expect(result.kind === "request" && result.request).toEqual(NEW_YORK_REQUEST);
   });
 
   it("reads as the start screen's reader does", async () => {
@@ -98,16 +110,19 @@ describe("writtenPhrasesOf", () => {
     expect(writtenPhrasesOf("Utrecht, the Netherlands")).toEqual([]);
     expect(writtenPhrasesOf("Utrecht, Netherlands")).toEqual([]);
     expect(writtenPhrasesOf("Nafplio in Greece, with my dog")).toEqual(["with my dog"]);
+    // A city day's country too.
+    expect(writtenPhrasesOf("Seoul, South Korea, out late")).toEqual(["out late"]);
   });
 
   it("finds none in a text without a written city", () => {
-    expect(writtenPhrasesOf("Paris, a slow morning")).toEqual([]);
+    expect(writtenPhrasesOf("Valencia, a slow morning")).toEqual([]);
   });
 });
 
 describe("writtenRequestFor", () => {
   it("finds the written day for a city as typed, whatever its case or spaces", () => {
     expect(writtenRequestFor(" porto ")).toEqual(PORTO_START_REQUEST);
-    expect(writtenRequestFor("Paris")).toBeNull();
+    expect(writtenRequestFor("paris")).toEqual(PARIS_REQUEST);
+    expect(writtenRequestFor("Valencia")).toBeNull();
   });
 });

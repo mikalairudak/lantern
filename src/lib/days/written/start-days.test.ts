@@ -55,7 +55,7 @@ describe.each(WRITTEN_DAYS)(
   },
 );
 
-describe("the quick starts", () => {
+describe("the starts", () => {
   it("offer the days in the order of the start days", () => {
     expect(START_REQUESTS).toEqual(START_DAYS.map(({ request }) => request));
   });

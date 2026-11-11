@@ -1,4 +1,7 @@
+import { daySlugOf } from "@/lib/days/address";
+import { writtenDayAt } from "@/lib/days/written/days";
 import { labMatrix, type LabMatrix } from "@/lib/lab-matrix";
+import { shownEnergiesOf } from "./day-shape";
 import type { YourDay } from "./your-days";
 import { YourDaysList, type YourDaysListProps } from "./your-days-list";
 import { writtenPool } from "./written-pool";
@@ -9,7 +12,11 @@ const ignore = () => undefined;
 const NOW = new Date(2026, 9, 31, 21, 0);
 
 /** The written days' requests and shapes, as a visitor's own days would hold them. */
-const POOL = writtenPool();
+const POOL = writtenPool().map(({ request }) => {
+  const written = writtenDayAt(daySlugOf(request));
+  if (!written) throw new Error(`No written day for ${request.city}`);
+  return { request, energies: shownEnergiesOf(written.itinerary) };
+});
 
 /** One of the pool's days as the visitor's own, asked `hoursAgo` before `NOW`. */
 function yourDayOf(at: number, hoursAgo: number, change: Partial<YourDay> = {}): YourDay {

@@ -1,4 +1,10 @@
-import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs, chooseTheChart } from "./fixtures";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 /**
  * The route lands a written day in about twelve seconds; a cold server adds a few, and a
@@ -474,7 +480,7 @@ function expectSentenceInOrder(frames: readonly Frame[], day: string): void {
 
 /**
  * A comma comes with the first letter of the word after it, so the headline never ends on
- * one: the city's stood alone for 126 to 140 ms on every quick start and a day's own address
+ * one: the city's stood alone for 126 to 140 ms on every written day and a day's own address
  * while the pen waited to write Lantern's first word.
  */
 function expectNoLoneComma(frames: readonly Frame[], day: string): void {
@@ -507,7 +513,7 @@ function expectOnePenAtATime(frames: readonly Frame[], day: string): void {
  * No word of the headline moves once seen as the day is written: every word is written into
  * room held for it from the frame it is known, commas and all, so the visitor's "slow
  * morning" after Lantern's "on foot" stands where it will rest. Pushed a letter at a time,
- * the visitor's words moved 74 to 254 px along their lines on the six quick starts (Porto's
+ * the visitor's words moved 74 to 254 px along their lines on the six written days (Porto's
  * "slow morning" 104, Kanazawa's "early start" 169). Read against the headline's box, which
  * glides as a whole.
  */
@@ -547,7 +553,7 @@ function expectRowsOnlyGrow(frames: readonly Frame[]): void {
  * Once a row's name is seen it keeps its lines (`docs/decisions.md`, "A row's words go where
  * its bead comes to rest, and rows ease rather than jump"): its words wait unseen for its bead to
  * be weighed and come where they rest. Shown beside the hollow bead, a name took a line more or
- * less as the bead was weighed, 8 of 43 rows on a phone's quick starts.
+ * less as the bead was weighed, 8 of 43 rows on a phone's six written days.
  */
 function expectNamesKeepTheirLines(frames: readonly Frame[]): void {
   const rows = Math.max(0, ...frames.map((frame) => frame.rows.length));
@@ -761,9 +767,11 @@ test.describe("with motion", { tag: "@frame" }, () => {
   }) => {
     await page.goto("/");
 
+    // Paris's, a calm day: a lively day's last rows can glide faster than a row may, as
+    // `CITIES` says.
     await page
-      .getByRole("list", { name: "Or watch Lantern write a day it knows" })
-      .getByRole("button", { name: / in Kanazawa,/ })
+      .getByRole("list", { name: "No city in mind? Start from one of these" })
+      .getByRole("button", { name: /^Paris / })
       .click();
 
     await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
@@ -782,19 +790,22 @@ test.describe("with motion", { tag: "@frame" }, () => {
     expectPaintedApart(await paintedFramesOf(page));
   });
 
-  test("a quick start's names keep their lines as their beads are weighed on a phone", async ({
+  test("a written day's names keep their lines as their beads are weighed on a phone", async ({
     page,
     isMobile,
   }) => {
     // On a phone at Lantern's narrowest, where a name beside its hollow bead and the same
     // name at rest wrapped apart: Porto's "Francesinha in Cedofeita" went from one line to
-    // two as its bead was weighed. A laptop's columns never wrapped one apart.
+    // two as its bead was weighed. A laptop's columns never wrapped one apart. Seoul's day,
+    // of those the index offers, rests the most names on two lines that the next wider
+    // column holds on one: "Gyeongbokgung Palace", and "Ikseon-dong Hanok Village" and
+    // "Coffee on Jahamun-ro 7-gil", 10 and 14 px past their columns.
     test.skip(!isMobile, "names wrap apart only in a phone's columns");
     await page.setViewportSize(PHONE);
     await page.goto("/");
     await page
-      .getByRole("list", { name: "Or watch Lantern write a day it knows" })
-      .getByRole("button", { name: / in Porto,/ })
+      .getByRole("list", { name: "No city in mind? Start from one of these" })
+      .getByRole("button", { name: /^Seoul / })
       .click();
     await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
       "aria-busy",
@@ -867,7 +878,9 @@ test.describe("with motion", { tag: "@frame" }, () => {
   }) => {
     await page.goto("/");
     const starts = () =>
-      page.getByRole("list", { name: "Or watch Lantern write a day it knows" }).getByRole("button");
+      page
+        .getByRole("list", { name: "No city in mind? Start from one of these" })
+        .getByRole("button");
     await expect(starts().first()).toBeVisible();
     const names = await starts().allInnerTexts();
     expect(names.length, "the start screen's days").toBeGreaterThan(1);

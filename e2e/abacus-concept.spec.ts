@@ -422,7 +422,7 @@ test.describe("the request sentence", () => {
     const chart = page.getByRole("group", { name: /The day's energy/ });
     const before = await rowsOf(page);
 
-    await answer(page, "with …?", /with family/);
+    await answer(page, "with anyone", /with family/);
 
     await expect(list.getByText("Rice on Calle Mayor", { exact: true })).toBeVisible({
       timeout: RECOMPOSE_TIMEOUT_MS,
@@ -474,12 +474,12 @@ test.describe("the request sentence", () => {
     const headline = page.getByRole("heading", { level: 1 });
 
     await page.getByRole("button", { name: "fail", exact: true }).click();
-    await answer(page, "with …?", /with family/);
+    await answer(page, "with anyone", /with family/);
 
     const retry = page.getByRole("button", { name: "family", exact: true });
     await expect(retry).toBeVisible({ timeout: FAIL_TIMEOUT_MS });
     await expect(seen(page.getByText(/Couldn.t re-plan\. Try/))).toBeVisible();
-    await expect(headline.getByRole("button", { name: "with …?", exact: true })).toBeVisible();
+    await expect(headline.getByRole("button", { name: "with anyone", exact: true })).toBeVisible();
     await expect(list.getByText("Tapas on Calle Villegas", { exact: true })).toBeVisible();
     // "Next change" means once: the retry goes through.
     await expect(page.getByRole("button", { name: "ok", exact: true })).toHaveAttribute(

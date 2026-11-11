@@ -151,7 +151,7 @@ describe("ForkRow", () => {
   it("offers a whole day's proposal to take, and nothing to compare once taken", () => {
     renderRow(momentOf("taken, folded"), { example: WHOLE });
 
-    expect(screen.getByRole("radiogroup")).toHaveAccessibleName("with …? or with family");
+    expect(screen.getByRole("radiogroup")).toHaveAccessibleName("with anyone or with family");
     expect(screen.queryByText(/of 1/)).toBeNull();
     expect(screen.queryByRole("button", { name: "Compare" })).toBeNull();
   });

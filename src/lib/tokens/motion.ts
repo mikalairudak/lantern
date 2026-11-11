@@ -44,7 +44,7 @@ export const GENTLE_REACH_PX = 90;
 export const ROOM_REACH_PX = 36;
 /**
  * How far the layout spring carries a row of the list to read in its own time: about 2.4 px
- * a 60 Hz frame, so the rows below a row that opens, gains its versions' line or swaps glide
+ * a 60 Hz frame, so the rows below a row that opens, takes its versions or swaps glide
  * under 3 px a frame, a frame dropped on a busy machine included.
  */
 export const ROW_REACH_PX = 28;

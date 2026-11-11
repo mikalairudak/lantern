@@ -72,7 +72,7 @@ export interface ReplanControls {
   receipt: ForkReceipt | null;
   /**
    * The word changed and its two answers, as the sentence says them ("early dinner", "eating
-   * late"; an open question as its cue, "with …?"), while status is not idle.
+   * late"; an open question as its cue, "with anyone"), while status is not idle.
    */
   change: { word: AssumableFactKey; from: string; to: string } | null;
   /** Whether the change rewrites part of the day ("part") or all of it ("whole"). */

@@ -78,7 +78,7 @@ interface GlidingHeightProps {
   reachPx?: number;
   /**
    * Every glide keeps to `reachPx`, not only one a floor set off: for a box with rows under
-   * it, as a row of the list to read, whose versions' line or a swap would otherwise move
+   * it, as a row of the plan, whose versions coming in or a swap would otherwise move
    * the rows below faster than they can be read.
    */
   shouldAlwaysReach?: boolean;

@@ -1,9 +1,10 @@
 import { readFile } from "node:fs/promises";
-import { expect, test, type Page, waitMs } from "./fixtures";
+import { chooseTheChart, expect, test, type Page, waitMs } from "./fixtures";
 import { shownWrittenDayAt, writtenDayAt } from "../src/lib/days/written/days";
 
-// The line under a finished day: when it ends, how far it goes, what the map found, and the
-// ways to take it along (docs/design-direction.md, "The end of a day and the foot"). It lands with
+// The line under a finished day: when it ends, how far it goes, what the map found, and its one
+// question (docs/design-direction.md, "The end of a day and the foot"); the ways to take it along
+// are the masthead's menu's. It lands with
 // the day whole, under its last row, once what stands over it has come to rest, and nothing
 // above it, nor the line itself, moves after; a day that opens whole has it from its first
 // frame, with nothing moving. Each is watched with motion and under reduced motion, where
@@ -211,13 +212,15 @@ for (const motion of MOTIONS) {
   }
 }
 
-test("its ways: the walk through the places shown in Google Maps, and the day as a calendar file", async ({
+test("its ways, from the masthead's menu: the walk through the places shown in Google Maps, and the day as a calendar file", async ({
   page,
 }) => {
   await openKanazawa(page, "chart", "reduce");
   await expect(theEnd(page)).toBeVisible({ timeout: DAY_TIMEOUT_MS });
 
-  const route = page.getByRole("link", { name: "Walk it in Google Maps" });
+  const menu = page.getByRole("button", { name: "Take this day" });
+  await menu.click();
+  const route = page.getByRole("menuitem", { name: /^Walk it in Google Maps/ });
   const address = new URL((await route.getAttribute("href")) ?? "");
   expect(`${address.origin}${address.pathname}`).toBe("https://www.google.com/maps/dir/");
   expect(address.searchParams.get("api")).toBe("1");
@@ -228,7 +231,7 @@ test("its ways: the walk through the places shown in Google Maps, and the day as
 
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("button", { name: "Add to calendar" }).click(),
+    page.getByRole("menuitem", { name: /^Add to your calendar/ }).click(),
   ]);
   // On the date the page shows the day on, as the server's clock and this one agree on it,
   // never the date it was written for.
@@ -242,7 +245,8 @@ test("its ways: the walk through the places shown in Google Maps, and the day as
   expect(calendar.match(startsThen)).toHaveLength(KANAZAWA.stops.length);
   expect(calendar).toContain(`URL:${new URL("/day/kanazawa", page.url()).href}`);
 
-  await expect(page.getByRole("button", { name: "Copy link" })).toBeVisible();
+  await menu.click();
+  await expect(page.getByRole("menuitem", { name: /^Copy the link/ })).toBeVisible();
 });
 
 /** A phone's screen, where the page's foot is read as the day ends. */
@@ -279,6 +283,7 @@ for (const city of ["kanazawa", "nafplio"]) {
     async ({ page }) => {
       await page.setViewportSize(PHONE);
       await page.emulateMedia({ reducedMotion: "no-preference" });
+      await chooseTheChart(page);
       await page.addInitScript(sampleTheLineUnderTheChart);
       await page.goto(`/day/${city}`);
       const underFrames = () =>

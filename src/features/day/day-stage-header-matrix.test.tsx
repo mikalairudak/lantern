@@ -110,6 +110,13 @@ const ENDINGS: readonly { key: HeaderMoment; outcome: DayOutcome }[] = [
   { key: "limited", outcome: { kind: "limited" } },
 ];
 
+/** The header's own live line; the day menu beside it holds one of its own, for a copied link. */
+function headerStatus(): HTMLElement {
+  const status = screen.getAllByRole("status").find((each) => each.tagName === "P");
+  if (!status) throw new Error("The header has no live line");
+  return status;
+}
+
 describe("the day stage header's matrix", () => {
   it("sets every moment on every day, or says why the day never reaches it", async () => {
     const notes: string[] = [];
@@ -212,7 +219,7 @@ describe("the day stage header's matrix", () => {
     await renderCell("kept", KANAZAWA);
 
     expect(headline()).toHaveTextContent(
-      /^A calm Saturday in Kanazawa, on foot, early start, early dinner, home by eleven, with …\?$/,
+      /^A calm Saturday in Kanazawa, on foot, early start, early dinner, home by eleven, with anyone$/,
     );
     expect(liveDek(KANAZAWA_START_DAY.day.dek)).toHaveTextContent(KANAZAWA_START_DAY.day.dek);
     expect(screen.getAllByText("click a word to change it")[0]).toBeInTheDocument();
@@ -289,7 +296,7 @@ describe("the day stage header's matrix", () => {
       const notice = noticeOf(outcome, request);
 
       expect(notice).not.toBeNull();
-      expect(screen.getByRole("status")).toHaveTextContent(ENDING_WORDS[notice?.kind ?? ""]!);
+      expect(headerStatus()).toHaveTextContent(ENDING_WORDS[notice?.kind ?? ""]!);
       // Only the visitor's words stand in the sentence: the outcome, not the partial, says
       // what shows after an ending without a day.
       expect(headline()).toHaveTextContent(new RegExp(`^${requestSentenceOf(request)}$`));
@@ -311,7 +318,7 @@ describe("the day stage header's matrix", () => {
     ] as const;
     for (const [moment, line] of lines) {
       const view = await renderCell(moment, KANAZAWA);
-      expect(screen.getByRole("status")).toHaveTextContent(line);
+      expect(headerStatus()).toHaveTextContent(line);
       expect(headline()).toHaveTextContent(/^A calm Saturday in Kanazawa, early start$/);
       view.unmount();
     }
@@ -320,7 +327,7 @@ describe("the day stage header's matrix", () => {
   it("sets a fork's states: its word's pair, the proposal lit, the others locked, its list taking either version", async () => {
     const writing = await renderCell("replan-writing", KANAZAWA);
     expect(seenTextOf(headline())).toBe(
-      "A calm Saturday in Kanazawa, on foot, early start, early dinner or eating late, home by eleven, with …?",
+      "A calm Saturday in Kanazawa, on foot, early start, early dinner or eating late, home by eleven, with anyone",
     );
     // The proposal's answer is blue, and points to its fork; the visitor's word is theirs.
     const pair = within(headline()).getByRole("button", { name: /^eating late, proposed/ });
@@ -336,13 +343,13 @@ describe("the day stage header's matrix", () => {
     // The longest answer a word offers stands as its pair as any does.
     const longest = await renderCell("replan-writing-longest", KANAZAWA);
     expect(seenTextOf(headline())).toBe(
-      "A calm Saturday in Kanazawa, on foot or by public transport, early start, early dinner, home by eleven, with …?",
+      "A calm Saturday in Kanazawa, on foot or by public transport, early start, early dinner, home by eleven, with anyone",
     );
     longest.unmount();
 
     const shortest = await renderCell("replan-writing-shortest", KANAZAWA);
     expect(seenTextOf(headline())).toBe(
-      "A calm Saturday in Kanazawa, on foot, early start, early dinner, home by eleven or out late, with …?",
+      "A calm Saturday in Kanazawa, on foot, early start, early dinner, home by eleven or out late, with anyone",
     );
     shortest.unmount();
 

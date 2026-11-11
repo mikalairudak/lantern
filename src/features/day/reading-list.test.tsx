@@ -10,7 +10,6 @@ import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import { LISBON_DAY } from "@/lib/fixtures/curated/lisbon";
 import { dayText } from "@/lib/stream/simulate-day-stream";
 import { enteredOf, versionsWrittenOf } from "./reading-gates";
-import { FirstImpressionProvider } from "./first-impression";
 import { ReadingList } from "./reading-list";
 import { FORK_EXAMPLES, forkViewAt } from "@/features/abacus/fork-row-examples";
 
@@ -48,6 +47,16 @@ async function kyotoAt(isReached: Parameters<typeof firstAt>[1]) {
 function rowsOf(): HTMLElement[] {
   return within(screen.getByRole("list", { name: "The day, to read" })).queryAllByRole("listitem");
 }
+
+/** A row's words as they are read: the versions waiting beside its stop are drawn unheard. */
+function readTextOf(row: HTMLElement): string {
+  const copy = row.cloneNode(true) as HTMLElement;
+  for (const unheard of copy.querySelectorAll("[aria-hidden]")) unheard.remove();
+  return copy.textContent ?? "";
+}
+
+/** The arrows that swipe a stop to a version beside it. */
+const ARROW_NAME = /^(Quieter|Livelier|Same energy): /;
 
 // Motion as on a screen that moves, so the pen can be watched: a row on the list when it is
 // first drawn stands whole all the same.
@@ -96,18 +105,20 @@ describe("ReadingList", () => {
     render(<ReadingList {...lisbon} picks={[1, ...lisbon.picks.slice(1)]} />);
 
     const market = rowsOf()[0]!;
-    expect(market).toHaveTextContent(version.name ?? "");
-    expect(market).toHaveTextContent(version.summary ?? "");
-    expect(market).not.toHaveTextContent(stop.primary.summary ?? "");
+    expect(within(market).getByRole("heading", { name: version.name ?? "" })).toBeVisible();
+    expect(readTextOf(market)).toContain(version.summary ?? "");
+    expect(readTextOf(market)).not.toContain(stop.primary.summary ?? "");
   });
 
-  it("swaps a stop to a version the chart would show, says the original among the rest, and keeps the focus", async () => {
+  it("swaps a stop to a version the chart would show, says the original beside it, and keeps the focus", async () => {
     const user = userEvent.setup();
     const onChoose = vi.fn();
     const { rerender } = render(<ReadingList {...KYOTO} onChoose={onChoose} />);
     const [version] = KYOTO.stops[0]!.alternatives;
 
-    await user.click(within(rowsOf()[0]!).getByRole("button", { name: version!.name }));
+    await user.click(
+      within(rowsOf()[0]!).getByRole("button", { name: new RegExp(`: ${version!.name}$`) }),
+    );
     expect(onChoose).toHaveBeenCalledWith(0, 1);
 
     rerender(
@@ -118,11 +129,11 @@ describe("ReadingList", () => {
       />,
     );
     const swapped = rowsOf()[0]!;
-    const name = within(swapped).getByRole("heading", { name: version!.name });
-    expect(name).toBeVisible();
-    expect(swapped).toHaveTextContent("Honen-in the original");
-    // The pressed version's button has gone: the focus stands on the stop's name.
-    expect(name).toHaveFocus();
+    expect(within(swapped).getByRole("heading", { name: version!.name })).toBeVisible();
+    // The planned place waits beside it, an arrow's press away.
+    expect(within(swapped).getByRole("button", { name: /: Honen-in$/ })).toBeInTheDocument();
+    // The arrow pressed may have gone with its version: the focus stands on the stop.
+    expect(within(swapped).getByRole("group", { name: version!.name })).toHaveFocus();
   });
 
   it("lets a stop in only once all its row says is final, while the next stop's line is written", async () => {
@@ -133,7 +144,7 @@ describe("ReadingList", () => {
     expect(rowsOf()).toHaveLength(2);
     expect(screen.queryByText(/Murin-an/)).not.toBeInTheDocument();
     // No versions yet: the stream writes them after every stop.
-    expect(screen.queryByText(/^or /)).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("button", { name: ARROW_NAME })).toHaveLength(0);
   });
 
   it("says a stop's versions once the stream has written its set whole, a second pass", async () => {
@@ -145,8 +156,10 @@ describe("ReadingList", () => {
 
     const rows = rowsOf();
     expect(rows).toHaveLength(KYOTO.stops.length);
-    expect(rows[2]).toHaveTextContent(/^.*or Konchi-in quieter/);
-    expect(rows[3]).not.toHaveTextContent(/ or /);
+    expect(
+      within(rows[2]!).getByRole("button", { name: "Quieter: Konchi-in" }),
+    ).toBeInTheDocument();
+    expect(within(rows[3]!).queryAllByRole("button", { name: ARROW_NAME })).toHaveLength(0);
   });
 
   it("writes a row in with the pen once it comes in, its words holding their room", async () => {
@@ -277,13 +290,9 @@ describe("ReadingList", () => {
   });
 });
 
-describe("the list as the day's plan, under the first impression", () => {
+describe("the list as the day's plan", () => {
   it("runs the rail of the day's light beside the times, with the sun's minutes where they fall", () => {
-    const { container } = render(
-      <FirstImpressionProvider isOn>
-        <ReadingList {...KYOTO} />
-      </FirstImpressionProvider>,
-    );
+    const { container } = render(<ReadingList {...KYOTO} />);
     // A rail beside each stop, its stretch drawn in the light's own lines.
     expect(container.querySelectorAll("svg line").length).toBeGreaterThanOrEqual(
       KYOTO.stops.length,
@@ -298,21 +307,10 @@ describe("the list as the day's plan, under the first impression", () => {
   it("lets a stop swipe along its versions in place of the line of them, and swaps through the list", async () => {
     const user = userEvent.setup();
     const onChoose = vi.fn();
-    render(
-      <FirstImpressionProvider isOn>
-        <ReadingList {...KYOTO} onChoose={onChoose} />
-      </FirstImpressionProvider>,
-    );
-    const arrows = screen.getAllByRole("button", { name: /^(Quieter|Livelier|Same energy): / });
+    render(<ReadingList {...KYOTO} onChoose={onChoose} />);
+    const arrows = screen.getAllByRole("button", { name: ARROW_NAME });
     expect(arrows.length).toBeGreaterThan(0);
-    expect(screen.queryByText(/^or$/)).toBeNull();
     await user.click(arrows[0]!);
     expect(onChoose).toHaveBeenCalledOnce();
-  });
-
-  it("draws today's list, with no rail and no sun's line, with the first impression off", () => {
-    const { container } = render(<ReadingList {...KYOTO} />);
-    expect(container.querySelector("svg line")).toBeNull();
-    expect(screen.queryByText("Sunset")).toBeNull();
   });
 });

@@ -1,8 +1,14 @@
-import { expect, test, type Page, waitMs } from "./fixtures";
+import { expect, test, type Page, waitMs, chooseTheChart } from "./fixtures";
 import { BROWSER_STORAGE } from "../src/lib/browser-storage";
 import { writtenVersionOf } from "../src/lib/days/written/version";
 import { ENERGY_LEVELS } from "../src/lib/schema/itinerary.schema";
 import { writtenDayAt } from "../src/lib/days/written/days";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 // The places a visitor chose on a day are kept on this device, so the day opens as they left it; a
 // day rewritten in a later build opens as written, and nothing of it leaves the browser.
@@ -160,8 +166,13 @@ test("without storage a version chosen holds on the page alone", async ({ page }
     Storage.prototype.setItem = blocked;
     Storage.prototype.removeItem = blocked;
   });
+  // Without storage no view is kept, so the day opens on its plan each time: the chart is
+  // chosen on the page.
+  const toTheChart = () =>
+    page.getByRole("group", { name: "View" }).getByRole("button", { name: "Chart" }).click();
   await page.goto("/day/kanazawa");
   await waitForTheDay(page);
+  await toTheChart();
   const chosen = await chooseLivelier(page);
   // The day on screen keeps it.
   await page.keyboard.press("Tab");
@@ -169,5 +180,6 @@ test("without storage a version chosen holds on the page alone", async ({ page }
 
   await page.reload();
   await waitForTheDay(page);
+  await toTheChart();
   await expect(sliderOf(page)).toHaveAttribute("aria-valuetext", WRITTEN_VALUE);
 });
