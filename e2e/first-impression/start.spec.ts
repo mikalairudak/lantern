@@ -1,3 +1,4 @@
+import { INDEX_REQUESTS } from "../../src/lib/days/written/city-days";
 import { expect, test } from "../fixtures";
 
 /**
@@ -13,7 +14,7 @@ test("the start screen offers the question and an index of written days, with a 
 }) => {
   await page.goto("/");
   const index = page.getByRole("list", { name: "No city in mind? Start from one of these" });
-  await expect(index.getByRole("listitem")).toHaveCount(6);
+  await expect(index.getByRole("listitem")).toHaveCount(INDEX_REQUESTS.length);
 
   // Both ways in on a phone's first screen: the field and two lines of the index.
   const second = await index.getByRole("listitem").nth(1).boundingBox();

@@ -3,11 +3,11 @@ import { ELCHE_REQUEST } from "@/lib/fixtures/replan/elche-dinner";
 import { FirstImpressionProvider } from "./first-impression";
 import { startExcerptOf } from "./start-excerpt";
 import { StartExcerptView, StartIndex } from "./start-index";
-import { startOffersOf, type StartOffer } from "./start-offers";
+import { indexOffersOf, type StartOffer } from "./start-offers";
 import { writtenPool } from "./written-pool";
 
-/** The written days as the start screen offers them. */
-const WRITTEN = startOffersOf(writtenPool());
+/** The days the index offers, as the start screen offers them. */
+const WRITTEN = indexOffersOf(writtenPool());
 
 /**
  * A line at the index's extremes: production's Elche day, its city named "Elx / Elche" and its
@@ -21,8 +21,8 @@ const LONG: StartOffer = {
 
 const COUNTS = {
   one: { label: "one line, the longest", starts: [LONG] },
-  written: { label: "the six written days", starts: WRITTEN },
-  odd: { label: "seven lines, an odd count in two columns", starts: [...WRITTEN, LONG] },
+  written: { label: "the eight days it offers", starts: WRITTEN },
+  odd: { label: "nine lines, an odd count in two columns", starts: [...WRITTEN, LONG] },
 } as const;
 
 interface StartIndexCellProps {
@@ -40,7 +40,7 @@ const ignore = () => undefined;
 export const START_INDEX_MATRIX: LabMatrix = labMatrix<StartIndexCellProps>({
   key: "start-index",
   title: "The start screen's index",
-  note: "The written days as an index under “No city in mind? Start from one of these”, at one line, six and seven, and a day's first stops, still, under it",
+  note: "The written days as an index under “No city in mind? Start from one of these”, at one line, eight and nine, and a day's first stops, still, under it",
   base: { count: "written", hasExcerpt: true },
   wide: "page",
   axes: [

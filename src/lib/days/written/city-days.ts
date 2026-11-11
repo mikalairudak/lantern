@@ -1,18 +1,22 @@
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
-import { startRequestOf, type QuickStart } from "./quick-starts";
+import { MADRID_START_REQUEST, startRequestOf, type QuickStart } from "./quick-starts";
 
 /**
  * Seven cities' written days beside the quick starts' (`docs/decisions.md`, "Seven more cities
  * have a written day at their own address"): with Madrid's start, a day in eight cities from
  * Euromonitor's Top 100 City Destinations Index 2025. Each is a day the product wrote, at its own
- * address and played from its file as a start's is, but no quick start opens it. Requests only,
+ * address and played from its file as a start's is; no quick start opens it, and the start
+ * screen's index does under the first impression (`INDEX_REQUESTS`). Requests only,
  * apart from the days, so a page can say each day's date without loading its text, and with no
  * runtime import but relative ones, so the router's config can read the addresses. Their words
  * differ across the set, so the days between them show what the request changes.
  */
 
-/** A city's written day as its address needs it: the start's words, without a start. */
-export type CityDay = Pick<QuickStart, "request" | "firstStart">;
+/**
+ * A city's written day as its address and the start screen's index need it: a start's words and
+ * country, without the start's other cities.
+ */
+export type CityDay = Pick<QuickStart, "country" | "request" | "firstStart">;
 
 export const PARIS_REQUEST: DayRequest = startRequestOf({
   city: "Paris",
@@ -79,14 +83,33 @@ export const SEOUL_REQUEST: DayRequest = startRequestOf({
 
 /** Each city's day, its first hour as its file writes it; a test holds the hour to the file. */
 export const CITY_DAYS: readonly CityDay[] = [
-  { request: PARIS_REQUEST, firstStart: "10:00" },
-  { request: TOKYO_REQUEST, firstStart: "07:30" },
-  { request: ROME_REQUEST, firstStart: "09:45" },
-  { request: NEW_YORK_REQUEST, firstStart: "10:00" },
-  { request: AMSTERDAM_REQUEST, firstStart: "10:00" },
-  { request: BARCELONA_REQUEST, firstStart: "10:00" },
-  { request: SEOUL_REQUEST, firstStart: "10:00" },
+  { country: "France", request: PARIS_REQUEST, firstStart: "10:00" },
+  { country: "Japan", request: TOKYO_REQUEST, firstStart: "07:30" },
+  { country: "Italy", request: ROME_REQUEST, firstStart: "09:45" },
+  { country: "United States", request: NEW_YORK_REQUEST, firstStart: "10:00" },
+  { country: "Netherlands", request: AMSTERDAM_REQUEST, firstStart: "10:00" },
+  { country: "Spain", request: BARCELONA_REQUEST, firstStart: "10:00" },
+  { country: "South Korea", request: SEOUL_REQUEST, firstStart: "10:00" },
 ];
 
 /** The city days' requests, in the same order. */
 export const CITY_REQUESTS: readonly DayRequest[] = CITY_DAYS.map(({ request }) => request);
+
+/**
+ * The days the start screen's index offers under the first impression, in the order of the
+ * Index's ranking: the seven city days and Madrid's start. The quick starts' other five keep
+ * their pages, their addresses and the sitemap. Each line's picture is named by its day's slug.
+ */
+export const INDEX_REQUESTS: readonly DayRequest[] = [
+  PARIS_REQUEST,
+  MADRID_START_REQUEST,
+  TOKYO_REQUEST,
+  ROME_REQUEST,
+  NEW_YORK_REQUEST,
+  AMSTERDAM_REQUEST,
+  BARCELONA_REQUEST,
+  SEOUL_REQUEST,
+];
+
+/** The day the start screen's excerpt shows the first stops of, under the index. */
+export const EXCERPT_REQUEST: DayRequest = BARCELONA_REQUEST;
