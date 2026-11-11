@@ -47,7 +47,9 @@ const NEXT_SATURDAY = "2026-11-14";
 const NEXT_SUNDAY = "2026-11-15";
 
 /** A request as a start asks it: every word chosen, none assumed. */
-function startRequestOf(words: Partial<DayRequest> & Pick<DayRequest, "city" | "timezone">) {
+export function startRequestOf(
+  words: Partial<DayRequest> & Pick<DayRequest, "city" | "timezone">,
+): DayRequest {
   return {
     date: SATURDAY,
     citySource: "chosen",

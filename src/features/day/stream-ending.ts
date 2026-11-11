@@ -1,4 +1,5 @@
-import { isWrittenRequest, WRITTEN_REQUESTS } from "@/lib/days/written/requests";
+import { START_REQUESTS } from "@/lib/days/written/quick-starts";
+import { isWrittenRequest } from "@/lib/days/written/requests";
 import { isOnItsWeekday } from "@/lib/days/written/shown-date";
 import type { DayRequest, Itinerary } from "@/lib/schema/itinerary.schema";
 import type { DayOutcome } from "@/lib/stream/outcome";
@@ -45,9 +46,9 @@ export function phaseOf(outcome: DayOutcome | null, ended: Itinerary | null): Ph
   return "failed";
 }
 
-/** The written days to offer beside this request: every one but its own, on whatever date it is shown. */
+/** The starts' days to offer beside this request: every one but its own, on whatever date it is shown. */
 function othersThan(request: DayRequest): readonly DayRequest[] {
-  return WRITTEN_REQUESTS.filter((written) => !isOnItsWeekday(written, request));
+  return START_REQUESTS.filter((written) => !isOnItsWeekday(written, request));
 }
 
 /**
@@ -88,9 +89,9 @@ export function noticeOf(
       // Nothing came for a day Lantern writes: the route was busy, so it is asked again.
       return isLive || isWrittenRequest(request)
         ? { kind: "busy", text: BUSY, retry: WRITE_IT_AGAIN, written: [] }
-        : { kind: "not-yet", text: NOT_WRITING_YET, written: WRITTEN_REQUESTS };
+        : { kind: "not-yet", text: NOT_WRITING_YET, written: START_REQUESTS };
     case "limited":
-      return { kind: "resting", text: RESTING, written: WRITTEN_REQUESTS };
+      return { kind: "resting", text: RESTING, written: START_REQUESTS };
   }
 }
 

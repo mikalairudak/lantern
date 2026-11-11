@@ -14,7 +14,7 @@ import {
 } from "react";
 import { cn } from "@/components/ui/cn";
 import { useHydrated } from "@/components/ui/use-hydrated";
-import { WRITTEN_REQUESTS } from "@/lib/days/written/requests";
+import { START_REQUESTS } from "@/lib/days/written/quick-starts";
 import { writtenRequestFor } from "@/lib/intake/written-intake";
 import { dateInZone } from "@/lib/normalizer/normalize-intake";
 import {
@@ -1223,7 +1223,7 @@ export function DayStage({
       // The wait for a model's first words is always longer than a silence, so it needs none of the
       // waiting line's: lit after one, it stood unlit for 0.4 s after the page ran.
       isHeadlineLit={(isWaiting || isAwaitingFirstWords) && !isFrameDrawn}
-      written={WRITTEN_REQUESTS}
+      written={START_REQUESTS}
       cityOpenAt={cityOpenAt}
       typedCity={typedCity}
       isCityFocused={isChosen}

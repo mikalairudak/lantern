@@ -115,7 +115,7 @@ export interface CityFreshness {
   isFlagged: boolean;
 }
 
-/** Each written city's freshness at an instant, in the order the starts offer them. */
+/** Each written city's freshness at an instant, in the order of the written requests. */
 export function freshnessAt(now: Date): CityFreshness[] {
   return WRITTEN_SEASONS.map((seasons) => {
     const start = firstSeasonOf(seasons).written.request;

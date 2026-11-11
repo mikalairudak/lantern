@@ -13,10 +13,11 @@ import {
 import { shownWrittenDayAt, WRITTEN_DAYS, writtenDayAt, writtenDayFor, writtenDayOn } from "./days";
 import { daySlugOf } from "../address";
 import { dayOnDate } from "./freshness";
+import { CITY_DAYS, CITY_REQUESTS } from "./city-days";
 import { KANAZAWA_START_REQUEST, QUICK_STARTS, START_REQUESTS } from "./quick-starts";
 import { isInSeason, type WrittenSeason } from "./seasons";
 import { dateAfter, isOnItsWeekday } from "./shown-date";
-import { START_DAYS, START_SEASONS } from "./start-days";
+import { CITY_SEASONS, START_DAYS, START_SEASONS } from "./start-days";
 
 const DAYS_PER_WEEK = 7;
 
@@ -29,9 +30,9 @@ function datesOf({ from, through, written }: WrittenSeason & { through: string }
   return dates;
 }
 
-// The starts open days the product wrote, kept as written: these hold that each is still a
-// day the app reads as it read it then, not that its words meet the voice's rubric. Every
-// season of every city is one.
+// The starts and the city days open days the product wrote, kept as written: these hold that
+// each is still a day the app reads as it read it then, not that its words meet the voice's
+// rubric. Every season of every city is one.
 describe.each(WRITTEN_DAYS)(
   "the written day in $request.city on $request.date",
   ({ request, day }) => {
@@ -80,8 +81,8 @@ describe("the quick starts", () => {
 });
 
 describe("the written days", () => {
-  it("are the starts' alone: the site offers only days the product wrote", () => {
-    expect(WRITTEN_REQUESTS).toEqual(START_REQUESTS);
+  it("are the starts' and the city days': the site offers only days the product wrote", () => {
+    expect(WRITTEN_REQUESTS).toEqual([...START_REQUESTS, ...CITY_REQUESTS]);
     for (const request of CURATED_REQUESTS) {
       expect(isWrittenRequest(request)).toBe(false);
       expect(writtenDayFor(request, new Date())).toBeNull();
@@ -106,52 +107,57 @@ describe("the written days", () => {
   });
 });
 
-describe.each(QUICK_STARTS.map((start, index) => [start, START_SEASONS[index] ?? []] as const))(
-  "the seasons of $request.city",
-  (start, seasons) => {
-    it("begin with the start's own request", () => {
-      expect(seasons[0]?.written.request).toBe(start.request);
-    });
-
-    it("keep the start's words, weekday and first hour, which a page reads without the day", () => {
-      for (const { written } of seasons) {
-        expect(isOnItsWeekday(start.request, written.request)).toBe(true);
-        expect(written.day.stops[0]?.startTime).toBe(start.firstStart);
-      }
-    });
-
-    it("run oldest first, none overlapping, each holding the date its day was written for", () => {
-      seasons.forEach((season, index) => {
-        expect(isInSeason(season, season.written.request.date)).toBe(true);
-        const next = seasons[index + 1];
-        if (next === undefined) return;
-        expect(season.through).not.toBeNull();
-        expect(season.through! < next.from).toBe(true);
-      });
-    });
-
-    it("hold their day on every date of a closed range", () => {
-      for (const season of seasons) {
-        const { through } = season;
-        if (through === null) continue;
-        for (const date of datesOf({ ...season, through })) {
-          expect(dayOnDate(season.written, date).holds, date).toBe(true);
-        }
-      }
-    });
-  },
+/** Each start and city day beside its seasons, in the order of the written requests. */
+const WRITTEN_CITIES = [...QUICK_STARTS, ...CITY_DAYS].map(
+  (start, index) => [start, [...START_SEASONS, ...CITY_SEASONS][index] ?? []] as const,
 );
+
+describe.each(WRITTEN_CITIES)("the seasons of $request.city", (start, seasons) => {
+  it("begin with the start's own request", () => {
+    expect(seasons[0]?.written.request).toBe(start.request);
+  });
+
+  it("keep the start's words, weekday and first hour, which a page reads without the day", () => {
+    for (const { written } of seasons) {
+      expect(isOnItsWeekday(start.request, written.request)).toBe(true);
+      expect(written.day.stops[0]?.startTime).toBe(start.firstStart);
+    }
+  });
+
+  it("run oldest first, none overlapping, each holding the date its day was written for", () => {
+    seasons.forEach((season, index) => {
+      expect(isInSeason(season, season.written.request.date)).toBe(true);
+      const next = seasons[index + 1];
+      if (next === undefined) return;
+      expect(season.through).not.toBeNull();
+      expect(season.through! < next.from).toBe(true);
+    });
+  });
+
+  it("hold their day on every date of a closed range", () => {
+    for (const season of seasons) {
+      const { through } = season;
+      if (through === null) continue;
+      for (const date of datesOf({ ...season, through })) {
+        expect(dayOnDate(season.written, date).holds, date).toBe(true);
+      }
+    }
+  });
+});
 
 describe("a written day's date", () => {
   // Wednesday 11 November in Tokyo: Kanazawa's Saturday is the 14th.
   const now = new Date("2026-11-11T03:00:00Z");
   const kanazawaOn = (date: string) => ({ ...KANAZAWA_START_REQUEST, date });
 
-  it.each(QUICK_STARTS)("keeps $request.city's first hour as its file writes it", (start) => {
-    const written = START_DAYS.find(({ request }) => request === start.request);
-    expect(start.firstStart).toBe(written?.day.stops[0]?.startTime);
-    expect(firstStartOf(start.request)).toBe(start.firstStart);
-  });
+  it.each([...QUICK_STARTS, ...CITY_DAYS])(
+    "keeps $request.city's first hour as its file writes it",
+    (start) => {
+      const written = WRITTEN_DAYS.find(({ request }) => request === start.request);
+      expect(start.firstStart).toBe(written?.day.stops[0]?.startTime);
+      expect(firstStartOf(start.request)).toBe(start.firstStart);
+    },
+  );
 
   it("moves a written request, word for word, to the date it is shown on, and nothing else", () => {
     expect(shownRequestOf(KANAZAWA_START_REQUEST, now)).toEqual(kanazawaOn("2026-11-14"));

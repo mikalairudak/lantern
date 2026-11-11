@@ -17,7 +17,7 @@ import {
 import type { KeptRecord, ReplanContext } from "./generation-log";
 
 const SALT = "test-salt";
-const PARIS = { city: "Paris", timezone: "Europe/Paris" };
+const MARSEILLE = { city: "Marseille", timezone: "Europe/Paris" };
 
 const WORDS: IntakeWords = {
   date: null,
@@ -40,34 +40,36 @@ function postSigned(signature?: string): Request {
 describe("signCity and isSignedCity", () => {
   it("signs a city in its zone, and the signature holds for that city and zone alone", async () => {
     const key = await citySignatureKey(SALT);
-    const { signature } = await signCity(key, PARIS);
+    const { signature } = await signCity(key, MARSEILLE);
 
     expect(signature).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(await isSignedCity(key, PARIS, signature)).toBe(true);
-    expect(await isSignedCity(key, { ...PARIS, city: "Braga" }, signature)).toBe(false);
-    expect(await isSignedCity(key, { ...PARIS, timezone: "Europe/Madrid" }, signature)).toBe(false);
-  });
-
-  it("never lets a city's letters move into its zone, or the other way", async () => {
-    const key = await citySignatureKey(SALT);
-    const { signature } = await signCity(key, { city: "Paris", timezone: "Europe/Paris" });
-
-    expect(await isSignedCity(key, { city: "Pari", timezone: "sEurope/Paris" }, signature)).toBe(
+    expect(await isSignedCity(key, MARSEILLE, signature)).toBe(true);
+    expect(await isSignedCity(key, { ...MARSEILLE, city: "Braga" }, signature)).toBe(false);
+    expect(await isSignedCity(key, { ...MARSEILLE, timezone: "Europe/Madrid" }, signature)).toBe(
       false,
     );
   });
 
-  it("holds only under the salt that signed it", async () => {
-    const { signature } = await signCity(await citySignatureKey(SALT), PARIS);
+  it("never lets a city's letters move into its zone, or the other way", async () => {
+    const key = await citySignatureKey(SALT);
+    const { signature } = await signCity(key, { city: "Marseille", timezone: "Europe/Paris" });
 
-    expect(await isSignedCity(await citySignatureKey("another-salt"), PARIS, signature)).toBe(
+    expect(
+      await isSignedCity(key, { city: "Marseill", timezone: "eEurope/Paris" }, signature),
+    ).toBe(false);
+  });
+
+  it("holds only under the salt that signed it", async () => {
+    const { signature } = await signCity(await citySignatureKey(SALT), MARSEILLE);
+
+    expect(await isSignedCity(await citySignatureKey("another-salt"), MARSEILLE, signature)).toBe(
       false,
     );
   });
 
   it("refuses no signature, and anything that is not one, without checking it", async () => {
     const key = await citySignatureKey(SALT);
-    const { signature } = await signCity(key, PARIS);
+    const { signature } = await signCity(key, MARSEILLE);
 
     for (const forged of [
       null,
@@ -77,20 +79,20 @@ describe("signCity and isSignedCity", () => {
       signature.slice(1),
       `${signature}A`,
     ]) {
-      expect(await isSignedCity(key, PARIS, forged)).toBe(false);
+      expect(await isSignedCity(key, MARSEILLE, forged)).toBe(false);
     }
   });
 });
 
 describe("signedAnswerOf", () => {
   it("signs a request's city, named whole", async () => {
-    const request = { ...LISBON_REQUEST, city: "Paris", timezone: "Europe/Paris" };
+    const request = { ...LISBON_REQUEST, city: "Marseille", timezone: "Europe/Paris" };
     const result: IntakeResult = { kind: "request", request, readings: [], unplaced: [] };
 
     const answer = await signedAnswerOf(result, SALT);
 
     expect(answer).toMatchObject(result);
-    expect(answer.signed).toEqual([{ ...PARIS, signature: expect.any(String) }]);
+    expect(answer.signed).toEqual([{ ...MARSEILLE, signature: expect.any(String) }]);
   });
 
   it("signs the city played and every other a shared name could mean, each once", async () => {
@@ -162,14 +164,14 @@ describe("isSignedRequest", () => {
   });
 
   it("asks any other city for the intake's signature in its header", async () => {
-    const { signature } = await signCity(await citySignatureKey(SALT), PARIS);
+    const { signature } = await signCity(await citySignatureKey(SALT), MARSEILLE);
     const { signature: kanazawaSignature } = await signCity(await citySignatureKey(SALT), {
       city: "Kanazawa",
       timezone: "Europe/Lisbon",
     });
 
-    expect(await isSignedRequest(postSigned(), PARIS, SALT)).toBe(false);
-    expect(await isSignedRequest(postSigned(signature), PARIS, SALT)).toBe(true);
+    expect(await isSignedRequest(postSigned(), MARSEILLE, SALT)).toBe(false);
+    expect(await isSignedRequest(postSigned(signature), MARSEILLE, SALT)).toBe(true);
     // A written city's name in another zone is not that written day's city.
     const kanazawaElsewhere = { city: "Kanazawa", timezone: "Europe/Lisbon" };
     expect(await isSignedRequest(postSigned(), kanazawaElsewhere, SALT)).toBe(false);

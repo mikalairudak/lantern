@@ -1,4 +1,5 @@
 import type { PlaceCheck } from "@/lib/places/verify-place";
+import { CITY_PLACE_CHECKS } from "./city-checks";
 
 /**
  * Each start's place checks from the run that wrote its day, on 2026-10-31, as Geoapify answered
@@ -8,8 +9,9 @@ import type { PlaceCheck } from "@/lib/places/verify-place";
  * city, then by the id the normalizer gives each place (`stop-2:p`, `stop-2:a1`). Written from
  * the place rounds' records of those runs (`quick-starts` and `rewrite-starts`, each start's
  * generation named above its checks), so the written days carry the checks their runs had, and
- * the route plays them as a live day's (`src/lib/stream/written-place-checks.ts`). Every written
- * day is a start's, so every one has its checks (`writtenChecksOf`).
+ * the route plays them as a live day's (`src/lib/stream/written-place-checks.ts`). The city
+ * days' are beside them (`city-checks.ts`), so every written day has its checks
+ * (`writtenChecksOf`).
  *
  * Data © OpenStreetMap contributors, under the ODbL, provided by Geoapify (`NOTICE`).
  */
@@ -884,11 +886,12 @@ export const START_PLACE_CHECKS: Readonly<Record<string, Readonly<Record<string,
 };
 
 /**
- * A written day's place checks, by its city. Every day the public site serves from a file is a
- * start's and has them (`checks.test.ts`); one without is a fixture out of step, said at once.
+ * A written day's place checks, by its city: a start's, or a city day's (`city-checks.ts`). Every
+ * day the public site serves from a file has them (`checks.test.ts`); one without is a fixture
+ * out of step, said at once.
  */
 export function writtenChecksOf(city: string): Readonly<Record<string, PlaceCheck>> {
-  const checks = START_PLACE_CHECKS[city];
+  const checks = START_PLACE_CHECKS[city] ?? CITY_PLACE_CHECKS[city];
   if (checks === undefined) throw new Error(`The written day in ${city} has no place checks`);
   return checks;
 }

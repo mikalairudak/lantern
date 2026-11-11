@@ -470,13 +470,13 @@ describe("the live day route's failures", () => {
 
 describe("the live day route's signature", () => {
   // A city with no written day, as the intake resolves it.
-  const PARIS: DayRequest = { ...LIVELY_KANAZAWA, city: "Paris", timezone: "Europe/Paris" };
+  const MARSEILLE: DayRequest = { ...LIVELY_KANAZAWA, city: "Marseille", timezone: "Europe/Paris" };
 
   it("writes a city the intake signed, its words changed after signing", async () => {
     const day = simulatedModel({ day: DAY, ending: { kind: "finished" }, pace: QUICK });
     const { deps, afterResponse } = bench({ day });
     // Signed for its city and zone; the sentence's words and the date are the client's.
-    const asked = { ...PARIS, energy: "calm", end: "late", date: "2026-11-21" } as const;
+    const asked = { ...MARSEILLE, energy: "calm", end: "late", date: "2026-11-21" } as const;
 
     const { outcome } = await read(
       answerDayRequest(await signed(asked), QUICK, liveDayOf(deps)),
@@ -498,12 +498,18 @@ describe("the live day route's signature", () => {
   });
 
   it.each([
-    ["no signature", () => Promise.resolve(post(PARIS))],
-    ["another city's", async () => signed({ ...PARIS, city: "Braga" }).then(retarget)],
-    ["another zone's", async () => signed({ ...PARIS, timezone: "Europe/Madrid" }).then(retarget)],
+    ["no signature", () => Promise.resolve(post(MARSEILLE))],
+    ["another city's", async () => signed({ ...MARSEILLE, city: "Braga" }).then(retarget)],
+    [
+      "another zone's",
+      async () => signed({ ...MARSEILLE, timezone: "Europe/Madrid" }).then(retarget),
+    ],
     ["a written city's", async () => signed(KANAZAWA_START_REQUEST).then(retarget)],
-    ["another salt's", async () => signed(PARIS, "another-salt")],
-    ["one that is not a signature", () => Promise.resolve(withSignature(post(PARIS), "forged"))],
+    ["another salt's", async () => signed(MARSEILLE, "another-salt")],
+    [
+      "one that is not a signature",
+      () => Promise.resolve(withSignature(post(MARSEILLE), "forged")),
+    ],
   ])(
     "answers 403, read as unavailable, before any count or call, with %s",
     async (_name, forge) => {
@@ -517,7 +523,7 @@ describe("the live day route's signature", () => {
       await afterResponse();
 
       expect(response.status).toBe(403);
-      expect((await read(Promise.resolve(response), PARIS)).outcome).toEqual({
+      expect((await read(Promise.resolve(response), MARSEILLE)).outcome).toEqual({
         kind: "unavailable",
       });
       expect(next.outcome.kind).toBe("complete");
@@ -527,9 +533,9 @@ describe("the live day route's signature", () => {
     },
   );
 
-  /** The signed request's signature, on a request for Paris in its own zone. */
+  /** The signed request's signature, on a request for Marseille in its own zone. */
   function retarget(signedPost: Request): Request {
-    return withSignature(post(PARIS), signedPost.headers.get(CITY_SIGNATURE_HEADER) ?? "");
+    return withSignature(post(MARSEILLE), signedPost.headers.get(CITY_SIGNATURE_HEADER) ?? "");
   }
 
   function withSignature(request: Request, signature: string): Request {
@@ -539,22 +545,22 @@ describe("the live day route's signature", () => {
 });
 
 describe("a day asked again in the city of a day kept at its address", () => {
-  // A city with no written day. The visitor opened their Paris day by its link: the page holds
+  // A city with no written day. The visitor opened their Marseille day by its link: the page holds
   // no intake's signature, only the day's id.
-  const PARIS: DayRequest = { ...LIVELY_KANAZAWA, city: "Paris", timezone: "Europe/Paris" };
+  const MARSEILLE: DayRequest = { ...LIVELY_KANAZAWA, city: "Marseille", timezone: "Europe/Paris" };
   const KEPT_ID = "1b6f0c2e-4d3a-4f5b-9c7e-2a1d3e4f5a6b";
   const NO_DAY_ID = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
   /** The word the visitor changes, which writes the whole day again. */
-  const RIDDEN: DayRequest = { ...PARIS, travel: "transit" };
+  const RIDDEN: DayRequest = { ...MARSEILLE, travel: "transit" };
 
   /**
-   * A bench whose log keeps a Paris day under `KEPT_ID`, written through the route under the
+   * A bench whose log keeps a Marseille day under `KEPT_ID`, written through the route under the
    * intake's signature as a visitor's first day is, and that day's count taken.
    */
-  async function withKeptParis(dayLimit = 3) {
+  async function withKeptMarseille(dayLimit = 3) {
     const day = simulatedModel({ day: DAY, ending: { kind: "finished" }, pace: QUICK });
     const kept = bench({ day, dayLimit });
-    await read(answerDayRequest(await signed(PARIS), QUICK, liveDayOf(kept.deps)), PARIS);
+    await read(answerDayRequest(await signed(MARSEILLE), QUICK, liveDayOf(kept.deps)), MARSEILLE);
     await kept.afterResponse();
     const written = kept.generationLog.records.find(({ role }) => role === "day")!;
     // The bench names its records `id-1`, `id-2`; a day's address holds a UUID.
@@ -570,7 +576,7 @@ describe("a day asked again in the city of a day kept at its address", () => {
   }
 
   it("answers 403 without the day's id, as it did, and writes the day with it", async () => {
-    const { deps, day, afterResponse } = await withKeptParis();
+    const { deps, day, afterResponse } = await withKeptMarseille();
 
     const before = await answerDayRequest(post(RIDDEN), QUICK, liveDayOf(deps));
     const after = await read(
@@ -581,20 +587,20 @@ describe("a day asked again in the city of a day kept at its address", () => {
 
     expect(before.status).toBe(403);
     expect(after.outcome.kind).toBe("complete");
-    // The kept Paris day, then the day asked again; the refused one never reached the model.
+    // The kept Marseille day, then the day asked again; the refused one never reached the model.
     expect(day.doStreamCalls).toHaveLength(2);
   });
 
   it("counts a day asked by a kept day's id as any day, against the visitor's limit", async () => {
-    const { deps, afterResponse } = await withKeptParis(2);
+    const { deps, afterResponse } = await withKeptMarseille(2);
 
     const second = await read(
       answerDayRequest(naming(RIDDEN, KEPT_ID), QUICK, liveDayOf(deps)),
       RIDDEN,
     );
     const third = await read(
-      answerDayRequest(naming(PARIS, KEPT_ID), QUICK, liveDayOf(deps)),
-      PARIS,
+      answerDayRequest(naming(MARSEILLE, KEPT_ID), QUICK, liveDayOf(deps)),
+      MARSEILLE,
     );
     await afterResponse();
 
@@ -612,7 +618,7 @@ describe("a day asked again in the city of a day kept at its address", () => {
     ["an id no day is kept under", () => naming(RIDDEN, NO_DAY_ID)],
     ["an id that cannot be a day's", () => naming(RIDDEN, "id-1")],
   ])("answers 403, before any count or call, with %s", async (_name, ask) => {
-    const { deps, day, appSpend, generationLog, lines, afterResponse } = await withKeptParis(2);
+    const { deps, day, appSpend, generationLog, lines, afterResponse } = await withKeptMarseille(2);
     const reserve = vi.spyOn(appSpend, "reserve");
     const reads = vi.spyOn(generationLog, "dayRecordOf");
 
@@ -629,7 +635,7 @@ describe("a day asked again in the city of a day kept at its address", () => {
     expect(reserve).toHaveBeenCalledTimes(2);
     expect(day.doStreamCalls).toHaveLength(2);
     expect(lines.map(({ event }) => event)).toEqual(["day-request-not-signed"]);
-    // `id-1` holds the Paris day in this log, and is never read: a day's id is a UUID.
+    // `id-1` holds the Marseille day in this log, and is never read: a day's id is a UUID.
     expect(reads.mock.calls.map(([id]) => id)).not.toContain("id-1");
   });
 
@@ -637,7 +643,7 @@ describe("a day asked again in the city of a day kept at its address", () => {
     ["fails", () => Promise.reject(new Error("connection refused"))],
     ["is late", () => new Promise<never>(() => undefined)],
   ])("answers 503, before any count or call, when the log %s", async (_name, reading) => {
-    const { deps, day, appSpend, generationLog, lines } = await withKeptParis();
+    const { deps, day, appSpend, generationLog, lines } = await withKeptMarseille();
     const reserve = vi.spyOn(appSpend, "reserve");
     vi.spyOn(generationLog, "dayRecordOf").mockImplementation(reading);
 

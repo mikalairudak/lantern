@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { normalizeDay } from "@/lib/normalizer/normalize";
 import type { WrittenDay } from "./written-day";
 import { WRITTEN_DAYS, WRITTEN_SEASONS } from "./days";
+import { CITY_PLACE_CHECKS } from "./city-checks";
 import { START_PLACE_CHECKS, writtenChecksOf } from "./checks";
 
 /** Every place the normalized day shows, by its id. */
@@ -33,7 +34,9 @@ describe.each(SEASONS)("the season of %s", (_name, { written, checks }) => {
 describe("a written day's checks", () => {
   it("are there for every day the site serves from a file", () => {
     for (const { request } of WRITTEN_DAYS) {
-      expect(writtenChecksOf(request.city)).toBe(START_PLACE_CHECKS[request.city]);
+      expect(writtenChecksOf(request.city)).toBe(
+        START_PLACE_CHECKS[request.city] ?? CITY_PLACE_CHECKS[request.city],
+      );
     }
   });
 
