@@ -23,6 +23,9 @@ export const DAY_VIEW_STORAGE_KEY = BROWSER_STORAGE.view.key;
 /** The attribute on `<html>` that the styles show one view by (`globals.css`). */
 export const DAY_VIEW_ATTRIBUTE = "data-day-view";
 
+/** The attribute the root layout sets on `<html>` while the first impression is on. */
+const FIRST_IMPRESSION_ATTRIBUTE = "data-first-impression";
+
 /** Told to the page's switches when the view changes. */
 const DAY_VIEW_EVENT = "lantern-day-view";
 
@@ -97,9 +100,12 @@ export function subscribeDayView(onChange: () => void): () => void {
     if (event.key !== null && event.key !== DAY_VIEW_STORAGE_KEY) return;
     document.documentElement.setAttribute(
       DAY_VIEW_ATTRIBUTE,
-      // A choice cleared, as a browser's own storage was before the chart was kept by its value,
-      // reads as the chart.
-      storedViewOf(event.newValue, false),
+      // A choice cleared reads as the view a day opens on: the plan under the first impression,
+      // which the root layout notes on <html>, the chart otherwise.
+      storedViewOf(
+        event.newValue,
+        document.documentElement.hasAttribute(FIRST_IMPRESSION_ATTRIBUTE),
+      ),
     );
     onChange();
   };

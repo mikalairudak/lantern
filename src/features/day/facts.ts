@@ -133,7 +133,8 @@ export function optionOf(fact: Pick<Fact, "options">, value: string | null): Fac
 
 /**
  * The open questions under the first impression: the company reads as a plain phrase, "with
- * anyone", rather than a word left unfinished; it is dotted as Lantern's, one tap from change.
+ * anyone", rather than a word left unfinished, in muted ink as an open question is, one tap from
+ * change.
  */
 export const PLAN_ASKED_LABELS: Readonly<Record<AssumableFactKey, string>> = {
   ...ASKED_LABELS,

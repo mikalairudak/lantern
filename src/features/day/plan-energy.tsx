@@ -1,9 +1,11 @@
 "use client";
 
+import type { Ref } from "react";
 import { cn } from "@/components/ui/cn";
 import { ENERGY_LEVELS, type EnergyLevel } from "@/lib/schema/itinerary.schema";
 import { TARGET_CLASSES } from "./link-classes";
 import { energyLabelOf } from "./sentence";
+import { DayViewSwitch } from "./view-switch";
 
 /**
  * The day's energy on its plan: the five words of the headline's energy word, the day's in
@@ -26,8 +28,8 @@ export function PlanEnergy({
 }) {
   return (
     <div
-      role="radiogroup"
-      aria-label="The day's energy"
+      role="group"
+      aria-label="How lively the day is"
       className={cn("flex flex-wrap items-baseline gap-x-3 type-note", className)}
     >
       {ENERGY_LEVELS.map((level) => {
@@ -36,22 +38,59 @@ export function PlanEnergy({
           <button
             key={level}
             type="button"
-            role="radio"
-            aria-checked={isOn}
+            aria-pressed={isOn}
             aria-disabled={!isEnabled || undefined}
             onClick={() => isEnabled && !isOn && onChoose(level)}
             className={cn(
               TARGET_CLASSES,
               "rounded-sm focus-ring transition-colors",
+              // As the view's switch has it: the one on show in its colour, the others underlined.
               isOn
-                ? "text-energy underline decoration-curve decoration-2 underline-offset-4"
-                : "text-muted not-aria-disabled:hover:text-ink aria-disabled:cursor-default",
+                ? "text-energy"
+                : "text-muted underline decoration-1 underline-offset-4 not-aria-disabled:hover:text-ink aria-disabled:cursor-default aria-disabled:no-underline",
             )}
           >
             {energyLabelOf(level)}
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * The bar over the plan: the day's energy and the view's switch, held at the screen's top while
+ * the plan scrolls. On the chart the chart's own scale is held, so the bar stands still there and
+ * the energy's words leave it, room and all.
+ */
+export function PlanBar({
+  energy,
+  isEnabled,
+  onChoose,
+  ref,
+  className,
+}: {
+  energy: EnergyLevel;
+  isEnabled: boolean;
+  onChoose: (energy: EnergyLevel) => void;
+  ref?: Ref<HTMLDivElement>;
+  className?: string;
+}) {
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        "z-10 mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-ground view-read:sticky view-read:top-0 view-read:border-b view-read:border-line view-read:py-1",
+        className,
+      )}
+    >
+      <PlanEnergy
+        energy={energy}
+        isEnabled={isEnabled}
+        onChoose={onChoose}
+        className="view-chart:hidden"
+      />
+      <DayViewSwitch className="ml-auto" />
     </div>
   );
 }

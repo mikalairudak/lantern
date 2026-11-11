@@ -27,7 +27,7 @@ import type { DayContext } from "@/lib/geo/sun";
 import { formatClock, runningSpans } from "@/lib/time/clock";
 import { ROW_REACH_PX, SPRINGS } from "@/lib/tokens/motion";
 import { useFirstImpression } from "./first-impression";
-import { isGoldenAt, LightRail, SUN_LEAD_MINUTES, sunsOf, SunLine } from "./light-rail";
+import { isGoldenAt, LightRail, sunLinesOf, sunsOf, SunLine } from "./light-rail";
 import { TARGET_CLASSES } from "./link-classes";
 
 /**
@@ -90,6 +90,9 @@ interface ReadingListProps {
   onGlide?: (isGliding: boolean) => void;
 }
 
+/** The list's name, which a screen reader hears and the page finds it by. */
+export const READING_LIST_LABEL = "The day, to read";
+
 const NO_STOPS: ReadonlySet<string> = new Set();
 /** Marks each row by its stop's id, so a fork row's new place is found by its stop. */
 const STOP_ATTRIBUTE = "data-stop";
@@ -148,13 +151,13 @@ export function ReadingList({
   const glideOf = useGlidesTold(onGlide);
   const drawing = useDrawing();
   const isRail = useFirstImpression();
-  const suns = isRail ? sunsOf(daylight) : [];
+  const sunLines = isRail ? sunLinesOf(sunsOf(daylight), spans, isWritten) : [];
   const list = useRef<HTMLOListElement>(null);
   const noteFocus = useForkFocusKept(list, fork?.anchors ?? NO_ANCHORS);
   return (
     <ol
       ref={list}
-      aria-label="The day, to read"
+      aria-label={READING_LIST_LABEL}
       aria-busy={!isWritten}
       className="flex flex-col"
       onFocus={noteFocus}
@@ -204,16 +207,11 @@ export function ReadingList({
                 )}
               </AnimatePresence>
               {isRail &&
-                at === 0 &&
-                suns
-                  .filter(
-                    (sun) =>
-                      sun.minute < (spans[0]?.from ?? 0) &&
-                      sun.minute >= (spans[0]?.from ?? 0) - SUN_LEAD_MINUTES,
-                  )
-                  .map((sun) => <SunLine key={sun.word} daylight={daylight} sun={sun} />)}
+                (sunLines[at]?.lead ?? []).map(({ sun, to }) => (
+                  <SunLine key={sun.word} daylight={daylight} sun={sun} to={to} />
+                ))}
               <ReadingRow
-                railTo={isRail ? (spans[at + 1]?.from ?? spans[at]?.to ?? 0) : null}
+                railTo={isRail ? (sunLines[at]?.railTo ?? 0) : null}
                 stop={stop}
                 span={spans[at] ?? { from: 0, to: 0 }}
                 pick={picks[index] ?? 0}
@@ -237,13 +235,9 @@ export function ReadingList({
                 }
               />
               {isRail &&
-                suns
-                  .filter((sun) => {
-                    const span = spans[at] ?? { from: 0, to: 0 };
-                    const next = spans[at + 1]?.from ?? span.to;
-                    return sun.minute >= span.from && sun.minute < next;
-                  })
-                  .map((sun) => <SunLine key={sun.word} daylight={daylight} sun={sun} />)}
+                (sunLines[at]?.trail ?? []).map(({ sun, to }) => (
+                  <SunLine key={sun.word} daylight={daylight} sun={sun} to={to} />
+                ))}
             </Fold>
           </li>
         ))}
@@ -425,7 +419,16 @@ function ReadingRow({
           {/* Under its time: it takes no room from the row's words. */}
           {isProposed && <span className={cn("block", MARK_CLASSES)}>proposed</span>}
         </span>
-        {railTo !== null && <LightRail daylight={daylight} from={span.from} to={railTo} hasBead />}
+        {railTo !== null && (
+          <LightRail
+            daylight={daylight}
+            from={span.from}
+            to={railTo}
+            hasBead
+            // The bead and its rail come with the stop's time, as the pen writes it.
+            className={cn(written < time.length && "invisible")}
+          />
+        )}
         <div className={cn("flex min-w-0 flex-col gap-1", railTo !== null && "pb-6")}>
           {/* Focused after a swap, ringed as the product's buttons are, round its name. */}
           <h2 ref={nameRef} tabIndex={-1} className={NAME_CLASSES}>

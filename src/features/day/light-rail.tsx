@@ -114,14 +114,63 @@ export function LightRail({
   );
 }
 
+/** A sun's line of the plan, and where the rail beside it runs to. */
+export interface SunPlace {
+  sun: Sun;
+  to: number;
+}
+
+/** Each stop's sun lines and where its own rail stops, so the rail is one line down the day. */
+export interface StopSuns {
+  /** Before the stop: the suns since the stop before it began, or before the first stop. */
+  lead: SunPlace[];
+  /** After the last stop once the day is whole: the suns past its start. */
+  trail: SunPlace[];
+  /** Where the stop's own rail runs to: the next sun line's minute, or the next stop's start. */
+  railTo: number;
+}
+
+/** How far the rail runs past the day's last sun line. */
+const TAIL_MINUTES = 30;
+
+/**
+ * Where each sun stands in the plan. A sun comes in with the stop after it, as a line over that
+ * stop, so a sun line never lands above a row already on the list; a sun past the last stop's
+ * start comes once the day is whole. Each rail runs from its own minute to the next line's, the
+ * stop's to the sun's and the sun's to the next stop's, so the rail is one line down the day.
+ */
+export function sunLinesOf(
+  suns: readonly Sun[],
+  spans: readonly { from: number; to: number }[],
+  isWhole: boolean,
+): StopSuns[] {
+  const groups = spans.map((span, at) => {
+    const earliest = at === 0 ? span.from - SUN_LEAD_MINUTES : (spans[at - 1]?.from ?? span.from);
+    const lead = suns.filter((sun) => sun.minute >= earliest && sun.minute < span.from);
+    const isLast = at === spans.length - 1;
+    const trail = isLast && isWhole ? suns.filter((sun) => sun.minute >= span.from) : [];
+    return { span, lead, trail };
+  });
+  const placed = (list: readonly Sun[], end: number): SunPlace[] =>
+    list.map((sun, index) => ({ sun, to: list[index + 1]?.minute ?? end }));
+  return groups.map(({ span, lead, trail }, at) => {
+    const next = groups[at + 1];
+    return {
+      lead: placed(lead, span.from),
+      trail: placed(trail, (trail.at(-1)?.minute ?? span.to) + TAIL_MINUTES),
+      railTo: next?.lead[0]?.minute ?? trail[0]?.minute ?? next?.span.from ?? span.to,
+    };
+  });
+}
+
 /** A line of the plan for the sun: its minute in the gutter, its word beside the rail, in amber. */
-export function SunLine({ daylight, sun }: { daylight: DayContext; sun: Sun }) {
+export function SunLine({ daylight, sun, to }: { daylight: DayContext; sun: Sun; to: number }) {
   return (
     <div className="flex gap-3">
       <span className="w-12 shrink-0 type-time text-amber tabular-nums">
         {formatClock(sun.minute)}
       </span>
-      <LightRail daylight={daylight} from={sun.minute - 10} to={sun.minute + 10} hasBead={false} />
+      <LightRail daylight={daylight} from={sun.minute} to={to} hasBead={false} />
       <span className="py-1 type-note text-amber">{sun.word}</span>
     </div>
   );

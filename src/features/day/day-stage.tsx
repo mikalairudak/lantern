@@ -105,7 +105,9 @@ import { DayEnd, type DayExport } from "./day-end-line";
 import { useDayExports } from "./day-exports";
 import { takeAlongOf } from "./take-along";
 import { useFirstImpression } from "./first-impression";
-import { PlanEnergy } from "./plan-energy";
+import { PlanBar } from "./plan-energy";
+import { holdFirstRow } from "./hold-row";
+import { READING_LIST_LABEL } from "./reading-list";
 import { progressOf, progressWordsOf } from "./progress";
 import { readDayView, serverDayView, subscribeDayView } from "./view-choice";
 import { DayViewSwitch } from "./view-switch";
@@ -1013,6 +1015,7 @@ export function DayStage({
   // The first impression's day menu holds the ways to take the day along, which the line
   // under the day then leaves out: there once the day is whole, waiting till then.
   const isFirstImpression = useFirstImpression();
+  const planBar = useRef<HTMLDivElement>(null);
   const takeable = isEndShown ? ended : null;
   const dayExports = useDayExports({
     day: takeable,
@@ -1366,23 +1369,21 @@ export function DayStage({
               (isFirstImpression ? (
                 // On the plan the day's energy and the switch are held at the screen's top while
                 // the plan scrolls; on the chart its own scale is, and the bar stands still.
-                <div
-                  className={cn(
-                    "z-10 mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-ground view-read:sticky view-read:top-0 view-read:border-b view-read:border-line view-read:py-1",
-                    wholeClasses,
-                  )}
-                >
-                  <PlanEnergy
-                    energy={(facts.energy?.value as EnergyLevel | undefined) ?? request.energy}
-                    isEnabled={isInteractive}
-                    onChoose={(level) => {
-                      answer({ key: "energy", value: level });
-                      countWord("energy");
-                    }}
-                    className="view-chart:invisible"
-                  />
-                  <DayViewSwitch />
-                </div>
+                <PlanBar
+                  ref={planBar}
+                  energy={(facts.energy?.value as EnergyLevel | undefined) ?? request.energy}
+                  isEnabled={isInteractive}
+                  onChoose={(level) => {
+                    // The rows above the reader's take their new heights out of sight.
+                    holdFirstRow(
+                      document.querySelector<HTMLElement>(`[aria-label="${READING_LIST_LABEL}"]`),
+                      planBar.current?.getBoundingClientRect().bottom ?? 0,
+                    );
+                    answer({ key: "energy", value: level });
+                    countWord("energy");
+                  }}
+                  className={wholeClasses}
+                />
               ) : (
                 <DayViewSwitch className={cn("mb-2", wholeClasses)} />
               ))}

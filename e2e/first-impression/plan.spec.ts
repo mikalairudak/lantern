@@ -12,7 +12,7 @@ test.use({ reducedMotion: "reduce" });
 
 /** The day is written and still: the energy's words, which wait until then, can be chosen. */
 async function dayIsWhole(page: Page): Promise<void> {
-  await expect(page.getByRole("radio", { name: "lively" })).toBeEnabled({
+  await expect(page.getByRole("button", { name: "lively" })).toBeEnabled({
     timeout: DAY_TIMEOUT_MS,
   });
 }
@@ -30,7 +30,7 @@ test("a written day opens on its plan, lit, and its energy moves it", async ({ p
 
   const names = () => plan.getByRole("heading", { level: 2 }).allTextContents();
   const before = await names();
-  await page.getByRole("radio", { name: "lively" }).click();
+  await page.getByRole("button", { name: "lively" }).click();
   await expect.poll(names).not.toEqual(before);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("lively");
   await expect(page.getByText(/(click|tap) a word to change it/)).toBeHidden();

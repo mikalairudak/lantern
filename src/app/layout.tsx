@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { BrowserTextSize } from "@/components/ui/browser-text-size";
+import { cn } from "@/components/ui/cn";
 import { PageViews } from "@/features/analytics/page-views";
 import { FirstImpressionProvider } from "@/features/day/first-impression";
 import { DayViewScript } from "@/features/day/view-switch";
@@ -31,7 +32,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     // The script below may set data-theme before React hydrates, so <html> may differ.
     <html
       lang="en"
-      className={firaSans.variable}
+      // Under the first impression the plan's bar is held at the top: focus scrolled to stays
+      // clear of it.
+      className={cn(firaSans.variable, isFirstImpression(process.env) && "scroll-pt-12")}
       data-first-impression={isFirstImpression(process.env) ? "" : undefined}
       suppressHydrationWarning
     >

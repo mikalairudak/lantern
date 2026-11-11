@@ -57,7 +57,7 @@ describe("the day's view", () => {
     expect(readDayView()).toBe("read");
   });
 
-  it("reads a choice cleared in another tab as the chart, as storage before the chart was kept", () => {
+  it("reads a choice cleared in another tab as the view a day opens on", () => {
     const stop = subscribeDayView(() => undefined);
     window.dispatchEvent(
       new StorageEvent("storage", { key: DAY_VIEW_STORAGE_KEY, newValue: null }),

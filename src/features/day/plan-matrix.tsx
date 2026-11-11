@@ -27,9 +27,13 @@ export const PLAN_MATRIX: LabMatrix = labMatrix<PlanProps>({
     },
   ],
   wide: "abacus",
+  // States down, days across: the default view, shot on purpose.
+  baseline: [{ rows: 0, columns: 1 }],
   render: ({ day, state }) => (
     <FirstImpressionProvider isOn>
-      <ReadingListCell day={day} state={state} />
+      <div data-first-impression="">
+        <ReadingListCell day={day} state={state} />
+      </div>
     </FirstImpressionProvider>
   ),
 });
