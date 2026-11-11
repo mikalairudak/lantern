@@ -15,7 +15,10 @@ export const DAY_ID_HEADER = "X-Lantern-Day";
 /** How long a day's link opens it, counted from when it was written. */
 export const DAY_LINK_DAYS = 30;
 
-const DAY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** A day's id as a pattern, unanchored and read without case, for a route's rule to hold too. */
+export const DAY_ID_PATTERN = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+
+const DAY_ID = new RegExp(`^${DAY_ID_PATTERN}$`, "i");
 
 /** Whether a string can be a day's id, a UUID as the server makes them. */
 export function isDayId(value: string): boolean {
