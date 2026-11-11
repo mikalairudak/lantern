@@ -1,5 +1,5 @@
 /**
- * "Copy link": the day's address, sent the way the device sends things. On a phone its share
+ * "Copy the link": the day's address, sent the way the device sends things. On a phone its share
  * sheet, elsewhere the clipboard; a refusal of either comes back as an outcome, never thrown.
  * What is sent is Lantern's own: the day's address, a written day's by its city
  * (`dayAddressOf`) or a kept day's by its id (`dayAddressOfId`), on this site's origin, and the
