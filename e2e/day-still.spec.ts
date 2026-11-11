@@ -1,19 +1,19 @@
-import { expect, test, type Locator, type Page } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
 
 /**
  * The route lands a written day in about twelve seconds; a cold server adds a few, and a
  * machine other sessions' hooks and runs share took over 30 s on a laptop's width.
  */
-const DAY_TIMEOUT_MS = 60_000;
+const DAY_TIMEOUT_MS = waitMs(60_000);
 /** The curve's clause written into the sentence from the keyboard, and out again. */
-const CLAUSE_TIMEOUT_MS = 10_000;
+const CLAUSE_TIMEOUT_MS = waitMs(10_000);
 /**
  * How long a clause the curve let go stands in the line it opened, at least, as the header
  * holds it (`OWED_CLAUSE_STANDS_MS`), less a frame of sampling.
  */
 const OWED_CLAUSE_SHOWN_MS = 580;
 /** Reading the frames back and waiting for the header to rest, after the day and its clause. */
-const REST_OF_TEST_MS = 20_000;
+const REST_OF_TEST_MS = waitMs(20_000);
 /**
  * A test waits for the day, then the clause, then the header's rest, so its own limit
  * holds all three. At Playwright's 30 s, a day written slowly on a busy machine ran the test
@@ -23,7 +23,7 @@ const TEST_TIMEOUT_MS = DAY_TIMEOUT_MS + CLAUSE_TIMEOUT_MS + REST_OF_TEST_MS;
 /** Where a day is played at a live model's pace. */
 const DAY_BENCH = "/lab/concepts/day";
 /** A live model writes a day in 40 to 52 s; a cold dev server adds some. */
-const LIVE_DAY_TIMEOUT_MS = 90_000;
+const LIVE_DAY_TIMEOUT_MS = waitMs(90_000);
 /** A move of a line this far or more over two frames or fewer is a step, not a glide. */
 const STEP_PX = 4;
 const STEP_FRAMES = 2;

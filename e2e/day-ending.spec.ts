@@ -1,4 +1,4 @@
-import { CPU_RATE, expect, test, type Locator, type Page } from "./fixtures";
+import { CPU_RATE, expect, test, type Locator, type Page, waitMs } from "./fixtures";
 
 /**
  * How a day with a chart on screen leaves when its stream ends without one: the chart and
@@ -13,7 +13,7 @@ import { CPU_RATE, expect, test, type Locator, type Page } from "./fixtures";
 
 const URL = "/lab/concepts/day";
 /** The route lands a written day in about twelve seconds; a cold dev server adds a few. */
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 const PHONE = { width: 390, height: 844 };
 const LAPTOP = { width: 1440, height: 900 };
 /** Less than this between two frames is a sub-pixel rounding, not a move. */

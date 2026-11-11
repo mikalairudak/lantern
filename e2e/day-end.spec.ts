@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, type Page, waitMs } from "./fixtures";
 import { shownWrittenDayAt, writtenDayAt } from "../src/lib/days/written/days";
 
 // The line under a finished day: when it ends, how far it goes, what the map found, and the
@@ -9,7 +9,7 @@ import { shownWrittenDayAt, writtenDayAt } from "../src/lib/days/written/days";
 // frame, with nothing moving. Each is watched with motion and under reduced motion, where
 // nothing glides and so nothing a glide moves can be seen.
 
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 const KANAZAWA = writtenDayAt("kanazawa")!.itinerary;
 /** How far a row, the chart or the line may stand from where it stood, in px: subpixel rounding. */
 const TOLERANCE_PX = 1;
@@ -18,11 +18,11 @@ const TOLERANCE_PX = 1;
  * on a CPU four times slower came 2 s after the reload. The frames tell whether it was there
  * at once; a day played again would be seconds in the writing.
  */
-const WHOLE_TIMEOUT_MS = 8_000;
+const WHOLE_TIMEOUT_MS = waitMs(8_000);
 /** Frames in a row with nothing on the page moving, which is a page at rest. */
 const FRAMES_AT_REST = 20;
 /** Longer than the longest glide after the end lands, the foot's 0.6 s, on a busy machine. */
-const REST_TIMEOUT_MS = 10_000;
+const REST_TIMEOUT_MS = waitMs(10_000);
 
 const VIEWS = ["chart", "read"] as const;
 type View = (typeof VIEWS)[number];

@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures";
+import { expect, test, waitMs } from "./fixtures";
 
 /**
  * A fork's Compare draws the version not taken beside the day again (`docs/decisions.md`, "A
@@ -12,8 +12,8 @@ import { expect, test } from "./fixtures";
 const BENCH = "/lab/concepts/replan";
 const PHONE = { width: 390, height: 664 };
 /** The bench's day, the page and its proposal, at the live pace: about 35 s in all. */
-const STORY_TIMEOUT_MS = 120_000;
-const DAY_TIMEOUT_MS = 60_000;
+const STORY_TIMEOUT_MS = waitMs(120_000);
+const DAY_TIMEOUT_MS = waitMs(60_000);
 /** Long enough for Compare's rows to come to rest, and the wires with them. */
 const COMPARE_WATCHED_MS = 5000;
 

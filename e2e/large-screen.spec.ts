@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, type Page, waitMs } from "./fixtures";
 
 /**
  * The page grows on a large screen: from 1440 px wide the root's size grows with the
@@ -12,7 +12,7 @@ import { expect, test, type Page } from "./fixtures";
  */
 
 /** The route lands a written day in about twelve seconds; a cold server adds a few. */
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 const PHONE = { width: 390, height: 844 };
 const LAPTOP = { width: 1440, height: 900 };
 const LARGE = { width: 2560, height: 1440 };

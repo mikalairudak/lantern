@@ -1,9 +1,9 @@
 import { dayAddressOf } from "../src/lib/days/address";
 import { START_DAYS } from "../src/lib/days/written/start-days";
-import { expect, test, type Locator, type Page } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
 
 /** The route lands a written day in about twelve seconds; a cold server adds a few. */
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 /** Tab presses allowed before the page for no day's first link has the focus. */
 const MAX_TABS_TO_FIRST_LINK = 10;
 /** Where the foot's credit sends OpenStreetMap's. */

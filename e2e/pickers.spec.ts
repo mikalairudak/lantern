@@ -1,9 +1,9 @@
-import { expect, test, type Locator, type Page } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
 
 /** The route lands a written day in about twelve seconds; a cold dev server adds a few. */
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 /** The day, its invitation and five reopenings, on a dev server that compiles. */
-const TEST_TIMEOUT_MS = 60_000;
+const TEST_TIMEOUT_MS = waitMs(60_000);
 /** How long a list's height must hold to count as unfolded. */
 const UNFOLD_STEP_MS = 150;
 /**

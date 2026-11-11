@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures";
+import { expect, test, waitMs } from "./fixtures";
 
 // --container-phone, --container-abacus and --container-page, at the browser's 16 px rem.
 const PHONE_WIDTH = 390;
@@ -48,7 +48,7 @@ const PHONE_PAGE_WIDTH = 358;
  * first cell took longer than an assertion's 5 s, and the day stage header's first headline in
  * a full run (2026-11-06).
  */
-const CELL_READ = { timeout: 30_000 };
+const CELL_READ = { timeout: waitMs(30_000) };
 /**
  * How long a test that opens matrices in turn may take: each page's first cell read, as long as
  * `CELL_READ` allows. Three or four matrices took 14 to 23 s on four workers and 26 to 35 s at

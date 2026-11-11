@@ -1,8 +1,8 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, type Page, waitMs } from "./fixtures";
 
 const URL = "/lab/concepts/start";
 /** A written day lands in about twelve seconds; a cold dev server adds a few. */
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 /** A change of 4 px or more that lasts two frames or fewer is a step, not a glide. */
 const STEP_PX = 4;
 const STEP_FRAMES = 2;

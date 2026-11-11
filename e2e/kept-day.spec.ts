@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, type Page, waitMs } from "./fixtures";
 import { writtenDayAt } from "../src/lib/days/written/days";
 import { YOUR_DAYS_KEY, type YourDay } from "../src/features/day/your-days";
 import { BROWSER_STORAGE } from "../src/lib/browser-storage";
@@ -24,7 +24,7 @@ const WRITTEN: StoredDay = {
   round: 0,
 };
 /** The page asks every three seconds; a cold server adds a few to the first. */
-const LANDED_TIMEOUT_MS = 20_000;
+const LANDED_TIMEOUT_MS = waitMs(20_000);
 
 test.use({ reducedMotion: "reduce" });
 

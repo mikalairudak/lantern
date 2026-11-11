@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { waitMs } from "./e2e/ci-wait";
 import { E2E_STUDIO_AUTHORIZATION, E2E_STUDIO_ENV } from "./e2e/studio-login";
 
 const PORT = Number(process.env.E2E_PORT ?? 3417);
@@ -18,15 +19,17 @@ const SCREENSHOT_PIXEL_THRESHOLD = 0.01;
 // One test shoots every matrix the lab lists, over a thousand cells in both themes, which takes
 // about 5 minutes on a laptop, so it gets 12.
 const VISUAL_TEST_TIMEOUT_MS = 12 * 60_000;
-// CI's runner is several times slower than the laptop, so the defaults a test takes, 30 s for
-// the test and 5 s for an `expect`, are doubled there. A spec that sets its own keeps it.
-const TEST_TIMEOUT_MS = isCI ? 60_000 : 30_000;
-const EXPECT_TIMEOUT_MS = isCI ? 10_000 : 5_000;
-// The first page the dev server compiles is the slowest, and Playwright waits 60 s for it.
-const WEB_SERVER_TIMEOUT_MS = isCI ? 120_000 : 60_000;
+// Playwright's defaults for a test and an `expect`, and its wait for the dev server's first
+// page, the slowest it compiles; on CI each is longer by the factor every spec's waits take
+// (`e2e/ci-wait.ts`).
+const TEST_TIMEOUT_MS = waitMs(30_000);
+const EXPECT_TIMEOUT_MS = waitMs(5_000);
+const WEB_SERVER_TIMEOUT_MS = waitMs(60_000);
 
 export default defineConfig({
   testDir: "./e2e",
+  // Asks the server for every route the specs open before the first test (`e2e/warm-up.ts`).
+  globalSetup: "./e2e/warm-up.ts",
   fullyParallel: true,
   forbidOnly: isCI,
   // One retry on CI, which reports a test that passed on it as flaky; the `@frame` tests take

@@ -1,11 +1,11 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, type Page, waitMs } from "./fixtures";
 import { shownWrittenDayAt, writtenDayAt } from "../src/lib/days/written/days";
 
 // A written day's page holds the whole day in its first HTML, and a day this device has
 // watched to its end opens whole, without its playing (`docs/decisions.md`, "A day can be
 // read as a list, written as the chart is").
 
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 const KANAZAWA = writtenDayAt("kanazawa")!.itinerary;
 const KANAZAWA_STOPS = KANAZAWA.stops.length;
 /** Days the city word offers from any other, so the visitor can come back to them there. */

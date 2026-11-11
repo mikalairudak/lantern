@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { expect, test } from "./fixtures";
+import { expect, test, waitMs } from "./fixtures";
 import { VIEW_HELD_AFTER_GESTURE_MS } from "../src/features/day/view-hold";
 import { REVEAL_STEP_PX } from "../src/lib/tokens/motion";
 
@@ -14,7 +14,7 @@ import { REVEAL_STEP_PX } from "../src/lib/tokens/motion";
  * name opens its sheet, which comes into view with no frame's jump.
  */
 
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 /** Sampled for twice the hold after the header's last glide, and the glide's own time. */
 const SAMPLED_MS = VIEW_HELD_AFTER_GESTURE_MS * 2 + 1000;
 /** Less than this is a rounding, not a move. */

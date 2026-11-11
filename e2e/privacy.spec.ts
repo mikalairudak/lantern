@@ -1,7 +1,7 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, type Page, waitMs } from "./fixtures";
 
 /** A written day lands in about twelve seconds; a cold dev server adds a few. */
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 /** The page's own heading, the name the foot line gives it. */
 const PRIVACY_HEADING = "Privacy and terms";
 /** Where a visitor writes to have their text deleted. */

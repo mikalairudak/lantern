@@ -1,6 +1,6 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { expect, test, type Page, type Route } from "./fixtures";
+import { expect, test, type Page, type Route, waitMs } from "./fixtures";
 import { NAFPLIO_START_REQUEST } from "../src/lib/days/written/quick-starts";
 
 /**
@@ -18,7 +18,7 @@ const DAY_ROUTE = "**/api/day";
  * The bench's first day has its stops by about 4 s at ten times the pace and rests about
  * 8 s in; a cold server adds a few.
  */
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 const WORD = "with family";
 const REPLANNING = `re-planning the day for “${WORD}”`;
 /** What the fork row says of a whole day that ended without one, by why (`replanEndedOf`). */

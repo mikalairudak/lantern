@@ -1,7 +1,7 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, type Page, waitMs } from "./fixtures";
 
 /** The route lands a written day in about twelve seconds; a cold server adds a few. */
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 const PHONE = { width: 390, height: 844 };
 
 test.beforeEach(async ({ page }) => {

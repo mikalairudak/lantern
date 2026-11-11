@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, type Page, waitMs } from "./fixtures";
 import type { StoredDay } from "../src/lib/days/stored-day";
 import { KYOTO_REQUEST } from "../src/lib/fixtures/curated/requests";
 import { KYOTO_ITINERARY } from "../src/lib/fixtures/replan/kyoto-morning";
@@ -7,7 +7,7 @@ import { KYOTO_ITINERARY } from "../src/lib/fixtures/replan/kyoto-morning";
 // "A day can be read as a list, written as the chart is"): after a reload, on another city's
 // day, on a re-planned day and on a kept day's page.
 
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 const ID = "1b6f0c2e-4d3a-4f5b-9c7e-2a1d3e4f5a6b";
 /** A visitor's Kyoto day, kept in the log: no day the site has written. */
 const WRITTEN: StoredDay = {

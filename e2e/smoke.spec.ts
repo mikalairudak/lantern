@@ -1,7 +1,7 @@
-import { expect, test } from "./fixtures";
+import { expect, test, waitMs } from "./fixtures";
 
 /** A written day lands in about twelve seconds; a cold dev server adds a few. */
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 /** What the start screen says over the cities Lantern has written. */
 const WRITTEN_HEADING = "Or watch Lantern write a day it knows";
 /** What Lantern is, the start screen's first line. */

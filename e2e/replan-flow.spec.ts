@@ -1,6 +1,6 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { expect, test, type Page, type Route } from "./fixtures";
+import { expect, test, type Page, type Route, waitMs } from "./fixtures";
 import { openLive, seeWrittenDay } from "./live-page";
 import { writtenDayAt } from "../src/lib/days/written/days";
 import { YOUR_DAYS_KEY } from "../src/features/day/your-days";
@@ -35,7 +35,7 @@ const SECOND_ID = "4d5e6f70-8192-4cad-9e2f-3a4b5c6d7e8f";
 const REPLAN_ROUTE = "**/api/replan";
 const DAY_ROUTE = "**/api/day";
 /** A day lands at the route's pace, about twelve seconds; a cold server adds a few. */
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 /** The window's old stops, the day's last two, and the re-plan's first new one. */
 const OLD_EVENING = "Kazue-machi Chaya District";
 const NEW_FIRST = "Nagamachi Samurai District";
