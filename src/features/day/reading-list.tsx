@@ -149,7 +149,13 @@ export function ReadingList({
   const names = useRef(new Map<string, HTMLHeadingElement>());
   // Rows a new energy changes together glide as one, in about 1.5 s.
   const [glideGroup] = useState(createGlideGroup);
-  const glideOf = useGlidesTold(onGlide);
+  // On the plan the list says it is written once its rows are at rest too, so the last row's
+  // final form, its versions come in, is part of the day written rather than after it.
+  const [isGliding, setIsGliding] = useState(false);
+  const glideOf = useGlidesTold((isNow) => {
+    setIsGliding(isNow);
+    onGlide?.(isNow);
+  });
   const drawing = useDrawing();
   const isRail = useFirstImpression();
   const sunLines = isRail ? sunLinesOf(sunsOf(daylight), spans, isWritten) : [];
@@ -164,7 +170,7 @@ export function ReadingList({
     <ol
       ref={list}
       aria-label={READING_LIST_LABEL}
-      aria-busy={!isWritten}
+      aria-busy={!isWritten || (isRail && isGliding)}
       className="flex flex-col"
       onFocus={noteFocus}
     >

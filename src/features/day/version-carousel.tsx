@@ -139,15 +139,35 @@ export function VersionCarousel({
     else animate(x, 0, SPRINGS.layout);
   }, [pick, x, isReduced]);
 
+  // The lean plays once while the stop is shown, and never once a version has been taken.
+  const hasLeaned = useRef(false);
   useEffect(() => {
-    if (!isNudged || isReduced || !canSwipe || !isEnabled) return undefined;
+    if (hasLeaned.current || !isNudged || isReduced || !canSwipe || !isEnabled) return undefined;
     // Toward the side the drag to the right shows first, the one on the stop's left.
     const first = hasBefore ? NUDGE_PX : -NUDGE_PX;
     const steps = [first, hasBefore && hasAfter ? -first / 2 : 0, 0];
     let isCurrent = true;
     let isLeaning = false;
     let move: { stop: () => void } | null = null;
+    // Any gesture of the visitor's on the page ends a lean at once, the stop home on a quick
+    // spring: the page never moves under a hand.
+    const endLean = () => {
+      isCurrent = false;
+      window.clearTimeout(timer);
+      move?.stop();
+      if (isLeaning) animate(x, 0, SPRINGS.snappy);
+      isLeaning = false;
+      unlisten();
+    };
+    const gestures = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
+    const unlisten = () => {
+      for (const gesture of gestures) window.removeEventListener(gesture, endLean, true);
+    };
+    for (const gesture of gestures) {
+      window.addEventListener(gesture, endLean, { capture: true, passive: true });
+    }
     const timer = window.setTimeout(async () => {
+      hasLeaned.current = true;
       isLeaning = true;
       for (const to of steps) {
         if (!isCurrent) return;
@@ -156,11 +176,13 @@ export function VersionCarousel({
         await step;
       }
       isLeaning = false;
+      unlisten();
     }, NUDGE_DELAY_MS);
     return () => {
       isCurrent = false;
       window.clearTimeout(timer);
       move?.stop();
+      unlisten();
       // A lean cut short goes home at once, rather than leave the stop off its place.
       if (isLeaning) x.set(0);
     };
@@ -171,6 +193,7 @@ export function VersionCarousel({
   const take = (side: Side, isPressed = false) => {
     const version = side === "before" ? before : after;
     if (!version || !onPick) return;
+    hasLeaned.current = true;
     // The version on the left waits a stride to the left, so once taken it starts from there.
     shift.current = side === "before" ? -stride : stride;
     onPick(version.index);
