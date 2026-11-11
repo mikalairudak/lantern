@@ -24,7 +24,6 @@ import {
 import { unplacedLineOf } from "./start";
 import { LINK_CLASSES } from "./link-classes";
 import { AskedSentence } from "./asked-sentence";
-import { useFirstImpression } from "./first-impression";
 import { Masthead } from "./masthead";
 import type { StartExcerpt } from "./start-excerpt";
 import { StartExcerptView, StartIndex } from "./start-index";
@@ -36,13 +35,11 @@ import type { StartOffer } from "./start-offers";
 export const PROMISE = SITE_DESCRIPTION;
 /**
  * With live generation off, under the question: only that no new day is written. The days that are
- * written are the words below, named once. Once live it says nothing: the field and its button say
+ * written are the index below, named once. Once live it says nothing: the field and its button say
  * what happens.
  */
 export const NOT_LIVE_NOTE = "Lantern isn't writing new days right now.";
-/** After a line that can write no day: the way on, to the written days' words below. */
-const TO_THE_WRITTEN = "Watch one it knows, below.";
-/** Under the first impression the way on is the index of days below the question. */
+/** After a line that can write no day: the way on, the index of days below the question. */
 const TO_THE_INDEX = "Start from one of the days below.";
 /** Under the field: a text that plays a written day just as it says, with nothing said back. */
 const EXAMPLE = "For example: Bologna, with friends";
@@ -100,20 +97,20 @@ export interface StartHeaderProps {
   /** One of the cities a shared name could be, chosen as the answer to "in …?". */
   onChooseReading: (reading: CityReading) => void;
   /**
-   * The visitor's own days, listed over the starts once there is one. The browser alone keeps
-   * them, so the starts wait for the list to be read rather than be pushed down by it.
+   * The visitor's own days, listed over the index once there is one. The browser alone keeps
+   * them, so the index waits for the list to be read rather than be pushed down by it.
    */
   yourDays?: YourDaysListProps;
   /** Shown again by Back from a day: its headline takes the focus the day had. */
   isReturnedTo?: boolean;
-  /** Under the first impression, a written day's first stops, still, under the ways in. */
+  /** A written day's first stops, still, under the ways in. */
   excerpt?: StartExcerpt | null;
 }
 
 /**
- * The start screen: what Lantern is in one line, one question, and the quick starts, each a
- * day in its city in words, its country under them, beside the shape of the day it opens. No day is on
- * screen until the visitor asks for one; a start pressed is written where the question was.
+ * The start screen: what Lantern is in one line, one question, and the index of the days Lantern
+ * has written, with the first stops of one of them under it, still. No day plays until the
+ * visitor asks for one; a day pressed in the index is written where the question was.
  */
 export function StartHeader({
   starts,
@@ -129,8 +126,6 @@ export function StartHeader({
   isReturnedTo = false,
   excerpt = null,
 }: StartHeaderProps) {
-  const isIndex = useFirstImpression();
-  const writtenHeading = useId();
   const promise = useRef<HTMLHeadingElement>(null);
   const startsList = useRef<HTMLUListElement>(null);
   // Mounted again by Back, so read once, as it mounts.
@@ -189,32 +184,11 @@ export function StartHeader({
         </p>
       )}
       {yourDays && areStartsDrawn && <YourDaysList {...yourDays} onForget={forget} />}
-      {/* A container, so the starts follow the room the header has, in a phone cell of the
-          lab as on a phone; nothing set by the screen's width sits inside it. */}
-      {areStartsDrawn && isIndex && (
+      {areStartsDrawn && (
         <>
           <StartIndex starts={starts} onChoose={onChooseWritten} listRef={startsList} />
           {excerpt && <StartExcerptView excerpt={excerpt} />}
         </>
-      )}
-      {areStartsDrawn && !isIndex && (
-        <div className="@container mt-12 flex flex-col gap-4">
-          <p id={writtenHeading} className="type-note text-muted">
-            {WRITTEN_HEADING}
-          </p>
-          {/* A column on a phone, as a list reads there; two across, then three, as room allows. */}
-          <ul
-            ref={startsList}
-            aria-labelledby={writtenHeading}
-            className="grid grid-cols-1 gap-x-8 gap-y-6 @measure:grid-cols-2 @abacus:grid-cols-3"
-          >
-            {starts.map((start) => (
-              <li key={start.request.city}>
-                <QuickStartRow start={start} onChoose={onChooseWritten} />
-              </li>
-            ))}
-          </ul>
-        </div>
       )}
     </header>
   );
@@ -494,7 +468,6 @@ function SaidLine({ className, children }: { className: string; children: ReactN
 
 /** Under the field: an example, or what Lantern made of the text. */
 function QuestionLine({ line, text, isLive, onChooseReading }: QuestionLineProps) {
-  const isIndex = useFirstImpression();
   if (line === null) {
     // At rest, the example takes the line's size, so the line takes its place as it is.
     return <SaidLine className="text-muted">{EXAMPLE}</SaidLine>;
@@ -538,7 +511,7 @@ function QuestionLine({ line, text, isLive, onChooseReading }: QuestionLineProps
   // The written days are offered once, as the words below, which this points to.
   return (
     <p role="status" className="mt-1 type-voice text-quote text-ink-soft">
-      {said} {isIndex ? TO_THE_INDEX : TO_THE_WRITTEN}
+      {said} {TO_THE_INDEX}
     </p>
   );
 }

@@ -800,7 +800,7 @@ describe("DayStageHeader", () => {
     );
     await waitFor(() =>
       expect(seenTextOf(headline)).toBe(
-        "A calm Saturday in Kyoto, on foot, early start, early dinner, home by eleven, with …?",
+        "A calm Saturday in Kyoto, on foot, early start, early dinner, home by eleven, with anyone",
       ),
     );
   });
@@ -845,7 +845,7 @@ describe("DayStageHeader", () => {
     const view = renderHeader(KYOTO_REQUEST, null, null, { assumptions: KYOTO_ASSUMPTIONS });
     const headline = screen.getByRole("heading", { level: 1 });
     expect(headline).toHaveTextContent(
-      "A calm Saturday in Kyoto, on foot, early start, early dinner, home by eleven, with …?",
+      "A calm Saturday in Kyoto, on foot, early start, early dinner, home by eleven, with anyone",
     );
 
     view.rerender(

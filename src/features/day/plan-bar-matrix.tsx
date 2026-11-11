@@ -1,6 +1,5 @@
 import type { EnergyLevel } from "@/lib/schema/itinerary.schema";
 import { labMatrix, type LabMatrix } from "@/lib/lab-matrix";
-import { FirstImpressionProvider } from "./first-impression";
 import { PlanBar } from "./plan-energy";
 
 interface PlanBarCellProps {
@@ -37,11 +36,5 @@ export const PLAN_BAR_MATRIX: LabMatrix = labMatrix<PlanBarCellProps>({
       })),
     },
   ],
-  render: (props) => (
-    <FirstImpressionProvider isOn>
-      <div data-first-impression="">
-        <PlanBar {...props} onChoose={ignore} />
-      </div>
-    </FirstImpressionProvider>
-  ),
+  render: (props) => <PlanBar {...props} onChoose={ignore} />,
 });

@@ -57,12 +57,10 @@ describe("the plan's energy", () => {
   });
 });
 
-describe("the headline under the first impression", () => {
-  it("says an open company as a phrase, and today's question with the first impression off", () => {
+describe("the headline over the plan", () => {
+  it("says an open company as a phrase", () => {
     const facts = sentenceFactsOf(KYOTO_REQUEST, { company: null });
-    const company = facts.company!;
-    expect(labelOf(company, true)).toBe("with anyone");
-    expect(labelOf(company)).toBe("with …?");
+    expect(labelOf(facts.company!)).toBe("with anyone");
   });
 
   it("drops the hint at the page's first change of any kind", () => {

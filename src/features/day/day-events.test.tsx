@@ -15,10 +15,9 @@ import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { simulateDayStream } from "@/lib/stream/simulate-day-stream";
 import { Day } from "./day";
 import { TAKE_THIS_DAY } from "./day-menu";
-import { FirstImpressionProvider } from "./first-impression";
 import { INTAKE_ROUTE } from "./intake-route";
 import { StartDay } from "./start-day";
-import { WRITTEN_HEADING } from "./start-header";
+import { INDEX_LABEL } from "./start-index";
 import { writtenVersionOf } from "@/lib/days/written/version";
 import { keptSeenKeyOf, markSeen, seenKeyOf } from "./seen-days";
 import type { KeptLanding } from "./kept-day";
@@ -224,8 +223,8 @@ const sentOf = (kind: ProductEvent["kind"]) => sent().filter((event) => event.ki
 const headline = () => screen.getByRole("heading", { level: 1 });
 const dayList = () => screen.getByRole("list", { name: "The day" });
 const writtenCity = (city: string) =>
-  within(screen.getByRole("list", { name: WRITTEN_HEADING })).getByRole("button", {
-    name: new RegExp(` in ${city}[,.]`),
+  within(screen.getByRole("list", { name: INDEX_LABEL })).getByRole("button", {
+    name: new RegExp(`^${city} `),
   });
 
 /** Waits until the day is written and still, when its words and chart can be changed. */
@@ -289,7 +288,7 @@ describe("the days played, as the product counts them", () => {
     render(<Day first={KANAZAWA_START_REQUEST} />);
     await waitForTheDay();
 
-    await changeWord(user, "with …?", "with family");
+    await changeWord(user, "with anyone", "with family");
     pageHides();
 
     expect(sendProductEvent).not.toHaveBeenCalled();
@@ -393,7 +392,8 @@ describe("the days played, as the product counts them", () => {
     const user = await landOnKanazawa();
 
     await user.click(within(headline()).getByRole("button", { name: "Kanazawa" }));
-    await user.click(screen.getAllByRole("button", { name: "Plan another day" })[0]!);
+    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
     await user.keyboard("Atlantis{Enter}");
     const lisbon = await screen.findByRole("button", { name: /Bologna/ }, DAY_TIMEOUT);
     await user.click(lisbon);
@@ -444,7 +444,7 @@ describe("the gestures on a day, as the product counts them", () => {
   it("counts a word that changes no stop, and opens no day for it", async () => {
     const user = await landOnKanazawa({ isLive: true });
 
-    await changeWord(user, "with …?", "with family");
+    await changeWord(user, "with anyone", "with family");
 
     expect(sent().slice(2)).toEqual([{ kind: "word-changed", city: "kanazawa", word: "company" }]);
   });
@@ -573,25 +573,7 @@ describe("the gestures on a day, as the product counts them", () => {
     ]);
   });
 
-  it("counts each way the day is taken along once a day: its link sent, its route opened", async () => {
-    const user = await landOnKanazawa();
-    const route = await screen.findByRole("link", { name: "Walk it in Google Maps" }, DAY_TIMEOUT);
-    // The map opens in a tab of its own, which jsdom has not.
-    route.addEventListener("click", (event) => event.preventDefault());
-
-    for (let press = 0; press < 2; press += 1) {
-      await user.click(route);
-      await user.click(screen.getByRole("button", { name: /^Copy link|^Copied/ }));
-    }
-
-    await waitFor(() => expect(sentOf("link-shared")).toHaveLength(1));
-    expect(sentOf("link-shared")).toEqual([{ kind: "link-shared", ...KANAZAWA_LINK, ...ON_CHART }]);
-    expect(sentOf("route-opened")).toEqual([
-      { kind: "route-opened", ...KANAZAWA_LINK, ...ON_CHART },
-    ]);
-  });
-
-  it("takes the day along from the masthead's menu under the first impression, counting each way", async () => {
+  it("takes the day along from the masthead's menu, counting each way once a day", async () => {
     const user = userEvent.setup();
     // The calendar's file is made in the page and saved by a link's click, which jsdom has not.
     const saved = vi.fn(() => "blob:calendar");
@@ -606,31 +588,33 @@ describe("the gestures on a day, as the product counts them", () => {
       URL.revokeObjectURL = made.revoke;
       click.mockRestore();
     });
-    render(
-      <FirstImpressionProvider isOn>
-        <Day first={KANAZAWA_START_REQUEST} isCounted />
-      </FirstImpressionProvider>,
-    );
+    render(<Day first={KANAZAWA_START_REQUEST} isCounted />);
     await waitForTheDay();
     // The line under the day keeps its summary and leaves the ways to the menu.
     expect(screen.queryByRole("button", { name: /^Copy link/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Add to calendar" })).toBeNull();
 
     const menu = () => screen.getByRole("button", { name: TAKE_THIS_DAY });
-    await user.click(menu());
-    const route = screen.getByRole("menuitem", { name: /Walk it in Google Maps/ });
-    expect(route).toHaveAttribute("href", expect.stringMatching(/google\.com\/maps/));
-    route.addEventListener("click", (event) => event.preventDefault());
-    await user.click(route);
+    for (let press = 0; press < 2; press += 1) {
+      await user.click(menu());
+      const route = screen.getByRole("menuitem", { name: /Walk it in Google Maps/ });
+      expect(route).toHaveAttribute("href", expect.stringMatching(/google\.com\/maps/));
+      // The map opens in a tab of its own, which jsdom has not.
+      route.addEventListener("click", (event) => event.preventDefault());
+      await user.click(route);
 
-    await user.click(menu());
-    await user.click(screen.getByRole("menuitem", { name: /Add to your calendar/ }));
-    expect(saved).toHaveBeenCalledOnce();
+      await user.click(menu());
+      await user.click(screen.getByRole("menuitem", { name: /Add to your calendar/ }));
 
-    await user.click(menu());
-    await user.click(screen.getByRole("menuitem", { name: /Copy the link/ }));
+      await user.click(menu());
+      await user.click(screen.getByRole("menuitem", { name: /^(Copy the link|Link copied)/ }));
+      // The menu stays open to say the link is copied, until it is closed.
+      await user.keyboard("{Escape}");
+    }
+    expect(saved).toHaveBeenCalledTimes(2);
 
     await waitFor(() => expect(sentOf("link-shared")).toHaveLength(1));
+    expect(sentOf("link-shared")).toEqual([{ kind: "link-shared", ...KANAZAWA_LINK, ...ON_CHART }]);
     expect(sentOf("route-opened")).toEqual([
       { kind: "route-opened", ...KANAZAWA_LINK, ...ON_CHART },
     ]);
@@ -639,13 +623,9 @@ describe("the gestures on a day, as the product counts them", () => {
     ]);
   });
 
-  it("tells the day's end answer once a day opened, with the day and the view, under the first impression", async () => {
+  it("tells the day's end answer once a day opened, with the day and the view", async () => {
     const user = userEvent.setup();
-    render(
-      <FirstImpressionProvider isOn>
-        <Day first={KANAZAWA_START_REQUEST} isCounted />
-      </FirstImpressionProvider>,
-    );
+    render(<Day first={KANAZAWA_START_REQUEST} isCounted />);
     await waitForTheDay();
     await user.click(await screen.findByRole("button", { name: "Yes" }, DAY_TIMEOUT));
     expect(screen.getByText("Thank you.")).toBeInTheDocument();
@@ -721,7 +701,7 @@ describe("the start screen and the day's end, as the product counts them", () =>
 
     // Back to the start screen from another page, as by the wordmark from the privacy page.
     render(<StartDay pool={POOL} isLive={false} isCounted />);
-    await screen.findByRole("list", { name: WRITTEN_HEADING });
+    await screen.findByRole("list", { name: INDEX_LABEL });
 
     expect(sentOf("home-viewed")).toEqual([HOME_VIEWED]);
     expect(PAGE_HOME_VIEW_MEMORY.isTold).toBe(true);
@@ -729,7 +709,7 @@ describe("the start screen and the day's end, as the product counts them", () =>
 
   it("tells nothing of a start screen that does not count, as a lab's", async () => {
     render(<StartDay pool={POOL} isLive={false} />);
-    await screen.findByRole("list", { name: WRITTEN_HEADING });
+    await screen.findByRole("list", { name: INDEX_LABEL });
 
     expect(sendProductEvent).not.toHaveBeenCalled();
   });

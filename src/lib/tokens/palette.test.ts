@@ -127,7 +127,7 @@ const ACCENTS = ["amber", "lamp", "energy", "curve", "swap", "swap-drawn"] as co
 /**
  * Light, energy and swap stay told apart by protan and deutan eyes (about 1 man in 12),
  * in words and drawn, from each other and from the quieter inks they stand beside: "calm"
- * by "with …?", "drag the curve" between "quieter" and "livelier", a version's ring on the
+ * by "with anyone", "drag the curve" between "quieter" and "livelier", a version's ring on the
  * curve. A meaning's two tokens are one colour said two ways, so they are not kept apart.
  */
 const ACCENT_PAIRS = [

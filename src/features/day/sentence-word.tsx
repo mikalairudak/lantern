@@ -68,12 +68,10 @@ export interface WordView {
 
 /**
  * The dotted underline that marks an assumption, shared with its key in the facts line: in
- * the wires' colour at rest, so a headline of assumptions does not read as corrected, and
- * muted under the keyboard's focus. A pointer's hover replaces the dots with the ink line
- * every word takes.
+ * muted ink, as quiet as an open question, so a headline of assumptions does not read as
+ * corrected. A pointer's hover replaces the dots with the ink line every word takes.
  */
-export const ASSUMED_CLASSES =
-  "underline decoration-wire decoration-dotted underline-offset-4 focus-visible:decoration-muted first-impression:decoration-muted";
+export const ASSUMED_CLASSES = "underline decoration-muted decoration-dotted underline-offset-4";
 
 /** How each word reads at rest: energy in its colour, the visitor's ink, Lantern's dotted, the question. */
 export function wordClassesOf(view: Pick<WordView, "key" | "source">): string {

@@ -212,7 +212,7 @@ describe("the day stage header's matrix", () => {
     await renderCell("kept", KANAZAWA);
 
     expect(headline()).toHaveTextContent(
-      /^A calm Saturday in Kanazawa, on foot, early start, early dinner, home by eleven, with …\?$/,
+      /^A calm Saturday in Kanazawa, on foot, early start, early dinner, home by eleven, with anyone$/,
     );
     expect(liveDek(KANAZAWA_START_DAY.day.dek)).toHaveTextContent(KANAZAWA_START_DAY.day.dek);
     expect(screen.getAllByText("click a word to change it")[0]).toBeInTheDocument();
@@ -320,7 +320,7 @@ describe("the day stage header's matrix", () => {
   it("sets a fork's states: its word's pair, the proposal lit, the others locked, its list taking either version", async () => {
     const writing = await renderCell("replan-writing", KANAZAWA);
     expect(seenTextOf(headline())).toBe(
-      "A calm Saturday in Kanazawa, on foot, early start, early dinner or eating late, home by eleven, with …?",
+      "A calm Saturday in Kanazawa, on foot, early start, early dinner or eating late, home by eleven, with anyone",
     );
     // The proposal's answer is blue, and points to its fork; the visitor's word is theirs.
     const pair = within(headline()).getByRole("button", { name: /^eating late, proposed/ });
@@ -336,13 +336,13 @@ describe("the day stage header's matrix", () => {
     // The longest answer a word offers stands as its pair as any does.
     const longest = await renderCell("replan-writing-longest", KANAZAWA);
     expect(seenTextOf(headline())).toBe(
-      "A calm Saturday in Kanazawa, on foot or by public transport, early start, early dinner, home by eleven, with …?",
+      "A calm Saturday in Kanazawa, on foot or by public transport, early start, early dinner, home by eleven, with anyone",
     );
     longest.unmount();
 
     const shortest = await renderCell("replan-writing-shortest", KANAZAWA);
     expect(seenTextOf(headline())).toBe(
-      "A calm Saturday in Kanazawa, on foot, early start, early dinner, home by eleven or out late, with …?",
+      "A calm Saturday in Kanazawa, on foot, early start, early dinner, home by eleven or out late, with anyone",
     );
     shortest.unmount();
 

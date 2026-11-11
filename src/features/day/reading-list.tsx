@@ -26,7 +26,6 @@ import { isQuarterNamed } from "@/features/abacus/quarter";
 import type { DayContext } from "@/lib/geo/sun";
 import { formatClock, runningSpans } from "@/lib/time/clock";
 import { ROW_REACH_PX, SPRINGS } from "@/lib/tokens/motion";
-import { useFirstImpression } from "./first-impression";
 import { VersionCarousel } from "./version-carousel";
 import { isGoldenAt, LightRail, sunLinesOf, sunsOf, SunLine } from "./light-rail";
 import { TARGET_CLASSES } from "./link-classes";
@@ -99,14 +98,13 @@ const NO_STOPS: ReadonlySet<string> = new Set();
 const STOP_ATTRIBUTE = "data-stop";
 /** "proposed" under a proposal's stop's time, a step up from the gutter's quiet ink. */
 const MARK_CLASSES = "type-note text-ink-soft";
-/** The gutter's width, where a fork row's "1 of 2" stands, and the gap after it: `w-12` and `gap-4`. */
+/** The gutter's width, where a fork row's "1 of 2" stands: `w-12`. */
 const GUTTER_PX = 48;
-const GUTTER_GAP_PX = 16;
 
 const ROW_CLASSES = "flex gap-4 border-t border-line py-4 group-first:border-t-0";
 /**
- * The plan's row under the first impression: no rule between rows, the rail between the time
- * and the words doing that work, and the words' own room under them, so the rail runs on.
+ * The plan's row: no rule between rows, the rail between the time and the words doing that work,
+ * and the words' own room under them, so the rail runs on.
  */
 const RAIL_ROW_CLASSES = "flex gap-3";
 /** On the plan the words start after the gutter, the rail and two gaps: `w-12`, `w-2`, `gap-3`. */
@@ -150,16 +148,14 @@ export function ReadingList({
   // Rows a new energy changes together glide as one, in about 1.5 s.
   const [glideGroup] = useState(createGlideGroup);
   const drawing = useDrawing();
-  const isRail = useFirstImpression();
-  // On the plan the list says it is written once its rows are at rest too, so the last row's
-  // final form, its versions come in, is part of the day written rather than after it. Off the
-  // plan it renders nothing more for its glides.
+  // The list says it is written once its rows are at rest too, so the last row's final form, its
+  // versions come in, is part of the day written rather than after it.
   const [isGliding, setIsGliding] = useState(false);
   const glideOf = useGlidesTold((isNow) => {
-    if (isRail) setIsGliding(isNow);
+    setIsGliding(isNow);
     onGlide?.(isNow);
   });
-  const sunLines = isRail ? sunLinesOf(sunsOf(daylight), spans, isWritten) : [];
+  const sunLines = sunLinesOf(sunsOf(daylight), spans, isWritten);
   // The first stop on the plan with a version to swipe to leans once, when the day is whole.
   const firstSwappable = shown.findIndex(
     ({ stop }) =>
@@ -171,7 +167,7 @@ export function ReadingList({
     <ol
       ref={list}
       aria-label={READING_LIST_LABEL}
-      aria-busy={!isWritten || (isRail && isGliding)}
+      aria-busy={!isWritten || isGliding}
       className="flex flex-col"
       onFocus={noteFocus}
     >
@@ -207,7 +203,7 @@ export function ReadingList({
                           index={fork.anchors.indexOf(stop.id)}
                           count={fork.anchors.length}
                           timeWidth={GUTTER_PX}
-                          wordsLeft={isRail ? RAIL_WORDS_LEFT_PX : GUTTER_PX + GUTTER_GAP_PX}
+                          wordsLeft={RAIL_WORDS_LEFT_PX}
                           drawing={drawing}
                           lineAt="under"
                           onChoose={fork.onChoose}
@@ -219,12 +215,11 @@ export function ReadingList({
                   </Fold>
                 )}
               </AnimatePresence>
-              {isRail &&
-                (sunLines[at]?.lead ?? []).map(({ sun, to }) => (
-                  <SunLine key={sun.word} daylight={daylight} sun={sun} to={to} />
-                ))}
+              {(sunLines[at]?.lead ?? []).map(({ sun, to }) => (
+                <SunLine key={sun.word} daylight={daylight} sun={sun} to={to} />
+              ))}
               <ReadingRow
-                railTo={isRail ? (sunLines[at]?.railTo ?? 0) : null}
+                railTo={sunLines[at]?.railTo ?? 0}
                 onPick={onChoose && ((candidate) => onChoose(index, candidate))}
                 isNudged={isWritten && at === firstSwappable}
                 stop={stop}
@@ -249,10 +244,9 @@ export function ReadingList({
                   })
                 }
               />
-              {isRail &&
-                (sunLines[at]?.trail ?? []).map(({ sun, to }) => (
-                  <SunLine key={sun.word} daylight={daylight} sun={sun} to={to} />
-                ))}
+              {(sunLines[at]?.trail ?? []).map(({ sun, to }) => (
+                <SunLine key={sun.word} daylight={daylight} sun={sun} to={to} />
+              ))}
             </Fold>
           </li>
         ))}

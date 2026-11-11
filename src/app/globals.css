@@ -19,8 +19,8 @@
 @custom-variant chose-light (:root[data-theme-choice="light"] &);
 @custom-variant chose-dark (:root[data-theme-choice="dark"] &);
 /* The day's view the visitor chose, as <html> notes it: the head script sets data-day-view
-   before the first paint, the chart unless the list was chosen (view-choice.ts). With no
-   note, as without script, the list shows, once the page's first HTML holds the day. */
+   before the first paint, the plan unless the chart was chosen (view-choice.ts). With no
+   note, as without script, the plan shows, once the page's first HTML holds the day. */
 @custom-variant view-chart (:root[data-day-view="chart"] &);
 @custom-variant view-read (:root:not([data-day-view="chart"]) &);
 /* No view noted: no script has run, and the switch between the two could do nothing. */
@@ -28,10 +28,6 @@
 /* A written day drawn whole in the page's HTML that this device has not watched to its end:
    unseen until the page's script plays it from its empty frame (seen-days.ts). */
 @custom-variant unseen (:root[data-day-seen="no"] &);
-/* The first impression's look (src/lib/first-impression.ts), as the root layout notes it on
-   <html> while the flag is on, so a style can follow it from the page's first HTML; a lab cell
-   notes it on its own box to draw that look on any server. */
-@custom-variant first-impression (:where([data-first-impression]) &);
 
 /*
  * Design tokens: every value the interface may use (decisions.md, "Tokens are enforced, not

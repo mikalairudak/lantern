@@ -1,13 +1,12 @@
 import { labMatrix, type LabMatrix } from "@/lib/lab-matrix";
 import { DayMenu } from "./day-menu";
 import { DAY_MENU_STATES, type DayMenuState } from "./day-menu-examples";
-import { FirstImpressionProvider } from "./first-impression";
 import { Masthead } from "./masthead";
 
 type DayMenuCellProps = Omit<DayMenuState, "label">;
 
 /**
- * The first impression's masthead (`docs/decisions.md`, "The day's ways along live in one menu,
+ * The masthead (`docs/decisions.md`, "The day's ways along live in one menu,
  * in the masthead"): on a day, the menu "Take this day" in the group on the right, closed and
  * open in each state of the day; on the start screen the theme alone; on a page with an action,
  * the action.
@@ -25,16 +24,14 @@ export const DAY_MENU_MATRIX: LabMatrix = labMatrix<DayMenuCellProps>({
     },
   ],
   render: ({ page, items, isOpen }) => (
-    <FirstImpressionProvider isOn>
-      <div className="flex flex-col">
-        <Masthead
-          isHome={page === "start"}
-          action={page === "action" ? <span>Plan your own day</span> : undefined}
-          menu={page === "day" ? <DayMenu items={items} isOpenAtFirst={isOpen} /> : undefined}
-        />
-        {/* Room under an open menu, which hangs over the page below the masthead. */}
-        {isOpen && page === "day" && <div aria-hidden className="h-day" />}
-      </div>
-    </FirstImpressionProvider>
+    <div className="flex flex-col">
+      <Masthead
+        isHome={page === "start"}
+        action={page === "action" ? <span>Plan your own day</span> : undefined}
+        menu={page === "day" ? <DayMenu items={items} isOpenAtFirst={isOpen} /> : undefined}
+      />
+      {/* Room under an open menu, which hangs over the page below the masthead. */}
+      {isOpen && page === "day" && <div aria-hidden className="h-day" />}
+    </div>
   ),
 });

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { StartDay } from "./start-day";
-import { WRITTEN_HEADING } from "./start-header";
+import { INDEX_LABEL } from "./start-index";
 import { writtenPool } from "./written-pool";
 
 const ORIGIN = "http://lantern.test";
@@ -63,7 +63,7 @@ describe("StartDay", () => {
     expect(screen.getByRole("textbox", { name: "Where, and anything else" })).toBeVisible();
     expect(screen.getByText("Lantern isn't writing new days right now.")).toBeVisible();
     expect(
-      within(screen.getByRole("list", { name: WRITTEN_HEADING })).getAllByRole("button"),
+      within(screen.getByRole("list", { name: INDEX_LABEL })).getAllByRole("button"),
     ).toHaveLength(6);
     expect(screen.queryByRole("list", { name: "The day" })).not.toBeInTheDocument();
     expect(screen.queryByRole("group", { name: /The day's energy/ })).not.toBeInTheDocument();
@@ -73,7 +73,7 @@ describe("StartDay", () => {
     const user = userEvent.setup();
     render(<StartDay pool={writtenPool()} isLive={false} />);
 
-    await user.click(screen.getByRole("button", { name: /in Nafplio/ }));
+    await user.click(screen.getByRole("button", { name: /^Nafplio / }));
 
     await waitFor(
       () =>

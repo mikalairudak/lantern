@@ -1,5 +1,4 @@
 import { labMatrix, type LabMatrix } from "@/lib/lab-matrix";
-import { FirstImpressionProvider } from "./first-impression";
 import { startExcerptOf } from "./start-excerpt";
 import { StartExcerptView, StartIndex } from "./start-index";
 import { DRAWN_STARTS, LONG_START, UNDRAWN_START } from "./start-index-examples";
@@ -29,7 +28,7 @@ interface StartIndexCellProps {
 const ignore = () => undefined;
 
 /**
- * The start screen's second way in under the first impression (`docs/decisions.md`, "The start
+ * The start screen's second way in (`docs/decisions.md`, "The start
  * screen is an index, with a day's first stops under it"): the index under its label, at the
  * eight cities it has engravings for, at a city with none among them and the longest caption, at
  * one cell and at the written days, and under it a written day's first stops, still. Each cell's
@@ -62,12 +61,10 @@ export const START_INDEX_MATRIX: LabMatrix = labMatrix<StartIndexCellProps>({
   render: ({ count, hasExcerpt }) => {
     const excerpt = hasExcerpt ? startExcerptOf(new Date()) : null;
     return (
-      <FirstImpressionProvider isOn>
-        <div data-first-impression="">
-          <StartIndex starts={COUNTS[count].starts} onChoose={ignore} />
-          {excerpt && <StartExcerptView excerpt={excerpt} />}
-        </div>
-      </FirstImpressionProvider>
+      <div>
+        <StartIndex starts={COUNTS[count].starts} onChoose={ignore} />
+        {excerpt && <StartExcerptView excerpt={excerpt} />}
+      </div>
     );
   },
 });

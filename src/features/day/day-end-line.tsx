@@ -65,7 +65,7 @@ export interface DayEndProps {
   onReadToEnd?: () => void;
   /**
    * The line offers the ways to take the day along; off where the day menu holds them, as the
-   * first impression's masthead does.
+   * masthead does.
    */
   hasWaysAlong?: boolean;
   /**

@@ -449,7 +449,7 @@ describe("DayStageHeader through a word's fork", () => {
 
   it("writes an answer to Lantern's question as the pair after it, the question the visitor's day", async () => {
     const user = userEvent.setup();
-    const change = { word: "company", from: "with …?", to: "with family" } as const;
+    const change = { word: "company", from: "with anyone", to: "with family" } as const;
     const view = render(headerAt({ request: KANAZAWA_START_DAY.request, day: KANAZAWA }));
     const headlines = watchLetters(headline(), seenTextOf);
 
@@ -460,12 +460,12 @@ describe("DayStageHeader through a word's fork", () => {
         replan: { status: "writing", change, reach: "whole" },
       }),
     );
-    await waitFor(() => expect(seenTextOf(headline())).toMatch(/, with …\? or with family$/));
+    await waitFor(() => expect(seenTextOf(headline())).toMatch(/, with anyone or with family$/));
 
     // The question stays: only " or with family" is written after it.
-    expect(headlines().every((text) => text.includes("home by eleven, with …?"))).toBe(true);
-    await user.click(within(headline()).getByRole("button", { name: "with …?" }));
-    expect(screen.getByRole("option", { name: "with …?" })).toHaveAccessibleDescription(
+    expect(headlines().every((text) => text.includes("home by eleven, with anyone"))).toBe(true);
+    await user.click(within(headline()).getByRole("button", { name: "with anyone" }));
+    expect(screen.getByRole("option", { name: "with anyone" })).toHaveAccessibleDescription(
       YOUR_DAY_WHILE_WRITTEN,
     );
   });

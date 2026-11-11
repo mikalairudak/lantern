@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { LanternMark } from "@/components/ui/lantern-mark";
 import { cn } from "@/components/ui/cn";
 import { ThemeChoice } from "@/features/theme/theme-choice";
-import { useFirstImpression } from "./first-impression";
 
 /** The wordmark as a way home: no underline, and the ink ring every link takes for the keyboard. */
 const HOME_CLASSES = "rounded-sm focus-ring";
@@ -23,8 +22,7 @@ interface MastheadProps {
   /** On the start screen itself the wordmark is only the name, not a link to the same page. */
   isHome?: boolean;
   /**
-   * The day's menu, which takes the action's place in the first impression's masthead and
-   * holds "Plan another day" itself. Without the first impression the action stands.
+   * The day's menu, which takes the action's place and holds "Plan another day" itself.
    */
   menu?: ReactNode;
 }
@@ -36,49 +34,11 @@ interface MastheadProps {
  * wordmark sits at the same place on all three, and away from the start it leads there.
  */
 export function Masthead({ action, isHome = false, menu }: MastheadProps) {
-  const isFirstImpression = useFirstImpression();
-  if (isFirstImpression) {
-    return <GroupedMasthead action={menu ?? action} isHome={isHome} isMenu={menu !== undefined} />;
-  }
-  const wordmark = (
-    <>
-      <LanternMark />
-      Lantern
-    </>
-  );
-  return (
-    // Each end stays whole: where both do not fit on one line, as on a 320 px phone with the
-    // browser's text at 125 %, the page's action and the theme's icon go to the next line
-    // together, rather than the wordmark breaking.
-    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-      {isHome ? (
-        <span className="type-voice text-heading whitespace-nowrap italic">{wordmark}</span>
-      ) : (
-        // A whole page load, not a client one: a day opened from the start screen is still
-        // the start's page under its own address, and nothing hands a day back to the start
-        // screen (day.tsx), so a client navigation to "/" would keep the day on screen.
-        // eslint-disable-next-line @next/next/no-html-link-for-pages -- see above
-        <a
-          href="/"
-          className={cn("type-voice text-heading whitespace-nowrap italic", HOME_CLASSES)}
-        >
-          {wordmark}
-        </a>
-      )}
-      {/* The action and the icon's line stand on the wordmark's baseline, so the icon sits at
-          the same place on every page, with an action before it or none. */}
-      <span className="flex items-baseline gap-3 whitespace-nowrap">
-        {action}
-        <span className={THEME_LINE_CLASSES}>
-          <ThemeChoice />
-        </span>
-      </span>
-    </div>
-  );
+  return <GroupedMasthead action={menu ?? action} isHome={isHome} isMenu={menu !== undefined} />;
 }
 
 /**
- * The first impression's masthead: the wordmark alone on the left at the body's size, its mark
+ * The masthead's two ends: the wordmark alone on the left at the body's size, its mark
  * set in ems of the word so its bead stands on the word's lowercase middle; on the right the
  * page's action, or the day's menu, and the theme as one group, a short rule between them. Every
  * item stands on one centre line and is a 24 px target.

@@ -124,7 +124,7 @@ export function slotOf(
   phase: Phase,
   notYet: string | null,
   local: LocalWords,
-  /** Under the first impression the hint goes at the page's first change of any kind. */
+  /** The hint goes at the page's first change of any kind. */
   isTouched = false,
 ): HeaderSlot {
   if (phase !== "done") return null;

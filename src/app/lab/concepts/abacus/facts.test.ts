@@ -55,12 +55,12 @@ describe("fact options", () => {
       "morning …",
       "dinner …",
       "night …",
-      "with …?",
+      "with anyone",
     ]);
   });
 
   it("says the open question as a question until it is answered", () => {
-    expect(labelOf(ALICANTE_FACTS.company)).toBe("with …?");
+    expect(labelOf(ALICANTE_FACTS.company)).toBe("with anyone");
     expect(labelOf(answerFacts(ALICANTE_FACTS, { key: "company", value: "family" }).company)).toBe(
       "with family",
     );
@@ -129,7 +129,7 @@ describe("restorePart", () => {
 
     const restored = restorePart(answerFacts(family, outLate), outLate, [], ALICANTE_FACTS);
 
-    expect(labelOf(restored.company)).toBe("with …?");
+    expect(labelOf(restored.company)).toBe("with anyone");
     expect(restored.company.source).toBe("asked");
     expect(restored.dinner).toMatchObject({ value: "late", source: "assumed", revisedFrom: null });
     expect(restored.end).toMatchObject({ value: "late", source: "chosen" });

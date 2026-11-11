@@ -35,6 +35,7 @@ import { replanEndedOf, replanningOf, UNFINISHED } from "./not-yet";
 import { NOT_LIVE_NOTE } from "./start-header";
 import { StartDay } from "./start-day";
 import { writtenPool } from "./written-pool";
+import { TAKE_THIS_DAY } from "./day-menu";
 
 /**
  * The start screen and the day with live generation on, against stand-ins of both routes:
@@ -693,7 +694,7 @@ describe("the start screen with live generation on", () => {
     await ask(user, "a calm day");
     await user.type(await screen.findByRole("textbox", { name: "Which city?" }), "Atlantis{Enter}");
 
-    await saysBack("Lantern can't plan that day. Watch one it knows, below.");
+    await saysBack("Lantern can't plan that day. Start from one of the days below.");
     expect(screen.getByRole("textbox", { name: "Where, and anything else" })).toHaveFocus();
   });
 
@@ -747,7 +748,7 @@ describe("the start screen with live generation on", () => {
 
       await ask(user, "Amsterdam");
 
-      expect(await saysBack(`${said} Watch one it knows, below.`)).toBeVisible();
+      expect(await saysBack(`${said} Start from one of the days below.`)).toBeVisible();
       expect(screen.getByRole("textbox")).toHaveValue("Amsterdam");
       expect(dayPosts).toEqual([]);
     },
@@ -759,7 +760,7 @@ describe("the start screen with live generation on", () => {
     await ask(user, "Amsterdam");
 
     expect(
-      await saysBack("Lantern couldn't read that just now. Watch one it knows, below."),
+      await saysBack("Lantern couldn't read that just now. Start from one of the days below."),
     ).toBeVisible();
   });
 });
@@ -823,7 +824,8 @@ describe("a first day that comes back empty, with live generation on", () => {
 describe("the city word with live generation on", () => {
   async function typeCity(user: ReturnType<typeof userEvent.setup>, city: string): Promise<void> {
     await user.click(within(headline()).getByRole("button", { name: "Kanazawa" }));
-    await user.click(screen.getAllByRole("button", { name: "Plan another day" })[0]!);
+    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
     await user.keyboard(`${city}{Enter}`);
   }
 
@@ -1213,7 +1215,7 @@ describe("a changed time word with live generation on", () => {
 
     // A word whose re-plan is the whole day: the route answers 409 and the day is asked again.
     dayIds.push(NEXT_DAY_ID);
-    await changeWord(user, "with …?", "with family");
+    await changeWord(user, "with anyone", "with family");
     await takeProposal(user, "with family");
 
     await waitFor(() => expect(window.location.pathname).toBe(`/day/${NEXT_DAY_ID}`), DAY_TIMEOUT);
@@ -1521,7 +1523,7 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     const sentence = seenTextOf(headline());
     dayReplies.push("held");
 
-    await changeWord(user, "with …?", "with family");
+    await changeWord(user, "with anyone", "with family");
 
     // The new day's header and its first stops have streamed; the day before stays the day.
     await waitFor(() => expect(day.current?.replan().status).toBe("writing"), DAY_TIMEOUT);
@@ -1535,7 +1537,9 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     await new Promise((resolve) => setTimeout(resolve, 300));
     expect(within(dayList()).getAllByRole("listitem")[0]).toBe(firstStop);
     // Only the pair was written in at the press: the rest of the headline stands.
-    expect(seenTextOf(headline())).toBe(sentence.replace("with …?", "with …? or with family"));
+    expect(seenTextOf(headline())).toBe(
+      sentence.replace("with anyone", "with anyone or with family"),
+    );
     // The day held keeps its own address while the new one is on its way.
     expect(window.location.pathname).toBe(`/day/${KYOTO_DAY_ID}`);
   });
@@ -1546,7 +1550,7 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     dayIds.push(KYOTO_DAY_ID, NEXT_DAY_ID);
     const user = await askForKyoto(day);
 
-    await changeWord(user, "with …?", "with family");
+    await changeWord(user, "with anyone", "with family");
 
     await waitFor(() => expect(window.location.pathname).toBe(`/day/${NEXT_DAY_ID}`), DAY_TIMEOUT);
     await waitForTheDay();
@@ -1592,11 +1596,11 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     const day = createRef<DayHandle>();
     dayIds.push(KYOTO_DAY_ID, NEXT_DAY_ID);
     const user = await askForKyoto(day);
-    await changeWord(user, "with …?", "with family");
+    await changeWord(user, "with anyone", "with family");
     await waitFor(() => expect(day.current?.replan().status).toBe("proposed"), DAY_TIMEOUT);
     // Whole, it waits to be taken: the day before still the day, at its own address.
     expect(window.location.pathname).toBe(`/day/${KYOTO_DAY_ID}`);
-    expect(headline()).toHaveTextContent(/with …\? or with family$/);
+    expect(headline()).toHaveTextContent(/with anyone or with family$/);
 
     await takeProposal(user, "with family");
 
@@ -1609,7 +1613,7 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
       day.current?.replan().choose("from");
     });
 
-    await waitFor(() => expect(headline()).toHaveTextContent(/with …\?$/));
+    await waitFor(() => expect(headline()).toHaveTextContent(/with anyone$/));
     expect(window.location.pathname).toBe(`/day/${KYOTO_DAY_ID}`);
     expect(day.current?.replan().status).toBe("left");
     expect(dayPosts).toHaveLength(1);

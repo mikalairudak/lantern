@@ -13,8 +13,9 @@ const ASYNC_UTIL_TIMEOUT_MS = 4_000;
 configure({ asyncUtilTimeout: ASYNC_UTIL_TIMEOUT_MS });
 
 // The page's head script notes the day's view on `<html>` before anything renders: the
-// chart, unless the visitor chose the list (`view-choice.ts`). Tests render no head, so
-// each starts as a page does, on the chart; one about the list says so.
+// plan, unless the visitor chose the chart (`view-choice.ts`). Tests render no head, and most
+// drive the chart, so each starts as a page does for a visitor who chose it; one about the plan
+// says so.
 beforeEach(() => {
   if (typeof document !== "undefined") {
     document.documentElement.setAttribute("data-day-view", "chart");

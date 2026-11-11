@@ -30,7 +30,7 @@ import type { CityReading } from "@/lib/schema/intake.schema";
 import { formatClock } from "@/lib/time/clock";
 import { SunMark } from "@/features/abacus/best-light-icon";
 import {
-  askedLabelsOf,
+  ASKED_LABELS,
   FACT_KEYS,
   FACT_OPTIONS,
   labelOf,
@@ -68,7 +68,6 @@ import {
   type SentenceFacts,
 } from "./sentence";
 import { DayMenu, type DayMenuItem } from "./day-menu";
-import { useFirstImpression } from "./first-impression";
 import { PLAN_ANOTHER_DAY } from "./day-end-line";
 import { Masthead } from "./masthead";
 import {
@@ -235,10 +234,10 @@ export interface HeaderNotice {
  * product's words, set upright before the model's italic, as a note before a quotation.
  */
 const PLANNED_LEAD = "As first planned: ";
-/** Under the first impression the lead is said lighter than the line it leads. */
-const LEAD_CLASSES = "first-impression:text-muted";
-/** The hint, in ink, or under the first impression a step quieter than the date beside it. */
-const HINT_CLASSES = "text-ink first-impression:text-caption first-impression:text-muted";
+/** The lead is said lighter than the line it leads. */
+const LEAD_CLASSES = "text-muted";
+/** The hint, a step quieter than the date beside it. */
+const HINT_CLASSES = "text-caption text-muted";
 
 const ignore = () => undefined;
 
@@ -418,8 +417,8 @@ interface DayStageHeaderProps {
   isLockSaid?: boolean;
   onCityOpenChange: (openAt: CityFocus | null) => void;
   /**
-   * The ways to take the day along, for the first impression's day menu, which holds them and
-   * "Plan another day". Without the first impression the masthead keeps its action alone.
+   * The ways to take the day along, for the day menu, which holds them and "Plan another day".
+   * Without them the masthead keeps "Plan another day" alone, as its action.
    */
   takeAlong?: readonly DayMenuItem[];
   /** A written day chosen from the city word's list. */
@@ -571,7 +570,6 @@ export function DayStageHeader({
   const replan = withAnswerValuesOf(givenReplan);
   const { status, change } = replan;
   const isReplanWriting = status === "writing" && change !== null;
-  const isPlanFirst = useFirstImpression();
   // The day's own words: the request on screen is the version the visitor has, and the fork's
   // other answer stands after its word as its pair while it is drawn beside the day.
   const facts = givenFacts;
@@ -911,9 +909,9 @@ export function DayStageHeader({
     const isBehind = behind.has(key);
     const reserved =
       notice === null && known && known.source !== "chosen"
-        ? labelOf(known, isPlanFirst)
+        ? labelOf(known)
         : isBehind && fact
-          ? labelOf(fact, isPlanFirst)
+          ? labelOf(fact)
           : undefined;
     const isChangedWord = change !== null && key === change.word;
     return (
@@ -921,8 +919,8 @@ export function DayStageHeader({
         key={key}
         isFocusedOnMount={key === focusedWord}
         view={{
-          ...viewOf(key, fact, notice === null, isPlanFirst),
-          options: optionsOf(key, fact, replan, forecasts, isPlanFirst),
+          ...viewOf(key, fact, notice === null),
+          options: optionsOf(key, fact, replan, forecasts),
         }}
         lead={lead}
         trail={trail}
@@ -1338,14 +1336,13 @@ function SentenceShape({
   className,
 }: SentenceShapeProps) {
   const trails = trailsOf(facts);
-  const isPlanFirst = useFirstImpression();
   return (
     <p
       ref={ref}
       aria-hidden
       className={cn(SENTENCE_CLASSES, "invisible col-start-1 row-start-1", className)}
     >
-      A <span>{facts.energy ? labelOf(facts.energy, isPlanFirst) : ""}</span>{" "}
+      A <span>{facts.energy ? labelOf(facts.energy) : ""}</span>{" "}
       <span>{weekdayOf(request.date)}</span>
       <ClauseText text={setOff(clause)} /> in{" "}
       <span className="inline-block whitespace-nowrap">
@@ -1359,7 +1356,7 @@ function SentenceShape({
           <span key={key}>
             {" "}
             <span className="inline-block whitespace-nowrap">
-              <span className={wordClassesOf(fact)}>{labelOf(fact, isPlanFirst)}</span>
+              <span className={wordClassesOf(fact)}>{labelOf(fact)}</span>
               {pair?.key !== key && trails[key]}
             </span>
             {pair?.key === key && (
@@ -1448,7 +1445,7 @@ function answerValueOf(key: AssumableFactKey, answer: string): string {
  * The controls with the change's two answers as values of the word's vocabulary, as its list's
  * options are. The page names them as the sentence says them, "early dinner", "eating late"
  * (`ReplanControls`); a value is read as its answer too. A word Lantern asked about had no
- * answer, so its question, "with …?", stays as the page said it and stands for the day before.
+ * answer, so its question, "with anyone", stays as the page said it and stands for the day before.
  */
 function withAnswerValuesOf(replan: ReplanControls): ReplanControls {
   const { change } = replan;
@@ -1518,7 +1515,6 @@ function optionsOf(
   fact: Fact | null,
   { status, change }: ReplanControls,
   forecasts: Forecasts,
-  isPlanFirst = false,
 ): OptionView[] {
   const options = (fact?.options ?? []).map((option): OptionView => ({
     value: option.value,
@@ -1534,7 +1530,7 @@ function optionsOf(
     ? [
         {
           value: change.from,
-          label: askedLabelsOf(isPlanFirst)[key],
+          label: ASKED_LABELS[key],
           isCurrent: status !== "taken",
           consequence: null,
         },
@@ -1568,16 +1564,11 @@ function optionsOf(
  * the facts line, so the word reads as plain ink until a day comes. Its answers are its
  * list's (`optionsOf`).
  */
-function viewOf(
-  key: FactKey,
-  fact: Fact | null,
-  isPlanned: boolean,
-  isPlanFirst = false,
-): Omit<WordView, "options"> {
+function viewOf(key: FactKey, fact: Fact | null, isPlanned: boolean): Omit<WordView, "options"> {
   const source = fact?.source ?? "assumed";
   return {
     key,
-    label: fact === null ? "" : labelOf(fact, isPlanFirst),
+    label: fact === null ? "" : labelOf(fact),
     source: !isPlanned && source === "assumed" ? "chosen" : source,
     struck: null,
     listLabel: LIST_LABELS[key],
@@ -1868,7 +1859,7 @@ function SlotText({ slot }: { slot: HeaderSlot }) {
   return (
     <>
       {" · "}
-      {/* Under the first impression it is quieter than the date, and goes at the first change. */}
+      {/* Quieter than the date, it goes at the page's first change. */}
       <span className={cn("pointer-coarse:hidden", HINT_CLASSES)}>click a word to change it</span>
       <span className={cn("hidden pointer-coarse:inline", HINT_CLASSES)}>
         tap a word to change it

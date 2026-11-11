@@ -104,11 +104,9 @@ import { FootLine, ProgressLine, SOURCES } from "./foot-line";
 import { DayEnd, type DayExport } from "./day-end-line";
 import { useDayExports } from "./day-exports";
 import { takeAlongOf } from "./take-along";
-import { useFirstImpression } from "./first-impression";
 import { PlanBar } from "./plan-energy";
 import { progressOf, progressWordsOf } from "./progress";
 import { readDayView, serverDayView, subscribeDayView } from "./view-choice";
-import { DayViewSwitch } from "./view-switch";
 import { enteredOf, versionsWrittenOf } from "./reading-gates";
 import { ReadingList } from "./reading-list";
 import { SILENCE_SECONDS, WHOLE_ROWS_SILENCE_SECONDS, useSilence } from "./use-silence";
@@ -310,7 +308,7 @@ interface DayStageProps {
    * staying in view (`READ_TO_END_MS`).
    */
   onDayAct?: (act: DayAct) => void;
-  /** Tells the visitor's answer at the day's end, asked under the first impression. */
+  /** Tells the visitor's answer to the one question at the day's end. */
   onDayAnswer?: (answer: DayAnswer) => void;
   /** The answer given for the day opened, held by the page across a re-plan's new end. */
   dayAnswered?: DayAnswer | null;
@@ -1016,9 +1014,6 @@ export function DayStage({
   }, [isEndAtOnce, isEndShown, isHydrated]);
   // A day the salvage rule kept, cut or dropped inside its swaps, offers its link alone.
   const isCut = ended !== null && shownOutcome?.kind !== "complete";
-  // The first impression's day menu holds the ways to take the day along, which the line
-  // under the day then leaves out: there once the day is whole, waiting till then.
-  const isFirstImpression = useFirstImpression();
   const planBar = useRef<HTMLDivElement>(null);
   const takeable = isEndShown ? ended : null;
   const dayExports = useDayExports({
@@ -1029,21 +1024,20 @@ export function DayStage({
     calendarKey: picksKey ?? city,
     onExport: (way) => onDayAct?.(EXPORT_EVENTS[way]),
   });
-  // A stream that ended with no day leaves nothing to take along: the menu holds "Plan another
-  // day" alone.
-  const takeAlong = !isFirstImpression
-    ? undefined
-    : isEndedWithoutDay
-      ? []
-      : takeAlongOf({
-          day: takeable,
-          shown: energy.committed,
-          checks,
-          isCut,
-          exports: dayExports,
-          onRoute: () => onDayAct?.(EXPORT_EVENTS.route),
-          hasLink: address !== null,
-        });
+  // The day menu holds the ways to take the day along: there once the day is whole, waiting
+  // till then. A stream that ended with no day leaves nothing to take along: the menu holds
+  // "Plan another day" alone.
+  const takeAlong = isEndedWithoutDay
+    ? []
+    : takeAlongOf({
+        day: takeable,
+        shown: energy.committed,
+        checks,
+        isCut,
+        exports: dayExports,
+        onRoute: () => onDayAct?.(EXPORT_EVENTS.route),
+        hasLink: address !== null,
+      });
   // The line under the chart as it last said how far the day was written, and the frame's
   // height then. Once the day is whole its end waits for the frame to rise to the day's own
   // last hour (Kanazawa's by 60 px on a phone, over about a second): meanwhile the line
@@ -1217,11 +1211,11 @@ export function DayStage({
   // a day, and closes once the chart has gone, so a day asked for next never opens it itself.
   if (isEndedWithoutDay && !isChartLeaving && openStopId !== null) setOpenStopId(null);
 
-  // Under the first impression the hint goes at the page's first change, a swap or a drag as
-  // much as a word; it does not come back when the day is put back as planned.
+  // The hint goes at the page's first change, a swap or a drag as much as a word; it does not
+  // come back when the day is put back as planned.
   const isChangedFromPlan = !isAsWritten(stops, energy.committed, writtenFor.places);
   const [isTouched, setIsTouched] = useState(false);
-  if (isFirstImpression && isChangedFromPlan && !isTouched) setIsTouched(true);
+  if (isChangedFromPlan && !isTouched) setIsTouched(true);
   const slot = slotOf(phase, replanLine ?? notYet, local, isTouched);
   const startSlot = slotOf("writing", null, local);
   const isChartShown = phase === "writing" || phase === "done";
@@ -1366,26 +1360,23 @@ export function DayStage({
               aria-hidden
               className="pointer-events-none absolute inset-x-0 top-0 h-day"
             />
-            {/* Chart or Read, at the chart's right edge, fading with it as one piece. It
-                comes with the frame; in a day's first HTML it waits for it too, for a visitor
+            {/* The day's energy and Plan or Chart, over the day, fading with it as one piece.
+                It comes with the frame; in a day's first HTML it waits for it too, for a visitor
                 who has not seen the day, rather than stand under the headline until it plays. */}
-            {isFrameDrawn &&
-              (isFirstImpression ? (
-                // On the plan the day's energy and the switch are held at the screen's top while
-                // the plan scrolls; on the chart its own scale is, and the bar stands still.
-                <PlanBar
-                  ref={planBar}
-                  energy={(facts.energy?.value as EnergyLevel | undefined) ?? request.energy}
-                  isEnabled={isInteractive}
-                  onChoose={(level) => {
-                    answer({ key: "energy", value: level });
-                    countWord("energy");
-                  }}
-                  className={wholeClasses}
-                />
-              ) : (
-                <DayViewSwitch className={cn("mb-2", wholeClasses)} />
-              ))}
+            {isFrameDrawn && (
+              // On the plan the day's energy and the switch are held at the screen's top while
+              // the plan scrolls; on the chart its own scale is, and the bar stands still.
+              <PlanBar
+                ref={planBar}
+                energy={(facts.energy?.value as EnergyLevel | undefined) ?? request.energy}
+                isEnabled={isInteractive}
+                onChoose={(level) => {
+                  answer({ key: "energy", value: level });
+                  countWord("energy");
+                }}
+                className={wholeClasses}
+              />
+            )}
             {/* The chart, or the same day as a list to read: the styles show the one the
                 visitor chose (`docs/decisions.md`, "A day can be read as a list, written as
                 the chart is"). Behind the list the chart is laid out unseen, at no height,
@@ -1482,11 +1473,8 @@ export function DayStage({
                       address={address}
                       isCut={isCut}
                       calendarKey={picksKey ?? city}
-                      onPlanAnother={
-                        isFirstImpression ? undefined : () => setCityOpenAt("elsewhere")
-                      }
-                      hasWaysAlong={!isFirstImpression}
-                      onAnswer={isFirstImpression ? onDayAnswer : undefined}
+                      hasWaysAlong={false}
+                      onAnswer={onDayAnswer}
                       answered={dayAnswered}
                       onExport={(way) => onDayAct?.(EXPORT_EVENTS[way])}
                       onReadToEnd={onDayAct && (() => onDayAct("day-read-to-end"))}

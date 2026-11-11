@@ -20,7 +20,7 @@ import { Day, START_WORDS_CAP_MS, type WrittenGist } from "./day";
 import { StartDay } from "./start-day";
 import { writtenDayAt } from "@/lib/days/written/days";
 import { writtenPool } from "./written-pool";
-import { WRITTEN_HEADING } from "./start-header";
+import { INDEX_LABEL } from "./start-index";
 import { keepYourDay, readYourDays } from "./your-days";
 import { shownEnergiesOf } from "./day-shape";
 import { FORGET_YOUR_DAYS, YOUR_DAYS_HEADING } from "./your-days-list";
@@ -29,6 +29,7 @@ import { DAY_ROUTE } from "@/features/itinerary/day-route";
 import type { DaySource } from "@/features/itinerary/use-day-stream";
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
 import type { IntakeReader, IntakeResult, IntakeWords } from "@/lib/schema/intake.schema";
+import { TAKE_THIS_DAY } from "./day-menu";
 
 const ORIGIN = "http://lantern.test";
 const DAY_TIMEOUT = { timeout: 5000 };
@@ -180,15 +181,15 @@ function stallInTheLine(): void {
   });
 }
 /** The line under the field, with live generation off, for a text that asks for no written day. */
-const NOT_YET_LINE = "Lantern isn't writing new days right now. Watch one it knows, below.";
+const NOT_YET_LINE = "Lantern isn't writing new days right now. Start from one of the days below.";
 /** The line under the field, saying a day back as it is on its way. */
 const saysBack = (sentence: string) =>
   screen.findByText((_, element) => element?.tagName === "P" && element.textContent === sentence);
 
-/** A quick start on the start screen, by the city its day is written in, which its words say. */
+/** A day in the start screen's index, by the city its day is written in, which its cell names. */
 const cityWord = (city: string) =>
-  within(screen.getByRole("list", { name: WRITTEN_HEADING })).getByRole("button", {
-    name: new RegExp(` in ${city}[,.]`),
+  within(screen.getByRole("list", { name: INDEX_LABEL })).getByRole("button", {
+    name: new RegExp(`^${city} `),
   });
 
 async function waitForTheDay(): Promise<void> {
@@ -203,16 +204,12 @@ async function waitForTheDay(): Promise<void> {
 }
 
 describe("the day under its start screen", () => {
-  it("lands on the question and the quick starts, with no day and no stream", async () => {
+  it("lands on the question and the index, with no day and no stream", async () => {
     renderStart();
 
     expect(headline()).toHaveTextContent(/^One day in a city/);
-    expect(cityWord("Kanazawa")).toHaveAccessibleName(
-      "A calm Saturday in Kanazawa, early start. Japan",
-    );
-    expect(cityWord("Bologna")).toHaveAccessibleName(
-      "A lively Saturday in Bologna, with friends. Italy",
-    );
+    expect(cityWord("Kanazawa")).toHaveAccessibleName("Kanazawa Calm Saturday early start");
+    expect(cityWord("Bologna")).toHaveAccessibleName("Bologna Lively Saturday with friends");
     // Nothing of a day is drawn, or asked for, until the visitor asks.
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(screen.queryByRole("list", { name: "The day" })).not.toBeInTheDocument();
@@ -847,7 +844,8 @@ describe("the address, on a page that asks the day to keep it", () => {
     await user.click(cityWord("Kanazawa"));
     await waitForTheDay();
 
-    await user.click(screen.getAllByRole("button", { name: "Plan another day" })[0]!);
+    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
     await user.keyboard("Paris{Enter}");
 
     await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Saturday in Paris/));
