@@ -113,6 +113,7 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 - [2026-11-11 — An address that names no day is refused by the router, before the day's route renders](#2026-11-11--an-address-that-names-no-day-is-refused-by-the-router-before-the-days-route-renders)
 - [2026-11-11 — The start screen is an index, with a day's first stops under it](#2026-11-11--the-start-screen-is-an-index-with-a-days-first-stops-under-it)
 - [2026-11-11 — The day's ways along live in one menu, in the masthead](#2026-11-11--the-days-ways-along-live-in-one-menu-in-the-masthead)
+- [2026-11-11 — A day opens on its plan, lit by the day's light](#2026-11-11--a-day-opens-on-its-plan-lit-by-the-days-light)
 
 **The look: type, colour and tokens**
 
@@ -593,7 +594,15 @@ Since 2026-11-10, `develop` moves only by a merged pull request, not by a merge 
 
 **Why.** Nothing on the first screen showed what a visitor gets, and a visitor with no city in mind had no way in of their own. Words lead each line, so a line reads whole without its picture and the screen does not read as a travel app's grid; at a phone's 390 px the field and two lines end by about 550 px, inside the 664 px a phone's browser shows. A day drawn still under the ways in shows the product without competing with them or loading the screen with a playing day, which is what the earlier rule turned down.
 
-**Cost.** The first screen is longer, and the excerpt is a day's words the start screen did not have. Until the plan's own view lands the excerpt draws today's list. A line in the index for a city whose day is not written cannot be offered, so the index waits on the written days.
+**Cost.** The first screen is longer, and the excerpt is a day's words the start screen did not have. A line in the index for a city whose day is not written cannot be offered, so the index waits on the written days.
+
+## 2026-11-11 — A day opens on its plan, lit by the day's light
+
+**Decision.** Behind the first impression's flag (`FIRST_IMPRESSION=1`), a day opens on the list, named "Plan" and set before "Chart"; a visitor who chose the chart keeps it, since a choice is now kept by its value, the chart's too, while storage and the events keep the words `read` and `chart`. The plan draws a rail of the day's light down beside the times (`light-rail.tsx`): the wire through daylight, the lamp through golden hour, dotted from sunset to sunrise, the stop's bead on it, the stop's time in amber when it starts in golden hour, and the sun's rise and set as lines of the list where they fall, a sunrise before the first stop only within 90 minutes of it. The rail replaces the rule between rows. Over the plan, held at the screen's top while it scrolls, the day's energy is five words beside the switch, which choose as the headline's energy word does. The headline says an open company as "with anyone", dots Lantern's assumptions in muted ink rather than the wire's, says "As first planned:" in muted ink, and shows the hint as a caption that goes at the page's first change, a swap or a drag as much as a word. The look follows a `first-impression` variant on `<html>`, set by the root layout, so a style holds from the page's first HTML. This bends "A day can be read as a list, written as the chart is", where the chart is the default.
+
+**Why.** A first-time visitor must learn the chart's encoding before reading their day, while a timetable reads at once; the light is what the plan must carry for it to be Lantern's and not a list, and on the rail it is seen without a new drawing to learn. Five words held at the top keep the day's energy one tap away on a phone, where the headline's word scrolls away. "with …?" read as an unfinished word; "with anyone" says the same open question as a phrase. The hint teaches once and then stands in the way.
+
+**Cost.** Visitors who chose nothing land on the plan, those who used the chart included. The rail is quiet through plain daylight, so light speaks mostly in the morning and the evening. Until the flag goes there are two lists and two headlines to keep, and the energy's five words repeat the headline's word on the plan.
 
 ## 2026-11-11 — A city's written day is one of its seasons, picked by the date it is shown on
 
