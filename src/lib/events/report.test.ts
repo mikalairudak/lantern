@@ -342,10 +342,24 @@ describe("pnpm events:report", () => {
       await seed(visitor(index), { kind: "day-answered", ...KYOTO_ON_CHART, view: "read", answer });
     }
     await seed(visitor(3), ended);
+    // One more answered two days that UTC day, one each way: counted once, in both answers.
+    await seed(visitor(4), ended);
+    await seed(visitor(4), {
+      kind: "day-answered",
+      ...KYOTO_ON_CHART,
+      view: "read",
+      answer: "yes",
+    });
+    await seed(visitor(4), {
+      kind: "day-answered",
+      ...KYOTO_ON_CHART,
+      view: "read",
+      answer: "not-quite",
+    });
 
     const { out } = await report();
 
-    const row = out.find((line) => /^\s+read\s+4\s+3\s+2\s+1\s+n < 30/.test(line));
+    const row = out.find((line) => /^\s+read\s+5\s+4\s+3\s+2\s+n < 30/.test(line));
     expect(row).toBeDefined();
   });
 

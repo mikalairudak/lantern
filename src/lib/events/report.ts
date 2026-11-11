@@ -1,4 +1,5 @@
 // With their extensions, since `scripts/events-report.mts` runs this file through Node directly.
+import type { DayAnswer } from "./event.schema";
 import { runReport, type ReportCommand, type ReportSection } from "../db/report.ts";
 
 export type { ReportCommand } from "../db/report.ts";
@@ -57,6 +58,15 @@ function visitorsOf(group: string, whole: string, parts: Record<string, string>)
     SELECT DISTINCT whole.${group}, whole.utc_day, whole.visitor_key, ${flags.join(", ")}
     FROM product_events AS whole
     WHERE whole.environment = $1 AND whole.utc_day >= $2::date AND whole.kind = '${whole}'`;
+}
+
+/** Whether the visitor of the row `base` answered the day's end `answer` in `base`'s view and day. */
+function answeredIn(base: string, answer: DayAnswer): string {
+  return `EXISTS (
+    SELECT 1 FROM product_events AS also
+    WHERE also.environment = $1 AND also.utc_day = ${base}.utc_day
+      AND also.visitor_key = ${base}.visitor_key AND also.view = ${base}.view
+      AND also.kind = 'day-answered' AND also.answer = '${answer}')`;
 }
 
 /** What a group is called whose events were kept before they said it. */
@@ -122,17 +132,16 @@ export const EVENT_TABLE_SECTIONS: readonly ReportSection[] = [
       SELECT view, ended, answered, yes, not_quite AS "not quite",
         ${shareOf("yes", "answered")} AS "yes share" FROM (
         SELECT coalesce(view, ${NOT_TOLD}) AS view, count(*)::integer AS ended,
-          (count(*) FILTER (WHERE answer IS NOT NULL))::integer AS answered,
-          (count(*) FILTER (WHERE answer = 'yes'))::integer AS yes,
-          (count(*) FILTER (WHERE answer = 'not-quite'))::integer AS not_quite
+          (count(*) FILTER (WHERE said_yes OR said_not_quite))::integer AS answered,
+          (count(*) FILTER (WHERE said_yes))::integer AS yes,
+          (count(*) FILTER (WHERE said_not_quite))::integer AS not_quite
+        -- A visitor once a UTC day in the view their day ended in, as "taken along" counts, with
+        -- whether they answered yes and whether not quite in that view. No time of day is kept,
+        -- so a visitor who answered both ways that day counts in both, never past the whole.
         FROM (
-          SELECT DISTINCT whole.view, whole.utc_day, whole.visitor_key, (
-            SELECT also.answer FROM product_events AS also
-            WHERE also.environment = $1 AND also.utc_day = whole.utc_day
-              AND also.visitor_key = whole.visitor_key AND also.view = whole.view
-              AND also.kind = 'day-answered'
-            ORDER BY also.answer LIMIT 1
-          ) AS answer
+          SELECT DISTINCT whole.view, whole.utc_day, whole.visitor_key,
+            ${answeredIn("whole", "yes")} AS said_yes,
+            ${answeredIn("whole", "not-quite")} AS said_not_quite
           FROM product_events AS whole
           WHERE whole.environment = $1 AND whole.utc_day >= $2::date AND whole.kind = 'day-ended'
         ) AS visitors

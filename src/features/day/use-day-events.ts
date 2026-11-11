@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { DayStream } from "@/features/itinerary/use-day-stream";
 import type { DayAct, DayAnswer, DayVia, ProductEvent } from "@/lib/events/event.schema";
 import type { DayOutcome } from "@/lib/stream/outcome";
@@ -47,6 +47,11 @@ export interface DayEvents {
   /** The visitor's answer at the day's end, told once a day opened, with the view it is read in. */
   answer: (answer: DayAnswer) => void;
   /**
+   * The answer given for the day opened now, or null: one answer a day opened, so a day's end
+   * drawn again, as a re-plan draws it, thanks rather than asks again.
+   */
+  answered: DayAnswer | null;
+  /**
    * A day starts playing, reached this way. A day still streaming before it was left. The
    * request played again as the same object, as React's Strict Mode plays a day on mount in
    * development, is the same opening. A day that comes with its ending, drawn whole as one
@@ -79,6 +84,7 @@ export function useDayEvents(
   isCounted: boolean,
 ): DayEvents {
   const opening = useRef<Opening | null>(null);
+  const [answered, setAnswered] = useState<DayAnswer | null>(null);
 
   const sendOut = useCallback(
     (event: ProductEvent, isLeaving: boolean) => {
@@ -102,6 +108,7 @@ export function useDayEvents(
     (request: DayRequest, via: DayVia, ended?: DayOutcome["kind"]) => {
       if (opening.current?.request === request) return;
       leaveDay(false);
+      setAnswered(null);
       const day = { city: daySlugOf(request), via, written: isWrittenRequest(request) };
       const isEnded = ended !== undefined;
       opening.current = {
@@ -137,6 +144,7 @@ export function useDayEvents(
       const current = opening.current;
       if (current === null || current.isAnswered) return;
       current.isAnswered = true;
+      setAnswered(given);
       sendOut({ kind: "day-answered", ...current.day, view: readDayView(), answer: given }, false);
     },
     [sendOut],
@@ -162,7 +170,7 @@ export function useDayEvents(
   }, [leaveDay]);
 
   const leave = useCallback(() => leaveDay(false), [leaveDay]);
-  return { send, act, answer, open, leave };
+  return { send, act, answer, answered, open, leave };
 }
 
 /** What a page remembers of having told that the start screen was opened. */

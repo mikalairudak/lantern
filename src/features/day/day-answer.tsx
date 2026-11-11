@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef } from "react";
 import { cn } from "@/components/ui/cn";
 import type { DayAnswer } from "@/lib/events/event.schema";
 import { LINK_CLASSES, TARGET_CLASSES } from "./link-classes";
@@ -17,22 +17,23 @@ const CHOICE_CLASSES = cn(LINK_CLASSES, TARGET_CLASSES, "text-ink");
 /**
  * The one-tap answer at a day's end (`docs/decisions.md`, "A day's end asks one question,
  * answered in one tap"): "Would you follow this day? Yes · Not quite", one quiet line, never a
- * modal and never free text. Asked once each time a day is shown, with nothing kept in the
- * browser; once answered, a short thanks stands in its place. The question and the thanks hold
+ * modal and never free text. Asked once a day opened, with nothing kept in the browser; once
+ * answered, a short thanks stands in its place, and stays through a re-plan of the same day. The question and the thanks hold
  * one room between them, so nothing below moves when the answer is given.
  */
 export function DayAnswerLine({
+  answered,
   onAnswer,
-  answeredAtFirst = null,
 }: {
+  /** The answer given for the day opened, held by the page, so a day's end drawn again thanks. */
+  answered: DayAnswer | null;
   onAnswer: (answer: DayAnswer) => void;
-  /** Drawn answered from the first frame, as a lab cell draws it. */
-  answeredAtFirst?: DayAnswer | null;
 }) {
-  const [answered, setAnswered] = useState<DayAnswer | null>(answeredAtFirst);
+  const thanks = useRef<HTMLParagraphElement>(null);
   const answer = (given: DayAnswer) => {
-    setAnswered(given);
     onAnswer(given);
+    // The pressed answer goes from sight with its question: the focus goes to the thanks.
+    requestAnimationFrame(() => thanks.current?.focus());
   };
   return (
     // One cell of a grid, the question and the thanks over each other, so the line keeps the
@@ -58,7 +59,14 @@ export function DayAnswerLine({
           </button>
         </span>
       </p>
-      <p role="status" className={cn("col-start-1 row-start-1", answered === null && "invisible")}>
+      {/* Always in the page, its words alone changing, so every screen reader says the thanks;
+          ringed for the keyboard as the list's names are. */}
+      <p
+        ref={thanks}
+        role="status"
+        tabIndex={-1}
+        className="col-start-1 row-start-1 self-start justify-self-start rounded-sm focus-ring"
+      >
         {answered === null ? "" : ANSWER_THANKS}
       </p>
     </div>

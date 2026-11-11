@@ -73,8 +73,8 @@ export interface DayEndProps {
    * asked. A day cut short is not asked: it is not the day that was planned.
    */
   onAnswer?: (answer: DayAnswer) => void;
-  /** The answer drawn as given from the first frame, as a lab cell draws it. */
-  answeredAtFirst?: DayAnswer | null;
+  /** The answer given for the day opened, which the line thanks for rather than asks again. */
+  answered?: DayAnswer | null;
   className?: string;
 }
 
@@ -97,7 +97,7 @@ export function DayEnd({
   onReadToEnd,
   hasWaysAlong = true,
   onAnswer,
-  answeredAtFirst = null,
+  answered = null,
   className,
 }: DayEndProps) {
   const words = useMemo(() => dayEndWordsOf(day, shown, checks), [day, shown, checks]);
@@ -179,9 +179,7 @@ export function DayEnd({
             </p>
           </noscript>
         )}
-        {onAnswer && !isCut && (
-          <DayAnswerLine onAnswer={onAnswer} answeredAtFirst={answeredAtFirst} />
-        )}
+        {onAnswer && !isCut && <DayAnswerLine answered={answered} onAnswer={onAnswer} />}
         {hasWaysAlong && actions.length > 0 && (
           // Lines apart, as the list's versions are, so a press reaching past its words
           // reaches into the line above or below it as little as it can.

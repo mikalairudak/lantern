@@ -312,6 +312,8 @@ interface DayStageProps {
   onDayAct?: (act: DayAct) => void;
   /** Tells the visitor's answer at the day's end, asked under the first impression. */
   onDayAnswer?: (answer: DayAnswer) => void;
+  /** The answer given for the day opened, held by the page across a re-plan's new end. */
+  dayAnswered?: DayAnswer | null;
   /**
    * The page's memory of the chart's invitation to drag, which it shows once across the days
    * it draws (`useInvitation`); left out, each day invites its own.
@@ -378,6 +380,7 @@ export function DayStage({
   onEvent,
   onDayAct,
   onDayAnswer,
+  dayAnswered = null,
   invitationMemory,
   heldRoom = null,
   roomRef,
@@ -1484,6 +1487,7 @@ export function DayStage({
                       }
                       hasWaysAlong={!isFirstImpression}
                       onAnswer={isFirstImpression ? onDayAnswer : undefined}
+                      answered={dayAnswered}
                       onExport={(way) => onDayAct?.(EXPORT_EVENTS[way])}
                       onReadToEnd={onDayAct && (() => onDayAct("day-read-to-end"))}
                       className={cn(END_CLASSES, wholeClasses)}
