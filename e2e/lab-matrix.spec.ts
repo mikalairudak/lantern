@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures";
+import { expect, test, waitMs } from "./fixtures";
 
 // --container-phone, --container-abacus and --container-page, at the browser's 16 px rem.
 const PHONE_WIDTH = 390;
@@ -48,7 +48,7 @@ const PHONE_PAGE_WIDTH = 358;
  * first cell took longer than an assertion's 5 s, and the day stage header's first headline in
  * a full run (2026-11-06).
  */
-const CELL_READ = { timeout: 30_000 };
+const CELL_READ = { timeout: waitMs(30_000) };
 /**
  * How long a test that opens matrices in turn may take: each page's first cell read, as long as
  * `CELL_READ` allows. Three or four matrices took 14 to 23 s on four workers and 26 to 35 s at
@@ -208,45 +208,47 @@ const WATCH_MS = 4000;
 /** Less than this is a sub-pixel rounding, not a glide. */
 const STILL_PX = 0.5;
 
-test("draws a whole day's cells at their own end from the first frame, with motion on", async ({
-  page,
-}) => {
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  // Every chart's least and most height, from the frame it first draws until it is read.
-  await page.addInitScript(() => {
-    const heights = new Map<number, { least: number; most: number }>();
-    (window as unknown as { chartHeights: typeof heights }).chartHeights = heights;
-    const tick = () => {
-      document.querySelectorAll('svg[role="group"]').forEach((chart, index) => {
-        const height = chart.getBoundingClientRect().height;
-        const seen = heights.get(index);
-        if (!seen) heights.set(index, { least: height, most: height });
-        else
-          heights.set(index, {
-            least: Math.min(seen.least, height),
-            most: Math.max(seen.most, height),
-          });
-      });
+test(
+  "draws a whole day's cells at their own end from the first frame, with motion on",
+  { tag: "@frame" },
+  async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    // Every chart's least and most height, from the frame it first draws until it is read.
+    await page.addInitScript(() => {
+      const heights = new Map<number, { least: number; most: number }>();
+      (window as unknown as { chartHeights: typeof heights }).chartHeights = heights;
+      const tick = () => {
+        document.querySelectorAll('svg[role="group"]').forEach((chart, index) => {
+          const height = chart.getBoundingClientRect().height;
+          const seen = heights.get(index);
+          if (!seen) heights.set(index, { least: height, most: height });
+          else
+            heights.set(index, {
+              least: Math.min(seen.least, height),
+              most: Math.max(seen.most, height),
+            });
+        });
+        requestAnimationFrame(tick);
+      };
       requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  });
-  await page.goto("/lab/matrix/axis-light");
-  // Its cells read their day before they draw: a watch timed from the page's start would see
-  // no chart drawn on a page whose reading took longer than the watch.
-  const grid = page.getByTestId("matrix-grid");
-  await expect(grid.locator('svg[role="group"]').first()).toBeVisible(CELL_READ);
-  await expect(grid.getByText("Reading the day…")).toHaveCount(0, CELL_READ);
-  await page.waitForTimeout(WATCH_MS);
+    });
+    await page.goto("/lab/matrix/axis-light");
+    // Its cells read their day before they draw: a watch timed from the page's start would see
+    // no chart drawn on a page whose reading took longer than the watch.
+    const grid = page.getByTestId("matrix-grid");
+    await expect(grid.locator('svg[role="group"]').first()).toBeVisible(CELL_READ);
+    await expect(grid.getByText("Reading the day…")).toHaveCount(0, CELL_READ);
+    await page.waitForTimeout(WATCH_MS);
 
-  const moves = await page.evaluate(() =>
-    [
-      ...(
-        window as unknown as { chartHeights: Map<number, { least: number; most: number }> }
-      ).chartHeights.values(),
-    ].map(({ least, most }) => most - least),
-  );
-  expect(moves.length).toBeGreaterThan(0);
-  // Measured before the fix: the whole cells glided 45 and 66 px from the asked end.
-  expect(Math.max(...moves)).toBeLessThan(STILL_PX);
-});
+    const moves = await page.evaluate(() =>
+      [
+        ...(
+          window as unknown as { chartHeights: Map<number, { least: number; most: number }> }
+        ).chartHeights.values(),
+      ].map(({ least, most }) => most - least),
+    );
+    expect(moves.length).toBeGreaterThan(0);
+    // Measured before the fix: the whole cells glided 45 and 66 px from the asked end.
+    expect(Math.max(...moves)).toBeLessThan(STILL_PX);
+  },
+);

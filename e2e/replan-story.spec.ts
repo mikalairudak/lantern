@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
 
 /**
  * A changed word's fork on the lab's re-plan bench (`docs/decisions.md`, "A changed word
@@ -12,7 +12,7 @@ import { expect, test, type Locator, type Page } from "./fixtures";
 
 const BENCH = "/lab/concepts/replan";
 /** The proposal streams for about fifteen seconds at the bench's live pace; a cold server adds a few. */
-const DAY_TIMEOUT_MS = 45_000;
+const DAY_TIMEOUT_MS = waitMs(45_000);
 /** Elche's rows before its first part, the lunch at 13:15: the proposal never touches them. */
 const BEFORE_THE_FORK = 4;
 /** Elche's own lunch, which the proposal would replace, and the proposal's lunch and dinner. */
@@ -221,7 +221,7 @@ test.describe("under reduced motion", () => {
   });
 });
 
-test.describe("with motion", () => {
+test.describe("with motion", { tag: "@frame" }, () => {
   test.use({ reducedMotion: "no-preference" });
 
   test("lands the proposal and takes it moving no row of the day before the fork, and no row in a step", async ({

@@ -19,7 +19,7 @@ The layers overlap on purpose. The quality checks are the eval's measures and th
 | ---------------------------- | -------------------------------------------------------------- | --------------------------------------------------------- |
 | `pnpm check`                 | Format, lint, types, about 6,300 unit tests in 275 files       | Every commit, and in CI                                   |
 | `pnpm build:check`           | A page the production build or its first request refuses       | Before a merge, and in CI                                 |
-| `pnpm e2e`                   | 722 tests in 44 specs, on a laptop and a phone, frame by frame | Pull requests and pushes to `main`; before UI work merges |
+| `pnpm e2e`                   | 724 tests in 44 specs, on a laptop and a phone, frame by frame | Before UI work merges; CI: "Continuous integration" below |
 | `pnpm e2e:busy`              | Faults of frame order that a busy machine brings               | Before a frame-by-frame spec lands                        |
 | `pnpm e2e:replan-pace`       | The re-plan's story at production's pace                       | Before a re-plan change merges                            |
 | `pnpm e2e:visual`            | A changed pixel in any `/lab` matrix cell, both themes         | Before UI work merges                                     |
@@ -30,12 +30,30 @@ The layers overlap on purpose. The quality checks are the eval's measures and th
 | The quality checks           | A broken or off-measure day in production                      | On every live day; they never block one                   |
 | `pnpm eval:live`             | A prompt or model change that hurts quality                    | On a change, after a spend confirmation                   |
 | `pnpm log:report`            | Production's calls, outcomes, checks and spend                 | By need, in a read-only transaction                       |
+| `pnpm days:fresh`            | A written day whose light no longer holds, or soon will not    | Weekly, beside the production report                      |
 
 ### The commit gate
 
 `.githooks/pre-commit` runs `pnpm check`: Prettier, ESLint, the typecheck, and Vitest with coverage held at 80% of lines, functions, branches and statements. Route handlers are left out of coverage and covered by e2e. `pre-merge-commit` runs the same gate, since a clean merge skips `pre-commit`. Nobody commits with `--no-verify`. A SessionStart hook puts the project's Node first on the PATH, because every new agent session otherwise started on an older Node with no `pnpm`.
 
-A `commit-msg` hook (`scripts/check-commit-message.mts`) holds a commit's message to the rules `src/lib/repo-hygiene.test.ts` holds the files to (`CLAUDE.md`, "Everything committed is public"), and `.github/workflows/pr-text.yml` holds the branch name, title and body of each pull request into `develop` to them (`scripts/check-pr-text.mts`), the body to the five sections of `.github/pull_request_template.md` too. CI (`.github/workflows/ci.yml`) runs `pnpm check` and `pnpm build:check` on every push to `develop` or `main` and every pull request, and `pnpm e2e` on pull requests, on pushes to `main`, which take only releases, and by hand. It holds no secrets: no test calls a live service.
+A `commit-msg` hook (`scripts/check-commit-message.mts`) holds a commit's message to the rules `src/lib/repo-hygiene.test.ts` holds the files to (`CLAUDE.md`, "Everything committed is public"), and `.github/workflows/pr-text.yml` holds the branch name, title and body of each pull request into `develop` to them (`scripts/check-pr-text.mts`), the body to the five sections of `.github/pull_request_template.md` too.
+
+### Continuous integration
+
+`.github/workflows/ci.yml` holds no secrets: no test calls a live service. Its jobs, as their checks are named:
+
+| Check              | Runs                                                             | When                                                                   |
+| ------------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Check              | `pnpm check` and `pnpm build:check`                              | Every push to `develop` or `main`, every pull request                  |
+| PR text / Text     | The branch name, title and body (`pr-text.yml`)                  | Pull requests into `develop`, and each text edit                       |
+| Detect changes     | Which paths a pull request changes, against its base             | Pull requests, pushes to `main`, by hand                               |
+| E2E 1/4 to E2E 4/4 | `pnpm e2e` without the `@frame` tests, a quarter each, one retry | When Detect changes finds a path that is not inert, on `main`, by hand |
+| E2E result         | Passes when every shard passed, or none was needed               | With the shards                                                        |
+| E2E frames         | The `@frame` tests alone, with no retry                          | Pushes to `main`, by hand                                              |
+
+A pull request needs Check, PR text / Text and E2E result. E2E result fails when Detect changes did not succeed or a shard failed or was cancelled. A path is inert when no page, route or e2e test reads it: `docs/`, the Markdown at the root, `.claude/`, `.githooks/`, `.github/pull_request_template.md`, `.github/workflows/pr-text.yml`, `scripts/check-*.mts` and `e2e/visual/`. A pull request that changes only inert paths skips the e2e; any other path runs it, the workflow, `playwright.config.ts`, `package.json` and the lockfile among them. The unit tests that read the docs and the template run in Check, which every pull request runs. A push to `develop` runs Check alone, since its pull request ran the rest.
+
+On CI, Playwright retries a test once, and every wait is twice the laptop's: Playwright's defaults for a test and an `expect`, and each limit a spec sets, through `waitMs` (`e2e/ci-wait.ts`). Limits set at the laptop's measure ran out on CI's runner while the page was still at work, a day still streaming at 30 s and the stop row's matrix not drawn at 20 s. Before the first test, `e2e/warm-up.ts` asks the dev server for each route the specs open, one after another, about 9 s from a cold start on the laptop, so no test pays for a first compile. Not all at once: from a cold start, pages compiled at the same moment answered 500 in one of three runs. A shard uploads its report only when it fails. On one runner the whole suite did not finish in 60 minutes, which is why it is split in four, and four tests that sample frames failed in its first run, which is why those run apart.
 
 ### Lint and tokens
 
@@ -54,9 +72,15 @@ A unit test that asserts a moment inside a Motion animation, a sheet still rolli
 
 `pnpm e2e` runs Chromium as a laptop and as a phone against its own server (port 3417, `.next-e2e`), with live generation off: days stream from fixtures at a live model's uneven pace. Many specs read the page on every animation frame and hold rules about motion, such as "no row moves more than 3 px a frame". A spec that fails in two full runs in a row is not called flaky until it passes alone with `--workers=1`.
 
+**What earns `@frame`.** A test carries Playwright's `@frame` tag (`{ tag: "@frame" }` on the test or its `describe`) when its assertion rests on frames sampled from the page: a bound every frame keeps, what the first frame draws, or a change that must land in one frame. 196 of the 724 tests carry it. A frame read only to wait for the page to rest does not earn it. Nor does a test about a slow server's answer that also reads frames: it stays on every pull request (`e2e/replan.spec.ts`, the first day that comes back empty). A shared runner drops frames a laptop draws, so these tests run in CI on pushes to `main` and by hand, in E2E frames, which no pull request needs. The laptop still runs the whole `pnpm e2e`, the `@frame` tests among them, before UI work merges, with `pnpm e2e:busy` before a frame-by-frame spec lands and `pnpm e2e:visual` (`CLAUDE.md`, "Definition of done"). `pnpm e2e --list --grep @frame` lists them.
+
 ### Test harness: a busy machine on demand
 
 A busy machine lays out, paints and runs timers in orders a quick one never shows. Five such failures once appeared only when several agents shared the machine, each taking an hour or more to catch. `E2E_CPU_RATE` slows the test's own page through Chrome's CPU throttling, and `e2e/fixtures.ts` applies it to every page. `pnpm e2e:busy` runs the suite at 2. At 4 the whole suite starves, frames 100 ms apart, and its frame-count rules stop meaning anything, so 4 is for chasing one spec. What rate 2 found was mostly in the specs: margins written for a quick page, and motion timed by Motion's batch rather than by the frame that drew it. Each fix changed a rule of the spec, not the motion.
+
+### Test harness: the first impression's own server
+
+The first impression stands behind a flag a page takes at its render (`src/lib/first-impression.ts`), so a spec cannot turn it on for itself. Its specs, in `e2e/first-impression/`, run as two projects of their own, `first-impression-desktop` and `first-impression-phone`, against a second dev server with `FIRST_IMPRESSION=1`, on `E2E_FIRST_IMPRESSION_PORT` (the e2e port plus one unless set) and building into `.next-e2e-fi`. Every other spec keeps testing the site with the flag off. The second server starts only for a run that takes those projects: a bare `pnpm e2e`, as CI's shards make, or one that names them. `pnpm e2e:visual`, `pnpm e2e:busy` and `pnpm e2e:replan-pace` name their projects and start one server. A parallel session that sets `E2E_PORT` sets the second port too, or takes the one after its own.
 
 ### Test harness: the visual-regression baseline
 
@@ -75,6 +99,12 @@ Every component registers a `labMatrix` entry (`src/lib/lab-matrix.ts`): its sta
 ### Live-eval rounds and the spend confirmation
 
 `pnpm eval:live` first prints its plan: the calls, the expected cost and the worst case, each call held at its token caps. It sends nothing until `EVAL_CONFIRM_USD` covers that worst case, compared to the micro-dollar, and each round runs under its own cap. A round runs the routes' own code in its own process, so it skips the visitor limits and can read what the model wrote before the route reshapes it. Nothing reaches the generation log or the spend tables; its saved JSON lines are its ledger, and every report can be written again from them for free. A day round on the golden set costs about $1.10. Geoapify's free plan gives 3,000 credits a day, shared with production, so a round checks only the days' places, about 420 lookups, and one round with days runs a day at most.
+
+### Eval harness: how long a written day holds
+
+A written day is shown on a date that moves on every week, and a city's next season comes in on its own date ("A city's written day is one of its seasons, picked by the date it is shown on"), so someone has to know when a season is due before its light runs out. `pnpm days:fresh` moves each city's day, a week at a time from the date its page shows now, through the light-sense check and through each stop's light at its hour as the time axis draws it (`src/lib/days/written/freshness.ts`). It prints the date each day holds until and the days left, and flags and fails on a city with fewer than 21. It reads the clock and the files only: no model, no service, no key. It runs under Vitest, as `pnpm eval:live` does, because the days import by `@/`, with its own config so `pnpm test` never collects it.
+
+It sits beside the weekly production report, not in the commit gate: a test that reads the clock would start failing every commit on a date that no change made. The gate keeps what needs no clock: `freshUntil` on fixed dates, the report's lines for a fixed instant, and a season with a closed range holding on every date of it. On 11 November 2026 it flagged Porto, whose shown Sunday met two of its five light windows for 19 and 16 minutes against the 20 the check asks, gave Kanazawa until 5 December, its early garden turning golden, and held the others until between 23 January and 6 February, when their evening stops turn golden under words that say dark. It cannot read a line that pins an hour or a season, such as "the low November sun".
 
 ## Runtime harness
 

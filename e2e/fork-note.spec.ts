@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, type Page, waitMs } from "./fixtures";
 
 /**
  * Where a visitor looks once they have pressed a word, the facts line says what its fork is
@@ -10,8 +10,8 @@ import { expect, test, type Page } from "./fixtures";
 const BENCH = "/lab/concepts/replan";
 /** The phone pass's own screen, its browser's bars taking their share. */
 const PHONE = { width: 390, height: 664 };
-const DAY_TIMEOUT_MS = 60_000;
-const STORY_TIMEOUT_MS = 120_000;
+const DAY_TIMEOUT_MS = waitMs(60_000);
+const STORY_TIMEOUT_MS = waitMs(120_000);
 
 /** Elche on the bench, its re-plans ending as `ending` says, the day written to its end. */
 async function openElche(page: Page, ending: "complete" | "busy"): Promise<void> {

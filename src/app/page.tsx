@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { START_ADDRESS } from "@/lib/days/address";
 import { StartDay } from "@/features/day/start-day";
-import { writtenPool } from "@/features/day/written-pool";
+import { shownPool } from "@/features/day/written-pool";
 import { isLiveNow } from "@/lib/live/live-now";
 import { listedPageMetadata, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 
@@ -29,5 +29,8 @@ export default function Home() {
 }
 
 async function LiveStartDay() {
-  return <StartDay pool={writtenPool()} isLive={await isLiveNow()} isCounted />;
+  // Read once the visit has arrived (`isLiveNow`), so the clock that picks each day's season is
+  // the visit's, never the build's.
+  const isLive = await isLiveNow();
+  return <StartDay pool={shownPool(new Date())} isLive={isLive} isCounted />;
 }

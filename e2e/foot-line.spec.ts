@@ -1,7 +1,7 @@
-import { expect, test } from "./fixtures";
+import { expect, test, waitMs } from "./fixtures";
 
 /** A written day lands in about twelve seconds; a cold dev server adds a few. */
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 const PHONE = { width: 390, height: 844 };
 const LAPTOP = { width: 1440, height: 900 };
 /**

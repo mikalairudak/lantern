@@ -1,5 +1,4 @@
-import { writtenChecksOf } from "@/lib/days/written/checks";
-import { writtenDayFor } from "@/lib/days/written/days";
+import { writtenSeasonFor } from "@/lib/days/written/days";
 import {
   DAY_VERSION_HEADER,
   SEEN_DAY_HEADER,
@@ -103,9 +102,10 @@ async function answerOfRequest(
   const parsed = DayRequestSchema.safeParse(body);
   if (!parsed.success) return badRequest(issuesOf(parsed.error));
 
-  const written = writtenDayFor(parsed.data, new Date());
-  if (written) {
-    // A start's day plays the checks its run had.
+  const season = writtenSeasonFor(parsed.data, new Date());
+  if (season) {
+    // A start's day plays the checks its run had, its season's.
+    const { written, checks } = season;
     const { city } = written.request;
     // The version this build holds, and whether the browser says it watched that one to its
     // end: only the pace of a written day reads it.
@@ -118,12 +118,7 @@ async function answerOfRequest(
       pace: isSeen ? WHOLE_PACE : pace,
       signal: request.signal,
       placeChecking: startPlaceChecking({
-        verifier: recordedVerifierOf(
-          written.day,
-          writtenChecksOf(city),
-          city,
-          isSeen ? 0 : undefined,
-        ),
+        verifier: recordedVerifierOf(written.day, checks, city, isSeen ? 0 : undefined),
         city,
         signal: request.signal,
       }),

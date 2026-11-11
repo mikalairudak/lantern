@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, type Page, waitMs } from "./fixtures";
 import { writtenDayAt } from "../src/lib/days/written/days";
 import { YOUR_DAYS_KEY, type YourDay } from "../src/features/day/your-days";
 import { BROWSER_STORAGE } from "../src/lib/browser-storage";
@@ -24,7 +24,7 @@ const WRITTEN: StoredDay = {
   round: 0,
 };
 /** The page asks every three seconds; a cold server adds a few to the first. */
-const LANDED_TIMEOUT_MS = 20_000;
+const LANDED_TIMEOUT_MS = waitMs(20_000);
 
 test.use({ reducedMotion: "reduce" });
 
@@ -141,7 +141,7 @@ test("forgetting the visitor's days forgets what the browser kept of every kept 
   expect(kept).toEqual([null, [written], [{ day: written, places: chosen }]]);
 });
 
-test.describe("with motion, a day opened by a device that has seen it", () => {
+test.describe("with motion, a day opened by a device that has seen it", { tag: "@frame" }, () => {
   test.use({ reducedMotion: "no-preference" });
 
   /** Notes how many of the day's rows the first frame that drew any had: all, opened whole. */

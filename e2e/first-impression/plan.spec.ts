@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "../fixtures";
+import { expect, test, type Page, waitMs } from "../fixtures";
 
 /**
  * The day under the first impression (`src/lib/first-impression.ts`), against its own server with
@@ -6,7 +6,7 @@ import { expect, test, type Page } from "../fixtures";
  * masthead's menu holds the ways to take it along; the chart is one press away and kept.
  */
 
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 
 test.use({ reducedMotion: "reduce" });
 
