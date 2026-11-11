@@ -1,6 +1,6 @@
-import { writtenDayAt } from "@/lib/days/written/days";
+import { normalizedDayOf, writtenSeasonsAt } from "@/lib/days/written/days";
+import { seasonOn } from "@/lib/days/written/seasons";
 import { DAY_LINK_DAYS, isDayId, type StoredDay } from "@/lib/days/stored-day";
-import { writtenChecksOf } from "@/lib/days/written/checks";
 import { normalizeDay } from "@/lib/normalizer/normalize";
 import { mergeReplan } from "@/lib/replan/merge";
 import { replanIdPrefix } from "@/lib/replan/request";
@@ -122,18 +122,19 @@ function placeNamesOf(itinerary: Itinerary): Map<string, string> {
 
 /**
  * The checks a written day's run recorded (`src/lib/days/written/checks.ts`), as its page
- * plays them, for the places of the day as a re-plan read it from its file. A place the file,
- * written again since, holds under another name at that id takes none: its check is another
- * place's.
+ * plays them, for the places of the day as a re-plan read it from its file: the checks of the
+ * season the day's date picks, which is the season the re-plan read (`writtenDayOn`). A place
+ * that season's file, written again since, holds under another name at that id takes none: its
+ * check is another place's.
  */
 function writtenChecksFor(slug: string, read: Itinerary): Record<string, PlaceCheck> {
-  const written = writtenDayAt(slug);
-  if (written === null) return {};
-  const names = placeNamesOf(written.itinerary);
+  const seasons = writtenSeasonsAt(slug);
+  if (seasons === null) return {};
+  const { written, checks } = seasonOn(seasons, read.date);
+  const names = placeNamesOf(normalizedDayOf(written).itinerary);
   const namesRead = placeNamesOf(read);
-  const recorded = Object.entries(writtenChecksOf(written.request.city));
   return Object.fromEntries(
-    recorded.flatMap(([id, result]) => {
+    Object.entries(checks).flatMap(([id, result]) => {
       const name = names.get(id);
       return name !== undefined && name === namesRead.get(id)
         ? [[id, placeCheckOf(id, result)]]
