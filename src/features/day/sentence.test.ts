@@ -10,6 +10,7 @@ import {
   penPiecesOf,
   requestGistOf,
   requestSentenceOf,
+  requestShortGistOf,
   sentenceFactsOf,
   trailsOf,
   weekdayOf,
@@ -110,6 +111,28 @@ describe("the request said in full", () => {
     expect(requestSentenceOf(LISBON_REQUEST)).toBe("A lively Saturday in Lisbon, with friends");
     expect(requestGistOf(ALICANTE_REQUEST)).toBe("a calm Saturday");
     expect(requestGistOf(LISBON_REQUEST)).toBe("a lively Saturday with friends");
+  });
+});
+
+describe("requestShortGistOf", () => {
+  it("says the day's energy and weekday, then its first word, for the index's two lines", () => {
+    expect(requestShortGistOf(LISBON_REQUEST)).toEqual({
+      day: "Lively Saturday",
+      word: "with friends",
+    });
+    expect(requestShortGistOf(ALICANTE_REQUEST)).toEqual({ day: "Calm Saturday", word: null });
+  });
+
+  it("leaves out how the day gets around, and takes the first word after it", () => {
+    const request = { ...LISBON_REQUEST, travel: "on-foot", start: "slow" } as const;
+    expect(requestShortGistOf(request).word).toBe("slow morning");
+    expect(requestShortGistOf({ ...request, start: null, company: null }).word).toBeNull();
+  });
+
+  it("says a quiet day's energy as the sentence does, capitalised", () => {
+    expect(requestShortGistOf({ ...KYOTO_REQUEST, energy: "reflective" }).day).toBe(
+      "Quiet Saturday",
+    );
   });
 });
 

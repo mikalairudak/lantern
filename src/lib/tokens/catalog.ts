@@ -10,6 +10,11 @@ export const COLOR_TOKENS = [
   { name: "ink", role: "Primary text and filled meter segments" },
   { name: "ink-soft", role: "Secondary text" },
   { name: "muted", role: "Metadata and collapsed notes" },
+  { name: "engraving", role: "The index's engraved scene: ink by day, nothing by night" },
+  {
+    name: "engraving-night",
+    role: "The index's engraved subject alone: ink by night, nothing by day",
+  },
   { name: "line", role: "Hairline rules and empty meter segments" },
   { name: "wire", role: "Abacus wires: the chart's structure, between a rule and text" },
   {
@@ -24,6 +29,12 @@ export const COLOR_TOKENS = [
   { name: "swap", role: 'Versions in words: alternatives, their controls, "instead of …"' },
   { name: "swap-drawn", role: "Versions drawn: the hollow beads and the ring that names one" },
 ] as const;
+
+/**
+ * The colours drawn in one theme only, transparent in the other, so a layer of the index's
+ * engraving shows in its theme alone. Each is the page's ink where it shows (palette.test.ts).
+ */
+export const ONE_THEME_COLOR_TOKENS: readonly ColorToken[] = ["engraving", "engraving-night"];
 
 export const TEXT_TOKENS = [
   "display",
