@@ -38,15 +38,15 @@ const SERVER_ERROR = /Error:|⨯|NEXT_STATIC_GEN_BAILOUT|Error revalidating/;
 /**
  * The pages asked of the served app: the start screen, a written day's address, prerendered by
  * the build, a day written by hand's old address, now a city with no day, which search engines
- * still hold, a kept day's id the build never saw, the page every page leads to, the two
- * files crawlers ask for first, and the card and the icon a link and a tab show.
+ * still hold, and a city written with an accent, the written days and the kept day's id the
+ * rule against those must leave alone, the page every page leads to, the two files crawlers
+ * ask for first, and the card and the icon a link and a tab show.
  */
 function pagesToAsk(): string[] {
   return [
     "/",
-    "/day/kanazawa",
-    "/day/kyoto",
-    `/day/${randomUUID()}`,
+    ...NOT_FOUND_PATHS,
+    ...DAY_PATHS,
     "/privacy",
     "/robots.txt",
     "/sitemap.xml",
@@ -64,6 +64,38 @@ const FILE_TYPES: Readonly<Record<string, string>> = {
 };
 
 const HTTP_OK = 200;
+const HTTP_NOT_FOUND = 404;
+
+/**
+ * Addresses that name no day, each answered with the not-found page and a 404 from its first
+ * visit: the route's prerendered shell would answer it 200 before the page's `notFound()` ran
+ * (`notADaySource` in `src/lib/days/not-a-day.ts`). Asked once each, so the first visit is the one
+ * checked.
+ */
+const NOT_FOUND_PATHS: readonly string[] = ["/day/kyoto", "/day/caf%C3%A9"];
+
+/** What is wrong with an address that names no day's answer, or null when it is a 404. */
+function notFoundProblemOf(path: string, response: Response): string | null {
+  if (!NOT_FOUND_PATHS.includes(path) || response.status === HTTP_NOT_FOUND) return null;
+  return `${path} answered ${response.status} on its first visit, not ${HTTP_NOT_FOUND}`;
+}
+
+/**
+ * Addresses that name a day, each answered 200, so the rule that refuses the rest leaves them
+ * to their page: three written days, prerendered by the build, and a kept day's id it never saw.
+ */
+const DAY_PATHS: readonly string[] = [
+  "/day/kanazawa",
+  "/day/bologna",
+  "/day/porto",
+  `/day/${randomUUID()}`,
+];
+
+/** What is wrong with a day's answer, or null when it is a 200. */
+function dayProblemOf(path: string, response: Response): string | null {
+  if (!DAY_PATHS.includes(path) || response.status === HTTP_OK) return null;
+  return `${path} answered ${response.status}, not ${HTTP_OK}`;
+}
 
 /** What is wrong with a file's answer, or null when it is the file it should be. */
 function fileProblemOf(path: string, response: Response): string | null {
@@ -159,6 +191,10 @@ async function serveCheck(): Promise<string[]> {
         problems.push(`${path} answered ${response.status}`);
       const fileProblem = fileProblemOf(path, response);
       if (fileProblem !== null) problems.push(fileProblem);
+      const notFoundProblem = notFoundProblemOf(path, response);
+      if (notFoundProblem !== null) problems.push(notFoundProblem);
+      const dayProblem = dayProblemOf(path, response);
+      if (dayProblem !== null) problems.push(dayProblem);
     }
     await wait(SETTLE_MS);
   } finally {

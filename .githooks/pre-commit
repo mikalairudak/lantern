@@ -1,7 +1,8 @@
 #!/bin/sh
 # Commit gate: runs `pnpm check` before every commit, from any session or person.
-# `pnpm install` turns it on (the prepare script points core.hooksPath here); an install
-# that is already up to date skips prepare, so run `pnpm run prepare` once.
+# `pnpm install` turns it on (the prepare script points core.hooksPath here when nothing else
+# is set, so a clone's own hooks directory, which delegates to these, stays in place); an
+# install that is already up to date skips prepare, so run `pnpm run prepare` once.
 # It checks the working tree, not only the staged changes.
 
 if ! command -v pnpm >/dev/null 2>&1; then

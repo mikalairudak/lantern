@@ -1,5 +1,8 @@
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
+import { daySlugOf } from "./slug";
 import { isWrittenRequest } from "./written/requests";
+
+export { daySlugOf };
 
 /** The start screen's address, which is also where a day with no address of its own is. */
 export const START_ADDRESS = "/";
@@ -11,20 +14,6 @@ export const START_ADDRESS = "/";
  */
 export function dayAddressOfId(id: string): string {
   return `/day/${id}`;
-}
-
-/**
- * A written day's address under `/day`, which a visitor can send as a link: its city as a
- * URL says it, lowercased, its accents dropped and anything else between words a hyphen
- * ("São Paulo" is "sao-paulo"). Lantern writes one day per city, so the city names the day.
- */
-export function daySlugOf(request: Pick<DayRequest, "city">): string {
-  return request.city
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
 }
 
 /**

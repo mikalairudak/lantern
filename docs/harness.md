@@ -85,7 +85,7 @@ A busy machine lays out, paints and runs timers in orders a quick one never show
 
 **The build before a merge.** `pnpm check` renders no page and the e2e's dev server renders on request, so neither sees a page the production build refuses. `pnpm build:check` (`scripts/build-check.mts`) builds into `.next-build`, beside a running `pnpm dev`, and restores `tsconfig.json`, which `next build` rewrites.
 
-**The served build.** After one push, production answered every kept day's address with a 500. A kept day's id is never prerendered, and its first visit rendered a static page that read the database and the clock, which Cache Components refuses on Vercel. The build never saw it. `pnpm build:check` now serves the build, asks for the start screen, a written day, a random kept day's id and the privacy page, and fails on any 5xx or logged error.
+**The served build.** After one push, production answered every kept day's address with a 500. A kept day's id is never prerendered, and its first visit rendered a static page that read the database and the clock, which Cache Components refuses on Vercel. The build never saw it. `pnpm build:check` now serves the build, asks for the start screen, a written day, a random kept day's id and the privacy page, and fails on any 5xx or logged error, and on an address that names no day answered with anything but a 404 on its first visit.
 
 ### The lab matrix and the UI review
 

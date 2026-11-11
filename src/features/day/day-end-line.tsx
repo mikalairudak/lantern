@@ -1,34 +1,28 @@
 "use client";
 
 import { Crosshair } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, type ReactNode } from "react";
 import { cn } from "@/components/ui/cn";
 import { SMALL_MARK_STROKE } from "@/features/abacus/best-light-icon";
 import { NO_CHECKS, type PlaceChecks } from "@/features/itinerary/use-day-stream";
 import type { Itinerary } from "@/lib/schema/itinerary.schema";
 import { ICON_SIZES } from "@/lib/tokens/icon";
-import { daySlugOf } from "@/lib/days/address";
-import { CALENDAR_TYPE, calendarFileNameOf, calendarOf } from "./day-calendar";
 import { dayEndWordsOf, routeLabelOf } from "./day-end-words";
 import { LINK_CLASSES, TARGET_CLASSES } from "./link-classes";
-import { saveFile } from "./save-file";
-import { dayLinkOf, shareDayLink, type ShareOutcome } from "./share-day";
 import { useReadToEnd } from "./use-read-to-end";
+import {
+  COPIED_FOR_MS,
+  COPY_LINK,
+  LINK_COPIED,
+  LINK_NOT_COPIED,
+  type DayExport,
+} from "./day-export-words";
+import { useDayExports } from "./day-exports";
 
-/** How the day left the page: its link sent, its calendar saved, its walking route opened. */
-export type DayExport = "link" | "calendar" | "route";
+export { COPIED_FOR_MS, COPY_LINK, LINK_COPIED, LINK_NOT_COPIED, type DayExport };
 
-/** What "Copy link" says, before and after a press. */
-export const COPY_LINK = "Copy link";
-export const LINK_COPIED = "Copied";
-export const LINK_NOT_COPIED = "Not copied";
 export const ADD_TO_CALENDAR = "Add to calendar";
 export const PLAN_ANOTHER_DAY = "Plan another day";
-
-type CopyLabel = typeof COPY_LINK | typeof LINK_COPIED | typeof LINK_NOT_COPIED;
-
-/** How long "Copied" stands before the press says "Copy link" again. */
-export const COPIED_FOR_MS = 2500;
 
 /**
  * The time in the gutter, as the list's rows set theirs, so the day's end reads as its last
@@ -67,6 +61,11 @@ export interface DayEndProps {
   onExport?: (way: DayExport) => void;
   /** Told once the line has stayed in view a moment, the day read to its end (`useReadToEnd`). */
   onReadToEnd?: () => void;
+  /**
+   * The line offers the ways to take the day along; off where the day menu holds them, as the
+   * first impression's masthead does.
+   */
+  hasWaysAlong?: boolean;
   className?: string;
 }
 
@@ -87,51 +86,24 @@ export function DayEnd({
   onPlanAnother,
   onExport,
   onReadToEnd,
+  hasWaysAlong = true,
   className,
 }: DayEndProps) {
   const words = useMemo(() => dayEndWordsOf(day, shown, checks), [day, shown, checks]);
   const line = useRef<HTMLDivElement>(null);
   // Watched afresh for each day the line ends, should one take another's place under it.
   useReadToEnd(line, day, onReadToEnd);
-  const [copied, setCopied] = useState<CopyLabel>(COPY_LINK);
-  useEffect(() => {
-    if (copied === COPY_LINK) return undefined;
-    const back = window.setTimeout(() => setCopied(COPY_LINK), COPIED_FOR_MS);
-    return () => window.clearTimeout(back);
-  }, [copied]);
-
-  const linkOf = (): string | null =>
-    address === null ? null : dayLinkOf(address, window.location.origin);
-
-  const sendLink = async () => {
-    const url = linkOf();
-    if (url === null) return;
-    const outcome: ShareOutcome = await shareDayLink({ url, title: document.title });
-    if (outcome === "copied") setCopied(LINK_COPIED);
-    if (outcome === "failed") setCopied(LINK_NOT_COPIED);
-    if (outcome === "copied" || outcome === "shared") onExport?.("link");
-  };
-
-  const saveCalendar = () => {
-    const calendar = calendarOf(
-      {
-        key: calendarKey,
-        city: day.city,
-        date: day.date,
-        timezone: day.timezone,
-        stops: day.stops,
-        shown,
-        checks,
-        url: linkOf() ?? undefined,
-      },
-      new Date(),
-    );
-    saveFile(calendar, CALENDAR_TYPE, calendarFileNameOf(daySlugOf(day), day.date));
-    onExport?.("calendar");
-  };
+  const { copied, sendLink, saveCalendar } = useDayExports({
+    day,
+    shown,
+    checks,
+    address,
+    calendarKey,
+    onExport,
+  });
 
   const actions: ReactNode[] = [];
-  if (address !== null) {
+  if (sendLink !== null) {
     actions.push(
       <button key="link" type="button" onClick={() => void sendLink()} className={ACTION_CLASSES}>
         <HeldRoom room={COPY_LINK} shown={copied} />
@@ -185,7 +157,18 @@ export function DayEnd({
             />
           </p>
         )}
-        {actions.length > 0 && (
+        {!hasWaysAlong && !isCut && words.route && (
+          // The menu that holds the ways needs the page's script; without it the walking route,
+          // a link of its own, stays here.
+          <noscript>
+            <p>
+              <a href={words.route.url} className={ACTION_CLASSES}>
+                {routeLabelOf(words.route)}
+              </a>
+            </p>
+          </noscript>
+        )}
+        {hasWaysAlong && actions.length > 0 && (
           // Lines apart, as the list's versions are, so a press reaching past its words
           // reaches into the line above or below it as little as it can.
           <p className="flex flex-wrap gap-x-2 gap-y-2">

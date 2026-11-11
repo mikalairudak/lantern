@@ -61,7 +61,7 @@ It reports findings only, each with the file and line or the part of the text, a
 Only when every step above is clean:
 
 1. Run `git branch --show-current`. If it prints `develop` or `main`, stop: only a change's own branch is pushed.
-2. Run `git config --show-origin core.hooksPath`. If the value is not what the clone's maintainer set (an install resets it to `.githooks`), stop and ask before pushing.
+2. Run `git config --show-origin core.hooksPath`. If the value is not what the clone's maintainer set, stop and ask before pushing.
 3. Push the branch alone: `git push -u origin $branch`. Never `develop`, `main`, a tag or another branch.
 4. Open the pull request against `develop`, with the title from the same variable:
 
