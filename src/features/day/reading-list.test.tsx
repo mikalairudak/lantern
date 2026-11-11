@@ -10,6 +10,7 @@ import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import { LISBON_DAY } from "@/lib/fixtures/curated/lisbon";
 import { dayText } from "@/lib/stream/simulate-day-stream";
 import { enteredOf, versionsWrittenOf } from "./reading-gates";
+import { FirstImpressionProvider } from "./first-impression";
 import { ReadingList } from "./reading-list";
 import { FORK_EXAMPLES, forkViewAt } from "@/features/abacus/fork-row-examples";
 
@@ -273,5 +274,30 @@ describe("ReadingList", () => {
     await waitFor(() => expect(onGlide.mock.calls).toEqual([[true], [false]]), {
       timeout: GLIDE_SETTLED_MS,
     });
+  });
+});
+
+describe("the list as the day's plan, under the first impression", () => {
+  it("runs the rail of the day's light beside the times, with the sun's minutes where they fall", () => {
+    const { container } = render(
+      <FirstImpressionProvider isOn>
+        <ReadingList {...KYOTO} />
+      </FirstImpressionProvider>,
+    );
+    // A rail beside each stop, its stretch drawn in the light's own lines.
+    expect(container.querySelectorAll("svg line").length).toBeGreaterThanOrEqual(
+      KYOTO.stops.length,
+    );
+    expect(container.querySelector("line.stroke-lamp")).not.toBeNull();
+    expect(container.querySelector("line[stroke-dasharray]")).not.toBeNull();
+    expect(screen.getByText("Sunset")).toBeInTheDocument();
+    // No rule between the rows: the rail does that work.
+    expect(container.querySelector(".border-t.py-4")).toBeNull();
+  });
+
+  it("draws today's list, with no rail and no sun's line, with the first impression off", () => {
+    const { container } = render(<ReadingList {...KYOTO} />);
+    expect(container.querySelector("svg line")).toBeNull();
+    expect(screen.queryByText("Sunset")).toBeNull();
   });
 });

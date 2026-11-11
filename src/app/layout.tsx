@@ -29,7 +29,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     // The script below may set data-theme before React hydrates, so <html> may differ.
-    <html lang="en" className={firaSans.variable} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={firaSans.variable}
+      data-first-impression={isFirstImpression(process.env) ? "" : undefined}
+      suppressHydrationWarning
+    >
       <head>
         {/* A stored theme is on <html> before the first paint, so no frame shows another. */}
         <ThemeScript />

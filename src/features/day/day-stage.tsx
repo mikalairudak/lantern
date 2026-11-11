@@ -105,6 +105,7 @@ import { DayEnd, type DayExport } from "./day-end-line";
 import { useDayExports } from "./day-exports";
 import { takeAlongOf } from "./take-along";
 import { useFirstImpression } from "./first-impression";
+import { PlanEnergy } from "./plan-energy";
 import { progressOf, progressWordsOf } from "./progress";
 import { readDayView, serverDayView, subscribeDayView } from "./view-choice";
 import { DayViewSwitch } from "./view-switch";
@@ -1209,7 +1210,12 @@ export function DayStage({
   // a day, and closes once the chart has gone, so a day asked for next never opens it itself.
   if (isEndedWithoutDay && !isChartLeaving && openStopId !== null) setOpenStopId(null);
 
-  const slot = slotOf(phase, replanLine ?? notYet, local);
+  // Under the first impression the hint goes at the page's first change, a swap or a drag as
+  // much as a word; it does not come back when the day is put back as planned.
+  const isChangedFromPlan = !isAsWritten(stops, energy.committed, writtenFor.places);
+  const [isTouched, setIsTouched] = useState(false);
+  if (isFirstImpression && isChangedFromPlan && !isTouched) setIsTouched(true);
+  const slot = slotOf(phase, replanLine ?? notYet, local, isTouched);
   const startSlot = slotOf("writing", null, local);
   const isChartShown = phase === "writing" || phase === "done";
 
@@ -1356,7 +1362,30 @@ export function DayStage({
             {/* Chart or Read, at the chart's right edge, fading with it as one piece. It
                 comes with the frame; in a day's first HTML it waits for it too, for a visitor
                 who has not seen the day, rather than stand under the headline until it plays. */}
-            {isFrameDrawn && <DayViewSwitch className={cn("mb-2", wholeClasses)} />}
+            {isFrameDrawn &&
+              (isFirstImpression ? (
+                // On the plan the day's energy and the switch are held at the screen's top while
+                // the plan scrolls; on the chart its own scale is, and the bar stands still.
+                <div
+                  className={cn(
+                    "z-10 mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-ground view-read:sticky view-read:top-0 view-read:border-b view-read:border-line view-read:py-1",
+                    wholeClasses,
+                  )}
+                >
+                  <PlanEnergy
+                    energy={(facts.energy?.value as EnergyLevel | undefined) ?? request.energy}
+                    isEnabled={isInteractive}
+                    onChoose={(level) => {
+                      answer({ key: "energy", value: level });
+                      countWord("energy");
+                    }}
+                    className="view-chart:invisible"
+                  />
+                  <DayViewSwitch />
+                </div>
+              ) : (
+                <DayViewSwitch className={cn("mb-2", wholeClasses)} />
+              ))}
             {/* The chart, or the same day as a list to read: the styles show the one the
                 visitor chose (`docs/decisions.md`, "A day can be read as a list, written as
                 the chart is"). Behind the list the chart is laid out unseen, at no height,

@@ -26,6 +26,8 @@ import { isQuarterNamed } from "@/features/abacus/quarter";
 import type { DayContext } from "@/lib/geo/sun";
 import { formatClock, runningSpans } from "@/lib/time/clock";
 import { ROW_REACH_PX, SPRINGS } from "@/lib/tokens/motion";
+import { useFirstImpression } from "./first-impression";
+import { isGoldenAt, LightRail, SUN_LEAD_MINUTES, sunsOf, SunLine } from "./light-rail";
 import { TARGET_CLASSES } from "./link-classes";
 
 /**
@@ -98,6 +100,13 @@ const GUTTER_PX = 48;
 const GUTTER_GAP_PX = 16;
 
 const ROW_CLASSES = "flex gap-4 border-t border-line py-4 group-first:border-t-0";
+/**
+ * The plan's row under the first impression: no rule between rows, the rail between the time
+ * and the words doing that work, and the words' own room under them, so the rail runs on.
+ */
+const RAIL_ROW_CLASSES = "flex gap-3";
+/** On the plan the words start after the gutter, the rail and two gaps: `w-12`, `w-2`, `gap-3`. */
+const RAIL_WORDS_LEFT_PX = 48 + 8 + 12 * 2;
 const GUTTER_CLASSES = "w-12 shrink-0 pt-0.5 type-time tabular-nums";
 const NAME_CLASSES = "self-start rounded-sm type-name focus-ring";
 /** A version to swap in: the swap's colour, its underline dotted, a target 24 px tall. */
@@ -138,6 +147,8 @@ export function ReadingList({
   const [glideGroup] = useState(createGlideGroup);
   const glideOf = useGlidesTold(onGlide);
   const drawing = useDrawing();
+  const isRail = useFirstImpression();
+  const suns = isRail ? sunsOf(daylight) : [];
   const list = useRef<HTMLOListElement>(null);
   const noteFocus = useForkFocusKept(list, fork?.anchors ?? NO_ANCHORS);
   return (
@@ -180,7 +191,7 @@ export function ReadingList({
                           index={fork.anchors.indexOf(stop.id)}
                           count={fork.anchors.length}
                           timeWidth={GUTTER_PX}
-                          wordsLeft={GUTTER_PX + GUTTER_GAP_PX}
+                          wordsLeft={isRail ? RAIL_WORDS_LEFT_PX : GUTTER_PX + GUTTER_GAP_PX}
                           drawing={drawing}
                           lineAt="under"
                           onChoose={fork.onChoose}
@@ -192,7 +203,17 @@ export function ReadingList({
                   </Fold>
                 )}
               </AnimatePresence>
+              {isRail &&
+                at === 0 &&
+                suns
+                  .filter(
+                    (sun) =>
+                      sun.minute < (spans[0]?.from ?? 0) &&
+                      sun.minute >= (spans[0]?.from ?? 0) - SUN_LEAD_MINUTES,
+                  )
+                  .map((sun) => <SunLine key={sun.word} daylight={daylight} sun={sun} />)}
               <ReadingRow
+                railTo={isRail ? (spans[at + 1]?.from ?? spans[at]?.to ?? 0) : null}
                 stop={stop}
                 span={spans[at] ?? { from: 0, to: 0 }}
                 pick={picks[index] ?? 0}
@@ -215,6 +236,14 @@ export function ReadingList({
                   })
                 }
               />
+              {isRail &&
+                suns
+                  .filter((sun) => {
+                    const span = spans[at] ?? { from: 0, to: 0 };
+                    const next = spans[at + 1]?.from ?? span.to;
+                    return sun.minute >= span.from && sun.minute < next;
+                  })
+                  .map((sun) => <SunLine key={sun.word} daylight={daylight} sun={sun} />)}
             </Fold>
           </li>
         ))}
@@ -302,6 +331,8 @@ function useGlidesTold(
 }
 
 interface ReadingRowProps {
+  /** On the plan, where the rail beside this stop runs to: the next stop's start, or its end. */
+  railTo: number | null;
   stop: StopDraft;
   span: { from: number; to: number };
   pick: number;
@@ -322,6 +353,7 @@ interface ReadingRowProps {
 
 /** One stop: its time, its name and sun, what and where until when, its line, its versions. */
 function ReadingRow({
+  railTo,
   stop,
   span,
   pick,
@@ -373,13 +405,28 @@ function ReadingRow({
       glideGroup={glideGroup}
       onGlide={onGlide}
     >
-      <div className={cn(ROW_CLASSES, isProposed ? "text-swap" : "text-ink")}>
-        <span className={cn(GUTTER_CLASSES, isProposed ? "text-swap" : "text-muted")}>
+      <div
+        className={cn(
+          railTo === null ? ROW_CLASSES : RAIL_ROW_CLASSES,
+          isProposed ? "text-swap" : "text-ink",
+        )}
+      >
+        <span
+          className={cn(
+            GUTTER_CLASSES,
+            isProposed
+              ? "text-swap"
+              : railTo !== null && isGoldenAt(daylight, span.from)
+                ? "text-amber"
+                : "text-muted",
+          )}
+        >
           <PennedText text={time} written={written} isActive={false} />
           {/* Under its time: it takes no room from the row's words. */}
           {isProposed && <span className={cn("block", MARK_CLASSES)}>proposed</span>}
         </span>
-        <div className="flex min-w-0 flex-col gap-1">
+        {railTo !== null && <LightRail daylight={daylight} from={span.from} to={railTo} hasBead />}
+        <div className={cn("flex min-w-0 flex-col gap-1", railTo !== null && "pb-6")}>
           {/* Focused after a swap, ringed as the product's buttons are, round its name. */}
           <h2 ref={nameRef} tabIndex={-1} className={NAME_CLASSES}>
             <PennedText text={name} written={afterTime} isActive={false} />

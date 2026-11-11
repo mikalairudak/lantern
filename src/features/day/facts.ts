@@ -131,9 +131,25 @@ export function optionOf(fact: Pick<Fact, "options">, value: string | null): Fac
   return fact.options.find((each) => each.value === value) ?? null;
 }
 
+/**
+ * The open questions under the first impression: the company reads as a plain phrase, "with
+ * anyone", rather than a word left unfinished; it is dotted as Lantern's, one tap from change.
+ */
+export const PLAN_ASKED_LABELS: Readonly<Record<AssumableFactKey, string>> = {
+  ...ASKED_LABELS,
+  company: "with anyone",
+};
+
+/** The open questions as the page says them, with the first impression on or off. */
+export function askedLabelsOf(
+  isFirstImpression: boolean,
+): Readonly<Record<AssumableFactKey, string>> {
+  return isFirstImpression ? PLAN_ASKED_LABELS : ASKED_LABELS;
+}
+
 /** The fact as the sentence says it: its option's label, or its own open question. */
-export function labelOf(fact: Fact): string {
+export function labelOf(fact: Fact, isFirstImpression = false): string {
   const label = optionOf(fact, fact.value)?.label;
   if (label !== undefined) return label;
-  return fact.key === "energy" ? "" : ASKED_LABELS[fact.key];
+  return fact.key === "energy" ? "" : askedLabelsOf(isFirstImpression)[fact.key];
 }

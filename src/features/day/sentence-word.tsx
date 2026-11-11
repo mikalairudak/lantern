@@ -73,7 +73,7 @@ export interface WordView {
  * every word takes.
  */
 export const ASSUMED_CLASSES =
-  "underline decoration-wire decoration-dotted underline-offset-4 focus-visible:decoration-muted";
+  "underline decoration-wire decoration-dotted underline-offset-4 focus-visible:decoration-muted first-impression:decoration-muted";
 
 /** How each word reads at rest: energy in its colour, the visitor's ink, Lantern's dotted, the question. */
 export function wordClassesOf(view: Pick<WordView, "key" | "source">): string {
