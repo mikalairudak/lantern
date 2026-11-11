@@ -80,7 +80,7 @@ A busy machine lays out, paints and runs timers in orders a quick one never show
 
 ### Test harness: the visual-regression baseline
 
-`pnpm e2e:visual` shoots every `/lab/matrix` cell at a phone's width in both themes, one shot per cell, named from the matrix's own labels. It stays out of `pnpm e2e`: its baselines belong to the Mac (Linux draws text differently), and every design change moves pixels on purpose, so updating them is a separate act after the diff is looked at. Fonts are self-hosted, Motion follows reduced motion in every cell, and figures land on whole pixels. The pixel threshold is 0.01: Playwright's default of 0.2 passed a whole new palette as unchanged, 19 of its 20 colour changes. The baseline is 1,124 shots, about 41 MB, well past the 12 MB it was planned within; lossless WebP is the lever if that starts to matter.
+`pnpm e2e:visual` shoots every `/lab/matrix` cell at a phone's width in both themes, one shot per cell, named from the matrix's own labels. It stays out of `pnpm e2e`: its baselines belong to the Mac (Linux draws text differently), and every design change moves pixels on purpose, so updating them is a separate act after the diff is looked at. Fonts are self-hosted, Motion follows reduced motion in every cell, and figures land on whole pixels. The pixel threshold is 0.01: Playwright's default of 0.2 passed a whole new palette as unchanged, 19 of its 20 colour changes. The baseline is 1,120 shots, about 50 MB, well past the 12 MB it was planned within; lossless WebP is the lever if that starts to matter.
 
 ### The build check
 
