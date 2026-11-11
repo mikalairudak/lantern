@@ -80,7 +80,7 @@ test("a day ends with what Lantern keeps and where to write, beside its sources"
 });
 
 test("the page for no day ends with the same line", async ({ page }) => {
-  await page.goto("/day/paris");
+  await page.goto("/day/vienna");
 
   await followsTheFootLine(page);
 });

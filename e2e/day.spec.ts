@@ -276,7 +276,7 @@ const WRITTEN_DAYS = [
 // Not by its status: a production server streams the first visit to an unlisted city from
 // the route's prerendered shell, so it answers 200 with `noindex`, and 404 after.
 for (const [what, address] of [
-  ["a city Lantern has not written", "/day/paris"],
+  ["a city Lantern has not written", "/day/vienna"],
   ["an address Lantern does not have", "/nope"],
   // The days written by hand are fixtures, no days of the site's (`docs/decisions.md`, "The public
   // site offers only days the product wrote").
