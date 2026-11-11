@@ -55,8 +55,6 @@ export const DAY_ANSWER_MATRIX: LabMatrix = labMatrix<DayAnswerCellProps>({
       <DayEnd
         {...(hasFoundLine ? CHECKED : BY_HAND)}
         isCut={isCut}
-        calendarKey="kanazawa"
-        hasWaysAlong={false}
         onAnswer={ignore}
         answered={isAnswered ? "yes" : null}
       />

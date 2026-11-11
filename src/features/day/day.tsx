@@ -393,14 +393,13 @@ const NO_PHRASES: readonly string[] = [];
 const NO_YOUR_DAYS: readonly YourDay[] = [];
 
 /**
- * A day Lantern has already written, as the page hands it to the start screen: its request,
- * what the day says of each word, and the energy of each stop the day shows. Never the day
- * itself, which plays from the route when it is asked for, so the first page stays light.
+ * A day Lantern has already written, as the page hands it to the start screen: its request and
+ * what the day says of each word. Never the day itself, which plays from the route when it is
+ * asked for, so the first page stays light.
  */
 export interface WrittenGist {
   request: DayRequest;
   facts: Itinerary["facts"];
-  energies: readonly EnergyLevel[];
 }
 
 /** The start screen: one question, and the days Lantern has written, as words. */
@@ -524,7 +523,7 @@ export function Day({
   // for this visit comes after (`LiveFlag`).
   const isLive = useLiveNow(isLiveGiven);
   const isHydrated = useHydrated();
-  // The quick starts the start screen offers, each with the shape of its written day.
+  // The written days the start screen's index offers.
   const starts = useMemo(() => (start ? startOffersOf(start.pool) : []), [start]);
   // The page's own written day, by the key this device notes it seen by.
   const firstSeenKey =

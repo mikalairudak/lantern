@@ -1010,7 +1010,7 @@ export function DayRows({
             // the name in there (`docs/decisions.md`, "A row's words go where its bead comes to
             // rest, and rows ease rather than jump"). Laid out beside the hollow bead, a name
             // written there took a line more or less as the bead was weighed: 8 of 43 rows on a
-            // phone's six quick starts. A stop the lab writes again keeps its words while it is.
+            // phone's six written days. A stop the lab writes again keeps its words while it is.
             const isWordsHeld = !isShownAtRest && !arrival.isRewritten;
             // While the bead slides in, the words of a row weighed in its frame ride it: drawn
             // from the same value as the bead in the same frame, so they set off together and

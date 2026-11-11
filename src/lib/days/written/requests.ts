@@ -4,7 +4,7 @@ import { QUICK_STARTS, START_REQUESTS } from "./quick-starts";
 import { isOnItsWeekday, shownDateOf } from "./shown-date";
 
 /**
- * Every day Lantern has written ahead of time, requests only: the six the quick starts open, which
+ * Every day Lantern has written ahead of time, requests only: the six the starts open, which
  * the product wrote itself (`docs/decisions.md`, "The public site offers only days the product
  * wrote"): the three written by hand, Kyoto's, Alicante's and Lisbon's, stay as fixtures for the
  * tests and the lab, and a visitor gets them as any other city. Each written day has its address,

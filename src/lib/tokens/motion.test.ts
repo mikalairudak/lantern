@@ -69,7 +69,7 @@ describe("springOver", () => {
   });
 
   it("glides the rows under a row of the list to read under 3 px a frame, however tall it is", () => {
-    // A versions' line of one line and of two on a phone, and a row of Kyoto's let in.
+    // A row's versions coming in, on one line and on two on a phone, and a row of Kyoto's let in.
     for (const distance of [22, 45, 155, 224]) {
       const spring = springOver(SPRINGS.layout, distance, ROW_REACH_PX);
       expect(peakStepOf(spring, distance)).toBeLessThanOrEqual(2.5);

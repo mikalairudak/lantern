@@ -54,7 +54,7 @@ afterAll(() => {
 });
 
 describe("StartDay", () => {
-  it("asks one question over the quick starts, with no day, with live generation off", () => {
+  it("asks one question over the index, with no day, with live generation off", () => {
     render(<StartDay pool={writtenPool()} isLive={false} />);
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(

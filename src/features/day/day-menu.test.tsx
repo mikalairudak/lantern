@@ -5,10 +5,8 @@ import { CURATED_REQUESTS, KYOTO_REQUEST } from "@/lib/fixtures/curated/requests
 import { COPY_LINK, LINK_COPIED, LINK_NOT_COPIED } from "./day-export-words";
 import type { DayExports } from "./day-exports";
 import { DAY_END_EXAMPLES } from "./day-end-examples";
-import { DayEnd } from "./day-end-line";
 import { DayMenu, TAKE_THIS_DAY, type DayMenuItem } from "./day-menu";
 import { DayStageHeader } from "./day-stage-header";
-import { Masthead } from "./masthead";
 import { sentenceFactsOf } from "./sentence";
 import { ADD_TO_YOUR_CALENDAR, COPY_THE_LINK, takeAlongOf, WAITING_NOTE } from "./take-along";
 
@@ -256,40 +254,6 @@ describe("the ways to take a day along", () => {
       label: "Link not copied",
       status: "The day's link could not be copied",
     });
-  });
-});
-
-describe("the line under a day whose ways the menu holds", () => {
-  it("offers no way but keeps its summary, and its walking route for a page without script", () => {
-    const { container } = render(
-      <DayEnd {...KANAZAWA} calendarKey="kanazawa" hasWaysAlong={false} />,
-    );
-    expect(screen.getByText(/8 stops/)).toBeInTheDocument();
-    expect(screen.queryByRole("button")).toBeNull();
-    expect(container.querySelector("noscript")).not.toBeNull();
-  });
-});
-
-describe("the masthead", () => {
-  it("sets the wordmark's mark in ems of the word, and the action and theme as one group", () => {
-    render(<Masthead action={<button type="button">Plan another day</button>} />);
-    const home = screen.getByRole("link", { name: "Lantern" });
-    expect(home.querySelector("svg")).toHaveStyle({ height: "1.75em" });
-    expect(screen.getByRole("button", { name: "Plan another day" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Theme: System" })).toBeInTheDocument();
-  });
-
-  it("puts the day's menu in the action's place, and draws no rule with no action", () => {
-    const { unmount } = render(
-      <Masthead action={<span>Plan another day</span>} menu={<DayMenu items={ITEMS} />} />,
-    );
-    expect(screen.getByRole("button", { name: TAKE_THIS_DAY })).toBeInTheDocument();
-    expect(screen.queryByText("Plan another day")).toBeNull();
-    unmount();
-
-    const { container } = render(<Masthead isHome />);
-    expect(container.querySelector(".w-px")).toBeNull();
-    expect(screen.queryByRole("link")).toBeNull();
   });
 });
 

@@ -27,7 +27,6 @@ import { AskedSentence } from "./asked-sentence";
 import { Masthead } from "./masthead";
 import type { StartExcerpt } from "./start-excerpt";
 import { StartExcerptView, StartIndex } from "./start-index";
-import { ShapeRow } from "./shape-row";
 import { YourDaysList, type YourDaysListProps } from "./your-days-list";
 import type { StartOffer } from "./start-offers";
 
@@ -45,8 +44,6 @@ const TO_THE_INDEX = "Start from one of the days below.";
 const EXAMPLE = "For example: Bologna, with friends";
 /** Under the field from the visitor's Enter, while Lantern reads their words. */
 const READING_SAID = "Reading what you wrote";
-/** Over the written days, the other way into a day: one Lantern has already written. */
-export const WRITTEN_HEADING = "Or watch Lantern write a day it knows";
 
 /** Read in part, without a city: the sentence so far asks for one. */
 export interface CityQuestion {
@@ -80,7 +77,7 @@ export type StartLine =
   | null;
 
 export interface StartHeaderProps {
-  /** The quick starts, offered under the question, each with the shape of the day it opens. */
+  /** The written days, offered under the question as an index. */
   starts: readonly StartOffer[];
   line: StartLine;
   /** What the visitor has typed, held by the day so a day on its way keeps it. */
@@ -191,23 +188,6 @@ export function StartHeader({
         </>
       )}
     </header>
-  );
-}
-
-export interface QuickStartRowProps {
-  start: StartOffer;
-  onChoose: (request: DayRequest) => void;
-}
-
-/** A quick start: its day in its city in words, and the city's country under them. */
-export function QuickStartRow({ start, onChoose }: QuickStartRowProps) {
-  return (
-    <ShapeRow
-      energies={start.energies}
-      words={<AskedSentence request={start.request} />}
-      under={start.country}
-      onPress={() => onChoose(start.request)}
-    />
   );
 }
 
@@ -508,7 +488,7 @@ function QuestionLine({ line, text, isLive, onChooseReading }: QuestionLineProps
     refused: "Lantern can't plan that day.",
     limited: "Lantern has written all the days it can for now.",
   }[line.kind];
-  // The written days are offered once, as the words below, which this points to.
+  // The written days are offered once, as the index below, which this points to.
   return (
     <p role="status" className="mt-1 type-voice text-quote text-ink-soft">
       {said} {TO_THE_INDEX}

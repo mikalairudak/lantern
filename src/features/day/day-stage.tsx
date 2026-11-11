@@ -101,7 +101,8 @@ import {
   type PenPiece,
 } from "./sentence";
 import { FootLine, ProgressLine, SOURCES } from "./foot-line";
-import { DayEnd, type DayExport } from "./day-end-line";
+import { DayEnd } from "./day-end-line";
+import type { DayExport } from "./day-export-words";
 import { useDayExports } from "./day-exports";
 import { takeAlongOf } from "./take-along";
 import { PlanBar } from "./plan-energy";
@@ -481,7 +482,7 @@ export function DayStage({
   const [isHeaderGliding, setIsHeaderGliding] = useState(false);
   // The chart's rows springing to new places, which a fade waits for as it waits for the header.
   const [isRowsGliding, setIsRowsGliding] = useState(false);
-  // The list's rows on their way, a row let in or a versions' line opening, which the day's
+  // The list's rows on their way, a row let in or its versions coming in, which the day's
   // end waits for; in a ref too, read in the frame that would land it, since a fold sets off
   // in the effects of the render the end waits from.
   const listGliding = useRef(false);
@@ -594,7 +595,7 @@ export function DayStage({
     );
   }, [replanFrame, replanned, draft.isComplete, stops, revealed.day.alternatives]);
   // Under reduced motion nothing eases, so a row waits for its versions too and comes in
-  // whole, as the chart's rows wait for their words: one that took its versions' line after
+  // whole, as the chart's rows wait for their words: one that took its versions after
   // stepped the rows below by 22 to 45 px.
   const listWhole = useMemo(() => {
     if (frameStops !== null || replanned !== null || draft.isComplete) return stops.length;
@@ -983,8 +984,8 @@ export function DayStage({
     !isReplanning &&
     replanFrame === null &&
     (view === "read" ? isListWritten : phase === "done" && isAllIn);
-  // It lands once what stands over it has come to rest, so it never moves once it is there: in
-  // Read the rows, the last opening its versions' line as the day completes; under the chart
+  // It lands once what stands over it has come to rest, so it never moves once it is there: on
+  // the plan the rows, the last taking its versions as the day completes; under the chart
   // the rows and the frame's end, rising to the day's last hour. Landed as the outcome came,
   // the end rode the last row's line down 27 px, and the frame's end up 60. A day that opens
   // whole has it from its first frame; landed, it stays through the swaps and pulls after.
@@ -1470,13 +1471,9 @@ export function DayStage({
                       day={ended}
                       shown={energy.committed}
                       checks={checks}
-                      address={address}
                       isCut={isCut}
-                      calendarKey={picksKey ?? city}
-                      hasWaysAlong={false}
                       onAnswer={onDayAnswer}
                       answered={dayAnswered}
-                      onExport={(way) => onDayAct?.(EXPORT_EVENTS[way])}
                       onReadToEnd={onDayAct && (() => onDayAct("day-read-to-end"))}
                       className={cn(END_CLASSES, wholeClasses)}
                     />

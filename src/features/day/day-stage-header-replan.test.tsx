@@ -30,6 +30,7 @@ import {
 import type { ReplanControls } from "./replan-controls";
 import { sentenceFactsOf } from "./sentence";
 import { ONE_CHANGE_AT_A_TIME, DayStageHeader, type HeaderSlot } from "./day-stage-header";
+import { TAKE_THIS_DAY } from "./day-menu";
 
 /** jsdom lays nothing out; the header's gliding boxes only need to be told nothing moved. */
 class SilentObserver {
@@ -347,18 +348,17 @@ describe("DayStageHeader through a word's fork", () => {
     expect(onFoot).toHaveAttribute("aria-disabled", "true");
     expect(onFoot).toHaveClass("text-muted");
     expect(onFoot).not.toHaveClass("hover:underline");
-    // The way to another day is locked as the words are: muted, unmarked, said so.
-    const planAnother = screen.getByRole("button", { name: "Plan another day" });
-    expect(planAnother).toHaveAttribute("aria-disabled", "true");
-    expect(planAnother).toHaveClass("text-muted");
-    expect(planAnother).not.toHaveClass("underline");
-    expect(planAnother).not.toHaveClass("hover:text-energy");
     // So is the date.
     expect(within(headline()).getByText("Thursday")).toHaveClass("text-muted");
 
     await user.click(onFoot);
     await user.click(within(headline()).getByRole("button", { name: /Elx \/ Elche/ }));
-    await user.click(screen.getByRole("button", { name: "Plan another day" }));
+    // The way to another day, in the day menu, is locked as the words are: muted, and said so.
+    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+    const planAnother = screen.getByRole("menuitem", { name: /^Plan another day/ });
+    expect(planAnother).toHaveAttribute("aria-disabled", "true");
+    expect(within(planAnother).getByText("Plan another day")).toHaveClass("text-muted");
+    await user.click(planAnother);
 
     expect(seenTextOf(factsLine())).toContain(ONE_CHANGE_AT_A_TIME);
     expect(status).toHaveTextContent(ONE_CHANGE_AT_A_TIME);

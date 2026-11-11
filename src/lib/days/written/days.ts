@@ -12,7 +12,7 @@ import { writtenVersionFor } from "./version";
 
 /**
  * Every city Lantern has written a day for, as its seasons, in the order of `WRITTEN_REQUESTS`:
- * the quick starts', the only days the public site serves from a file.
+ * the starts', the only days the public site serves from a file.
  */
 export const WRITTEN_SEASONS: readonly (readonly WrittenSeason[])[] = START_SEASONS;
 

@@ -53,15 +53,15 @@ describe("the one-tap answer at a day's end", () => {
   });
 
   it("is asked under a day's summary, and not under a day cut short or with no one to tell", () => {
-    const { unmount } = render(<DayEnd {...KANAZAWA} calendarKey="kanazawa" onAnswer={vi.fn()} />);
+    const { unmount } = render(<DayEnd {...KANAZAWA} onAnswer={vi.fn()} />);
     expect(screen.getByText(ANSWER_QUESTION)).toBeInTheDocument();
     unmount();
 
-    const cut = render(<DayEnd {...KANAZAWA} isCut calendarKey="kanazawa" onAnswer={vi.fn()} />);
+    const cut = render(<DayEnd {...KANAZAWA} isCut onAnswer={vi.fn()} />);
     expect(screen.queryByText(ANSWER_QUESTION)).toBeNull();
     cut.unmount();
 
-    render(<DayEnd {...KANAZAWA} calendarKey="kanazawa" />);
+    render(<DayEnd {...KANAZAWA} />);
     expect(screen.queryByText(ANSWER_QUESTION)).toBeNull();
   });
 });

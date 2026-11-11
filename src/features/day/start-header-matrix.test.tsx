@@ -6,7 +6,7 @@ import { PROMISE } from "./start-header";
 import { INDEX_LABEL } from "./start-index";
 
 describe("START_HEADER_MATRIX", () => {
-  it("draws every line and note it lists, over the quick starts", () => {
+  it("draws every line and note it lists, over the index", () => {
     const sizes = START_HEADER_MATRIX.axes.map((axis) => axis.labels.length);
     const choices = sizes.reduce<number[][]>(
       (all, size) => all.flatMap((choice) => [...Array(size).keys()].map((at) => [...choice, at])),

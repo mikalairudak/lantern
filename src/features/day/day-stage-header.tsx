@@ -68,7 +68,6 @@ import {
   type SentenceFacts,
 } from "./sentence";
 import { DayMenu, type DayMenuItem } from "./day-menu";
-import { PLAN_ANOTHER_DAY } from "./day-end-line";
 import { Masthead } from "./masthead";
 import {
   BEING_WRITTEN,
@@ -262,11 +261,11 @@ const NO_REPLAN: ReplanControls = {
  */
 export const ONE_CHANGE_AT_A_TIME = "one change at a time";
 
-/**
- * "Plan another day" while a re-plan is written: locked as the sentence's words are, muted and
- * with no underline or hover mark, so it does not read as a way out that works.
- */
-const LOCKED_LINK_CLASSES = "rounded-sm transition-colors focus-ring";
+/** The day menu's last item, set apart under the ways to take the day along. */
+const PLAN_ANOTHER_DAY = "Plan another day";
+
+/** No way to take the day along: the menu holds "Plan another day" alone. */
+const NO_WAYS_ALONG: readonly DayMenuItem[] = [];
 
 /** How the end of the facts line stands while a word is re-planned and after. */
 type SlotStanding = "shown" | "faded" | "locked";
@@ -417,8 +416,8 @@ interface DayStageHeaderProps {
   isLockSaid?: boolean;
   onCityOpenChange: (openAt: CityFocus | null) => void;
   /**
-   * The ways to take the day along, for the day menu, which holds them and "Plan another day".
-   * Without them the masthead keeps "Plan another day" alone, as its action.
+   * The ways to take the day along, for the day menu, which holds them and "Plan another day";
+   * none for a day that has none, as one that ended without a day.
    */
   takeAlong?: readonly DayMenuItem[];
   /** A written day chosen from the city word's list. */
@@ -543,7 +542,7 @@ export function DayStageHeader({
   openedWord = null,
   isLockSaid = false,
   onCityOpenChange,
-  takeAlong,
+  takeAlong = NO_WAYS_ALONG,
   onChooseWritten,
   onOpenWritten = onChooseWritten,
   onChooseCity,
@@ -959,39 +958,21 @@ export function DayStageHeader({
     >
       <Masthead
         menu={
-          takeAlong && (
-            <DayMenu
-              items={[
-                ...takeAlong,
-                {
-                  key: "another",
-                  label: PLAN_ANOTHER_DAY,
-                  note: "Ask for a day somewhere else",
-                  // It opens the city word at its field, locked while a re-plan is written.
-                  onSelect: () => (isReplanWriting ? sayLocked() : onCityOpenChange("elsewhere")),
-                  isLocked: isReplanWriting,
-                  movesFocus: !isReplanWriting,
-                  isApart: takeAlong.length > 0,
-                },
-              ]}
-            />
-          )
-        }
-        action={
-          <button
-            type="button"
-            // It opens the city word at its field, which is locked while a re-plan is written.
-            onClick={() => (isReplanWriting ? sayLocked() : onCityOpenChange("elsewhere"))}
-            aria-disabled={isReplanWriting || undefined}
-            className={cn(
-              isReplanWriting ? LOCKED_LINK_CLASSES : LINK_CLASSES,
-              TARGET_CLASSES,
-              "type-note",
-              isReplanWriting ? "text-muted" : "text-ink",
-            )}
-          >
-            Plan another day
-          </button>
+          <DayMenu
+            items={[
+              ...takeAlong,
+              {
+                key: "another",
+                label: PLAN_ANOTHER_DAY,
+                note: "Ask for a day somewhere else",
+                // It opens the city word at its field, locked while a re-plan is written.
+                onSelect: () => (isReplanWriting ? sayLocked() : onCityOpenChange("elsewhere")),
+                isLocked: isReplanWriting,
+                movesFocus: !isReplanWriting,
+                isApart: takeAlong.length > 0,
+              },
+            ]}
+          />
         }
       />
       {/*

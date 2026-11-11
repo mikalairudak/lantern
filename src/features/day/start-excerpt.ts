@@ -25,7 +25,7 @@ export interface StartExcerpt {
 }
 
 /**
- * The first quick start's day as its page shows it now, its season and date included, cut to its
+ * The first start's day as its page shows it now, its season and date included, cut to its
  * first stops; null if its day is not written.
  */
 export function startExcerptOf(now: Date): StartExcerpt | null {
