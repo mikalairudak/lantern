@@ -29,3 +29,30 @@ test("the start screen offers the question and an index of written days, with a 
   await index.getByRole("button").first().click();
   await expect(page).toHaveURL(/\/day\//);
 });
+
+test("a city's cell draws its engraving from one file, its theme's, kept forever", async ({
+  page,
+}) => {
+  const asked: { url: string; status: number; cache: string | null }[] = [];
+  page.on("response", (response) => {
+    if (!response.url().includes("/pictures/")) return;
+    asked.push({
+      url: response.url(),
+      status: response.status(),
+      cache: response.headers()["cache-control"] ?? null,
+    });
+  });
+  await page.goto("/");
+  const madrid = page.getByRole("button", { name: /^Madrid/ });
+  await madrid.scrollIntoViewIfNeeded();
+  // The picture is out of what is read: the cell is named by its city and its day.
+  await expect(madrid).toHaveAccessibleName(/^Madrid Lively Saturday/);
+  await expect(madrid.locator('rect[data-layer="scene"]')).toHaveAttribute("data-state", "drawn");
+  await expect(madrid.locator('rect[data-layer="subject"]')).toHaveAttribute(
+    "data-state",
+    "unasked",
+  );
+  expect(asked).toHaveLength(1);
+  expect(asked[0]).toMatchObject({ status: 200, cache: "public, max-age=31536000, immutable" });
+  expect(asked[0]!.url).toMatch(/\/pictures\/madrid-scene-\d+\.[0-9a-f]{8}\.avif$/);
+});

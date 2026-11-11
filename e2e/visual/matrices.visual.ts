@@ -79,6 +79,29 @@ async function snapToWholePixels(figure: Locator): Promise<void> {
   });
 }
 
+/**
+ * Brings a figure into view and waits until every picture its theme draws has come in whole: the
+ * index's engravings ask for their files only near the screen, and fade in once they arrive
+ * (`src/features/day/index-picture.tsx`). A layer of the other theme is transparent and waits for
+ * nothing.
+ */
+async function awaitPictures(figure: Locator): Promise<void> {
+  // Only a figure with pictures is scrolled to: moving the page shifts how others' text is drawn.
+  if ((await figure.locator("rect[data-layer]").count()) === 0) return;
+  await figure.scrollIntoViewIfNeeded();
+  await expect
+    .poll(() =>
+      figure.evaluate((element) =>
+        [...element.querySelectorAll("rect[data-layer]")].every((rect) => {
+          const fill = getComputedStyle(rect).fill;
+          const isTransparent = fill === "transparent" || /rgba\(.*,\s*0\)$/.test(fill);
+          return isTransparent || rect.getAttribute("data-state") === "drawn";
+        }),
+      ),
+    )
+    .toBe(true);
+}
+
 /** Each figure of one view, one theme at a time, named for what it shows, not where. */
 async function shootView(
   page: Page,
@@ -107,6 +130,7 @@ async function shootView(
         const column = (await caption.count()) > 0 ? ` -- ${await caption.textContent()}` : "";
         const label = `${key}/${theme}/${viewName}/${row}${column}`;
         claimFileName(fileNames, label);
+        await awaitPictures(figure);
         await snapToWholePixels(figure);
         // Soft, so one run reports every cell that changed rather than the first.
         await expect.soft(figure).toHaveScreenshot(`${label}.png`);

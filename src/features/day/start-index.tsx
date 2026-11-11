@@ -4,21 +4,30 @@ import { useId, type Ref } from "react";
 import { modelPicks } from "@/features/abacus/curve";
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
 import { ReadingList } from "./reading-list";
-import { requestGistOf, requestSentenceOf } from "./sentence";
+import { daySlugOf } from "@/lib/days/address";
+import { IndexPictureView } from "./index-picture";
+import { requestShortGistOf, requestSentenceOf } from "./sentence";
 import type { StartExcerpt } from "./start-excerpt";
 import type { StartOffer } from "./start-offers";
 
 /** Over the index: it speaks to the visitor the index is for, the one with no city in mind. */
 export const INDEX_LABEL = "No city in mind? Start from one of these";
 
-const ROW_CLASSES = "group flex w-full items-center gap-3 rounded-sm py-3 text-left focus-ring";
+/**
+ * A cell spans its row's two tracks, the pictures' and the captions', so every picture of a row
+ * stands on one foot however its caption wraps, and every caption starts on one line.
+ */
+const CELL_CLASSES =
+  "group row-span-2 grid w-full grid-rows-subgrid rounded-sm text-center focus-ring";
 
 /**
  * The start screen's index under the first impression (`docs/decisions.md`, "The start screen is
  * an index, with a day's first stops under it"): the second way in, of one weight with the
- * question. Each line is a day Lantern has written: a small picture, its city, and its country
- * and its day in a few words; a press opens it where the question was, as a quick start did.
- * The pictures stand in for the ones to be made, in one style, and say nothing a reader needs.
+ * question. Each cell is a day Lantern has written: its city's engraving, its city, and its day in
+ * a few words, set on the page's paper two across on a phone and four on a laptop
+ * (`docs/decisions.md`, "The index's pictures are engravings of a city's everyday thing"). A press
+ * opens it where the question was, as a quick start did. A city with no picture keeps its caption
+ * on the row's line, with nothing over it.
  */
 export function StartIndex({
   starts,
@@ -32,33 +41,39 @@ export function StartIndex({
   const label = useId();
   return (
     <section aria-labelledby={label} className="@container mt-10 flex flex-col">
-      <h2 id={label} className="pb-2 type-note text-muted">
+      <h2 id={label} className="pb-3 type-note text-muted">
         {INDEX_LABEL}
       </h2>
       <ul
         ref={listRef}
         aria-labelledby={label}
-        className="flex flex-col border-t border-line @abacus:grid @abacus:grid-cols-2 @abacus:gap-x-8"
+        className="grid grid-cols-2 gap-x-6 @abacus:grid-cols-4"
       >
-        {starts.map((start) => (
-          <li key={start.request.city} className="border-b border-line">
-            <button type="button" onClick={() => onChoose(start.request)} className={ROW_CLASSES}>
-              <span
-                aria-hidden
-                className="size-14 shrink-0 rounded-md border border-line bg-surface"
-              />
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                {/* A pointer over a line underlines its city, as the page's links are. */}
-                <span className="type-voice text-quote text-pretty text-ink decoration-line underline-offset-4 group-hover:underline">
-                  {start.request.city}
+        {starts.map((start) => {
+          const gist = requestShortGistOf(start.request);
+          return (
+            <li key={start.request.city} className="row-span-2 grid grid-rows-subgrid">
+              <button
+                type="button"
+                onClick={() => onChoose(start.request)}
+                className={CELL_CLASSES}
+              >
+                <span className="self-end">
+                  <IndexPictureView slug={daySlugOf(start.request)} />
                 </span>
-                <span className="type-note text-muted">
-                  {start.country} · {requestGistOf(start.request)}
+                <span className="flex flex-col items-center pt-1 pb-6">
+                  {/* A pointer over a cell underlines its city, as the page's links are. */}
+                  <span className="type-voice text-quote text-pretty text-ink decoration-line underline-offset-4 group-hover:underline">
+                    {start.request.city}
+                  </span>
+                  {/* A space between lines, so the cell's name reads as words; a column shows none. */}{" "}
+                  <span className="type-note text-muted">{gist.day}</span>{" "}
+                  {gist.word !== null && <span className="type-note text-muted">{gist.word}</span>}
                 </span>
-              </span>
-            </button>
-          </li>
-        ))}
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

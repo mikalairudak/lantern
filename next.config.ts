@@ -22,7 +22,15 @@ const nextConfig: NextConfig = {
     fallback: [],
   }),
   // Why each one, and why no policy for scripts: `src/lib/http/security-headers.ts`.
-  headers: () => [{ source: EVERY_PATH, headers: [...SECURITY_HEADERS] }],
+  // The index's pictures are named by a hash of their bytes, so a changed one has a new name and
+  // each can be kept forever (`src/features/day/index-pictures.ts`).
+  headers: () => [
+    { source: EVERY_PATH, headers: [...SECURITY_HEADERS] },
+    {
+      source: "/pictures/:file*",
+      headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+    },
+  ],
   partialPrefetching: true,
   turbopack: {
     rules: {

@@ -127,6 +127,28 @@ export function requestGistOf(request: DayRequest): string {
   return `a ${energy} ${rest}`;
 }
 
+/** A day's gist in a few words, in two lines: "Calm Sunday", then its first word, "slow morning". */
+export interface ShortGist {
+  /** Its energy word and its day of the week: "Calm Sunday". */
+  day: string;
+  /** Its first word after how it gets around, or null where it has none: "slow morning". */
+  word: string | null;
+}
+
+/**
+ * What a day was written as, under its picture in the start screen's index: its energy and its
+ * day of the week, then the first of its words that says how the day goes. How it gets around is
+ * left out, since most days go on foot and it says least about the day.
+ */
+export function requestShortGistOf(request: DayRequest): ShortGist {
+  const energy = energyLabelOf(request.energy);
+  const [word = null] = chosenLabelsOf({ ...request, travel: null });
+  return {
+    day: `${energy.charAt(0).toUpperCase()}${energy.slice(1)} ${weekdayOf(request.date)}`,
+    word,
+  };
+}
+
 /**
  * The words in the order the sentence says them after the city, and whether each is
  * followed by another word on screen, which decides whether a comma closes it. A comma
