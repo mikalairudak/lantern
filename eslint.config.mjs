@@ -215,6 +215,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     ".next-e2e/**",
+    // The first impression's e2e server, with its flag on.
+    ".next-e2e-fi/**",
     // `pnpm build:check`'s production build, apart from the dev server's `.next`.
     ".next-build/**",
     ".claude/worktrees/**",
