@@ -1,17 +1,18 @@
 import { daySlugOf } from "@/lib/days/address";
 import { normalizedDayOf, shownSeasonAt, writtenSeasonsAt } from "@/lib/days/written/days";
-import { START_REQUESTS } from "@/lib/days/written/quick-starts";
+import { WRITTEN_REQUESTS } from "@/lib/days/written/requests";
 import { firstSeasonOf, type WrittenSeason } from "@/lib/days/written/seasons";
 import type { WrittenGist } from "./day";
 import { shownEnergiesOf } from "./day-shape";
 
 /**
- * The days Lantern has written, the quick starts', as the start screen needs them: each start's
- * words, with the facts and shape of one season of its day. A page calls it on the server, so
- * the client gets each day's words and shape without the normalizer or the days themselves.
+ * Every day Lantern has written, the quick starts' and the city days', as the start screen needs
+ * them: each day's words, with the facts and shape of one season of it. A page calls it on the
+ * server, so the client gets each day's words and shape without the normalizer or the days
+ * themselves.
  */
 function poolOf(seasonAt: (slug: string) => WrittenSeason | null): WrittenGist[] {
-  return START_REQUESTS.map((request) => {
+  return WRITTEN_REQUESTS.map((request) => {
     const season = seasonAt(daySlugOf(request));
     if (!season) throw new Error(`No written day for ${request.city}`);
     const { itinerary } = normalizedDayOf(season.written);

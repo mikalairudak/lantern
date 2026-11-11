@@ -11,6 +11,11 @@ import { CITY_WORD_MATRIX } from "@/features/day/city-word-matrix";
 import { DAY_SHAPE_MATRIX } from "@/features/day/day-shape-matrix";
 import { YOUR_DAYS_MATRIX } from "@/features/day/your-days-matrix";
 import { PROGRESS_LINE_MATRIX } from "@/features/day/progress-line-matrix";
+import { DAY_MENU_MATRIX } from "@/features/day/day-menu-matrix";
+import { DAY_ANSWER_MATRIX } from "@/features/day/day-answer-matrix";
+import { START_INDEX_MATRIX } from "@/features/day/start-index-matrix";
+import { PLAN_MATRIX } from "@/features/day/plan-matrix";
+import { PLAN_BAR_MATRIX } from "@/features/day/plan-bar-matrix";
 import { FOOT_LINE_MATRIX } from "@/features/day/foot-line-matrix";
 import { DAY_END_MATRIX } from "@/features/day/day-end-matrix";
 import { START_HEADER_MATRIX } from "@/features/day/start-header-matrix";
@@ -32,13 +37,18 @@ export const MATRICES: readonly LabMatrix[] = [
   FORK_ROW_MATRIX,
   PROGRESS_LINE_MATRIX,
   DAY_END_MATRIX,
+  DAY_ANSWER_MATRIX,
   FOOT_LINE_MATRIX,
+  DAY_MENU_MATRIX,
   START_HEADER_MATRIX,
+  START_INDEX_MATRIX,
   DAY_SHAPE_MATRIX,
   YOUR_DAYS_MATRIX,
   CITY_WORD_MATRIX,
   DAY_STAGE_HEADER_MATRIX,
   READING_LIST_MATRIX,
+  PLAN_MATRIX,
+  PLAN_BAR_MATRIX,
   THEME_WORD_MATRIX,
   labMatrix<FrameCellProps>({
     key: "stream-frames",

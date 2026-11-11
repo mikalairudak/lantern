@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
 
 /** The chart's lanes start after the time axis and end at the beads' reach from the edge. */
 const LANE_MARGINS_PX = 52 + 28 + 16;
@@ -6,9 +6,9 @@ const LANE_COUNT = 4;
 const CURVE_NAME = "drag the curve";
 const URL = "/lab/concepts/abacus";
 /** The replay takes about six seconds; a cold dev server can add a few more. */
-const WRITE_TIMEOUT_MS = 20_000;
+const WRITE_TIMEOUT_MS = waitMs(20_000);
 /** The ring is drawn a second after the write-in; a busy machine can take a few more. */
-const INVITATION_TIMEOUT_MS = 5_000;
+const INVITATION_TIMEOUT_MS = waitMs(5_000);
 /** Longer than the curve's demonstration took, when there was one, from the ring's landing. */
 const UNTOUCHED_MS = 5_000;
 /** Taller than the lab's page with the whole day on it, at a phone's width. */
@@ -342,7 +342,7 @@ test("a realistic stream names the morning in the silence before its first words
   page,
 }) => {
   /** The first words arrive 1.4 s in; the wait ends with them, fading out quickly. */
-  const FIRST_WORDS_TIMEOUT_MS = 3_000;
+  const FIRST_WORDS_TIMEOUT_MS = waitMs(3_000);
   await page.goto(URL);
   await waitForTheDay(page);
   // The day's voice: a tick at the pen on the time axis, and the phrase and its ruled line
@@ -375,9 +375,9 @@ test("replay writes the day again from the empty frame", async ({ page }) => {
 
 test.describe("the request sentence", () => {
   /** A re-composition streams for about five seconds; a cold dev server adds some. */
-  const RECOMPOSE_TIMEOUT_MS = 15_000;
+  const RECOMPOSE_TIMEOUT_MS = waitMs(15_000);
   /** A failing call gives up after its first pause, about a second. */
-  const FAIL_TIMEOUT_MS = 5_000;
+  const FAIL_TIMEOUT_MS = waitMs(5_000);
 
   /**
    * Only what is on screen: the header holds its tallest state in unseen copies of the

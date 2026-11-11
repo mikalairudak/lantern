@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { daySlugOf } from "@/lib/days/address";
 import { writtenDayAt } from "@/lib/days/written/days";
-import { START_REQUESTS } from "@/lib/days/written/quick-starts";
+import { WRITTEN_REQUESTS } from "@/lib/days/written/requests";
 import { shownPool, writtenPool } from "./written-pool";
 
 describe("writtenPool", () => {
-  it("hands over every written day's words and shape, in the order the starts offer them", () => {
+  it("hands over every written day's words and shape, in the order of the written requests", () => {
     const pool = writtenPool();
 
-    expect(pool.map(({ request }) => request)).toEqual(START_REQUESTS);
+    expect(pool.map(({ request }) => request)).toEqual(WRITTEN_REQUESTS);
     for (const { request, facts, energies } of pool) {
       const written = writtenDayAt(daySlugOf(request))!;
       expect(facts).toEqual(written.itinerary.facts);

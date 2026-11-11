@@ -121,10 +121,19 @@ export function keptNoticeOf(
  * what a changed word would have re-planned; nothing while the day is being written, or when
  * none is coming, which the notice says in place of the line.
  */
-export function slotOf(phase: Phase, notYet: string | null, local: LocalWords): HeaderSlot {
+export function slotOf(
+  phase: Phase,
+  notYet: string | null,
+  local: LocalWords,
+  /** Under the first impression the hint goes at the page's first change of any kind. */
+  isTouched = false,
+): HeaderSlot {
   if (phase !== "done") return null;
   if (notYet) return { kind: "not-yet", text: notYet };
   const hasChanged =
-    local.energy !== null || local.confirmed.length > 0 || Object.keys(local.kept).length > 0;
+    isTouched ||
+    local.energy !== null ||
+    local.confirmed.length > 0 ||
+    Object.keys(local.kept).length > 0;
   return hasChanged ? null : { kind: "hint" };
 }

@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { BrowserTextSize } from "@/components/ui/browser-text-size";
+import { cn } from "@/components/ui/cn";
 import { PageViews } from "@/features/analytics/page-views";
+import { FirstImpressionProvider } from "@/features/day/first-impression";
 import { DayViewScript } from "@/features/day/view-switch";
 import { ThemeScript } from "@/features/theme/theme-script";
 import { isCountingPageViews } from "@/lib/analytics/page-views";
+import { isFirstImpression } from "@/lib/first-impression";
 import { SITE_AUTHOR, SITE_DESCRIPTION, SITE_NAME, SITE_OPEN_GRAPH, SITE_URL } from "@/lib/site";
 import { BODY_CLASSES, firaSans } from "./root-document";
 import "./globals.css";
@@ -27,15 +30,24 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     // The script below may set data-theme before React hydrates, so <html> may differ.
-    <html lang="en" className={firaSans.variable} suppressHydrationWarning>
+    <html
+      lang="en"
+      // Under the first impression the plan's bar is held at the top: focus scrolled to stays
+      // clear of it.
+      className={cn(firaSans.variable, isFirstImpression(process.env) && "scroll-pt-12")}
+      data-first-impression={isFirstImpression(process.env) ? "" : undefined}
+      suppressHydrationWarning
+    >
       <head>
         {/* A stored theme is on <html> before the first paint, so no frame shows another. */}
         <ThemeScript />
-        <DayViewScript />
+        <DayViewScript isPlanFirst={isFirstImpression(process.env)} />
       </head>
       <body className={BODY_CLASSES}>
         <BrowserTextSize />
-        {children}
+        <FirstImpressionProvider isOn={isFirstImpression(process.env)}>
+          {children}
+        </FirstImpressionProvider>
         {isCountingPageViews(process.env) && <PageViews />}
       </body>
     </html>

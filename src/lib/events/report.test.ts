@@ -32,11 +32,12 @@ async function seed(
   event: ProductEvent,
   { day = "2026-10-30", environment = "production" } = {},
 ): Promise<void> {
-  const { city, via, written, outcome, stage, word, view } = columnsOf(event);
+  const { city, via, written, outcome, stage, word, view, answer } = columnsOf(event);
   await database.session.query(
     `INSERT INTO product_events
-      (id, environment, utc_day, visitor_key, kind, city, via, written, outcome, stage, word, view)
-     VALUES ($1::uuid, $2, $3::date, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      (id, environment, utc_day, visitor_key, kind, city, via, written, outcome, stage, word, view,
+       answer)
+     VALUES ($1::uuid, $2, $3::date, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
     [
       crypto.randomUUID(),
       environment,
@@ -50,6 +51,7 @@ async function seed(
       stage,
       word,
       view,
+      answer,
     ],
   );
 }
@@ -200,6 +202,11 @@ describe("pnpm events:report", () => {
       "  chart  1      1            1            n < 30",
       "  read   1      0            1            n < 30",
       "",
+      'Days answered, by view (visitors whose day ended in that view, and of them who answered "Would you follow this day?"; a share of yes from 30 answers)',
+      "  view   ended  answered  yes  not quite  yes share",
+      "  chart  1      0         0    0          n < 30",
+      "  read   1      0         0    0          n < 30",
+      "",
       "Days opened, by city (a visitor counts once a UTC day)",
       "  city       opened  visitors",
       "  kyoto      3       2",
@@ -315,6 +322,45 @@ describe("pnpm events:report", () => {
     expect(out).toContain(`  chart  ${SHARE_MIN_VISITORS}     0            0            0%`);
     expect(out).toContain("  read   1      0            0            n < 30");
     expect(out.some((line) => /\d{3,}%/.test(line))).toBe(false);
+  });
+
+  it("counts the answers beside the days ended in their view, with a share of yes only from enough answers", async () => {
+    const visitor = (index: number) => index.toString(16).padStart(64, "0");
+    const ended = {
+      kind: "day-ended",
+      ...KYOTO_ON_CHART,
+      view: "read",
+      outcome: "complete",
+    } as const;
+    // Three ended a day on the plan: two answered yes, one not quite; one more ended it unanswered.
+    for (const [index, answer] of [
+      [0, "yes"],
+      [1, "yes"],
+      [2, "not-quite"],
+    ] as const) {
+      await seed(visitor(index), ended);
+      await seed(visitor(index), { kind: "day-answered", ...KYOTO_ON_CHART, view: "read", answer });
+    }
+    await seed(visitor(3), ended);
+    // One more answered two days that UTC day, one each way: counted once, in both answers.
+    await seed(visitor(4), ended);
+    await seed(visitor(4), {
+      kind: "day-answered",
+      ...KYOTO_ON_CHART,
+      view: "read",
+      answer: "yes",
+    });
+    await seed(visitor(4), {
+      kind: "day-answered",
+      ...KYOTO_ON_CHART,
+      view: "read",
+      answer: "not-quite",
+    });
+
+    const { out } = await report();
+
+    const row = out.find((line) => /^\s+read\s+5\s+4\s+3\s+2\s+n < 30/.test(line));
+    expect(row).toBeDefined();
   });
 
   it("reads inside a read-only transaction, and ends it", async () => {

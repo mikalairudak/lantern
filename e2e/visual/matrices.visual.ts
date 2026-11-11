@@ -98,7 +98,8 @@ async function shootView(
     await expect(grid.getByText(LOADING)).toHaveCount(0);
     await releaseFocus(page);
 
-    for (const section of await grid.locator("section").all()) {
+    // The grid's own rows only: a cell can hold sections of its own, as the start index does.
+    for (const section of await grid.locator(":scope > div > section").all()) {
       // The row's own label: a cell can hold headings of its own, as the list to read's stops.
       const row = (await section.locator(":scope > h2").textContent()) ?? "";
       for (const figure of await section.locator("figure").all()) {

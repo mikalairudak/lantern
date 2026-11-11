@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { expect, test } from "./fixtures";
+import { expect, test, waitMs } from "./fixtures";
 import { VIEW_HELD_AFTER_GESTURE_MS } from "../src/features/day/view-hold";
 import { REVEAL_STEP_PX } from "../src/lib/tokens/motion";
 
@@ -14,7 +14,7 @@ import { REVEAL_STEP_PX } from "../src/lib/tokens/motion";
  * name opens its sheet, which comes into view with no frame's jump.
  */
 
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 /** Sampled for twice the hold after the header's last glide, and the glide's own time. */
 const SAMPLED_MS = VIEW_HELD_AFTER_GESTURE_MS * 2 + 1000;
 /** Less than this is a rounding, not a move. */
@@ -85,14 +85,15 @@ async function expectChartHeld(page: Page, isMobile: boolean): Promise<void> {
   expect(moved).toBeLessThan(STILL_PX);
 }
 
-test("a swap holds the chart under the hand while the header takes its room above it", async ({
-  page,
-  isMobile,
-}) => {
-  await expectChartHeld(page, isMobile);
-});
+test(
+  "a swap holds the chart under the hand while the header takes its room above it",
+  { tag: "@frame" },
+  async ({ page, isMobile }) => {
+    await expectChartHeld(page, isMobile);
+  },
+);
 
-test.describe("with reduced motion", () => {
+test.describe("with reduced motion", { tag: "@frame" }, () => {
   test.use({ reducedMotion: "reduce" });
 
   test("a swap holds the chart under the hand, the header's room taken at once", async ({
@@ -173,39 +174,41 @@ async function expectSheetRevealed(page: Page, isAtMargin = false): Promise<void
 }
 
 for (const scrollTop of [0, 120]) {
-  test(`a tap on a stop's name opens its sheet and brings it into view, from ${scrollTop} px down`, async ({
-    page,
-    isMobile,
-  }) => {
-    test.skip(!isMobile, "A sheet opened low on a phone's screen runs past its foot");
-    test.setTimeout(DAY_TIMEOUT_MS + SAMPLED_MS + 15_000);
-    await versionOnFirstScreen(page, scrollTop);
-    const name = await lowName(page);
-    await sampleFrames(page);
-    await page.touchscreen.tap(name.x, name.y);
-    await expectSheetRevealed(page);
-  });
+  test(
+    `a tap on a stop's name opens its sheet and brings it into view, from ${scrollTop} px down`,
+    { tag: "@frame" },
+    async ({ page, isMobile }) => {
+      test.skip(!isMobile, "A sheet opened low on a phone's screen runs past its foot");
+      test.setTimeout(DAY_TIMEOUT_MS + SAMPLED_MS + 15_000);
+      await versionOnFirstScreen(page, scrollTop);
+      const name = await lowName(page);
+      await sampleFrames(page);
+      await page.touchscreen.tap(name.x, name.y);
+      await expectSheetRevealed(page);
+    },
+  );
 }
 
 /** Between a swap's tap and a name's: the header has most of its room still to take. */
 const WHILE_THE_HEADER_GROWS_MS = 50;
 
-test("a sheet opened while the header grows after a swap lands whole, the growth in its way", async ({
-  page,
-  isMobile,
-}) => {
-  test.skip(!isMobile, "On a laptop the header holds its room, and nothing above grows");
-  test.setTimeout(DAY_TIMEOUT_MS + SAMPLED_MS + 15_000);
-  const { target } = await versionOnFirstScreen(page);
-  const header = page.locator("main header").first();
-  const headerBefore = (await header.boundingBox())?.height ?? 0;
-  await sampleFrames(page);
-  await page.touchscreen.tap(target.x, target.y);
-  await page.waitForTimeout(WHILE_THE_HEADER_GROWS_MS);
-  // Read again once the swap has begun, as the rows stand now.
-  const name = await lowName(page);
-  await page.touchscreen.tap(name.x, name.y);
-  // Its foot at its margin: the reveal read where it stood each frame as the header grew.
-  await expectSheetRevealed(page, true);
-  expect(((await header.boundingBox())?.height ?? 0) - headerBefore).toBeGreaterThan(STILL_PX);
-});
+test(
+  "a sheet opened while the header grows after a swap lands whole, the growth in its way",
+  { tag: "@frame" },
+  async ({ page, isMobile }) => {
+    test.skip(!isMobile, "On a laptop the header holds its room, and nothing above grows");
+    test.setTimeout(DAY_TIMEOUT_MS + SAMPLED_MS + 15_000);
+    const { target } = await versionOnFirstScreen(page);
+    const header = page.locator("main header").first();
+    const headerBefore = (await header.boundingBox())?.height ?? 0;
+    await sampleFrames(page);
+    await page.touchscreen.tap(target.x, target.y);
+    await page.waitForTimeout(WHILE_THE_HEADER_GROWS_MS);
+    // Read again once the swap has begun, as the rows stand now.
+    const name = await lowName(page);
+    await page.touchscreen.tap(name.x, name.y);
+    // Its foot at its margin: the reveal read where it stood each frame as the header grew.
+    await expectSheetRevealed(page, true);
+    expect(((await header.boundingBox())?.height ?? 0) - headerBefore).toBeGreaterThan(STILL_PX);
+  },
+);

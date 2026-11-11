@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
 
 /**
  * The header through a word's fork (`docs/decisions.md`, "A changed word proposes its part beside
@@ -11,7 +11,7 @@ import { expect, test, type Locator, type Page } from "./fixtures";
 
 const MATRIX = "/lab/matrix/written-header";
 const BENCH = "/lab/concepts/replan";
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 /** The header's state at rest, and the re-plan's states the press brings, by their rows' labels. */
 const AT_REST = /^written, with the hint$/;
 const WRITING = /^a proposal being written: its word says both answers/;

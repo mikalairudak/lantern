@@ -1,7 +1,7 @@
-import { expect, test, type Locator, type Page } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
 
 /** The route lands a written day in about twelve seconds; a cold server adds a few. */
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 const LAPTOP = { width: 1440, height: 900 };
 /** A drag in steps this small crosses a switching point in one of them, never two. */
 const DRAG_STEPS = 16;

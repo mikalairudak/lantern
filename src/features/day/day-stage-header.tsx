@@ -30,7 +30,7 @@ import type { CityReading } from "@/lib/schema/intake.schema";
 import { formatClock } from "@/lib/time/clock";
 import { SunMark } from "@/features/abacus/best-light-icon";
 import {
-  ASKED_LABELS,
+  askedLabelsOf,
   FACT_KEYS,
   FACT_OPTIONS,
   labelOf,
@@ -67,6 +67,9 @@ import {
   widestClauses,
   type SentenceFacts,
 } from "./sentence";
+import { DayMenu, type DayMenuItem } from "./day-menu";
+import { useFirstImpression } from "./first-impression";
+import { PLAN_ANOTHER_DAY } from "./day-end-line";
 import { Masthead } from "./masthead";
 import {
   BEING_WRITTEN,
@@ -232,6 +235,10 @@ export interface HeaderNotice {
  * product's words, set upright before the model's italic, as a note before a quotation.
  */
 const PLANNED_LEAD = "As first planned: ";
+/** Under the first impression the lead is said lighter than the line it leads. */
+const LEAD_CLASSES = "first-impression:text-muted";
+/** The hint, in ink, or under the first impression a step quieter than the date beside it. */
+const HINT_CLASSES = "text-ink first-impression:text-caption first-impression:text-muted";
 
 const ignore = () => undefined;
 
@@ -281,7 +288,9 @@ function ReservedDek({ dek, isLeadHeld, ref }: ReservedDekProps): ReactNode {
   return (
     <p ref={ref} className={DEK_CLASSES}>
       {dek && (
-        <span className={cn("not-italic", !isLeadHeld && LAPTOP_ROOM_CLASSES)}>{PLANNED_LEAD}</span>
+        <span className={cn("not-italic", LEAD_CLASSES, !isLeadHeld && LAPTOP_ROOM_CLASSES)}>
+          {PLANNED_LEAD}
+        </span>
       )}
       {dek}
     </p>
@@ -408,6 +417,11 @@ interface DayStageHeaderProps {
   /** As a lab cell draws it: a locked word was pressed while a re-plan is written. */
   isLockSaid?: boolean;
   onCityOpenChange: (openAt: CityFocus | null) => void;
+  /**
+   * The ways to take the day along, for the first impression's day menu, which holds them and
+   * "Plan another day". Without the first impression the masthead keeps its action alone.
+   */
+  takeAlong?: readonly DayMenuItem[];
   /** A written day chosen from the city word's list. */
   onChooseWritten: (request: DayRequest) => void;
   /** A written day the notice offers, chosen; the city word's `onChooseWritten` if not given. */
@@ -530,6 +544,7 @@ export function DayStageHeader({
   openedWord = null,
   isLockSaid = false,
   onCityOpenChange,
+  takeAlong,
   onChooseWritten,
   onOpenWritten = onChooseWritten,
   onChooseCity,
@@ -556,6 +571,7 @@ export function DayStageHeader({
   const replan = withAnswerValuesOf(givenReplan);
   const { status, change } = replan;
   const isReplanWriting = status === "writing" && change !== null;
+  const isPlanFirst = useFirstImpression();
   // The day's own words: the request on screen is the version the visitor has, and the fork's
   // other answer stands after its word as its pair while it is drawn beside the day.
   const facts = givenFacts;
@@ -895,9 +911,9 @@ export function DayStageHeader({
     const isBehind = behind.has(key);
     const reserved =
       notice === null && known && known.source !== "chosen"
-        ? labelOf(known)
+        ? labelOf(known, isPlanFirst)
         : isBehind && fact
-          ? labelOf(fact)
+          ? labelOf(fact, isPlanFirst)
           : undefined;
     const isChangedWord = change !== null && key === change.word;
     return (
@@ -905,8 +921,8 @@ export function DayStageHeader({
         key={key}
         isFocusedOnMount={key === focusedWord}
         view={{
-          ...viewOf(key, fact, notice === null),
-          options: optionsOf(key, fact, replan, forecasts),
+          ...viewOf(key, fact, notice === null, isPlanFirst),
+          options: optionsOf(key, fact, replan, forecasts, isPlanFirst),
         }}
         lead={lead}
         trail={trail}
@@ -944,6 +960,25 @@ export function DayStageHeader({
       className={cn("flex shrink-0 flex-col pt-5 pb-5", className)}
     >
       <Masthead
+        menu={
+          takeAlong && (
+            <DayMenu
+              items={[
+                ...takeAlong,
+                {
+                  key: "another",
+                  label: PLAN_ANOTHER_DAY,
+                  note: "Ask for a day somewhere else",
+                  // It opens the city word at its field, locked while a re-plan is written.
+                  onSelect: () => (isReplanWriting ? sayLocked() : onCityOpenChange("elsewhere")),
+                  isLocked: isReplanWriting,
+                  movesFocus: !isReplanWriting,
+                  isApart: takeAlong.length > 0,
+                },
+              ]}
+            />
+          )
+        }
         action={
           <button
             type="button"
@@ -1098,7 +1133,9 @@ export function DayStageHeader({
                     >
                       {/* Kept mounted while the lead comes and goes, so it comes in. */}
                       <FadeIn of={writtenLead.text}>
-                        {writtenLead.text && <span className="not-italic">{writtenLead.text}</span>}
+                        {writtenLead.text && (
+                          <span className={cn("not-italic", LEAD_CLASSES)}>{writtenLead.text}</span>
+                        )}
                       </FadeIn>
                       <Ink text={writtenDek.text} isActive={writtenDek.isWriting || isDekWriting} />
                     </p>
@@ -1301,13 +1338,14 @@ function SentenceShape({
   className,
 }: SentenceShapeProps) {
   const trails = trailsOf(facts);
+  const isPlanFirst = useFirstImpression();
   return (
     <p
       ref={ref}
       aria-hidden
       className={cn(SENTENCE_CLASSES, "invisible col-start-1 row-start-1", className)}
     >
-      A <span>{facts.energy ? labelOf(facts.energy) : ""}</span>{" "}
+      A <span>{facts.energy ? labelOf(facts.energy, isPlanFirst) : ""}</span>{" "}
       <span>{weekdayOf(request.date)}</span>
       <ClauseText text={setOff(clause)} /> in{" "}
       <span className="inline-block whitespace-nowrap">
@@ -1321,7 +1359,7 @@ function SentenceShape({
           <span key={key}>
             {" "}
             <span className="inline-block whitespace-nowrap">
-              <span className={wordClassesOf(fact)}>{labelOf(fact)}</span>
+              <span className={wordClassesOf(fact)}>{labelOf(fact, isPlanFirst)}</span>
               {pair?.key !== key && trails[key]}
             </span>
             {pair?.key === key && (
@@ -1480,6 +1518,7 @@ function optionsOf(
   fact: Fact | null,
   { status, change }: ReplanControls,
   forecasts: Forecasts,
+  isPlanFirst = false,
 ): OptionView[] {
   const options = (fact?.options ?? []).map((option): OptionView => ({
     value: option.value,
@@ -1495,7 +1534,7 @@ function optionsOf(
     ? [
         {
           value: change.from,
-          label: ASKED_LABELS[key],
+          label: askedLabelsOf(isPlanFirst)[key],
           isCurrent: status !== "taken",
           consequence: null,
         },
@@ -1529,11 +1568,16 @@ function optionsOf(
  * the facts line, so the word reads as plain ink until a day comes. Its answers are its
  * list's (`optionsOf`).
  */
-function viewOf(key: FactKey, fact: Fact | null, isPlanned: boolean): Omit<WordView, "options"> {
+function viewOf(
+  key: FactKey,
+  fact: Fact | null,
+  isPlanned: boolean,
+  isPlanFirst = false,
+): Omit<WordView, "options"> {
   const source = fact?.source ?? "assumed";
   return {
     key,
-    label: fact === null ? "" : labelOf(fact),
+    label: fact === null ? "" : labelOf(fact, isPlanFirst),
     source: !isPlanned && source === "assumed" ? "chosen" : source,
     struck: null,
     listLabel: LIST_LABELS[key],
@@ -1824,8 +1868,11 @@ function SlotText({ slot }: { slot: HeaderSlot }) {
   return (
     <>
       {" · "}
-      <span className="text-ink pointer-coarse:hidden">click a word to change it</span>
-      <span className="hidden text-ink pointer-coarse:inline">tap a word to change it</span>
+      {/* Under the first impression it is quieter than the date, and goes at the first change. */}
+      <span className={cn("pointer-coarse:hidden", HINT_CLASSES)}>click a word to change it</span>
+      <span className={cn("hidden pointer-coarse:inline", HINT_CLASSES)}>
+        tap a word to change it
+      </span>
     </>
   );
 }

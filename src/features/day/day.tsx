@@ -98,10 +98,12 @@ import { replanningOf, replanningPartOf } from "./not-yet";
 import { requestFor, standInZoneOf } from "./start";
 import { StartHeader, type CityQuestion, type StartLine } from "./start-header";
 import type { TypedCity, TypedCityFailure } from "./city-word";
-import { ASKED_LABELS, FACT_OPTIONS, optionOf, type FactKey } from "./facts";
+import { askedLabelsOf, FACT_OPTIONS, optionOf, type FactKey } from "./facts";
+import { useFirstImpression } from "./first-impression";
 import { useDayEvents } from "./use-day-events";
 import { NO_CONFIRMED, DayStage } from "./day-stage";
 import { shownDayOf, wholeInPlaceOf, type EndedDay } from "./shown-day";
+import type { StartExcerpt } from "./start-excerpt";
 import { startOffersOf } from "./start-offers";
 import { keptKeyOf, type KeptLanding } from "./kept-day";
 import type { StartReader, StartResult } from "./written-reader";
@@ -411,6 +413,8 @@ export interface DayStart {
   pool: readonly WrittenGist[];
   /** Reads the visitor's text into a request or a question. */
   read: StartReader;
+  /** A written day's first stops, still, under the start screen's ways in. */
+  excerpt?: StartExcerpt | null;
 }
 
 /** What a page around the day can ask of it. */
@@ -992,6 +996,7 @@ export function Day({
   });
   /** The box of the header's room on screen, whose height a day played from it keeps. */
   const room = useRef<HTMLDivElement>(null);
+  const isFirstImpression = useFirstImpression();
   // A copy each time, so playing the same request again is a run of its own. The same city
   // keeps the cities its name could mean, as a word changed or a replay plays it again;
   // another city drops them, unless the day is another of them (`played`), or an intake has
@@ -1058,7 +1063,7 @@ export function Day({
     const fromValue = day ? day.facts[key].value : (shownRequest?.[key] ?? null);
     const toValue = ask.request[key];
     if (toValue === null) return null;
-    const from = wordLabelOf(key, fromValue);
+    const from = wordLabelOf(key, fromValue, isFirstImpression);
     return {
       run: asked.run,
       word: key,
@@ -1887,6 +1892,8 @@ export function Day({
             }}
             onEvent={events.send}
             onDayAct={events.act}
+            onDayAnswer={events.answer}
+            dayAnswered={events.answered}
             // The chart's invitation to drag shows once a page load, not on each day that lands
             // here nor again after a client navigation away and back (`useInvitation`).
             invitationMemory={PAGE_INVITATION_MEMORY}
@@ -1899,6 +1906,7 @@ export function Day({
         <div className="mx-auto flex min-h-svh max-w-page flex-col px-4 md:px-10 lg:px-16">
           <main className="grow">
             <StartHeader
+              excerpt={start?.excerpt ?? null}
               starts={starts}
               line={line}
               text={text}
@@ -1989,8 +1997,14 @@ function keptLandingOf(kept: KeptLanding, run: number, isWhole: boolean): Asked 
 }
 
 /** A word as the sentence says it: its answer's label, or its open question's cue. */
-function wordLabelOf(key: AssumableFactKey, value: string | null): string {
-  return optionOf({ options: FACT_OPTIONS[key] }, value)?.label ?? ASKED_LABELS[key];
+function wordLabelOf(
+  key: AssumableFactKey,
+  value: string | null,
+  isFirstImpression: boolean,
+): string {
+  return (
+    optionOf({ options: FACT_OPTIONS[key] }, value)?.label ?? askedLabelsOf(isFirstImpression)[key]
+  );
 }
 
 /** A city an answer would play a day in, with the cities its name could mean. */

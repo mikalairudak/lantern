@@ -3,7 +3,9 @@ import { Suspense } from "react";
 import { START_ADDRESS } from "@/lib/days/address";
 import { StartDay } from "@/features/day/start-day";
 import { shownPool } from "@/features/day/written-pool";
+import { isFirstImpression } from "@/lib/first-impression";
 import { isLiveNow } from "@/lib/live/live-now";
+import { startExcerptOf } from "@/features/day/start-excerpt";
 import { listedPageMetadata, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = listedPageMetadata(START_ADDRESS, {
@@ -32,5 +34,13 @@ async function LiveStartDay() {
   // Read once the visit has arrived (`isLiveNow`), so the clock that picks each day's season is
   // the visit's, never the build's.
   const isLive = await isLiveNow();
-  return <StartDay pool={shownPool(new Date())} isLive={isLive} isCounted />;
+  const now = new Date();
+  return (
+    <StartDay
+      pool={shownPool(now)}
+      excerpt={isFirstImpression(process.env) ? startExcerptOf(now) : null}
+      isLive={isLive}
+      isCounted
+    />
+  );
 }

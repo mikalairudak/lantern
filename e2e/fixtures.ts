@@ -1,6 +1,7 @@
 import { test as base } from "@playwright/test";
 
 export * from "@playwright/test";
+export { waitMs } from "./ci-wait";
 
 /**
  * How many times slower each page's CPU runs, from `E2E_CPU_RATE`; unset, it runs as it is.

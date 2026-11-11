@@ -1,6 +1,6 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { expect, test, type Page, type Route } from "./fixtures";
+import { expect, test, type Page, type Route, waitMs } from "./fixtures";
 import { NAFPLIO_START_REQUEST } from "../src/lib/days/written/quick-starts";
 
 /**
@@ -18,7 +18,7 @@ const DAY_ROUTE = "**/api/day";
  * The bench's first day has its stops by about 4 s at ten times the pace and rests about
  * 8 s in; a cold server adds a few.
  */
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 const WORD = "with family";
 const REPLANNING = `re-planning the day for “${WORD}”`;
 /** What the fork row says of a whole day that ended without one, by why (`replanEndedOf`). */
@@ -328,62 +328,65 @@ test.describe("with motion", () => {
     });
   });
 
-  test("a re-plan that streams takes the page, its chart gliding to its place", async ({
-    page,
-    isMobile,
-  }) => {
-    await openLiveBench(page);
-    // Answered with another day, whose header is of another height on a phone.
-    await page.route(DAY_ROUTE, (route) =>
-      route.continue({ postData: JSON.stringify(NAFPLIO_START_REQUEST) }),
-    );
-    const from = await page.evaluate(() => window.chartTops.length);
+  test(
+    "a re-plan that streams takes the page, its chart gliding to its place",
+    { tag: "@frame" },
+    async ({ page, isMobile }) => {
+      await openLiveBench(page);
+      // Answered with another day, whose header is of another height on a phone.
+      await page.route(DAY_ROUTE, (route) =>
+        route.continue({ postData: JSON.stringify(NAFPLIO_START_REQUEST) }),
+      );
+      const from = await page.evaluate(() => window.chartTops.length);
 
-    await changeWord(page, "with friends", /with family/);
-    await takeProposal(page, "with family");
+      await changeWord(page, "with friends", /with family/);
+      await takeProposal(page, "with family");
 
-    // The day before stands, rows and words, until the new day is whole and taken, and the new
-    // day lands whole in one pass: its stops with it, and the chart's way is the header's room,
-    // which glides from the day before's room to its own as it lands, over about 0.5 s.
-    await expect(page.getByText(NAFPLIO_FIRST_PLACE, { exact: true }).first()).toBeVisible({
-      timeout: DAY_TIMEOUT_MS,
-    });
-    const landed = await page.evaluate(() => window.chartTops.length);
-    // Measured once it rests after the landing's glide: as the stops land, the chart still
-    // stands where the day before had it, so a rest read then is no rest.
-    await expect
-      .poll(
-        () =>
-          page.evaluate(
-            ({ frames, still, since, glide }) => {
-              const last = window.chartTops.slice(-frames);
-              const first = last[0];
-              return (
-                window.chartTops.length - since >= glide &&
-                last.length === frames &&
-                first != null &&
-                last.every((top) => top !== null && Math.abs(top - first) < still)
-              );
-            },
-            { frames: REST_FRAMES, still: STILL_PX, since: landed, glide: LANDING_GLIDE_FRAMES },
-          ),
-        { timeout: DAY_TIMEOUT_MS },
-      )
-      .toBe(true);
-    const tops = (await page.evaluate(() => window.chartTops))
-      .slice(from)
-      .filter((top): top is number => top !== null);
-    const moves = tops.slice(1).map((top, index) => top - (tops[index] ?? top));
-    const way = Math.abs((tops.at(-1) ?? 0) - (tops[0] ?? 0));
-    const largest = Math.max(0, ...moves.map(Math.abs));
-    // On a laptop the two headers are one height; on a phone the new one is taller.
-    if (isMobile) expect(way).toBeGreaterThan(PHONE_WAY_PX);
-    // The whole way in one frame is a step; a glide spreads it over its frames.
-    if (way > STILL_PX)
-      expect(largest, `the chart's way: ${way} px`).toBeLessThanOrEqual(way * GLIDE_SHARE);
-    else expect(largest).toBeLessThanOrEqual(STILL_PX);
-  });
+      // The day before stands, rows and words, until the new day is whole and taken, and the new
+      // day lands whole in one pass: its stops with it, and the chart's way is the header's room,
+      // which glides from the day before's room to its own as it lands, over about 0.5 s.
+      await expect(page.getByText(NAFPLIO_FIRST_PLACE, { exact: true }).first()).toBeVisible({
+        timeout: DAY_TIMEOUT_MS,
+      });
+      const landed = await page.evaluate(() => window.chartTops.length);
+      // Measured once it rests after the landing's glide: as the stops land, the chart still
+      // stands where the day before had it, so a rest read then is no rest.
+      await expect
+        .poll(
+          () =>
+            page.evaluate(
+              ({ frames, still, since, glide }) => {
+                const last = window.chartTops.slice(-frames);
+                const first = last[0];
+                return (
+                  window.chartTops.length - since >= glide &&
+                  last.length === frames &&
+                  first != null &&
+                  last.every((top) => top !== null && Math.abs(top - first) < still)
+                );
+              },
+              { frames: REST_FRAMES, still: STILL_PX, since: landed, glide: LANDING_GLIDE_FRAMES },
+            ),
+          { timeout: DAY_TIMEOUT_MS },
+        )
+        .toBe(true);
+      const tops = (await page.evaluate(() => window.chartTops))
+        .slice(from)
+        .filter((top): top is number => top !== null);
+      const moves = tops.slice(1).map((top, index) => top - (tops[index] ?? top));
+      const way = Math.abs((tops.at(-1) ?? 0) - (tops[0] ?? 0));
+      const largest = Math.max(0, ...moves.map(Math.abs));
+      // On a laptop the two headers are one height; on a phone the new one is taller.
+      if (isMobile) expect(way).toBeGreaterThan(PHONE_WAY_PX);
+      // The whole way in one frame is a step; a glide spreads it over its frames.
+      if (way > STILL_PX)
+        expect(largest, `the chart's way: ${way} px`).toBeLessThanOrEqual(way * GLIDE_SHARE);
+      else expect(largest).toBeLessThanOrEqual(STILL_PX);
+    },
+  );
 
+  // It reads the chart's frames too, but it is about a slow server's empty day asked for again,
+  // so it runs on every pull request, outside `@frame` (docs/harness.md, "End-to-end").
   test("a first day that comes back empty holds its place while it is asked for again", async ({
     page,
   }) => {

@@ -1,4 +1,5 @@
 // With their extensions, since `scripts/events-report.mts` runs this file through Node directly.
+import type { DayAnswer } from "./event.schema";
 import { runReport, type ReportCommand, type ReportSection } from "../db/report.ts";
 
 export type { ReportCommand } from "../db/report.ts";
@@ -6,8 +7,8 @@ export type { ReportCommand } from "../db/report.ts";
 /**
  * `pnpm events:report [--environment production] [--days 30]`: prints the product's counts
  * for one environment over the last days, in UTC: the way from the start screen to a day taken
- * along, the days taken along by way in and by view, the days opened by city, how they were
- * reached, how attempts ended, whether visitors waited, the gestures, the days taken along,
+ * along, the days taken along by way in and by view, the days answered by view, the days opened
+ * by city, how they were reached, how attempts ended, whether visitors waited, the gestures, the days taken along,
  * the days opened again and the cities Lantern could not do. It reads the database as
  * `pnpm db:migrate` does, and reads only, inside a read-only transaction
  * (`src/lib/db/report.ts`).
@@ -57,6 +58,15 @@ function visitorsOf(group: string, whole: string, parts: Record<string, string>)
     SELECT DISTINCT whole.${group}, whole.utc_day, whole.visitor_key, ${flags.join(", ")}
     FROM product_events AS whole
     WHERE whole.environment = $1 AND whole.utc_day >= $2::date AND whole.kind = '${whole}'`;
+}
+
+/** Whether the visitor of the row `base` answered the day's end `answer` in `base`'s view and day. */
+function answeredIn(base: string, answer: DayAnswer): string {
+  return `EXISTS (
+    SELECT 1 FROM product_events AS also
+    WHERE also.environment = $1 AND also.utc_day = ${base}.utc_day
+      AND also.visitor_key = ${base}.visitor_key AND also.view = ${base}.view
+      AND also.kind = 'day-answered' AND also.answer = '${answer}')`;
 }
 
 /** What a group is called whose events were kept before they said it. */
@@ -114,6 +124,30 @@ export const EVENT_TABLE_SECTIONS: readonly ReportSection[] = [
         GROUP BY 1
       ) AS views
       ORDER BY ended DESC, taken DESC, view`,
+  },
+  {
+    title: `Days answered, by view (visitors whose day ended in that view, and of them who answered "Would you follow this day?"; a share of yes from ${SHARE_MIN_VISITORS} answers)`,
+    columns: ["view", "ended", "answered", "yes", "not quite", "yes share"],
+    text: `
+      SELECT view, ended, answered, yes, not_quite AS "not quite",
+        ${shareOf("yes", "answered")} AS "yes share" FROM (
+        SELECT coalesce(view, ${NOT_TOLD}) AS view, count(*)::integer AS ended,
+          (count(*) FILTER (WHERE said_yes OR said_not_quite))::integer AS answered,
+          (count(*) FILTER (WHERE said_yes))::integer AS yes,
+          (count(*) FILTER (WHERE said_not_quite))::integer AS not_quite
+        -- A visitor once a UTC day in the view their day ended in, as "taken along" counts, with
+        -- whether they answered yes and whether not quite in that view. No time of day is kept,
+        -- so a visitor who answered both ways that day counts in both, never past the whole.
+        FROM (
+          SELECT DISTINCT whole.view, whole.utc_day, whole.visitor_key,
+            ${answeredIn("whole", "yes")} AS said_yes,
+            ${answeredIn("whole", "not-quite")} AS said_not_quite
+          FROM product_events AS whole
+          WHERE whole.environment = $1 AND whole.utc_day >= $2::date AND whole.kind = 'day-ended'
+        ) AS visitors
+        GROUP BY 1
+      ) AS views
+      ORDER BY ended DESC, answered DESC, view`,
   },
   {
     title: "Days opened, by city (a visitor counts once a UTC day)",

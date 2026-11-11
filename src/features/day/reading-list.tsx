@@ -26,6 +26,9 @@ import { isQuarterNamed } from "@/features/abacus/quarter";
 import type { DayContext } from "@/lib/geo/sun";
 import { formatClock, runningSpans } from "@/lib/time/clock";
 import { ROW_REACH_PX, SPRINGS } from "@/lib/tokens/motion";
+import { useFirstImpression } from "./first-impression";
+import { VersionCarousel } from "./version-carousel";
+import { isGoldenAt, LightRail, sunLinesOf, sunsOf, SunLine } from "./light-rail";
 import { TARGET_CLASSES } from "./link-classes";
 
 /**
@@ -88,6 +91,9 @@ interface ReadingListProps {
   onGlide?: (isGliding: boolean) => void;
 }
 
+/** The list's name, which a screen reader hears and the page finds it by. */
+export const READING_LIST_LABEL = "The day, to read";
+
 const NO_STOPS: ReadonlySet<string> = new Set();
 /** Marks each row by its stop's id, so a fork row's new place is found by its stop. */
 const STOP_ATTRIBUTE = "data-stop";
@@ -98,6 +104,13 @@ const GUTTER_PX = 48;
 const GUTTER_GAP_PX = 16;
 
 const ROW_CLASSES = "flex gap-4 border-t border-line py-4 group-first:border-t-0";
+/**
+ * The plan's row under the first impression: no rule between rows, the rail between the time
+ * and the words doing that work, and the words' own room under them, so the rail runs on.
+ */
+const RAIL_ROW_CLASSES = "flex gap-3";
+/** On the plan the words start after the gutter, the rail and two gaps: `w-12`, `w-2`, `gap-3`. */
+const RAIL_WORDS_LEFT_PX = 48 + 8 + 12 * 2;
 const GUTTER_CLASSES = "w-12 shrink-0 pt-0.5 type-time tabular-nums";
 const NAME_CLASSES = "self-start rounded-sm type-name focus-ring";
 /** A version to swap in: the swap's colour, its underline dotted, a target 24 px tall. */
@@ -136,15 +149,29 @@ export function ReadingList({
   const names = useRef(new Map<string, HTMLHeadingElement>());
   // Rows a new energy changes together glide as one, in about 1.5 s.
   const [glideGroup] = useState(createGlideGroup);
-  const glideOf = useGlidesTold(onGlide);
   const drawing = useDrawing();
+  const isRail = useFirstImpression();
+  // On the plan the list says it is written once its rows are at rest too, so the last row's
+  // final form, its versions come in, is part of the day written rather than after it. Off the
+  // plan it renders nothing more for its glides.
+  const [isGliding, setIsGliding] = useState(false);
+  const glideOf = useGlidesTold((isNow) => {
+    if (isRail) setIsGliding(isNow);
+    onGlide?.(isNow);
+  });
+  const sunLines = isRail ? sunLinesOf(sunsOf(daylight), spans, isWritten) : [];
+  // The first stop on the plan with a version to swipe to leans once, when the day is whole.
+  const firstSwappable = shown.findIndex(
+    ({ stop }) =>
+      versionsShown.has(stop.id) && !proposed.has(stop.id) && stop.alternatives.length > 0,
+  );
   const list = useRef<HTMLOListElement>(null);
   const noteFocus = useForkFocusKept(list, fork?.anchors ?? NO_ANCHORS);
   return (
     <ol
       ref={list}
-      aria-label="The day, to read"
-      aria-busy={!isWritten}
+      aria-label={READING_LIST_LABEL}
+      aria-busy={!isWritten || (isRail && isGliding)}
       className="flex flex-col"
       onFocus={noteFocus}
     >
@@ -180,7 +207,7 @@ export function ReadingList({
                           index={fork.anchors.indexOf(stop.id)}
                           count={fork.anchors.length}
                           timeWidth={GUTTER_PX}
-                          wordsLeft={GUTTER_PX + GUTTER_GAP_PX}
+                          wordsLeft={isRail ? RAIL_WORDS_LEFT_PX : GUTTER_PX + GUTTER_GAP_PX}
                           drawing={drawing}
                           lineAt="under"
                           onChoose={fork.onChoose}
@@ -192,7 +219,14 @@ export function ReadingList({
                   </Fold>
                 )}
               </AnimatePresence>
+              {isRail &&
+                (sunLines[at]?.lead ?? []).map(({ sun, to }) => (
+                  <SunLine key={sun.word} daylight={daylight} sun={sun} to={to} />
+                ))}
               <ReadingRow
+                railTo={isRail ? (sunLines[at]?.railTo ?? 0) : null}
+                onPick={onChoose && ((candidate) => onChoose(index, candidate))}
+                isNudged={isWritten && at === firstSwappable}
                 stop={stop}
                 span={spans[at] ?? { from: 0, to: 0 }}
                 pick={picks[index] ?? 0}
@@ -215,6 +249,10 @@ export function ReadingList({
                   })
                 }
               />
+              {isRail &&
+                (sunLines[at]?.trail ?? []).map(({ sun, to }) => (
+                  <SunLine key={sun.word} daylight={daylight} sun={sun} to={to} />
+                ))}
             </Fold>
           </li>
         ))}
@@ -302,6 +340,8 @@ function useGlidesTold(
 }
 
 interface ReadingRowProps {
+  /** On the plan, where the rail beside this stop runs to: the next stop's start, or its end. */
+  railTo: number | null;
   stop: StopDraft;
   span: { from: number; to: number };
   pick: number;
@@ -318,10 +358,15 @@ interface ReadingRowProps {
   onGlide: (isGliding: boolean) => void;
   nameRef: Ref<HTMLHeadingElement>;
   onChoose?: (candidateIndex: number) => void;
+  /** On the plan, a version taken by the carousel, which keeps the focus where it is. */
+  onPick?: (candidateIndex: number) => void;
+  /** On the plan, the first stop that can swipe leans once to show it. */
+  isNudged?: boolean;
 }
 
 /** One stop: its time, its name and sun, what and where until when, its line, its versions. */
 function ReadingRow({
+  railTo,
   stop,
   span,
   pick,
@@ -334,6 +379,8 @@ function ReadingRow({
   onGlide,
   nameRef,
   onChoose,
+  onPick,
+  isNudged = false,
 }: ReadingRowProps) {
   const candidates = candidatesOf(stop);
   const shown = candidates[pick] ?? stop.primary;
@@ -364,6 +411,35 @@ function ReadingRow({
     .filter(({ candidate }) => candidate !== pick);
   // Versions let in after the row was drawn are written in; those it came in with, with it.
   const [isVersionsFirst] = useState(isVersionsShown);
+  // On the plan a stop swipes along its versions, once they are written; the line of them goes.
+  // Drawn from the moment its versions are written, waiting until the day can be changed, so the
+  // stop's form never changes as the day is done.
+  const isCarousel = railTo !== null && isVersionsShown && !isProposed && others.length > 0;
+  const words = (
+    <>
+      {/* Focused after a swap, ringed as the product's buttons are, round its name. */}
+      <h2 ref={nameRef} tabIndex={-1} className={NAME_CLASSES}>
+        <PennedText text={name} written={afterTime} isActive={false} />
+        {light && (
+          <BestLightIcon
+            light={light}
+            className={cn(
+              "ml-2 inline-block align-middle text-lamp",
+              afterTime < name.length && "invisible",
+            )}
+          />
+        )}
+      </h2>
+      <p className="type-note text-muted">
+        <PennedText text={what} written={afterName} isActive={false} />
+      </p>
+      {summary !== "" && (
+        <p className="mt-0.5 type-prose text-ink-soft">
+          <PennedText text={summary} written={afterWhat} isActive={false} />
+        </p>
+      )}
+    </>
+  );
   return (
     // A swap, or versions let in, changes the row's height: the rows below glide.
     <GlidingHeight
@@ -372,46 +448,94 @@ function ReadingRow({
       shouldAlwaysReach
       glideGroup={glideGroup}
       onGlide={onGlide}
+      // On the plan a row wholly above the screen takes its new height with the page scrolled
+      // by as much in the same write, so a change of the day's energy halfway down never moves
+      // the rows in view; only those in view glide.
+      shouldHoldTheView={railTo !== null}
     >
-      <div className={cn(ROW_CLASSES, isProposed ? "text-swap" : "text-ink")}>
-        <span className={cn(GUTTER_CLASSES, isProposed ? "text-swap" : "text-muted")}>
+      <div
+        className={cn(
+          railTo === null ? ROW_CLASSES : RAIL_ROW_CLASSES,
+          isProposed ? "text-swap" : "text-ink",
+        )}
+      >
+        <span
+          className={cn(
+            GUTTER_CLASSES,
+            isProposed
+              ? "text-swap"
+              : railTo !== null && isGoldenAt(daylight, span.from)
+                ? "text-amber"
+                : "text-muted",
+          )}
+        >
           <PennedText text={time} written={written} isActive={false} />
           {/* Under its time: it takes no room from the row's words. */}
           {isProposed && <span className={cn("block", MARK_CLASSES)}>proposed</span>}
         </span>
-        <div className="flex min-w-0 flex-col gap-1">
-          {/* Focused after a swap, ringed as the product's buttons are, round its name. */}
-          <h2 ref={nameRef} tabIndex={-1} className={NAME_CLASSES}>
-            <PennedText text={name} written={afterTime} isActive={false} />
-            {light && (
-              <BestLightIcon
-                light={light}
-                className={cn(
-                  "ml-2 inline-block align-middle text-lamp",
-                  afterTime < name.length && "invisible",
-                )}
-              />
-            )}
-          </h2>
-          <p className="type-note text-muted">
-            <PennedText text={what} written={afterName} isActive={false} />
-          </p>
-          {summary !== "" && (
-            <p className="mt-0.5 type-prose text-ink-soft">
-              <PennedText text={summary} written={afterWhat} isActive={false} />
-            </p>
-          )}
-          {isVersionsShown && !isProposed && others.length > 0 && (
-            <VersionsLine
+        {railTo !== null && (
+          <LightRail
+            daylight={daylight}
+            from={span.from}
+            to={railTo}
+            hasBead
+            // The bead and its rail come with the stop's time, as the pen writes it.
+            className={cn(written < time.length && "invisible")}
+          />
+        )}
+        <div className={cn("flex min-w-0 flex-col gap-1", railTo !== null && "pb-6")}>
+          {isCarousel ? (
+            <VersionCarousel
               stop={stop}
-              others={others}
-              isPenned={isPenned || !isVersionsFirst}
-              onChoose={onChoose}
-            />
+              pick={pick}
+              name={name}
+              onPick={onPick}
+              isNudged={isNudged}
+              renderVersion={(candidate) => (
+                <VersionWords place={candidates[candidate] ?? stop.primary} span={span} />
+              )}
+            >
+              {words}
+            </VersionCarousel>
+          ) : (
+            <>
+              {words}
+              {isVersionsShown && !isProposed && others.length > 0 && (
+                <VersionsLine
+                  stop={stop}
+                  others={others}
+                  isPenned={isPenned || !isVersionsFirst}
+                  onChoose={onChoose}
+                />
+              )}
+            </>
           )}
         </div>
       </div>
     </GlidingHeight>
+  );
+}
+
+/**
+ * A version's words as it waits beside its stop on the plan: its name, what and where, and its
+ * line, as the row would say them once it is taken, with no pen.
+ */
+function VersionWords({ place, span }: { place: PlaceDraft; span: { from: number; to: number } }) {
+  const name = place.name ?? "";
+  const quarter = place.neighborhood ?? "";
+  const what = [
+    kindWordOf(place.kind, span.from),
+    quarter !== "" && !isQuarterNamed(name, quarter) ? quarter : null,
+    `until ${formatClock(span.to)}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <>
+      <p className="type-name">{name}</p>
+      <p className="type-note text-muted">{what}</p>
+      {place.summary && <p className="mt-0.5 type-prose text-ink-soft">{place.summary}</p>}
+    </>
   );
 }
 

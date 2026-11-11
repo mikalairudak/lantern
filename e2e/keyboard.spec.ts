@@ -1,7 +1,7 @@
-import { expect, test, type Locator, type Page } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
 
 /** The route lands a written day in about twelve seconds; a cold server adds a few. */
-const DAY_TIMEOUT_MS = 30_000;
+const DAY_TIMEOUT_MS = waitMs(30_000);
 const CURVE_NAME = "drag the curve";
 /**
  * Lantern promises 390 px and up; a 320 px phone is a fall-back that must still read, so the
