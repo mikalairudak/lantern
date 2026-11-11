@@ -26,7 +26,11 @@ import {
 import { intakeCasesFor, LIVE_INTAKE_GATE } from "./intake-round";
 
 const LIVELY_KANAZAWA: DayRequest = { ...KANAZAWA_START_REQUEST, energy: "lively" };
-const PARIS: DayRequest = { ...KANAZAWA_START_REQUEST, city: "Paris", timezone: "Europe/Paris" };
+const MARSEILLE: DayRequest = {
+  ...KANAZAWA_START_REQUEST,
+  city: "Marseille",
+  timezone: "Europe/Paris",
+};
 const TEN_DAYS = Array.from({ length: 10 }, (_, index) => ({
   ...LIVELY_KANAZAWA,
   date: `2026-11-${String(index + 10)}`,
@@ -50,14 +54,14 @@ describe("planRound", () => {
   it("leaves out what a written day answers, and signs a city Lantern has not written", () => {
     expect(dayKindOf(KANAZAWA_START_REQUEST)).toBe("written");
     expect(dayKindOf(LIVELY_KANAZAWA)).toBe("live");
-    expect(dayKindOf(PARIS)).toBe("live");
+    expect(dayKindOf(MARSEILLE)).toBe("live");
     expect(needsSignature(LIVELY_KANAZAWA)).toBe(false);
-    expect(needsSignature(PARIS)).toBe(true);
+    expect(needsSignature(MARSEILLE)).toBe(true);
     // A day written by hand is no day of the site's: its request goes to the model, signed.
     expect(dayKindOf(KYOTO_REQUEST)).toBe("live");
     expect(needsSignature(KYOTO_REQUEST)).toBe(true);
 
-    const plan = planRound([], [KANAZAWA_START_REQUEST, LIVELY_KANAZAWA, PARIS]);
+    const plan = planRound([], [KANAZAWA_START_REQUEST, LIVELY_KANAZAWA, MARSEILLE]);
     expect(plan).toMatchObject({ intakeCalls: 0, liveDays: 2, writtenDays: 1, signedDays: 1 });
     expect(planReport(plan).join("\n")).not.toContain("Intake:");
     expect(planReport(plan)[1]).toContain(

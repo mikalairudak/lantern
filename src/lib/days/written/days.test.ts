@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { LISBON_REQUEST } from "@/lib/fixtures/curated/requests";
 import { daySlugOf } from "../address";
-import { START_PLACE_CHECKS } from "./checks";
+import { writtenChecksOf } from "./checks";
 import {
   normalizedDayOn,
   shownWrittenDayAt,
@@ -12,7 +12,6 @@ import {
 } from "./days";
 import { firstStartOf, WRITTEN_REQUESTS } from "./requests";
 import { shownDateOf } from "./shown-date";
-import { START_DAYS } from "./start-days";
 import { writtenVersionOf } from "./version";
 
 describe("writtenDayAt", () => {
@@ -28,7 +27,7 @@ describe("writtenDayAt", () => {
   });
 
   it("has no day at a city Lantern has not written, nor at a city spelled as asked", () => {
-    expect(writtenDayAt("paris")).toBeNull();
+    expect(writtenDayAt("vienna")).toBeNull();
     expect(writtenDayAt(LISBON_REQUEST.city)).toBeNull();
   });
 });
@@ -41,7 +40,7 @@ const INSTANTS = [
   "2026-11-15T22:00:00Z",
 ].map((instant) => new Date(instant));
 
-describe.each(WRITTEN_REQUESTS.map((request, index) => [request, START_DAYS[index]!] as const))(
+describe.each(WRITTEN_REQUESTS.map((request, index) => [request, WRITTEN_DAYS[index]!] as const))(
   "the written day in $city, in its one open season",
   (request, start) => {
     const slug = daySlugOf(request);
@@ -52,7 +51,7 @@ describe.each(WRITTEN_REQUESTS.map((request, index) => [request, START_DAYS[inde
         ...normalizedDayOn(start, date),
         // The version the page worked out from the day on its own date.
         version: writtenVersionOf(writtenDayAt(slug)!.itinerary),
-        checks: START_PLACE_CHECKS[request.city],
+        checks: writtenChecksOf(request.city),
       });
     });
 

@@ -6,9 +6,10 @@ import type { WrittenGist } from "./day";
 import { shownEnergiesOf } from "./day-shape";
 
 /**
- * The days Lantern has written, the quick starts', as the start screen needs them: each start's
- * words, with the facts and shape of one season of its day. A page calls it on the server, so
- * the client gets each day's words and shape without the normalizer or the days themselves.
+ * Every day Lantern has written, the quick starts' and the city days', as the start screen needs
+ * them: each day's words, with the facts and shape of one season of it. A page calls it on the
+ * server, so the client gets each day's words and shape without the normalizer or the days
+ * themselves.
  */
 function poolOf(seasonAt: (slug: string) => WrittenSeason | null): WrittenGist[] {
   return WRITTEN_REQUESTS.map((request) => {

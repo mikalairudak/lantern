@@ -1,7 +1,7 @@
 "use client";
 
 import { CellNote, StillNote, useStill } from "@/features/itinerary/use-still";
-import { WRITTEN_REQUESTS } from "@/lib/days/written/requests";
+import { START_REQUESTS } from "@/lib/days/written/quick-starts";
 import {
   HEADER_DAYS,
   stillOf,
@@ -59,7 +59,7 @@ export function DayStageHeaderCell({ day, moment }: DayStageHeaderCellProps) {
       {...AT_REST}
       readings={chosen.readings}
       playedReading={chosen.playedReading}
-      written={WRITTEN_REQUESTS}
+      written={START_REQUESTS}
     />
   );
 }

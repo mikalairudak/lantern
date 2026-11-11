@@ -5,7 +5,7 @@ import { WRITTEN_REQUESTS } from "@/lib/days/written/requests";
 import { shownPool, writtenPool } from "./written-pool";
 
 describe("writtenPool", () => {
-  it("hands over every written day's words and shape, in the order the starts offer them", () => {
+  it("hands over every written day's words and shape, in the order of the written requests", () => {
     const pool = writtenPool();
 
     expect(pool.map(({ request }) => request)).toEqual(WRITTEN_REQUESTS);

@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { KYOTO_REQUEST } from "@/lib/fixtures/curated/requests";
 import { KANAZAWA_START_DAY } from "@/lib/days/written/kanazawa";
-import { BOLOGNA_START_REQUEST, KANAZAWA_START_REQUEST } from "@/lib/days/written/quick-starts";
-import { WRITTEN_REQUESTS } from "@/lib/days/written/requests";
+import {
+  BOLOGNA_START_REQUEST,
+  KANAZAWA_START_REQUEST,
+  START_REQUESTS,
+} from "@/lib/days/written/quick-starts";
 import { normalizeDay } from "@/lib/normalizer/normalize";
 import type { DayRequest, Itinerary } from "@/lib/schema/itinerary.schema";
 import type { DayOutcome } from "@/lib/stream/outcome";
@@ -25,7 +28,7 @@ const PARIS: DayRequest = { ...KANAZAWA_START_REQUEST, city: "Paris", timezone: 
 /** Kanazawa, but not the request its day was written for: the route has no day for it either. */
 const LIVELY_KANAZAWA: DayRequest = { ...KANAZAWA_START_REQUEST, energy: "lively" };
 /** The written days a notice over Kanazawa's offers: every one but its own. */
-const BESIDES_KANAZAWA = WRITTEN_REQUESTS.filter((request) => request !== KANAZAWA_START_REQUEST);
+const BESIDES_KANAZAWA = START_REQUESTS.filter((request) => request !== KANAZAWA_START_REQUEST);
 
 function kanazawaDay(): Itinerary {
   const written = normalizeDay(KANAZAWA_START_REQUEST, KANAZAWA_START_DAY.day);
@@ -104,9 +107,9 @@ describe("how a day ended", () => {
       },
     });
     // A day no one has written leaves every offered day to offer; an offered one, the others.
-    expect(endingOf({ kind: "refused" }, PARIS).notice?.written).toEqual(WRITTEN_REQUESTS);
+    expect(endingOf({ kind: "refused" }, PARIS).notice?.written).toEqual(START_REQUESTS);
     expect(endingOf({ kind: "refused" }, BOLOGNA_START_REQUEST).notice?.written).toEqual(
-      WRITTEN_REQUESTS.slice(1),
+      START_REQUESTS.slice(1),
     );
   });
 
@@ -133,7 +136,7 @@ describe("how a day ended", () => {
       notice: { kind: "busy", text: BUSY, retry: WRITE_IT_AGAIN, written: [] },
     });
 
-    const notYet = { kind: "not-yet", text: NOT_WRITING_YET, written: WRITTEN_REQUESTS };
+    const notYet = { kind: "not-yet", text: NOT_WRITING_YET, written: START_REQUESTS };
     expect(endingOf({ kind: "unavailable" }, PARIS).notice).toEqual(notYet);
     // Kanazawa at another energy is a day no one has written.
     expect(endingOf({ kind: "unavailable" }, LIVELY_KANAZAWA).notice).toEqual(notYet);
@@ -162,7 +165,7 @@ describe("how a day ended", () => {
     expect(endingOf({ kind: "limited" })).toEqual({
       ended: null,
       phase: "not-yet",
-      notice: { kind: "resting", text: RESTING, written: WRITTEN_REQUESTS },
+      notice: { kind: "resting", text: RESTING, written: START_REQUESTS },
     });
   });
 });

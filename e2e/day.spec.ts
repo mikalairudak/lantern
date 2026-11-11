@@ -280,7 +280,7 @@ const WRITTEN_DAYS = [
 // A 404 from the first visit: an address under /day that names no day is rewritten to no page
 // before the route could send its shell with a 200 (`notADaySource`).
 for (const [what, address] of [
-  ["a city Lantern has not written", "/day/paris"],
+  ["a city Lantern has not written", "/day/vienna"],
   ["a city written with an accent", "/day/caf%C3%A9"],
   ["an address Lantern does not have", "/nope"],
   // The days written by hand are fixtures, no days of the site's (`docs/decisions.md`, "The public

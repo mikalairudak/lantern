@@ -8,6 +8,22 @@ import { MADRID_START_DAY } from "./madrid";
 import { NAFPLIO_START_DAY } from "./nafplio";
 import { PORTO_START_DAY } from "./porto";
 import { UTRECHT_START_DAY } from "./utrecht";
+import {
+  AMSTERDAM_REQUEST,
+  BARCELONA_REQUEST,
+  NEW_YORK_REQUEST,
+  PARIS_REQUEST,
+  ROME_REQUEST,
+  SEOUL_REQUEST,
+  TOKYO_REQUEST,
+} from "./city-days";
+import { AMSTERDAM_DAY } from "./amsterdam";
+import { BARCELONA_DAY } from "./barcelona";
+import { NEW_YORK_DAY } from "./new-york";
+import { PARIS_DAY } from "./paris";
+import { ROME_DAY } from "./rome";
+import { SEOUL_DAY } from "./seoul";
+import { TOKYO_DAY } from "./tokyo";
 
 /**
  * A written day as it streams: with the end Lantern assumed said as the one its hours keep,
@@ -49,6 +65,20 @@ export const START_SEASONS: readonly (readonly WrittenSeason[])[] = [
   [seasonOf("2026-11-14", MADRID_START_DAY)],
   [seasonOf("2026-11-08", UTRECHT_START_DAY)],
   [seasonOf("2026-11-07", NAFPLIO_START_DAY)],
+];
+
+/**
+ * The city days' seasons, in the order of `CITY_DAYS`, each one open-ended from the date its day
+ * was written for, held by the same tests as the starts'.
+ */
+export const CITY_SEASONS: readonly (readonly WrittenSeason[])[] = [
+  [seasonOf(PARIS_REQUEST.date, PARIS_DAY)],
+  [seasonOf(TOKYO_REQUEST.date, TOKYO_DAY)],
+  [seasonOf(ROME_REQUEST.date, ROME_DAY)],
+  [seasonOf(NEW_YORK_REQUEST.date, NEW_YORK_DAY)],
+  [seasonOf(AMSTERDAM_REQUEST.date, AMSTERDAM_DAY)],
+  [seasonOf(BARCELONA_REQUEST.date, BARCELONA_DAY)],
+  [seasonOf(SEOUL_REQUEST.date, SEOUL_DAY)],
 ];
 
 /** The starts' days in their first season, each on the start's own request, in the starts' order. */

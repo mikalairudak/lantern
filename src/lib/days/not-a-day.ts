@@ -1,5 +1,6 @@
 import { DAY_ID_PATTERN } from "./stored-day";
 import { daySlugOf } from "./slug";
+import { CITY_REQUESTS } from "./written/city-days";
 import { START_REQUESTS } from "./written/quick-starts";
 
 // Read by next.config.ts, whose loader does not resolve the `@/` alias: relative imports only,
@@ -7,8 +8,8 @@ import { START_REQUESTS } from "./written/quick-starts";
 
 /**
  * Every address under `/day` that can name no day, as a route's `source` for the router to
- * match: one segment that is neither a written day's slug, the starts' (`WRITTEN_REQUESTS`),
- * nor a day's id. A rewrite sends it to the not-found page before anything renders, so it
+ * match: one segment that is neither a written day's slug, the starts' and the city days'
+ * (`WRITTEN_REQUESTS`), nor a day's id. A rewrite sends it to the not-found page before anything renders, so it
  * answers 404 from its first visit: the page itself, for an address outside
  * `generateStaticParams`, sends the route's prerendered shell with a 200 before its
  * `notFound()` has run.
@@ -22,6 +23,6 @@ import { START_REQUESTS } from "./written/quick-starts";
  * the files it writes beside a page (`bologna.rsc`, `bologna.segments`).
  */
 export function notADaySource(): string {
-  const slugs = START_REQUESTS.map(daySlugOf).join("|");
+  const slugs = [...START_REQUESTS, ...CITY_REQUESTS].map(daySlugOf).join("|");
   return `/day/:address((?!(?:${slugs})(?:[.]|$))(?!${DAY_ID_PATTERN}(?:[.]|$))[^/]+)`;
 }

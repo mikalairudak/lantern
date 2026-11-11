@@ -104,7 +104,7 @@ import { useDayEvents } from "./use-day-events";
 import { NO_CONFIRMED, DayStage } from "./day-stage";
 import { shownDayOf, wholeInPlaceOf, type EndedDay } from "./shown-day";
 import type { StartExcerpt } from "./start-excerpt";
-import { startOffersOf } from "./start-offers";
+import { indexOffersOf, startOffersOf } from "./start-offers";
 import { keptKeyOf, type KeptLanding } from "./kept-day";
 import type { StartReader, StartResult } from "./written-reader";
 
@@ -525,8 +525,13 @@ export function Day({
   // for this visit comes after (`LiveFlag`).
   const isLive = useLiveNow(isLiveGiven);
   const isHydrated = useHydrated();
-  // The quick starts the start screen offers, each with the shape of its written day.
-  const starts = useMemo(() => (start ? startOffersOf(start.pool) : []), [start]);
+  const isFirstImpression = useFirstImpression();
+  // The days the start screen offers, each with the shape of its written day: the index's under
+  // the first impression, the quick starts otherwise.
+  const starts = useMemo(() => {
+    if (!start) return [];
+    return isFirstImpression ? indexOffersOf(start.pool) : startOffersOf(start.pool);
+  }, [start, isFirstImpression]);
   // The page's own written day, by the key this device notes it seen by.
   const firstSeenKey =
     first !== undefined && written !== undefined
@@ -996,7 +1001,6 @@ export function Day({
   });
   /** The box of the header's room on screen, whose height a day played from it keeps. */
   const room = useRef<HTMLDivElement>(null);
-  const isFirstImpression = useFirstImpression();
   // A copy each time, so playing the same request again is a run of its own. The same city
   // keeps the cities its name could mean, as a word changed or a replay plays it again;
   // another city drops them, unless the day is another of them (`played`), or an intake has
