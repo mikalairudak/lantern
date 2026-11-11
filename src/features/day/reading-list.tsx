@@ -398,6 +398,10 @@ function ReadingRow({
       shouldAlwaysReach
       glideGroup={glideGroup}
       onGlide={onGlide}
+      // On the plan a row wholly above the screen takes its new height with the page scrolled
+      // by as much in the same write, so a change of the day's energy halfway down never moves
+      // the rows in view; only those in view glide.
+      shouldHoldTheView={railTo !== null}
     >
       <div
         className={cn(

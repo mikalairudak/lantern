@@ -106,8 +106,6 @@ import { useDayExports } from "./day-exports";
 import { takeAlongOf } from "./take-along";
 import { useFirstImpression } from "./first-impression";
 import { PlanBar } from "./plan-energy";
-import { holdFirstRow } from "./hold-row";
-import { READING_LIST_LABEL } from "./reading-list";
 import { progressOf, progressWordsOf } from "./progress";
 import { readDayView, serverDayView, subscribeDayView } from "./view-choice";
 import { DayViewSwitch } from "./view-switch";
@@ -1374,11 +1372,6 @@ export function DayStage({
                   energy={(facts.energy?.value as EnergyLevel | undefined) ?? request.energy}
                   isEnabled={isInteractive}
                   onChoose={(level) => {
-                    // The rows above the reader's take their new heights out of sight.
-                    holdFirstRow(
-                      document.querySelector<HTMLElement>(`[aria-label="${READING_LIST_LABEL}"]`),
-                      planBar.current?.getBoundingClientRect().bottom ?? 0,
-                    );
                     answer({ key: "energy", value: level });
                     countWord("energy");
                   }}
