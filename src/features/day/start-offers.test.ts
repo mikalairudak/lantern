@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { daySlugOf } from "@/lib/days/address";
 import { QUICK_STARTS } from "@/lib/days/written/quick-starts";
+import { INDEX_PICTURES } from "./index-picture-files";
 import { indexOffersOf, startOffersOf } from "./start-offers";
 import { writtenPool } from "./written-pool";
 
@@ -52,6 +53,11 @@ describe("indexOffersOf", () => {
       const written = pool.find(({ request }) => request === offer.request);
       expect(offer.energies).toEqual(written!.energies);
     }
+  });
+
+  it("has an engraving for every day it offers", () => {
+    const slugs = indexOffersOf(writtenPool()).map(({ request }) => daySlugOf(request));
+    expect(slugs.filter((slug) => INDEX_PICTURES[slug] === undefined)).toEqual([]);
   });
 
   it("says which of its days is missing, rather than offer one that cannot open", () => {

@@ -4,9 +4,14 @@ import nextConfig from "../../../next.config";
 import { EVERY_PATH, SECURITY_HEADERS } from "./security-headers";
 
 describe("the headers every response carries", () => {
-  it("are set for every path in the app's config", async () => {
+  it("are set for every path in the app's config, and only the index's pictures add one", async () => {
     expect(await nextConfig.headers?.()).toEqual([
       { source: EVERY_PATH, headers: SECURITY_HEADERS },
+      // Named by a hash of their bytes, so each is kept forever (`index-pictures.ts`).
+      {
+        source: "/pictures/:file*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
     ]);
   });
 

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { COLOR_TOKENS } from "./catalog";
+import { COLOR_TOKENS, ONE_THEME_COLOR_TOKENS } from "./catalog";
 import { themeColor, themeColorsOf } from "./theme-colors";
 
 const stylesheet = readFileSync(new URL("../../app/globals.css", import.meta.url), "utf8");
@@ -9,13 +9,19 @@ const COLORS = themeColorsOf(stylesheet);
 const HEX = /^#[0-9a-f]{6}$/;
 
 describe("themeColorsOf", () => {
-  it("reads every colour the catalog lists, in both themes", () => {
-    for (const { name } of COLOR_TOKENS) {
+  it("reads every colour the catalog lists for both themes, in both themes", () => {
+    for (const { name } of COLOR_TOKENS.filter(
+      ({ name }) => !ONE_THEME_COLOR_TOKENS.includes(name),
+    )) {
       const pair = COLORS.get(name);
       expect(pair, name).toBeDefined();
       expect(pair?.light).toMatch(HEX);
       expect(pair?.dark).toMatch(HEX);
     }
+  });
+
+  it("leaves out a colour drawn in one theme only", () => {
+    for (const name of ONE_THEME_COLOR_TOKENS) expect(COLORS.get(name), name).toBeUndefined();
   });
 
   it("reads only colours declared for both themes", () => {

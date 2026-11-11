@@ -182,6 +182,20 @@ describe("the palette", () => {
     });
   });
 
+  it("draws each of the index's engravings in the page's ink, in its one theme only", () => {
+    const declared = (name: string) => {
+      const [, light = "", dark = ""] =
+        new RegExp(`--color-${name}:\\s*light-dark\\(([^,]+),\\s*([^)]+)\\)`).exec(stylesheet) ??
+        [];
+      return { light: light.trim(), dark: dark.trim() };
+    };
+    expect(declared("engraving")).toEqual({ light: color("ink", "light"), dark: "transparent" });
+    expect(declared("engraving-night")).toEqual({
+      light: "transparent",
+      dark: color("ink", "dark"),
+    });
+  });
+
   it("would have caught Sage, where light and energy looked alike to protan eyes", () => {
     // eslint-disable-next-line no-restricted-syntax -- the old palette's colours prove the bar bites
     const sageAmber = "#8a5214";

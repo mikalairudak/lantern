@@ -234,6 +234,13 @@
   --color-ink: light-dark(#001924, #f7eddf);
   --color-ink-soft: light-dark(#193a47, #d0c3b1);
   --color-muted: light-dark(#405b64, #a39686);
+  /*
+   * The index's engravings, in the page's ink and only in one theme each: the whole scene by day,
+   * the subject alone by night (docs/decisions.md, "The index's pictures are engravings of a
+   * city's everyday thing"). Each is ink where it is drawn; palette.test.ts holds them to it.
+   */
+  --color-engraving: light-dark(#001924, transparent);
+  --color-engraving-night: light-dark(transparent, #f7eddf);
   --color-line: light-dark(#e0d9cc, #1e3338);
   /* The abacus wires: the chart's structure, 2:1 on the ground, between a rule and text. */
   --color-wire: light-dark(#9aafb5, #405253);
