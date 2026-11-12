@@ -120,6 +120,7 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 - [2026-11-11 — The index's pictures are engravings of a city's everyday thing](#2026-11-11--the-indexs-pictures-are-engravings-of-a-citys-everyday-thing)
 - [2026-11-11 — The first impression is the site's only look](#2026-11-11--the-first-impression-is-the-sites-only-look)
 - [2026-11-11 — The e2e runs in Playwright's own image, and the frame tests only by hand](#2026-11-11--the-e2e-runs-in-playwrights-own-image-and-the-frame-tests-only-by-hand)
+- [2026-11-12 — A production build starts without Turbopack's cache](#2026-11-12--a-production-build-starts-without-turbopacks-cache)
 
 **The look: type, colour and tokens**
 
@@ -684,3 +685,11 @@ A fourth round wrote the same five again, and Madrid's start, under the undated 
 **Why.** A pull request already passes the definition of done, a security review and a fresh reader before it is pushed, and three checks on GitHub before it merges, so a merge waiting for the owner held the next change back without adding a check. A release is what reaches visitors, so that merge stays the owner's.
 
 **Cost.** A change lands on `develop` without the owner's eyes on it first; the owner reads it there, and the release gate and the owner's look at the preview stand before `main`.
+
+## 2026-11-12 — A production build starts without Turbopack's cache
+
+**Decision.** `next build` writes and reads no Turbopack file-system cache (`experimental.turbopackFileSystemCacheForBuild: false` in `next.config.ts`), so every build on Vercel compiles the stylesheet from the source as it is. The dev server keeps its cache.
+
+**Why.** Twice a build on Vercel that restored the cache of an earlier one served an earlier stylesheet: production on 29 October with the earlier palette, and a `develop` preview on 12 November without the index's engraving colours, which drew both layers of each picture in the default black. Each was right once rebuilt without the cache, and a local build of the same commit was right. The stylesheet comes from the Tailwind loader for Turbopack (`@tailwindcss/turbopack`), which scans the project for class names; a local build that restored its own cache picked up a class from a new file, so what makes a restored cache miss one is not known, and a build that never restores it cannot.
+
+**Cost.** Every build compiles from nothing, so it takes longer than a warm one. `pnpm dev` can still serve a stale stylesheet, and deleting `.next/dev` clears it.
