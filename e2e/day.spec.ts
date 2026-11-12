@@ -1,5 +1,7 @@
 import { dayAddressOf } from "../src/lib/days/address";
+import { writtenDayAt } from "../src/lib/days/written/days";
 import { START_DAYS } from "../src/lib/days/written/start-days";
+import { runningSpans } from "../src/lib/time/clock";
 import { expect, test, type Locator, type Page, waitMs, chooseTheChart } from "./fixtures";
 
 // These tests drive the chart: each page opens as for a visitor who chose it, since a day
@@ -267,7 +269,7 @@ const WRITTEN_DAYS = [
     address: "/day/kanazawa",
   },
   {
-    sentence: "A lively Saturday in Madrid, out late, with friends",
+    sentence: "A lively Sunday in Madrid, out late, with friends",
     energy: "lively",
     address: "/day/madrid",
   },
@@ -452,7 +454,7 @@ test("the beads on the wire an open stop's sheet lies on are drawn again over it
   await expect(layer.locator("circle").first()).toBeAttached();
 });
 
-/** Madrid's day, written, at a phone's or a laptop's size: out past midnight, the longest. */
+/** Madrid's day, written, at a phone's or a laptop's size: out past midnight. */
 async function writeMadrid(page: Page, isMobile: boolean): Promise<void> {
   await page.setViewportSize(isMobile ? PHONE : LAPTOP);
   await page.goto("/day/madrid");
@@ -467,15 +469,30 @@ async function writeMadrid(page: Page, isMobile: boolean): Promise<void> {
   });
 }
 
-/** Opens Madrid's last stop, whose sheet the day has no room for below it. */
+/** The name of a written day's last stop, as the day shows it before any re-pick. */
+function lastStopNameOf(slug: string): string {
+  const last = writtenDayAt(slug)?.itinerary.stops.at(-1);
+  if (!last) throw new Error(`No written day at ${slug}`);
+  const shown = last.alternatives.find(({ id }) => id === last.selectedPlaceId) ?? last.primary;
+  return shown.name;
+}
+
+/** The last stop of Madrid's day, whose sheet the day has no room for below it. */
+const MADRID_LAST_STOP = lastStopNameOf("madrid");
+
+/** Opens Madrid's last stop. */
 async function openLastStop(page: Page): Promise<Locator> {
   await page
     .getByRole("list", { name: "The day" })
-    .getByRole("button", { name: /^Cocktails around Calle de la Palma/ })
+    .getByRole("button", { name: new RegExp(`^${escapedForRegExp(MADRID_LAST_STOP)}`) })
     .click();
-  const sheet = page.getByRole("region", { name: "About Cocktails around Calle de la Palma" });
+  const sheet = page.getByRole("region", { name: `About ${MADRID_LAST_STOP}` });
   await expect(sheet).toBeFocused();
   return sheet;
+}
+
+function escapedForRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 test("an open stop's sheet never makes the page taller: the last opens above its name", async ({
@@ -489,7 +506,7 @@ test("an open stop's sheet never makes the page taller: the last opens above its
   const sheet = await openLastStop(page);
   expect(await pageHeight()).toBe(closed);
   const name = page.getByRole("button", {
-    name: /^Cocktails around Calle de la Palma/,
+    name: new RegExp(`^${escapedForRegExp(MADRID_LAST_STOP)}`),
     expanded: true,
   });
   const [sheetBox, nameBox] = await Promise.all([sheet.boundingBox(), name.boundingBox()]);
@@ -837,8 +854,8 @@ const SHOWN_BEAD = "data-shown-bead";
 /** How far a row's name may move against its own bead in a frame and still stand: under a px. */
 const NAME_STANDS_PX = 1.5;
 /**
- * Madrid's rows whose crosshair shows on a laptop after their words are whole, each hung left
- * of its bead: the Retiro, the Plaza del Dos de Mayo, Raciones and Cocktails, a bar said alone.
+ * The fewest of Madrid's rows whose crosshair shows on a laptop after their words are whole, each
+ * hung left of its bead: its evening rows, across the axis from their beads.
  */
 const MADRID_MARKS_AFTER_WORDS = 3;
 
@@ -1206,24 +1223,35 @@ const FRAME_INSET_BELOW_PX = 20;
 const ENERGIES = ["quiet", "calm", "balanced", "lively", "social"];
 /** Kanazawa's day asks for 07:00 to 23:00. */
 const KANAZAWA_ASKED_MINUTES = 16 * 60;
+const MINUTES_PER_HOUR = 60;
+
+/**
+ * How many minutes a whole day's frame runs on under its last stop's wire: from the wire, at the
+ * visit's middle, to the whole hour the visit ends by, where the frame ends.
+ */
+function underLastWireOf(slug: string): number {
+  const stops = writtenDayAt(slug)?.itinerary.stops ?? [];
+  const last = runningSpans(stops).at(-1);
+  if (!last) throw new Error(`No written day at ${slug}`);
+  const frameEnd = Math.ceil(last.to / MINUTES_PER_HOUR) * MINUTES_PER_HOUR;
+  return frameEnd - (last.from + last.to) / 2;
+}
+
 /** Kanazawa's last wire, at 19:45, stands 75 minutes above 21:00, where its whole frame ends. */
-const KANAZAWA_UNDER_LAST_WIRE = 75;
+const KANAZAWA_UNDER_LAST_WIRE = underLastWireOf("kanazawa");
+
 /**
  * The minutes each written day's frame asks for while it is written, and how many it runs on
  * under its last stop's wire once it is whole. Kanazawa's last visit, 19:15 to 20:15, has its
  * wire at 19:45, and its frame ends at 21:00, the whole hour after it, rather than at the
  * 23:00 asked. Bologna's and Madrid's last visits run past the midnight a late end asks for,
- * so their frames stretch to the whole hour after them, 01:00 and 02:00, and end there.
+ * so their frames stretch to the whole hour their last visits end by, and end there.
  */
 const WHOLE_FRAMES = [
-  {
-    day: "kanazawa",
-    askedMinutes: KANAZAWA_ASKED_MINUTES,
-    underLastWire: KANAZAWA_UNDER_LAST_WIRE,
-  },
-  { day: "bologna", askedMinutes: 16 * 60, underLastWire: 60 },
-  { day: "madrid", askedMinutes: 17 * 60, underLastWire: 90 },
-];
+  { day: "kanazawa", askedMinutes: KANAZAWA_ASKED_MINUTES },
+  { day: "bologna", askedMinutes: 16 * 60 },
+  { day: "madrid", askedMinutes: 17 * 60 },
+].map((frame) => ({ ...frame, underLastWire: underLastWireOf(frame.day) }));
 
 /** How far the chart's frame runs under its last wire, and the day's height its pace is fitted to. */
 function frameUnderLastWire(page: Page): Promise<{ under: number; dayHeight: number }> {

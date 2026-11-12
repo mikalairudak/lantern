@@ -488,8 +488,8 @@ export function AbacusChart({
   // comes up from below it.
   const fingerReach = chart.wireReach + row.wireGap;
   // Every other stop's drawn beads, each as far as a ring round it reaches: a name lies over
-  // none, a card least of all. A card under Madrid's 10:00 at 390 px lay over the next stop's
-  // hollow bead and its ring.
+  // none, a card least of all. A card under a morning stop at 390 px can lie over the next
+  // stop's hollow bead and its ring.
   const beadsBesides = (stopIndex: number): Rect[] =>
     stops.flatMap((stop, index) => {
       if (index === stopIndex) return [];
