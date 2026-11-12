@@ -34,6 +34,15 @@ describe("the start screen's index", () => {
     expect(onChoose).toHaveBeenCalledWith(first.request);
   });
 
+  it("draws the cell a lab names as pointed at, and no other", () => {
+    const pointed = DRAWN_STARTS[1]!.request.city;
+    render(<StartIndex starts={DRAWN_STARTS} onChoose={() => undefined} pointedCity={pointed} />);
+    const cells = screen.getAllByRole("button");
+    const marked = cells.filter((cell) => cell.hasAttribute("data-pointed"));
+    expect(marked).toHaveLength(1);
+    expect(marked[0]).toHaveAccessibleName(new RegExp(`^${pointed} `));
+  });
+
   it("names each cell by its city and its day alone, the picture out of what is read", () => {
     render(<StartIndex starts={DRAWN_STARTS} onChoose={() => undefined} />);
     expect(

@@ -201,7 +201,10 @@ function DetailsBody({ details, light, name, onClose }: DetailsBodyProps) {
           type="button"
           aria-label={`Close ${name}`}
           onClick={onClose}
-          className={cn("-m-1 shrink-0 rounded-sm p-1 text-muted hover:text-ink", FOCUS_CLASSES)}
+          className={cn(
+            "-m-1 shrink-0 rounded-sm p-1 text-muted transition-colors pointed:text-ink",
+            FOCUS_CLASSES,
+          )}
         >
           <X aria-hidden size={ICON_SIZES.sm} strokeWidth={ICON_STROKE_WIDTH} />
         </button>

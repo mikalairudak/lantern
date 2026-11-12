@@ -23,11 +23,11 @@ export function ShapeRow({ energies, words, under, onPress }: ShapeRowProps) {
     <button
       type="button"
       onClick={onPress}
-      className="group flex items-start gap-3 rounded-sm text-left focus-ring"
+      className="group/pointed flex items-start gap-3 rounded-sm text-left focus-ring"
     >
       <DayShape energies={energies} />
       <span className="flex min-w-0 flex-col gap-1">
-        <span className="type-voice text-quote text-pretty text-ink underline decoration-1 underline-offset-4 transition-colors group-hover:text-energy">
+        <span className="type-voice text-quote text-pretty text-ink underline decoration-1 underline-offset-4 transition-colors pointed-group:decoration-2">
           {words}
         </span>
         {/* Heard as a pause before the line under, which the column sets on its own. */}

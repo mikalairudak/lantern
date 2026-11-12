@@ -47,7 +47,7 @@ export function PlanEnergy({
               // As the view's switch has it: the one on show in its colour, the others underlined.
               isOn
                 ? "text-energy"
-                : "text-muted underline decoration-1 underline-offset-4 not-aria-disabled:hover:text-ink aria-disabled:cursor-default aria-disabled:no-underline",
+                : "text-muted underline decoration-1 underline-offset-4 aria-disabled:cursor-default aria-disabled:no-underline not-aria-disabled:pointed:text-ink",
             )}
           >
             {energyLabelOf(level)}

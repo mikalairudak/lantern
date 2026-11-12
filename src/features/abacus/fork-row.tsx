@@ -64,7 +64,7 @@ const ASK_AGAIN_CLASSES = "-my-0.5";
 
 /** "Take", "Compare" and "Ask again", in the shared link's look, ink on the row's quiet words. */
 const ACTION_CLASSES =
-  "pointer-events-auto inline-flex min-h-6 items-center rounded-sm text-ink underline decoration-1 underline-offset-4 transition-colors hover:text-energy focus-ring";
+  "pointer-events-auto inline-flex min-h-6 items-center rounded-sm text-ink underline decoration-1 underline-offset-4 transition-colors pointed:decoration-2 focus-ring";
 
 /**
  * The steady light through the proposal's answer and its line while Lantern writes, as through

@@ -15,10 +15,22 @@ export const INDEX_LABEL = "No city in mind? Start from one of these";
 
 /**
  * A cell spans its row's two tracks, the pictures' and the captions', so every picture of a row
- * stands on one foot however its caption wraps, and every caption starts on one line.
+ * stands on one foot however its caption wraps, and every caption starts on one line. The space
+ * between columns is the cells' own, half on each side, so a pointer crossing a row is always
+ * over a cell and the index never flickers between them.
  */
 const CELL_CLASSES =
-  "group row-span-2 grid w-full grid-rows-subgrid rounded-sm text-center focus-ring";
+  "group/pointed row-span-2 grid w-full grid-rows-subgrid rounded-sm px-3 text-center focus-ring";
+
+/**
+ * A cell pointed at, by a pointer or the keyboard, stands forward: its city takes the ink rule
+ * every word that can be pressed takes, and the other cells' engravings step back to a faint
+ * plate, their words kept whole (`docs/decisions.md`, "What can be pressed takes a rule in ink
+ * under a pointer").
+ */
+const CITY_CLASSES =
+  "type-voice text-quote text-pretty text-ink decoration-ink decoration-1 underline-offset-4 pointed-group:underline";
+const PICTURE_CLASSES = "self-end transition-opacity beside-pointed:opacity-40";
 
 /**
  * The start screen's index (`docs/decisions.md`, "The start screen is
@@ -33,10 +45,13 @@ export function StartIndex({
   starts,
   onChoose,
   listRef,
+  pointedCity = null,
 }: {
   starts: readonly StartOffer[];
   onChoose: (request: DayRequest) => void;
   listRef?: Ref<HTMLUListElement>;
+  /** A cell drawn as pointed at, still, as a lab cell shows it. */
+  pointedCity?: string | null;
 }) {
   const label = useId();
   return (
@@ -47,7 +62,8 @@ export function StartIndex({
       <ul
         ref={listRef}
         aria-labelledby={label}
-        className="grid grid-cols-2 gap-x-6 @abacus:grid-cols-4"
+        data-index
+        className="-mx-3 grid grid-cols-2 @abacus:grid-cols-4"
       >
         {starts.map((start) => {
           const gist = requestShortGistOf(start.request);
@@ -56,16 +72,14 @@ export function StartIndex({
               <button
                 type="button"
                 onClick={() => onChoose(start.request)}
+                data-pointed={start.request.city === pointedCity || undefined}
                 className={CELL_CLASSES}
               >
-                <span className="self-end">
+                <span className={PICTURE_CLASSES}>
                   <IndexPictureView slug={daySlugOf(start.request)} />
                 </span>
                 <span className="flex flex-col items-center pt-1 pb-6">
-                  {/* A pointer over a cell underlines its city, as the page's links are. */}
-                  <span className="type-voice text-quote text-pretty text-ink decoration-line underline-offset-4 group-hover:underline">
-                    {start.request.city}
-                  </span>
+                  <span className={CITY_CLASSES}>{start.request.city}</span>
                   {/* A space between lines, so the cell's name reads as words; a column shows none. */}{" "}
                   <span className="type-note text-muted">{gist.day}</span>{" "}
                   {gist.word !== null && <span className="type-note text-muted">{gist.word}</span>}
@@ -114,7 +128,7 @@ export function StartExcerptView({ excerpt }: { excerpt: StartExcerpt }) {
       </div>
       <a
         href={excerpt.address}
-        className="self-start rounded-sm type-note text-ink underline decoration-line underline-offset-4 focus-ring hover:decoration-ink"
+        className="self-start rounded-sm type-note text-ink underline decoration-line decoration-1 underline-offset-4 focus-ring transition-colors pointed:decoration-ink"
       >
         {`The whole day, ${excerpt.total} stops`}
       </a>

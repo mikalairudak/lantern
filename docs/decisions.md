@@ -125,6 +125,7 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 
 - [2026-10-21 — Tokens are enforced, not documented](#2026-10-21--tokens-are-enforced-not-documented)
 - [2026-10-23 — One sans in one weight: Fira Sans](#2026-10-23--one-sans-in-one-weight-fira-sans)
+- [2026-11-12 — What can be pressed takes a rule in ink under a pointer, and the keyboard's focus shows the same](#2026-11-12--what-can-be-pressed-takes-a-rule-in-ink-under-a-pointer-and-the-keyboards-focus-shows-the-same)
 
 **The harness, the checks and the eval**
 
@@ -684,3 +685,11 @@ A fourth round wrote the same five again, and Madrid's start, under the undated 
 **Why.** A pull request already passes the definition of done, a security review and a fresh reader before it is pushed, and three checks on GitHub before it merges, so a merge waiting for the owner held the next change back without adding a check. A release is what reaches visitors, so that merge stays the owner's.
 
 **Cost.** A change lands on `develop` without the owner's eyes on it first; the owner reads it there, and the release gate and the owner's look at the preview stand before `main`.
+
+## 2026-11-12 — What can be pressed takes a rule in ink under a pointer, and the keyboard's focus shows the same
+
+**Decision.** Under a pointer, and for the keyboard's focus alike, what can be pressed shows it in the page's ink, never in an accent. A word with no underline takes the ink hairline under it: the sentence's words, the city's, the index's cities, the wordmark, a menu item's name, a version's name in its arrow. A word already underlined takes its rule twice as heavy: the links and the link-like buttons, which no longer turn the energy colour. A box shows its frame or its ground: "Take this day" frames itself in ink, a menu item sits on the page's ground, "Plan this day" turns to the softer ink. Two surfaces do more. An index cell pointed at stands forward: its city ruled, and the other cells' engravings step back to 40%, their words kept whole; the space between the columns is the cells' own, so a pointer crossing a row never leaves the index between two states. A version's arrow on the plan leans its stop toward the version it names, as far as the stop's first lean goes, on the snappy spring, and brings it home when left. A finger cannot hover, so a touch screen shows none of this: every pointer state sits behind `(hover: hover)`, and the lean answers a mouse or a pen alone. One variant holds the pairing (`pointed` in `globals.css`), so a state a pointer shows is a state the keyboard shows.
+
+**Why.** One colour keeps one meaning ("Where we are" in `docs/design-direction.md`): a link that turned green under the pointer said energy where none was meant. A rule in ink is how a printed page marks a word, and it reads with the engravings rather than against them. Hover was faint where it existed, a rule in the colour of the page's own rules, and missing on the index, the hero's button and the plan's arrows, so a visitor's first pass over the start screen answered nothing. A cell that stands forward answers at once and changes nothing a reader needs: the pictures say nothing a screen reader reads, and the words stay at their contrast. The lean foresees the slide a press will play, and the stop has leaned the same way once already.
+
+**Cost.** The lean moves a stop the visitor may be reading, 12 px under a pointer that is on its arrow, not on its words. A state drawn still in the lab needs a hook in the variant (`data-pointed`). A pointer state that is not a `pointed` class, such as the chart's own lit stops, keeps its own pairing.

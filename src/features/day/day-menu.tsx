@@ -33,8 +33,16 @@ export interface DayMenuItem {
   status?: string;
 }
 
+/**
+ * An item pointed at sits on the page's ground and its name takes the ink rule, as any word that
+ * can be pressed does; a disabled or locked one shows neither.
+ */
 const ITEM_CLASSES =
-  "flex w-full flex-col gap-0.5 rounded-sm px-3 py-2 text-left transition-colors focus-ring-inset hover:bg-ground aria-disabled:cursor-default aria-disabled:hover:bg-transparent";
+  "group/pointed flex w-full flex-col gap-0.5 rounded-sm px-3 py-2 text-left transition-colors focus-ring-inset not-aria-disabled:pointed:bg-ground aria-disabled:cursor-default";
+
+/** The item's name under the pointer or the keyboard's focus: the ink hairline under it. */
+const ITEM_NAME_POINTED_CLASSES =
+  "decoration-ink decoration-1 underline-offset-4 pointed-group:underline";
 
 /**
  * The day's menu in the masthead: one button, "Take this day", framed as the masthead's one
@@ -159,7 +167,7 @@ export function DayMenu({
         // A click from the keyboard, Enter or Space, has no detail: it opens on the first item.
         onClick={(event) => (isOpen ? setIsOpen(false) : open(event.detail === 0 ? "first" : null))}
         onKeyDown={onButtonKey}
-        className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-sm border border-line px-2 whitespace-nowrap text-ink focus-ring transition-colors hover:border-wire aria-expanded:border-wire"
+        className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-sm border border-line px-2 whitespace-nowrap text-ink focus-ring transition-colors aria-expanded:border-ink pointed:border-ink"
       >
         {TAKE_THIS_DAY}
         <ChevronDown
@@ -216,7 +224,12 @@ function ItemWords({ item }: { item: DayMenuItem }) {
   return (
     <>
       <span
-        className={cn("text-body", item.isDisabled || item.isLocked ? "text-muted" : "text-ink")}
+        className={cn(
+          "text-body",
+          item.isDisabled || item.isLocked
+            ? "text-muted"
+            : cn("text-ink", ITEM_NAME_POINTED_CLASSES),
+        )}
       >
         {item.label}
       </span>

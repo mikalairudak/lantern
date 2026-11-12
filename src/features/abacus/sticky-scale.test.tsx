@@ -51,7 +51,7 @@ describe("the sticky scale", () => {
       <StickyScale scale={SCALE} isCurveNamed clause="livelier at lunch" onBackToPlan={vi.fn()} />,
     );
     const back = screen.getByRole("button", { name: "Back to the plan" });
-    expect(back).toHaveClass("min-h-6", "underline", "hover:text-energy");
+    expect(back).toHaveClass("min-h-6", "underline", "pointed:decoration-2");
     expect(back.className).not.toMatch(/after:-inset/);
   });
 

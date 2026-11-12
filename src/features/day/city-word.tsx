@@ -35,7 +35,7 @@ const WORD_CLASSES = cn(
 );
 /** The word as it reads when it can be opened: in ink, the hairline under it on hover. */
 const OPENABLE_CLASSES =
-  "text-ink hover:underline hover:decoration-ink hover:decoration-solid hover:decoration-1";
+  "text-ink pointed:underline pointed:decoration-ink pointed:decoration-solid pointed:decoration-1";
 /** Locked while another word's re-plan is written: muted, with no hover mark, as its words are. */
 const LOCKED_CLASSES = "text-muted";
 /** A row the keys reach is drawn as a focused option: the ground, and an ink ring inside its edge. */

@@ -7,7 +7,9 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type FocusEvent,
   type KeyboardEvent,
+  type PointerEvent,
   type ReactNode,
 } from "react";
 import { cn } from "@/components/ui/cn";
@@ -23,8 +25,10 @@ import { TARGET_CLASSES } from "./link-classes";
  * follows the finger or the cursor and shows the version on the side it is pulled from: dragged
  * right, the one on its left comes in. Let go past a third of its width it takes that version;
  * short of it, it springs back. Under the stop, each side that has a version names it with an
- * arrow, a press that plays the same slide; the arrow keys on the stop do the same. A stop with no
- * versions neither moves nor says anything.
+ * arrow, a press that plays the same slide; the arrow keys on the stop do the same. An arrow
+ * under a pointer or reached by the keyboard takes the ink rule under its name, and the stop leans
+ * toward the version it names, as far as the stop's first lean goes, so the slide is foreseen
+ * before it is pressed. A stop with no versions neither moves nor says anything.
  *
  * Every move is the layout spring on one value, so a drag catches a slide halfway and a second
  * press runs on from where the first has got to. The slide is quicker than "Three pixels a frame"
@@ -75,8 +79,20 @@ export function neighboursOf(
 
 const ARROW_CLASSES = cn(
   TARGET_CLASSES,
-  "flex min-w-0 basis-1/2 items-baseline rounded-sm text-left type-note text-swap focus-ring aria-disabled:cursor-default",
+  "group/pointed flex min-w-0 basis-1/2 items-baseline rounded-sm text-left type-note text-swap focus-ring aria-disabled:cursor-default",
 );
+
+/** The version's name in its arrow, ruled under a pointer or the keyboard's focus. */
+const ARROW_NAME_CLASSES = "decoration-1 underline-offset-4 pointed-group:underline";
+
+/** Whether an element has the focus as the keyboard gives it, where the browser can tell. */
+function isKeyboardFocus(element: Element): boolean {
+  try {
+    return element.matches(":focus-visible");
+  } catch {
+    return false;
+  }
+}
 
 type Side = "before" | "after";
 
@@ -118,6 +134,8 @@ export function VersionCarousel({
   const hasAfter = after !== null;
   const groupRef = useRef<HTMLDivElement>(null);
   const stride = width + GAP_PX;
+  /** The lean toward an arrow pointed at, while it plays or holds. */
+  const pointedLean = useRef<{ stop: () => void } | null>(null);
 
   useLayoutEffect(() => {
     const box = boxRef.current;
@@ -167,6 +185,8 @@ export function VersionCarousel({
       window.addEventListener(gesture, endLean, { capture: true, passive: true });
     }
     const timer = window.setTimeout(async () => {
+      // An arrow pointed at leans the stop already.
+      if (pointedLean.current !== null) return;
       hasLeaned.current = true;
       isLeaning = true;
       for (const to of steps) {
@@ -190,10 +210,37 @@ export function VersionCarousel({
 
   if (!canSwipe) return <>{children}</>;
 
+  /**
+   * Leans the stop toward the version an arrow names, or brings it home once the arrow is left.
+   * The version on the left comes in from a drag to the right, so its arrow leans the stop right.
+   */
+  const lean = (side: Side | null) => {
+    if (!isEnabled || isReduced) return;
+    if (side === null && pointedLean.current === null) return;
+    pointedLean.current?.stop();
+    const to = side === "before" ? NUDGE_PX : side === "after" ? -NUDGE_PX : 0;
+    const move = animate(x, to, SPRINGS.snappy);
+    pointedLean.current = side === null ? null : move;
+  };
+
+  /** A pointer that can hover, coming over an arrow: a finger's press leans nothing. */
+  const leanFromPointer = (side: Side, event: PointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType !== "touch") lean(side);
+  };
+
+  /** The keyboard reaching an arrow; a press that focuses it leans nothing more. */
+  const leanFromFocus = (side: Side, event: FocusEvent<HTMLButtonElement>) => {
+    if (isKeyboardFocus(event.currentTarget)) lean(side);
+  };
+
   const take = (side: Side, isPressed = false) => {
     const version = side === "before" ? before : after;
     if (!version || !onPick) return;
     hasLeaned.current = true;
+    // The slide starts from where the lean has got to, and the arrow left after it leaves the
+    // slide alone.
+    pointedLean.current?.stop();
+    pointedLean.current = null;
     // The version on the left waits a stride to the left, so once taken it starts from there.
     shift.current = side === "before" ? -stride : stride;
     onPick(version.index);
@@ -265,11 +312,15 @@ export function VersionCarousel({
             aria-label={`${before.side}: ${before.name}`}
             aria-disabled={!isEnabled || undefined}
             onClick={() => take("before", true)}
+            onPointerEnter={(event) => leanFromPointer("before", event)}
+            onPointerLeave={() => lean(null)}
+            onFocus={(event) => leanFromFocus("before", event)}
+            onBlur={() => lean(null)}
             className={ARROW_CLASSES}
           >
             <span className="min-w-0 text-pretty">
               <span aria-hidden>←&nbsp;</span>
-              {before.name}
+              <span className={cn(isEnabled && ARROW_NAME_CLASSES)}>{before.name}</span>
             </span>
           </button>
         ) : (
@@ -281,10 +332,14 @@ export function VersionCarousel({
             aria-label={`${after.side}: ${after.name}`}
             aria-disabled={!isEnabled || undefined}
             onClick={() => take("after", true)}
+            onPointerEnter={(event) => leanFromPointer("after", event)}
+            onPointerLeave={() => lean(null)}
+            onFocus={(event) => leanFromFocus("after", event)}
+            onBlur={() => lean(null)}
             className={cn(ARROW_CLASSES, "justify-end text-right")}
           >
             <span className="min-w-0 text-pretty">
-              {after.name}
+              <span className={cn(isEnabled && ARROW_NAME_CLASSES)}>{after.name}</span>
               <span aria-hidden>&nbsp;→</span>
             </span>
           </button>

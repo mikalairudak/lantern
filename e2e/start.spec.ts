@@ -31,6 +31,45 @@ test("the start screen offers the question and an index of written days, with a 
   await expect(page).toHaveURL(/\/day\//);
 });
 
+test("a cell pointed at stands forward, for a pointer and the keyboard alike, and a finger leaves none", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const index = page.getByRole("list", { name: "No city in mind? Start from one of these" });
+  const cells = index.getByRole("button");
+  const pictures = () =>
+    index.evaluate((list) =>
+      [...list.querySelectorAll("button > span:first-child")].map(
+        (picture) => getComputedStyle(picture).opacity,
+      ),
+    );
+  const ruled = () =>
+    index.evaluate((list) =>
+      [...list.querySelectorAll("button")].map(
+        (cell) =>
+          getComputedStyle(cell.querySelector("span > span:first-child")!).textDecorationLine,
+      ),
+    );
+  const standsForward = (at: number) =>
+    INDEX_REQUESTS.map((_, cell) => (cell === at ? "1" : "0.4"));
+  const atRest = INDEX_REQUESTS.map(() => "1");
+
+  // A pointer that can hover stands its cell forward; a phone's finger cannot hover, and a
+  // pointer passing over leaves nothing lit there.
+  const canHover = await page.evaluate(() => window.matchMedia("(hover: hover)").matches);
+  await cells.nth(1).hover();
+  await expect.poll(pictures).toEqual(canHover ? standsForward(1) : atRest);
+  expect((await ruled())[1]).toBe(canHover ? "underline" : "none");
+
+  // The keyboard shows the same, wherever the pointer is.
+  await page.mouse.move(0, 0);
+  await cells.nth(1).focus();
+  await page.keyboard.press("Tab");
+  await expect(cells.nth(2)).toBeFocused();
+  await expect.poll(pictures).toEqual(standsForward(2));
+  expect((await ruled())[2]).toBe("underline");
+});
+
 test("a city's cell draws its engraving from one file, its theme's, kept forever", async ({
   page,
 }) => {

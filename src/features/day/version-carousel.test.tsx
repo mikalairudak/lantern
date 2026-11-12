@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -114,6 +114,32 @@ describe("the carousel", () => {
       "aria-hidden",
       "true",
     );
+  });
+
+  it("leans toward the version an arrow names under a pointer, and home once it leaves", async () => {
+    render(<Picking />);
+    const { before, after } = neighboursOf(BOTH, 0);
+    const stop = screen.getByRole("group", { name: "The stop" });
+    const livelier = screen.getByRole("button", { name: `Livelier: ${after?.name}` });
+    fireEvent.pointerEnter(livelier, { pointerType: "mouse" });
+    // The livelier version waits on the right, so the stop leans left, toward it.
+    await waitFor(() => expect(stop.style.transform).toBe("translateX(-12px)"));
+    fireEvent.pointerLeave(livelier, { pointerType: "mouse" });
+    await waitFor(() => expect(stop.style.transform).toBe("none"));
+    const quieter = screen.getByRole("button", { name: `Quieter: ${before?.name}` });
+    fireEvent.pointerEnter(quieter, { pointerType: "pen" });
+    await waitFor(() => expect(stop.style.transform).toBe("translateX(12px)"));
+  });
+
+  it("leans nothing for a finger, which cannot hover", async () => {
+    render(<Picking />);
+    const { after } = neighboursOf(BOTH, 0);
+    const stop = screen.getByRole("group", { name: "The stop" });
+    fireEvent.pointerEnter(screen.getByRole("button", { name: `Livelier: ${after?.name}` }), {
+      pointerType: "touch",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(stop.style.transform).not.toMatch(/translateX/);
   });
 
   it("neither moves nor says anything for a stop with no versions", () => {

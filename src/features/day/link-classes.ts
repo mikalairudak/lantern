@@ -1,6 +1,6 @@
 /**
- * How Lantern's text links and link-like buttons look: underlined, in the energy colour under the pointer,
- * with an ink ring for the keyboard. A plain module, not a client one, so a Server Component
+ * How Lantern's text links and link-like buttons look: underlined, the rule twice as heavy under a pointer
+ * and for the keyboard, which rings it in ink too. A plain module, not a client one, so a Server Component
  * such as the not-found page gets the string itself rather than a client reference to it.
  */
 /**
@@ -11,4 +11,4 @@
 export const TARGET_CLASSES = "relative after:absolute after:-inset-2";
 
 export const LINK_CLASSES =
-  "rounded-sm underline decoration-1 underline-offset-4 transition-colors hover:text-energy focus-ring";
+  "rounded-sm underline decoration-1 underline-offset-4 transition-colors pointed:decoration-2 focus-ring";
