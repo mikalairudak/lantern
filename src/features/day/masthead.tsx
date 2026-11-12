@@ -5,8 +5,12 @@ import { LanternMark } from "@/components/ui/lantern-mark";
 import { cn } from "@/components/ui/cn";
 import { ThemeChoice } from "@/features/theme/theme-choice";
 
-/** The wordmark as a way home: no underline, and the ink ring every link takes for the keyboard. */
-const HOME_CLASSES = "rounded-sm focus-ring";
+/**
+ * The wordmark as a way home: no underline at rest, the ink hairline under a pointer and for the
+ * keyboard, which rings it in ink too.
+ */
+const HOME_CLASSES =
+  "rounded-sm decoration-ink decoration-1 underline-offset-4 transition-colors focus-ring pointed:underline";
 
 /** The wordmark at the body's size, as it stands on every page. */
 const WORDMARK_CLASSES = "type-voice text-body whitespace-nowrap text-ink italic";

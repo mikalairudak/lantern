@@ -30,7 +30,7 @@ export function DayViewScript() {
  */
 const SWITCH_CLASSES = cn(
   TARGET_CLASSES,
-  "rounded-sm text-muted underline decoration-1 underline-offset-4 transition-colors hover:text-ink focus-ring",
+  "rounded-sm text-muted underline decoration-1 underline-offset-4 transition-colors pointed:text-ink focus-ring",
 );
 
 /**

@@ -55,7 +55,7 @@ const CHOSEN_CLASSES: Readonly<Record<Choice, string>> = {
  * its margins so the icon's edge is the masthead's and the line keeps its height.
  */
 const BUTTON_CLASSES =
-  "peer -my-2 -mr-2 flex size-8 items-center justify-center rounded-sm text-ink-soft transition-colors hover:text-ink aria-expanded:text-ink focus-ring-inset";
+  "peer -my-2 -mr-2 flex size-8 items-center justify-center rounded-sm text-ink-soft transition-colors pointed:text-ink aria-expanded:text-ink focus-ring-inset";
 
 /**
  * The hint under the icon, "Theme · System": the masthead's small type, no bubble, laid

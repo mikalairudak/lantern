@@ -29,6 +29,41 @@
    unseen until the page's script plays it from its empty frame (seen-days.ts). */
 @custom-variant unseen (:root[data-day-seen="no"] &);
 
+/* A screen whose pointer can hover, where something can wait at rest to be pointed at; a touch
+   screen draws it as it stands. Before `pointed`, so a state pointed at wins over the rest. */
+@custom-variant can-hover {
+  @media (hover: hover) {
+    @slot;
+  }
+}
+/* Pointed at: under a pointer that can hover, or reached by the keyboard. Whatever a pointer
+   shows, the keyboard's focus shows too, and a finger, which cannot hover, leaves nothing lit
+   behind it (docs/decisions.md, "What can be pressed takes a rule in ink under a pointer").
+   `data-pointed` draws the state still, as a lab cell shows it. `pointed-group` is the same for
+   the `group/pointed` around the element, named so that a row's own `group` never lights it. */
+@custom-variant pointed {
+  @media (hover: hover) {
+    &:hover {
+      @slot;
+    }
+  }
+  &:focus-visible,
+  &[data-pointed] {
+    @slot;
+  }
+}
+@custom-variant pointed-group {
+  @media (hover: hover) {
+    :where(.group\/pointed):hover & {
+      @slot;
+    }
+  }
+  :where(.group\/pointed):focus-visible &,
+  :where(.group\/pointed[data-pointed]) & {
+    @slot;
+  }
+}
+
 /*
  * Design tokens: every value the interface may use (decisions.md, "Tokens are enforced, not
  * documented"). One face, Fira Sans in one weight ("One sans in one weight: Fira Sans"), and

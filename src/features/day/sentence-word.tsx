@@ -111,7 +111,7 @@ export type WordReplanning = "writing" | "after" | null;
  * assumption's dots while the pointer is on it. Focus is an ink ring.
  */
 const HOVER_CLASSES =
-  "hover:underline hover:decoration-ink hover:decoration-solid hover:decoration-1 underline-offset-4";
+  "pointed:underline pointed:decoration-ink pointed:decoration-solid pointed:decoration-1 underline-offset-4";
 const BUTTON_CLASSES = "rounded-sm transition-colors focus-ring";
 /**
  * The list keeps the focus while the arrows move the active option, so it wears a line

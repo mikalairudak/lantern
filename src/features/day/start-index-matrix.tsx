@@ -17,6 +17,8 @@ const COUNTS = {
 interface StartIndexCellProps {
   count: keyof typeof COUNTS;
   hasExcerpt: boolean;
+  /** Whether a cell is drawn pointed at, as a pointer or the keyboard leaves it: the second. */
+  isPointed: boolean;
 }
 
 const ignore = () => undefined;
@@ -26,13 +28,14 @@ const ignore = () => undefined;
  * screen is an index, with a day's first stops under it"): the index under its label, at the
  * eight cities it offers, each with its engraving, at a city with none among them and the longest
  * caption, and at one cell, and under it a written day's first stops, still. Each cell's
- * picture is the theme's own: the whole scene by day, the subject alone by night.
+ * picture is the theme's own: the whole scene by day, the subject alone by night. A cell pointed
+ * at stands forward, its city ruled and its picture up to full ink from the 90% the others rest at.
  */
 export const START_INDEX_MATRIX: LabMatrix = labMatrix<StartIndexCellProps>({
   key: "start-index",
   title: "The start screen's index",
   note: "The written days as an index of engravings under “No city in mind? Start from one of these”, at the eight cities it offers, a city with none and one cell, and a day's first stops, still, under it",
-  base: { count: "drawn", hasExcerpt: true },
+  base: { count: "drawn", hasExcerpt: true, isPointed: false },
   wide: "page",
   axes: [
     {
@@ -49,14 +52,29 @@ export const START_INDEX_MATRIX: LabMatrix = labMatrix<StartIndexCellProps>({
         { label: "nothing", props: { hasExcerpt: false } },
       ],
     },
+    {
+      name: "pointer",
+      values: [
+        { label: "at rest", props: { isPointed: false } },
+        { label: "a cell pointed at", props: { isPointed: true } },
+      ],
+    },
   ],
-  // Every count, a day's first stops under each: the default view.
-  baseline: [{ rows: 0, columns: 1 }],
-  render: ({ count, hasExcerpt }) => {
+  // Every count, a day's first stops under each: the default view; and every count pointed at.
+  baseline: [
+    { rows: 0, columns: 1 },
+    { rows: 0, columns: 2 },
+  ],
+  render: ({ count, hasExcerpt, isPointed }) => {
     const excerpt = hasExcerpt ? startExcerptOf(new Date()) : null;
+    const { starts } = COUNTS[count];
     return (
       <div>
-        <StartIndex starts={COUNTS[count].starts} onChoose={ignore} />
+        <StartIndex
+          starts={starts}
+          onChoose={ignore}
+          pointedCity={isPointed ? (starts[1] ?? starts[0])?.request.city : null}
+        />
         {excerpt && <StartExcerptView excerpt={excerpt} />}
       </div>
     );
