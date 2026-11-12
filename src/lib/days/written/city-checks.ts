@@ -11,114 +11,215 @@ import type { PlaceCheck } from "@/lib/places/verify-place";
  * Data © OpenStreetMap contributors, under the ODbL, provided by Geoapify (`NOTICE`).
  */
 export const CITY_PLACE_CHECKS: Readonly<Record<string, Readonly<Record<string, PlaceCheck>>>> = {
-  // city-days, generation 3f89d5cf-0129-46dd-90c2-22c0cf23129e, 2026-11-15
+  // city-days, generation 74b93e4e-4eee-45c4-9556-216b5b5b81c7, 2026-11-22
   Paris: {
-    // Coffee on Rue des Francs-Bourgeois
+    // Coffee along Quai de Valmy
     "stop-0:p": {
       kind: "verified",
       by: "area",
-      lat: 48.8571,
-      lng: 2.3589,
-      placesAround: 20,
+      lat: 48.8718,
+      lng: 2.3641,
+      placesAround: 13,
       source: "geoapify",
     },
-    // Musée Carnavalet
+    // Canal Saint-Martin
     "stop-1:p": {
       kind: "verified",
       by: "name",
-      lat: 48.8573232,
-      lng: 2.3624734,
+      lat: 48.8689561,
+      lng: 2.3671691,
       providerId:
-        "51025c357458e6024059110d41c4bc6d4840f00101f90143b6240000000000c002019203114361726e6176616c6574204d757365756d",
+        "5164d0645af6ef024059719417f4396f4840f00101f90115c5110000000000c0020192031243616e616c205361696e742d4d617274696e",
       source: "geoapify",
     },
-    // Lunch around Place des Vosges
+    // Parc des Buttes-Chaumont
     "stop-2:p": {
       kind: "verified",
-      by: "area",
-      lat: 48.8556,
-      lng: 2.3655,
-      placesAround: 20,
+      by: "name",
+      lat: 48.8795551,
+      lng: 2.3820982,
+      providerId:
+        "513de24680890e034059d7c3f24295704840f00102f901ece3520a00000000c0020192031850617263206465732042757474657320436861756d6f6e74",
       source: "geoapify",
     },
-    // Place des Vosges
-    "stop-3:p": { kind: "unverified", reason: "no-match" },
-    // Walk along the Île Saint-Louis
-    "stop-4:p": { kind: "unverified", reason: "timeout" },
-    // Dinner on Rue Mouffetard
-    "stop-5:p": {
+    // Lunch around Rue Rébeval
+    "stop-3:p": {
       kind: "verified",
       by: "area",
-      lat: 48.8431,
-      lng: 2.3503,
-      placesAround: 20,
+      lat: 48.8758,
+      lng: 2.3795,
+      placesAround: 16,
       source: "geoapify",
     },
-    // Rue de Bretagne market coffee
+    // Musée Cernuschi
+    "stop-4:p": {
+      kind: "verified",
+      by: "name",
+      lat: 48.8794322,
+      lng: 2.3125644,
+      providerId:
+        "51a1269fc321800240595006fd3b91704840f00102f90180ff120400000000c002019203104d7573c3a965204365726e7573636869",
+      source: "geoapify",
+    },
+    // Parc Monceau
+    "stop-5:p": {
+      kind: "verified",
+      by: "name",
+      lat: 48.879374,
+      lng: 2.3088732,
+      providerId:
+        "510ee324839278024059f279c5538f704840f00101f901b5222b0000000000c0020192030c50617263204d6f6e63656175",
+      source: "geoapify",
+    },
+    // Bistrot Dinner on Rue de Lévis
+    "stop-6:p": {
+      kind: "verified",
+      by: "area",
+      lat: 48.8826,
+      lng: 2.3102,
+      placesAround: 13,
+      source: "geoapify",
+    },
+    // Wine along Rue des Dames
+    "stop-7:p": {
+      kind: "verified",
+      by: "area",
+      lat: 48.8836,
+      lng: 2.318,
+      placesAround: 6,
+      source: "geoapify",
+    },
+    // Coffee around Rue des Vinaigriers
     "stop-0:a1": {
       kind: "verified",
       by: "area",
-      lat: 48.8636,
-      lng: 2.3613,
+      lat: 48.8716,
+      lng: 2.3611,
       placesAround: 20,
       source: "geoapify",
     },
-    // Hôtel de Sully garden
+    // Brunch on Rue du Faubourg Saint-Martin
+    "stop-0:a2": {
+      kind: "verified",
+      by: "area",
+      lat: 48.8725,
+      lng: 2.3565,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Square des Récollets
     "stop-1:a1": {
       kind: "verified",
       by: "name",
-      lat: 48.854403,
-      lng: 2.363695,
+      lat: 48.8736258,
+      lng: 2.3633403,
       providerId:
-        "51f0bf95ecd8e8024059594dd7135d6d4840f00101f901ca26060000000000c0020192030f48c3b474656c2064652053756c6c79e203236f70656e7374726565746d61703a76656e75653a72656c6174696f6e2f343033313436",
+        "51f68c8ef51ee80240598ef85ff8d26f4840f00102f901168e950400000000c0020192031453717561726520646573205265636f6c6c657473",
       source: "geoapify",
     },
-    // Tea and tarts on Rue de Turenne
+    // Place de la République
+    "stop-1:a2": {
+      kind: "verified",
+      by: "name",
+      lat: 48.8675421,
+      lng: 2.3639583,
+      providerId:
+        "51b0dc1cf862e90240599bb3999e0b6f4840f00102f901da70d41a00000000c00201920317506c616365206465206c612052c3a97075626c69717565",
+      source: "geoapify",
+    },
+    // Rue Georges Lardennois
     "stop-2:a1": {
       kind: "verified",
-      by: "area",
-      lat: 48.8587,
-      lng: 2.3625,
-      placesAround: 8,
+      by: "name",
+      lat: 48.8769072,
+      lng: 2.3767276,
+      providerId:
+        "512b018cc289030340593fd0c07e3e704840f00102f90179e1340300000000c002049203165275652047656f72676573204c617264656e6e6f6973",
       source: "geoapify",
     },
-    // Falafel on Rue des Rosiers
+    // Rue Manin
     "stop-2:a2": {
       kind: "verified",
+      by: "name",
+      lat: 48.8808716,
+      lng: 2.3800961,
+      providerId:
+        "5179b2f6d26f0a034059d3fc8c66c0704840f00102f90180853b5500000000c00204920309527565204d616e696e",
+      source: "geoapify",
+    },
+    // Tea around Rue des Pyrénées
+    "stop-3:a1": {
+      kind: "verified",
       by: "area",
-      lat: 48.8573,
-      lng: 2.3597,
+      lat: 48.8717,
+      lng: 2.3868,
+      placesAround: 6,
+      source: "geoapify",
+    },
+    // Street food on Rue de Belleville
+    "stop-3:a2": {
+      kind: "verified",
+      by: "area",
+      lat: 48.8725,
+      lng: 2.3846,
       placesAround: 20,
       source: "geoapify",
     },
-    // Jardin des Archives Nationales
-    "stop-3:a1": {
+    // Musée Nissim de Camondo
+    "stop-4:a1": {
       kind: "verified",
       by: "name",
-      lat: 48.8599704,
-      lng: 2.3587022,
+      lat: 48.8791733,
+      lng: 2.3123464,
       providerId:
-        "51a90650429fde02405997c39382136e4840f00102f901b450df1400000000c0020192031e4a617264696e206465732041726368697665732d4e6174696f6e616c6573",
+        "51ca2f2878af7f02405919822dc088704840f00102f90134ff120400000000c002019203184d7573c3a965204e697373696d2064652043616d6f6e646f",
       source: "geoapify",
     },
-    // Rue Vieille du Temple
-    "stop-3:a2": {
-      kind: "verified",
-      by: "name",
-      lat: 48.8607134,
-      lng: 2.3621569,
-      providerId:
-        "517b2a4c84b2e50240594f1d50db2b6e4840f00102f9015ca4b50100000000c0020492031552756520566965696c6c652064752054656d706c65",
-      source: "geoapify",
-    },
-    // Quai de Montebello
+    // Musée Jacquemart-André
     "stop-4:a2": {
       kind: "verified",
       by: "name",
-      lat: 48.8518802,
-      lng: 2.349325,
+      lat: 48.8754502,
+      lng: 2.3105444,
       providerId:
-        "51cf66d5e76acb024059128e0f690a6d4840f00102f901c3a43d0000000000c0020492031251756169206465204d6f6e746562656c6c6f",
+        "51c5a5cfb3fe7b0240596a238dc00e704840f00102f9012fdf190400000000c002019203184d7573c3a965204a61637175656d6172742d416e6472c3a9",
+      source: "geoapify",
+    },
+    // Rue Cardinet
+    "stop-5:a2": {
+      kind: "verified",
+      by: "name",
+      lat: 48.8858253,
+      lng: 2.3118992,
+      providerId:
+        "514230fd01c57e02405915bc32b962714840f00102f901a9eb961600000000c0020492030c5275652043617264696e6574",
+      source: "geoapify",
+    },
+    // Dinner on Rue des Batignolles
+    "stop-6:a2": {
+      kind: "verified",
+      by: "area",
+      lat: 48.883,
+      lng: 2.32,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Tea along Rue Legendre
+    "stop-7:a1": {
+      kind: "verified",
+      by: "area",
+      lat: 48.886,
+      lng: 2.318,
+      placesAround: 9,
+      source: "geoapify",
+    },
+    // Cocktails around Rue Lemercier
+    "stop-7:a2": {
+      kind: "verified",
+      by: "area",
+      lat: 48.8853,
+      lng: 2.325,
+      placesAround: 20,
       source: "geoapify",
     },
   },
@@ -931,152 +1032,184 @@ export const CITY_PLACE_CHECKS: Readonly<Record<string, Readonly<Record<string, 
       source: "geoapify",
     },
   },
-  // city-days, generation 59e63a5c-3ae5-4bab-bdbb-9e917fb1cd8f, 2026-11-13
+  // city-days, generation d595f0fc-06cb-4e5a-b7dd-cc69a648c97f, 2026-11-20
   Seoul: {
-    // Coffee on Jahamun-ro 7-gil
+    // Coffee on Samcheong-ro
     "stop-0:p": {
       kind: "verified",
       by: "area",
-      lat: 37.5795,
-      lng: 126.9712,
-      placesAround: 20,
+      lat: 37.5866,
+      lng: 126.9815,
+      placesAround: 7,
       source: "geoapify",
     },
-    // Gyeongbokgung Palace
-    "stop-1:p": {
-      kind: "verified",
-      by: "name",
-      lat: 37.579754,
-      lng: 126.9766818,
-      providerId:
-        "514c6661f481be5f4059d3dc0a6135ca4240f00101f9014df2530000000000c002019203144779656f6e67626f6b67756e672050616c616365",
-      source: "geoapify",
-    },
-    // Mandu and noodles along Insadong-gil
+    // Bukchon Hanok Village
+    "stop-1:p": { kind: "unverified", reason: "no-match" },
+    // Mandu and noodles near Anguk Station
     "stop-2:p": {
       kind: "verified",
       by: "area",
-      lat: 37.5741,
-      lng: 126.9857,
+      lat: 37.576,
+      lng: 126.9855,
       placesAround: 19,
       source: "geoapify",
     },
-    // Ikseon-dong Hanok Village
+    // Changdeokgung Palace and Huwon
     "stop-3:p": { kind: "unverified", reason: "no-match" },
-    // Cheonggyecheon Stream
+    // Ikseon-dong Hanok Alleys
     "stop-4:p": { kind: "unverified", reason: "no-match" },
-    // Grilled pork along Jongno 3-ga alleys
+    // Insadong-gil
     "stop-5:p": {
       kind: "verified",
-      by: "area",
-      lat: 37.5714,
-      lng: 126.9916,
-      placesAround: 20,
+      by: "name",
+      lat: 37.5735237,
+      lng: 126.9855961,
+      providerId:
+        "512b24aa0114bf5f40598f7d7f3969c94240f00102f9019cc6960100000000c0020492030c496e7361646f6e672d67696c",
       source: "geoapify",
     },
-    // Euljiro Hip-jiro Alleys
+    // Tea on Insadong-gil side alleys
     "stop-6:p": {
       kind: "verified",
       by: "area",
-      lat: 37.5663,
-      lng: 126.9919,
+      lat: 37.5738,
+      lng: 126.9862,
       placesAround: 20,
       source: "geoapify",
     },
-    // Late-night tteokbokki by Myeongdong Gil
+    // Grilled pork along Euljiro 3-ga
     "stop-7:p": {
       kind: "verified",
       by: "area",
-      lat: 37.5636,
-      lng: 126.9853,
+      lat: 37.5663,
+      lng: 126.9917,
       placesAround: 20,
       source: "geoapify",
     },
-    // Tongin Market
-    "stop-0:a1": {
-      kind: "verified",
-      by: "name",
-      lat: 37.5807552,
-      lng: 126.9699963,
-      providerId:
-        "516d6f5c6b14be5f4059b07db72f56ca4240f00102f90198b84e1200000000c0020192030d546f6e67696e204d61726b6574",
-      source: "geoapify",
-    },
-    // Seochon Hanok Lanes
-    "stop-1:a1": { kind: "unverified", reason: "no-match" },
-    // Tea houses along Insadong Tea Alley
-    "stop-2:a1": {
-      kind: "verified",
-      by: "area",
-      lat: 37.5747,
-      lng: 126.9847,
-      placesAround: 20,
-      source: "geoapify",
-    },
-    // Jogyesa Temple
-    "stop-3:a1": {
-      kind: "verified",
-      by: "name",
-      lat: 37.5741432,
-      lng: 126.981912,
-      providerId:
-        "5132e36da5d7be5f4059439c3d867dc94240f00102f901211d4d0d00000000c0020192030e4a6f67796573612054656d706c65",
-      source: "geoapify",
-    },
-    // Nakwon Instrument Arcade
-    "stop-3:a2": { kind: "unverified", reason: "no-match" },
-    // Bibimbap and soup near Jongno 3-ga
-    "stop-5:a1": {
-      kind: "verified",
-      by: "area",
-      lat: 37.5709,
-      lng: 126.9906,
-      placesAround: 20,
-      source: "geoapify",
-    },
-    // Pojangmacha along Jongno 3-ga
-    "stop-5:a2": {
-      kind: "verified",
-      by: "area",
-      lat: 37.5717,
-      lng: 126.9921,
-      placesAround: 4,
-      source: "geoapify",
-    },
-    // Wine bars along Euljiro 3-ga
-    "stop-6:a1": {
+    // Beer along Euljiro Nogari Alley
+    "stop-8:p": {
       kind: "verified",
       by: "area",
       lat: 37.5668,
-      lng: 126.9918,
+      lng: 126.9939,
       placesAround: 20,
       source: "geoapify",
     },
-    // Noraebang along Myeongdong Gil
+    // Hangang View Cafe Street at Bukchon Lane
+    "stop-0:a1": {
+      kind: "verified",
+      by: "area",
+      lat: 37.5847,
+      lng: 126.9832,
+      placesAround: 8,
+      source: "geoapify",
+    },
+    // Coffee on Samcheong-dong Gallery Street
+    "stop-0:a2": {
+      kind: "verified",
+      by: "area",
+      lat: 37.5841,
+      lng: 126.9822,
+      placesAround: 15,
+      source: "geoapify",
+    },
+    // Gahoe-dong Alleys
+    "stop-1:a2": { kind: "unverified", reason: "no-match" },
+    // Tea and rice on Anguk side lanes
+    "stop-2:a1": {
+      kind: "verified",
+      by: "area",
+      lat: 37.5772,
+      lng: 126.9868,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Jongmyo Shrine
+    "stop-3:a1": {
+      kind: "verified",
+      by: "name",
+      lat: 37.5749525,
+      lng: 126.9938788,
+      providerId:
+        "51048cd3b59bbf5f40597120240b98c94240f00101f901e949260100000000c0020192030e4a6f6e676d796f20536872696e65",
+      source: "geoapify",
+    },
+    // Changgyeonggung Palace
+    "stop-3:a2": { kind: "unverified", reason: "no-match" },
+    // Tea at Ikseon-dong Courtyard Rooms
+    "stop-4:a1": {
+      kind: "verified",
+      by: "area",
+      lat: 37.5745,
+      lng: 126.9899,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Dessert along Ikseon-dong Main Alley
+    "stop-4:a2": {
+      kind: "verified",
+      by: "area",
+      lat: 37.5751,
+      lng: 126.989,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Jogyesa Temple Grounds
+    "stop-5:a1": { kind: "unverified", reason: "no-match" },
+    // Street food in Insadong Ssamziegil Courtyard
+    "stop-5:a2": { kind: "unverified", reason: "no-match" },
+    // Tea at Jogyesa Gate Lane
+    "stop-6:a1": {
+      kind: "verified",
+      by: "area",
+      lat: 37.5746,
+      lng: 126.984,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Makgeolli on Insadong Back Lane
     "stop-6:a2": {
       kind: "verified",
       by: "area",
-      lat: 37.5632,
-      lng: 126.9852,
-      placesAround: 18,
+      lat: 37.5732,
+      lng: 126.9862,
+      placesAround: 11,
       source: "geoapify",
     },
-    // Convenience-store noodles near Myeongdong Station
+    // Noodles on Euljiro Alley
     "stop-7:a1": {
       kind: "verified",
       by: "area",
-      lat: 37.5609,
-      lng: 126.9863,
+      lat: 37.5659,
+      lng: 126.991,
       placesAround: 20,
       source: "geoapify",
     },
-    // Late supper along Myeongdong Gil
+    // Chicken and beer along Euljiro Ho-Hoo Alley
     "stop-7:a2": {
       kind: "verified",
       by: "area",
-      lat: 37.5638,
-      lng: 126.9849,
+      lat: 37.5666,
+      lng: 126.9925,
       placesAround: 20,
+      source: "geoapify",
+    },
+    // Wine on Euljiro Quiet Lane
+    "stop-8:a1": {
+      kind: "verified",
+      by: "area",
+      lat: 37.5655,
+      lng: 126.993,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Soju along Euljiro Pocha Street
+    "stop-8:a2": {
+      kind: "verified",
+      by: "area",
+      lat: 37.5671,
+      lng: 126.9948,
+      placesAround: 10,
       source: "geoapify",
     },
   },
