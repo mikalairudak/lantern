@@ -1,6 +1,6 @@
 # Lantern Roadmap
 
-Status: v1.0, 2026-11-09. Planned 2026-10-20; fixtures-only build done 2026-10-27; live since 2026-10-31; the milestones after v1.0 planned 2026-11-10.
+Status: v1.1, 2026-11-12. Planned 2026-10-20; fixtures-only build done 2026-10-27; live since 2026-10-31; v1.0 on 2026-11-09; the milestones after v1.0 planned 2026-11-10 and revised 2026-11-12.
 
 ## What we are building, and for whom
 
@@ -74,23 +74,29 @@ After it: `/studio` as a walk through the project, and a digest of the decisions
 
 Next: the milestones below. Each of the six written days gets its next season before `pnpm days:fresh` says its light stops holding: early December for Kanazawa and late January to early February for the rest, by its count on 11 November (`docs/decisions.md`, "A city's written day is one of its seasons, picked by the date it is shown on").
 
-## After v1.0: three milestones
+## After v1.0: four milestones
 
 Each milestone is one release. Its work reaches `develop` as small pull requests (`docs/decisions.md`, "Every change reaches develop as a pull request the owner merges"). There is no date: each milestone is done when all of it is done.
 
-1. **Foundation (v1.0.x).** The way work lands, and what is measured before the start screen changes:
+1. **Foundation (v1.0.x), released.** The way work lands, and what is measured before the start screen changes:
    - every change through a reviewed pull request, its text checked, and `develop` merged only from a green one;
    - one fix taken from a branch to a release, `v1.0.1`, to prove the path end to end;
    - the events that say whether a day was used: the start screen seen, a day read to its end, and the way in and the view of each day's gestures; and their values before the start screen changes;
    - the header's top row aligned;
    - the lint's dependencies updated.
-2. **First impression (v1.1).** What a visitor sees in their first ten seconds, released as one:
-   - a start screen with two ways in, the question and tiles for a mood or an occasion, each tile opening a day already written for it, and a still excerpt of a day beneath them; the six written days leave it and keep their pages, as examples a search can find;
+2. **First impression (v1.1), released 2026-11-12.** What a visitor sees in their first ten seconds:
+   - a start screen with two ways in, the question and an index of eight cities, each with an engraving of an everyday thing of the city and a day already written for it, and a still excerpt of a day beneath them (`docs/decisions.md`, "The start screen is an index, with a day's first stops under it" and "The index's pictures are engravings of a city's everyday thing"); the written days outside the index keep their pages, as examples a search can find;
    - a day shown first as a plan to read, with its light, and the chart as its second view;
-   - the header's remaining polish, the tiles' picture style, and a reaction a visitor gives in one tap;
-   - a test with five people;
-   - the events compared with their values before.
-3. **Day quality (v1.2).** The day itself: the model's and the data's open issues, and the six written days' next seasons.
+   - the day's ways along in one menu, a reaction a visitor gives in one tap, and one answer to a pointer and the keyboard on everything that can be pressed.
+3. **The language of light (v1.2).** The product's look, redrawn around light that has a source, released as one:
+   - the night's neutral colours on the ground's own hue, and the index's engravings by night drawn whole and lit by their own lamps;
+   - every engraving drawn with a thing that truly gives light, a lamp, a lantern or an open window;
+   - the start screen's question redrawn so that the field is what a visitor reads first, with the excerpt gone: each city in the index is one press from a day that plays;
+   - the day's plan lit after sunset, a stop's versions on lines of their own on a phone, and one width for the day's head and its plan on a laptop;
+   - the mark and the wordmark, and the not-found page, in the same language;
+   - the day's head, whose polish is carried over from v1.1: fewer and quieter small notes under the headline;
+   - after the release, a test with five people, and the events compared with their values before the start screen changed.
+4. **Day quality (v1.3).** The day itself: the model's and the data's open issues, and the six written days' next seasons.
 
 After them: a weekend, tiles by season or region, and a page of the product's measures in `/studio`.
 
