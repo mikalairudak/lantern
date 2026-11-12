@@ -17,20 +17,21 @@ export const INDEX_LABEL = "No city in mind? Start from one of these";
  * A cell spans its row's two tracks, the pictures' and the captions', so every picture of a row
  * stands on one foot however its caption wraps, and every caption starts on one line. The space
  * between columns is the cells' own, half on each side, so a pointer crossing a row is always
- * over a cell and the index never flickers between them.
+ * over a cell and no picture flickers between them.
  */
 const CELL_CLASSES =
   "group/pointed row-span-2 grid w-full grid-rows-subgrid rounded-sm px-3 text-center focus-ring";
 
 /**
  * A cell pointed at, by a pointer or the keyboard, stands forward: its city takes the ink rule
- * every word that can be pressed takes, and the other cells' engravings step back to a faint
- * plate, their words kept whole (`docs/decisions.md`, "What can be pressed takes a rule in ink
- * under a pointer").
+ * every word that can be pressed takes, and its engraving comes up to full ink from the 90% every
+ * engraving rests at where a pointer can hover. A touch screen draws them all at full ink
+ * (`docs/decisions.md`, "What can be pressed takes a rule in ink under a pointer").
  */
 const CITY_CLASSES =
   "type-voice text-quote text-pretty text-ink decoration-ink decoration-1 underline-offset-4 pointed-group:underline";
-const PICTURE_CLASSES = "self-end transition-opacity beside-pointed:opacity-40";
+const PICTURE_CLASSES =
+  "self-end transition-opacity can-hover:opacity-90 pointed-group:opacity-100";
 
 /**
  * The start screen's index (`docs/decisions.md`, "The start screen is
@@ -62,7 +63,6 @@ export function StartIndex({
       <ul
         ref={listRef}
         aria-labelledby={label}
-        data-index
         className="-mx-3 grid grid-cols-2 @abacus:grid-cols-4"
       >
         {starts.map((start) => {

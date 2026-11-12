@@ -31,7 +31,7 @@ test("the start screen offers the question and an index of written days, with a 
   await expect(page).toHaveURL(/\/day\//);
 });
 
-test("a cell pointed at stands forward, for a pointer and the keyboard alike, and a finger leaves none", async ({
+test("a cell pointed at comes up to full ink, for a pointer and the keyboard alike, and a touch screen draws every cell full", async ({
   page,
 }) => {
   await page.goto("/");
@@ -50,15 +50,16 @@ test("a cell pointed at stands forward, for a pointer and the keyboard alike, an
           getComputedStyle(cell.querySelector("span > span:first-child")!).textDecorationLine,
       ),
     );
-  const standsForward = (at: number) =>
-    INDEX_REQUESTS.map((_, cell) => (cell === at ? "1" : "0.4"));
-  const atRest = INDEX_REQUESTS.map(() => "1");
-
-  // A pointer that can hover stands its cell forward; a phone's finger cannot hover, and a
-  // pointer passing over leaves nothing lit there.
+  // Where a pointer can hover, every engraving rests a little under full ink and the one pointed
+  // at comes up to it; a phone's finger cannot hover, so a phone draws every one full.
   const canHover = await page.evaluate(() => window.matchMedia("(hover: hover)").matches);
+  const full = INDEX_REQUESTS.map(() => "1");
+  const pointedAt = (at: number) =>
+    canHover ? INDEX_REQUESTS.map((_, cell) => (cell === at ? "1" : "0.9")) : full;
+  await expect.poll(pictures).toEqual(canHover ? INDEX_REQUESTS.map(() => "0.9") : full);
+
   await cells.nth(1).hover();
-  await expect.poll(pictures).toEqual(canHover ? standsForward(1) : atRest);
+  await expect.poll(pictures).toEqual(pointedAt(1));
   expect((await ruled())[1]).toBe(canHover ? "underline" : "none");
 
   // The keyboard shows the same, wherever the pointer is.
@@ -66,7 +67,7 @@ test("a cell pointed at stands forward, for a pointer and the keyboard alike, an
   await cells.nth(1).focus();
   await page.keyboard.press("Tab");
   await expect(cells.nth(2)).toBeFocused();
-  await expect.poll(pictures).toEqual(standsForward(2));
+  await expect.poll(pictures).toEqual(pointedAt(2));
   expect((await ruled())[2]).toBe("underline");
 });
 
