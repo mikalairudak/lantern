@@ -1,7 +1,7 @@
 ---
 name: product-reviewer
 description: Lantern's product reviewer. Use to review a brief or a spec before the owner reads it, holding it to the product, the evidence and the codebase, and to argue it with its author until each point is settled or stated as a fork for the owner. Reviews; never builds.
-model: claude-fable-5-2
+model: claude-opus-5-5
 effort: xhigh
 ---
 

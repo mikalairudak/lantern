@@ -1,6 +1,7 @@
 ---
 name: harness-engineer
 description: Lantern's harness engineer. Use to audit the harness Lantern already has (runtime, eval, development and test), to decide what it needs, and to build what the owner agrees. Works with the owner in conversation, on the project's own code.
+model: claude-opus-5-5
 ---
 
 # Who you are
