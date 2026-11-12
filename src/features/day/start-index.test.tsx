@@ -50,7 +50,7 @@ describe("the start screen's index", () => {
     ).toBeInTheDocument();
     const madrid = screen.getByRole("button", { name: /^Madrid/ });
     expect(madrid.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
-    expect(madrid).toHaveAccessibleName("Madrid Lively Saturday out late");
+    expect(madrid).toHaveAccessibleName("Madrid Lively Sunday out late");
   });
 
   it("draws every drawn city's picture, and none for a city with no picture, whose caption stays", () => {

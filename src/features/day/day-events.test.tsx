@@ -7,7 +7,7 @@ import { DAY_ROUTE } from "@/features/itinerary/day-route";
 import type { ProductEvent } from "@/lib/events/event.schema";
 import { sendProductEvent } from "@/lib/events/send-event";
 import { KANAZAWA_START_DAY } from "@/lib/days/written/kanazawa";
-import { KANAZAWA_START_REQUEST, MADRID_START_REQUEST } from "@/lib/days/written/quick-starts";
+import { KANAZAWA_START_REQUEST, PORTO_START_REQUEST } from "@/lib/days/written/quick-starts";
 import { isWrittenRequest } from "@/lib/days/written/requests";
 import type { IntakeRouteAnswer } from "@/lib/intake/signed-city";
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
@@ -247,10 +247,10 @@ async function landOnKanazawa({ isLive = false } = {}) {
   return user;
 }
 
-/** Madrid's written day, live: its company names six of its seven stops, a whole day's word. */
-async function landOnMadrid() {
+/** Porto's written day, live: no stop names its slow morning, so its start is a whole day's word. */
+async function landOnPorto() {
   const user = userEvent.setup();
-  render(<Day first={MADRID_START_REQUEST} isLive isCounted />);
+  render(<Day first={PORTO_START_REQUEST} isLive isCounted />);
   await waitForTheDay();
   return user;
 }
@@ -428,14 +428,14 @@ describe("the gestures on a day, as the product counts them", () => {
   });
 
   it("opens the day a changed word re-plans, live, as reached by the word", async () => {
-    const user = await landOnMadrid();
+    const user = await landOnPorto();
 
-    await changeWord(user, "with friends", "with family");
+    await changeWord(user, "slow morning", "early start");
     await waitFor(() => expect(sentOf("day-ended")).toHaveLength(2), DAY_TIMEOUT);
 
-    const replanned = { city: "madrid", via: "word", written: false } as const;
+    const replanned = { city: "porto", via: "word", written: false } as const;
     expect(sent().slice(2)).toEqual([
-      { kind: "word-changed", city: "madrid", word: "company" },
+      { kind: "word-changed", city: "porto", word: "start" },
       { kind: "day-opened", ...replanned },
       { kind: "day-ended", ...replanned, ...ON_CHART, outcome: "complete" },
     ]);
@@ -511,16 +511,16 @@ describe("the gestures on a day, as the product counts them", () => {
 
   // A day that came back empty is asked for again by the page, not the visitor: one opening.
   it("counts a day asked for again after it came back empty as one day, ended once", async () => {
-    const user = await landOnMadrid();
+    const user = await landOnPorto();
     dayReplies.push("empty");
 
-    await changeWord(user, "with friends", "with family");
+    await changeWord(user, "slow morning", "early start");
     await waitFor(() => expect(sentOf("day-ended")).toHaveLength(2), DAY_TIMEOUT);
     await waitForTheDay();
 
-    const replanned = { city: "madrid", via: "word", written: false } as const;
+    const replanned = { city: "porto", via: "word", written: false } as const;
     expect(sent().slice(2)).toEqual([
-      { kind: "word-changed", city: "madrid", word: "company" },
+      { kind: "word-changed", city: "porto", word: "start" },
       { kind: "day-opened", ...replanned },
       { kind: "day-ended", ...replanned, ...ON_CHART, outcome: "complete" },
     ]);

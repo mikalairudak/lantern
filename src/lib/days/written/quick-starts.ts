@@ -40,10 +40,9 @@ export interface QuickStart {
 const SATURDAY = "2026-11-07";
 const SUNDAY = "2026-11-08";
 /**
- * The weekend after, for the two days written again: a request the route answered from its file
- * would not have reached the model.
+ * The Sunday after, for the days written again: a request the route answered from its file would
+ * not have reached the model. Madrid's is a Sunday, the day the Rastro runs.
  */
-const NEXT_SATURDAY = "2026-11-14";
 const NEXT_SUNDAY = "2026-11-15";
 
 /** A request as a start asks it: every word chosen, none assumed. */
@@ -89,7 +88,7 @@ export const KANAZAWA_START_REQUEST: DayRequest = startRequestOf({
 export const MADRID_START_REQUEST: DayRequest = startRequestOf({
   city: "Madrid",
   timezone: "Europe/Madrid",
-  date: NEXT_SATURDAY,
+  date: NEXT_SUNDAY,
   energy: "lively",
   end: "late",
   company: "friends",
@@ -142,7 +141,7 @@ export const QUICK_STARTS: readonly QuickStart[] = [
   {
     country: "Spain",
     request: MADRID_START_REQUEST,
-    firstStart: "10:00",
+    firstStart: "10:30",
     others: [
       { city: "Seville", timezone: "Europe/Madrid" },
       { city: "Valencia", timezone: "Europe/Madrid" },

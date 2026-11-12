@@ -87,7 +87,7 @@ test("a city's cell draws its engraving from one file, its theme's, kept forever
   const madrid = page.getByRole("button", { name: /^Madrid/ });
   await madrid.scrollIntoViewIfNeeded();
   // The picture is out of what is read: the cell is named by its city and its day.
-  await expect(madrid).toHaveAccessibleName(/^Madrid Lively Saturday/);
+  await expect(madrid).toHaveAccessibleName(/^Madrid Lively Sunday/);
   await expect(madrid.locator('rect[data-layer="scene"]')).toHaveAttribute("data-state", "drawn");
   await expect(madrid.locator('rect[data-layer="subject"]')).toHaveAttribute(
     "data-state",

@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { expect, test, type Page, type Route, waitMs, chooseTheChart } from "./fixtures";
-import { NAFPLIO_START_REQUEST } from "../src/lib/days/written/quick-starts";
+import { ROME_REQUEST } from "../src/lib/days/written/city-days";
 
 // These tests drive the chart: each page opens as for a visitor who chose it, since a day
 // opens on its plan otherwise.
@@ -14,8 +14,8 @@ test.beforeEach(async ({ page }) => {
  * is on its way, and a re-plan that ends without a day leaves it exactly as it was, saying
  * why in its facts line; one that streams takes the page, its header gliding from the room
  * the day before had, the chart with it. Played on the day bench with its next days live,
- * the route answered by the test, as no test calls a live model, on Madrid, whose company
- * names six of its seven stops, so the word re-plans the whole day.
+ * the route answered by the test, as no test calls a live model, on Porto, whose slow morning
+ * no stop names, so a change of its start re-plans the whole day.
  */
 
 const BENCH = "/lab/concepts/day";
@@ -25,7 +25,7 @@ const DAY_ROUTE = "**/api/day";
  * 8 s in; a cold server adds a few.
  */
 const DAY_TIMEOUT_MS = waitMs(30_000);
-const WORD = "with family";
+const WORD = "early start";
 const REPLANNING = `re-planning the day for “${WORD}”`;
 /** What the fork row says of a whole day that ended without one, by why (`replanEndedOf`). */
 const LIMITED = "No more re-plans for now";
@@ -38,7 +38,7 @@ const PHONE = { width: 390, height: 844 };
 const LAPTOP = { width: 1440, height: 900 };
 /**
  * Bologna's written day, which the route streams whole with live generation off: a re-plan of
- * Madrid that comes back empty is answered with it once asked again.
+ * Porto that comes back empty is answered with it once asked again.
  */
 const BOLOGNA_REQUEST = {
   city: "Bologna",
@@ -65,12 +65,12 @@ const EMPTY_DAY_STREAM = [
   .concat("data: [DONE]\n\n")
   .join("");
 /**
- * Nafplio's written day answers a re-plan of Madrid that streams: its line about the day is
- * 62 characters longer, so on a phone the day that takes the page has a taller header, as a
+ * Rome's written day answers a re-plan of Porto that streams: its line about the day is 79
+ * characters shorter, so on a phone the day that takes the page has a shorter header, as a
  * live re-plan's mostly has another height. Its first place is written once that day has its
  * header's room.
  */
-const NAFPLIO_FIRST_PLACE = "Coffee on Staikopoulou";
+const ROME_FIRST_PLACE = "Cornetti on Via Leonina";
 /** The chart has come to its place once its top has not moved in this many frames. */
 const REST_FRAMES = 10;
 /** The header's room glides for about half a second as a day lands: twice as many frames. */
@@ -147,12 +147,12 @@ function stepsOf(tops: readonly number[]): { at: number; px: number }[] {
   return steps;
 }
 
-/** Madrid on the bench, its next days asked of the live route, still. */
+/** Porto on the bench, its next days asked of the live route, still. */
 async function openLiveBench(page: Page): Promise<void> {
   await page.goto(BENCH);
   const controls = page.getByRole("complementary", { name: "Lab controls" });
   await controls.getByRole("button", { name: "Ending" }).click();
-  await controls.getByRole("combobox", { name: "Day" }).selectOption("Madrid");
+  await controls.getByRole("combobox", { name: "Day" }).selectOption("Porto");
   await controls.getByRole("combobox", { name: "Pace" }).selectOption("Ten times faster");
   await controls.getByRole("combobox", { name: "Re-plans" }).selectOption("live");
   await controls.getByRole("button", { name: "Ending" }).click();
@@ -210,7 +210,7 @@ async function expectTheDayKept(page: Page, isStill: boolean): Promise<void> {
   await expect(chart).toHaveAttribute("aria-busy", "false");
   // While it is written, the sentence says both answers; once it has failed, the visitor's.
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    isStill ? /with friends$/ : new RegExp(`with friends or ${WORD}$`),
+    isStill ? /, slow morning,/ : new RegExp(`slow morning or ${WORD},`),
     { useInnerText: true },
   );
   await expect(page.getByRole("list", { name: "The day" }).getByRole("listitem")).not.toHaveCount(
@@ -231,7 +231,7 @@ test.describe("under reduced motion", () => {
     // The route never answers: the day stays on its way.
     await page.route(DAY_ROUTE, () => undefined);
 
-    await changeWord(page, "with friends", /with family/);
+    await changeWord(page, "slow morning", /early start/);
 
     await expect(said(page, REPLANNING)).toBeVisible();
     await expectTheDayKept(page, false);
@@ -239,7 +239,7 @@ test.describe("under reduced motion", () => {
     await expect(
       page
         .getByRole("heading", { level: 1 })
-        .getByRole("button", { name: "eating late", exact: true }),
+        .getByRole("button", { name: "early dinner", exact: true }),
     ).toHaveAttribute("aria-disabled", "true");
   });
 
@@ -263,7 +263,7 @@ test.describe("under reduced motion", () => {
       await markTheDay(page);
       await page.route(DAY_ROUTE, answer);
 
-      await changeWord(page, "with friends", /with family/);
+      await changeWord(page, "slow morning", /early start/);
 
       await expect(workSaid(page, line)).toBeVisible({ timeout: DAY_TIMEOUT_MS });
       await expect(said(page, REPLANNING)).toHaveCount(0);
@@ -284,11 +284,11 @@ test.describe("under reduced motion", () => {
         : route.continue({ postData: JSON.stringify(BOLOGNA_REQUEST) });
     });
 
-    await changeWord(page, "with friends", /with family/);
-    await takeProposal(page, "with family");
+    await changeWord(page, "slow morning", /early start/);
+    await takeProposal(page, "early start");
 
     const headline = page.getByRole("heading", { level: 1 });
-    await expect(headline).not.toContainText("with friends", { timeout: DAY_TIMEOUT_MS });
+    await expect(headline).not.toContainText("slow morning", { timeout: DAY_TIMEOUT_MS });
     await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
       "aria-busy",
       "false",
@@ -310,7 +310,7 @@ test.describe("under reduced motion", () => {
       return route.fulfill({ contentType: "text/event-stream", body: EMPTY_DAY_STREAM });
     });
 
-    await changeWord(page, "with friends", /with family/);
+    await changeWord(page, "slow morning", /early start/);
 
     await expect(workSaid(page, NOT_FINISHED)).toBeVisible({ timeout: DAY_TIMEOUT_MS });
     await expectTheDayKept(page, true);
@@ -341,17 +341,17 @@ test.describe("with motion", () => {
       await openLiveBench(page);
       // Answered with another day, whose header is of another height on a phone.
       await page.route(DAY_ROUTE, (route) =>
-        route.continue({ postData: JSON.stringify(NAFPLIO_START_REQUEST) }),
+        route.continue({ postData: JSON.stringify(ROME_REQUEST) }),
       );
       const from = await page.evaluate(() => window.chartTops.length);
 
-      await changeWord(page, "with friends", /with family/);
-      await takeProposal(page, "with family");
+      await changeWord(page, "slow morning", /early start/);
+      await takeProposal(page, "early start");
 
       // The day before stands, rows and words, until the new day is whole and taken, and the new
       // day lands whole in one pass: its stops with it, and the chart's way is the header's room,
       // which glides from the day before's room to its own as it lands, over about 0.5 s.
-      await expect(page.getByText(NAFPLIO_FIRST_PLACE, { exact: true }).first()).toBeVisible({
+      await expect(page.getByText(ROME_FIRST_PLACE, { exact: true }).first()).toBeVisible({
         timeout: DAY_TIMEOUT_MS,
       });
       const landed = await page.evaluate(() => window.chartTops.length);

@@ -32,6 +32,12 @@ const nextConfig: NextConfig = {
     },
   ],
   partialPrefetching: true,
+  experimental: {
+    // Every production build compiles the stylesheet from the source as it is: builds that
+    // restored an earlier cache served an earlier stylesheet (`docs/decisions.md`, "A production
+    // build starts without Turbopack's cache").
+    turbopackFileSystemCacheForBuild: false,
+  },
   turbopack: {
     rules: {
       "*.css": {

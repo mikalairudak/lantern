@@ -88,7 +88,7 @@ describe("the freshness report", () => {
       "bologna: shown 2026-11-14, season 2026-11-07 to open, holds until 2027-01-23, 73 days left",
       "porto: shown 2026-11-15, season 2026-11-15 to open, does not hold on 2026-11-15  FLAG",
       "kanazawa: shown 2026-11-14, season 2026-11-07 to open, holds until 2026-12-05, 24 days left",
-      "madrid: shown 2026-11-14, season 2026-11-14 to open, holds until 2027-02-06, 87 days left",
+      "madrid: shown 2026-11-15, season 2026-11-15 to open, holds until 2027-02-07, 88 days left",
       "utrecht: shown 2026-11-15, season 2026-11-08 to open, holds until 2027-01-31, 81 days left",
       "nafplio: shown 2026-11-14, season 2026-11-07 to open, holds until 2027-02-06, 87 days left",
       "paris: shown 2026-11-15, season 2026-11-15 to open, holds until 2027-01-17, 67 days left",

@@ -25,7 +25,7 @@ const BESIDES_KYOTO = [
   "A lively Saturday in Bologna, with friends",
   "A calm Sunday in Porto, slow morning",
   "A calm Saturday in Kanazawa, early start",
-  "A lively Saturday in Madrid, out late, with friends",
+  "A lively Sunday in Madrid, out late, with friends",
   "A balanced Sunday in Utrecht, with family",
   "A quiet Saturday in Nafplio, slow morning",
 ];
