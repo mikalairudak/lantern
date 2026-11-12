@@ -157,6 +157,15 @@ export function VersionCarousel({
     else animate(x, 0, SPRINGS.layout);
   }, [pick, x, isReduced]);
 
+  // A stop that stops swapping while an arrow is pointed at, as when a day starts being written,
+  // goes home: its arrows may be gone before the pointer leaves them.
+  useEffect(() => {
+    if (isEnabled || pointedLean.current === null) return;
+    pointedLean.current.stop();
+    pointedLean.current = null;
+    animate(x, 0, SPRINGS.snappy);
+  }, [isEnabled, x]);
+
   // The lean plays once while the stop is shown, and never once a version has been taken.
   const hasLeaned = useRef(false);
   useEffect(() => {
@@ -215,8 +224,9 @@ export function VersionCarousel({
    * The version on the left comes in from a drag to the right, so its arrow leans the stop right.
    */
   const lean = (side: Side | null) => {
-    if (!isEnabled || isReduced) return;
     if (side === null && pointedLean.current === null) return;
+    // A stop that can no longer swap still goes home from a lean it holds.
+    if (side !== null && (!isEnabled || isReduced)) return;
     pointedLean.current?.stop();
     const to = side === "before" ? NUDGE_PX : side === "after" ? -NUDGE_PX : 0;
     const move = animate(x, to, SPRINGS.snappy);

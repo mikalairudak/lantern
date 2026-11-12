@@ -29,7 +29,7 @@ const ignore = () => undefined;
  * eight cities it offers, each with its engraving, at a city with none among them and the longest
  * caption, and at one cell, and under it a written day's first stops, still. Each cell's
  * picture is the theme's own: the whole scene by day, the subject alone by night. A cell pointed
- * at stands forward, its city ruled and the other pictures stepped back.
+ * at stands forward, its city ruled and its picture up to full ink from the 90% the others rest at.
  */
 export const START_INDEX_MATRIX: LabMatrix = labMatrix<StartIndexCellProps>({
   key: "start-index",

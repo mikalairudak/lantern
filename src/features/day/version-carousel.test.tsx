@@ -131,6 +131,30 @@ describe("the carousel", () => {
     await waitFor(() => expect(stop.style.transform).toBe("translateX(12px)"));
   });
 
+  it("goes home from a lean once it can no longer swap, though the arrow is still pointed at", async () => {
+    const onPick = vi.fn();
+    const carousel = (canPick: boolean) => (
+      <VersionCarousel
+        stop={BOTH}
+        pick={0}
+        name="The stop"
+        onPick={canPick ? onPick : undefined}
+        renderVersion={(candidate) => <p>{`version ${candidate}`}</p>}
+      >
+        <h2>The stop</h2>
+      </VersionCarousel>
+    );
+    const { rerender } = render(carousel(true));
+    const { after } = neighboursOf(BOTH, 0);
+    const stop = screen.getByRole("group", { name: "The stop" });
+    fireEvent.pointerEnter(screen.getByRole("button", { name: `Livelier: ${after?.name}` }), {
+      pointerType: "mouse",
+    });
+    await waitFor(() => expect(stop.style.transform).toBe("translateX(-12px)"));
+    rerender(carousel(false));
+    await waitFor(() => expect(stop.style.transform).toBe("none"));
+  });
+
   it("leans nothing for a finger, which cannot hover", async () => {
     render(<Picking />);
     const { after } = neighboursOf(BOTH, 0);

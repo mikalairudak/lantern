@@ -33,7 +33,7 @@ const WORD_CLASSES = cn(
   "rounded-sm transition-colors underline-offset-4 focus-ring",
   OPEN_WORD_CLASSES,
 );
-/** The word as it reads when it can be opened: in ink, the hairline under it on hover. */
+/** The word as it reads when it can be opened: in ink, the hairline under it under a pointer or the keyboard's focus. */
 const OPENABLE_CLASSES =
   "text-ink pointed:underline pointed:decoration-ink pointed:decoration-solid pointed:decoration-1";
 /** Locked while another word's re-plan is written: muted, with no hover mark, as its words are. */
