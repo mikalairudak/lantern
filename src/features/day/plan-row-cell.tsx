@@ -6,9 +6,6 @@ import { SPRINGS } from "@/lib/tokens/motion";
 import { PLAN_ROW_EXAMPLES, planRowStillOf } from "./plan-row-examples";
 import { ReadingList } from "./reading-list";
 
-/** How long a taken proposal's cell shows the proposal before it is taken. */
-const TAKEN_AFTER_MS = 900;
-
 const NONE: ReadonlySet<string> = new Set();
 
 /** One row of the plan, as the lab's matrix shows it. */
@@ -18,8 +15,10 @@ export function PlanRowCell({ example }: { example: number }) {
   const [isTaken, setIsTaken] = useState(false);
   useEffect(() => {
     if (role !== "taken") return undefined;
-    const timer = window.setTimeout(() => setIsTaken(true), TAKEN_AFTER_MS);
-    return () => window.clearTimeout(timer);
+    // Taken in the frame after the proposal is drawn, so its glow grows as the cell opens and
+    // the cell comes to rest lit, as a still of it must.
+    const frame = window.requestAnimationFrame(() => setIsTaken(true));
+    return () => window.cancelAnimationFrame(frame);
   }, [role]);
   const isProposed = role === "proposed" || (role === "taken" && !isTaken);
   const own = useMemo(() => new Set([stop.id]), [stop.id]);
