@@ -27,7 +27,7 @@ import { FORGET_YOUR_DAYS, YOUR_DAYS_HEADING } from "./your-days-list";
 import { DAY_ID_HEADER } from "@/lib/days/stored-day";
 import { DAY_ROUTE } from "@/features/itinerary/day-route";
 import type { DaySource } from "@/features/itinerary/use-day-stream";
-import type { DayRequest } from "@/lib/schema/itinerary.schema";
+import { ENERGY_LEVELS, type DayRequest, type EnergyLevel } from "@/lib/schema/itinerary.schema";
 import type { IntakeReader, IntakeResult, IntakeWords } from "@/lib/schema/intake.schema";
 import { TAKE_THIS_DAY } from "./day-menu";
 
@@ -821,7 +821,10 @@ describe("the address, on a page that asks the day to keep it", () => {
     await user.click(screen.getByRole("option", { name: "lively" }));
     const [first] = within(dayList()).getAllByRole("button");
     // Lively, the first stop shows its livelier place, which its panel opens.
-    const name = writtenDayAt("paris")!.itinerary.stops[0]!.alternatives[0]!.name;
+    const stop = writtenDayAt("paris")!.itinerary.stops[0]!;
+    const rankOf = (place: { sensory: { energy: EnergyLevel } }) =>
+      ENERGY_LEVELS.indexOf(place.sensory.energy);
+    const name = stop.alternatives.find((version) => rankOf(version) > rankOf(stop.primary))!.name;
     await user.click(first!);
     expect(screen.getByRole("region", { name: /^About / })).toHaveAccessibleName(
       new RegExp(`^About ${name}`),

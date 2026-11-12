@@ -49,19 +49,31 @@ export function experimentLabel({ effort, rule }: ShadowExperiment): string | nu
   return parts.length === 0 ? null : parts.join(", ");
 }
 
+type Prompt = Parameters<
+  NonNullable<LanguageModelMiddleware["transformParams"]>
+>[0]["params"]["prompt"];
+
+/**
+ * A call's prompt with a rule said at the end of its first system message, after the day's
+ * instructions, where nothing comes after it; the rest as sent. A round's one change to a call,
+ * the shadow's or the day's own (`written-day-rule.ts`).
+ */
+export function withRuleAfterInstructions(prompt: Prompt, rule: string): Prompt {
+  const first = prompt.findIndex((message) => message.role === "system");
+  if (first === -1) return prompt;
+  return prompt.map((message, index) =>
+    index === first && message.role === "system"
+      ? { ...message, content: `${message.content}\n\n${rule}` }
+      : message,
+  );
+}
+
 /** Sets the effort and adds the rule to the first system message, leaving everything else. */
 export function experimentMiddleware({ effort, rule }: ShadowExperiment): LanguageModelMiddleware {
   return {
     transformParams: async ({ params }) => {
-      const first = params.prompt.findIndex((message) => message.role === "system");
       const prompt =
-        rule === null || first === -1
-          ? params.prompt
-          : params.prompt.map((message, index) =>
-              index === first && message.role === "system"
-                ? { ...message, content: `${message.content}\n\n${RULES[rule]}` }
-                : message,
-            );
+        rule === null ? params.prompt : withRuleAfterInstructions(params.prompt, RULES[rule]);
       const providerOptions =
         effort === null
           ? params.providerOptions

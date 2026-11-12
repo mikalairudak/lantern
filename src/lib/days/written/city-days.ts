@@ -21,7 +21,7 @@ export type CityDay = Pick<QuickStart, "country" | "request" | "firstStart">;
 export const PARIS_REQUEST: DayRequest = startRequestOf({
   city: "Paris",
   timezone: "Europe/Paris",
-  date: "2026-11-15",
+  date: "2026-11-22",
   energy: "calm",
   start: "slow",
   company: "partner",
@@ -75,7 +75,7 @@ export const BARCELONA_REQUEST: DayRequest = startRequestOf({
 export const SEOUL_REQUEST: DayRequest = startRequestOf({
   city: "Seoul",
   timezone: "Asia/Seoul",
-  date: "2026-11-13",
+  date: "2026-11-20",
   energy: "balanced",
   end: "late",
   company: "alone",
@@ -89,7 +89,7 @@ export const CITY_DAYS: readonly CityDay[] = [
   { country: "United States", request: NEW_YORK_REQUEST, firstStart: "10:00" },
   { country: "Netherlands", request: AMSTERDAM_REQUEST, firstStart: "10:00" },
   { country: "Spain", request: BARCELONA_REQUEST, firstStart: "10:00" },
-  { country: "South Korea", request: SEOUL_REQUEST, firstStart: "10:00" },
+  { country: "South Korea", request: SEOUL_REQUEST, firstStart: "09:45" },
 ];
 
 /** The city days' requests, in the same order. */

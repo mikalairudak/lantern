@@ -23,6 +23,7 @@ import {
   type ShadowExperiment,
   type ShadowRule,
 } from "./shadow-experiment";
+import { DAY_RULES, type DayRule } from "./written-day-rule";
 import { FREE_PLAN_DAILY_CREDITS } from "@/lib/places/geoapify";
 import { isAreaKind, type DayRequest, type PlaceKind } from "@/lib/schema/itinerary.schema";
 import type { IntakeCase } from "@/lib/quality/intake-checks";
@@ -439,6 +440,11 @@ export interface LiveEvalSettings {
    * `EVAL_SHADOW_EFFORT` and `EVAL_SHADOW_RULE`, nothing if unset.
    */
   shadow: ShadowExperiment;
+  /**
+   * A rule said to the day's own call alone, for a round that writes days the site keeps
+   * (`written-day-rule.ts`): `EVAL_DAY_RULE`, none if unset.
+   */
+  dayRule: DayRule | null;
   /** Where the runs and the report are written; a new folder under `eval-runs/` if unset. */
   outDir: string | null;
   confirmation: string | undefined;
@@ -531,6 +537,15 @@ export function liveEvalSettingsOf(
       problem: `EVAL_SHADOW_RULE is "${rule}"; it is one of ${SHADOW_RULES.join(", ")}.`,
     };
   }
+  const dayRule = pathIn(env, "EVAL_DAY_RULE");
+  if (dayRule !== null && !(DAY_RULES as readonly string[]).includes(dayRule)) {
+    return {
+      problem: `EVAL_DAY_RULE is "${dayRule}"; it is one of ${DAY_RULES.join(", ")}.`,
+    };
+  }
+  if (dayRule !== null && !isDayRound) {
+    return { problem: "EVAL_DAY_RULE changes a day round's call; set EVAL_ROUND=day." };
+  }
   return {
     round,
     runsPerCase,
@@ -541,6 +556,7 @@ export function liveEvalSettingsOf(
     voiceDays,
     voiceReport,
     shadow: { effort: effort as ShadowEffort | null, rule: rule as ShadowRule | null },
+    dayRule: dayRule as DayRule | null,
     outDir: pathIn(env, "EVAL_OUT"),
     confirmation: env[CONFIRM_VARIABLE],
   };
