@@ -77,10 +77,21 @@ export function neighboursOf(
   return { before: neighbourAt(order[at - 1]), after: neighbourAt(order[at + 1]) };
 }
 
+/**
+ * A version's arrow: as wide as its words, and no wider than the column, where a longer name
+ * wraps on its own side.
+ */
 const ARROW_CLASSES = cn(
   TARGET_CLASSES,
-  "group/pointed flex min-w-0 basis-1/2 items-baseline rounded-sm text-left type-note text-swap focus-ring aria-disabled:cursor-default",
+  "group/pointed flex max-w-full min-w-0 items-baseline rounded-sm text-left type-note text-swap focus-ring aria-disabled:cursor-default",
 );
+
+/**
+ * The arrows' line: the two share it when both fit with `gap-3` between them, and otherwise wrap
+ * to a line each, the left one first, so layout alone decides it in the first paint. The right
+ * one keeps to the right edge on either line, and alone.
+ */
+const ARROWS_CLASSES = "flex flex-wrap gap-x-3 gap-y-1";
 
 /** The version's name in its arrow, ruled under a pointer or the keyboard's focus. */
 const ARROW_NAME_CLASSES = "decoration-1 underline-offset-4 pointed-group:underline";
@@ -315,8 +326,8 @@ export function VersionCarousel({
       <span id={hintId} className="sr-only">
         {`Swap with the ${keys.join(", or the ")}.`}
       </span>
-      <div className="flex justify-between gap-3">
-        {before ? (
+      <div className={ARROWS_CLASSES}>
+        {before && (
           <button
             type="button"
             aria-label={`${before.side}: ${before.name}`}
@@ -333,8 +344,6 @@ export function VersionCarousel({
               <span className={cn(isEnabled && ARROW_NAME_CLASSES)}>{before.name}</span>
             </span>
           </button>
-        ) : (
-          <span className="basis-1/2" />
         )}
         {after && (
           <button
@@ -346,7 +355,7 @@ export function VersionCarousel({
             onPointerLeave={() => lean(null)}
             onFocus={(event) => leanFromFocus("after", event)}
             onBlur={() => lean(null)}
-            className={cn(ARROW_CLASSES, "justify-end text-right")}
+            className={cn(ARROW_CLASSES, "ml-auto justify-end text-right")}
           >
             <span className="min-w-0 text-pretty">
               <span className={cn(isEnabled && ARROW_NAME_CLASSES)}>{after.name}</span>

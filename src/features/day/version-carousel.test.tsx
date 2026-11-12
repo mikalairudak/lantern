@@ -166,6 +166,36 @@ describe("the carousel", () => {
     expect(stop.style.transform).not.toMatch(/translateX/);
   });
 
+  it("sets its arrows in a line that wraps, each on its own side and none held to half of it", () => {
+    render(<Picking />);
+    const quieter = screen.getByRole("button", { name: /^Quieter: / });
+    const livelier = screen.getByRole("button", { name: /^Livelier: / });
+    // Layout alone decides one line or two: the two share a wrapping row, the left one first.
+    const line = quieter.parentElement!;
+    expect(livelier.parentElement).toBe(line);
+    expect(line).toHaveClass("flex", "flex-wrap", "gap-x-3", "gap-y-1");
+    expect([...line.children]).toEqual([quieter, livelier]);
+    // The right one keeps to the right edge on a line of its own too.
+    expect(livelier).toHaveClass("ml-auto", "text-right");
+    for (const arrow of [quieter, livelier]) {
+      expect(arrow).toHaveClass("max-w-full");
+      expect(arrow.className).not.toMatch(/basis-/);
+    }
+  });
+
+  it("stands a lone version on its own side, with nothing held on the other", () => {
+    const order = [0, ...BOTH.alternatives.map((_, index) => index + 1)];
+    const last = order.find((pick) => neighboursOf(BOTH, pick).after === null)!;
+    render(
+      <VersionCarousel stop={BOTH} pick={last} name="Last" renderVersion={() => null}>
+        <h2>Last</h2>
+      </VersionCarousel>,
+    );
+    const arrows = screen.getAllByRole("button");
+    expect(arrows).toHaveLength(1);
+    expect(arrows[0]!.parentElement!.children).toHaveLength(1);
+  });
+
   it("neither moves nor says anything for a stop with no versions", () => {
     const lone = { ...BOTH, alternatives: [] };
     render(

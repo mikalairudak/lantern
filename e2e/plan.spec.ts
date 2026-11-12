@@ -126,3 +126,78 @@ test("a stop swipes along its versions, from a drag and from the keys", async ({
   await expect.poll(names).toEqual(before);
   await expect(stop).toBeFocused();
 });
+
+/** Each stop's versions line on the plan: its column's box and its arrows' boxes, by side. */
+async function versionLinesOf(page: Page) {
+  const plan = page.getByRole("list", { name: "The day, to read" });
+  return plan.locator('[role="group"]').evaluateAll((stops) =>
+    stops.map((stop) => {
+      const words = stop.parentElement!.parentElement!;
+      const column = words.getBoundingClientRect();
+      const arrows = [...words.querySelectorAll("button[aria-label]")].map((arrow) => {
+        const box = arrow.getBoundingClientRect();
+        const lineHeight = parseFloat(getComputedStyle(arrow).lineHeight);
+        return {
+          isLeft: arrow.textContent?.startsWith("←") ?? false,
+          left: box.left - column.left,
+          right: column.right - box.right,
+          top: box.top,
+          bottom: box.bottom,
+          width: box.width,
+          lines: Math.round(box.height / lineHeight),
+        };
+      });
+      return { column: column.width, arrows };
+    }),
+  );
+}
+
+/** The gap between two versions that share a line: `gap-3`. */
+const ARROWS_GAP_PX = 12;
+/** A screen's width, rounded, that a box may sit off an edge by. */
+const EDGE_PX = 1;
+
+test("versions share a line when both fit, and otherwise take a line each, each on its side", async ({
+  page,
+}) => {
+  for (const width of [320, 390, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/day/barcelona");
+    // Barcelona's day is lively, so its energy word names the button the other tests wait on.
+    await expect(page.locator('[aria-label^="The day\'s energy"]')).toHaveAttribute(
+      "aria-busy",
+      "false",
+      { timeout: DAY_TIMEOUT_MS },
+    );
+    for (const { column, arrows } of await versionLinesOf(page)) {
+      const left = arrows.find(({ isLeft }) => isLeft);
+      const right = arrows.find(({ isLeft }) => !isLeft);
+      // Each stands on its own side, whatever line it takes.
+      if (left) expect(left.left).toBeLessThanOrEqual(EDGE_PX);
+      if (right) expect(right.right).toBeLessThanOrEqual(EDGE_PX);
+      if (!left || !right) continue;
+      const isShared = Math.abs(left.top - right.top) <= EDGE_PX;
+      // One line exactly when both fit on it with the gap between them.
+      const wouldFit = left.width + right.width + ARROWS_GAP_PX <= column + EDGE_PX;
+      if (isShared) expect(wouldFit).toBe(true);
+      else {
+        expect(right.top).toBeGreaterThanOrEqual(left.bottom);
+        // Two that would fit share a line, so a stacked pair of one line each never fits.
+        if (left.lines === 1 && right.lines === 1) expect(wouldFit).toBe(false);
+        // Stacked, each takes its words' width, up to the column's.
+        expect(left.lines === 1 || left.width >= column - EDGE_PX).toBe(true);
+        expect(right.lines === 1 || right.width >= column - EDGE_PX).toBe(true);
+      }
+      if (width === 1280) expect(isShared).toBe(true);
+    }
+    if (width === 390) {
+      // The longest name a written day puts on the left stands on one line beside its arrow.
+      const longest = page.getByRole("button", { name: /Cocktails along Carrer dels Assaonadors/ });
+      const lines = await longest.evaluate(
+        (arrow) =>
+          arrow.getBoundingClientRect().height / parseFloat(getComputedStyle(arrow).lineHeight),
+      );
+      expect(Math.round(lines)).toBe(1);
+    }
+  }
+});
