@@ -60,7 +60,7 @@ export const START_SEASONS: readonly (readonly WrittenSeason[])[] = [
   [seasonOf("2026-11-07", BOLOGNA_START_DAY)],
   [seasonOf("2026-11-15", PORTO_START_DAY)],
   [seasonOf("2026-11-07", KANAZAWA_START_DAY)],
-  [seasonOf("2026-11-14", MADRID_START_DAY)],
+  [seasonOf("2026-11-15", MADRID_START_DAY)],
   [seasonOf("2026-11-08", UTRECHT_START_DAY)],
   [seasonOf("2026-11-07", NAFPLIO_START_DAY)],
 ];

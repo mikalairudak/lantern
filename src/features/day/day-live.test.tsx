@@ -1770,7 +1770,7 @@ describe("a changed word with live generation on", () => {
       expect((await screen.findAllByText(endedSaid(kind), {}, DAY_TIMEOUT))[0]).toBeInTheDocument();
       expect(screen.queryByText(replanningOf("with family"))).not.toBeInTheDocument();
       expect(within(dayList()).getAllByRole("listitem")[0]).toBe(firstStop);
-      expect(headline()).toHaveTextContent(/^A lively Saturday in Madrid.*with friends$/);
+      expect(headline()).toHaveTextContent(/^A lively Sunday in Madrid.*with friends$/);
       expect(screen.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
         "aria-busy",
         "false",
@@ -1806,7 +1806,7 @@ describe("a changed word with live generation on", () => {
     // The empty day never took the page: the day asked from is still the one drawn.
     expect(within(dayList()).getAllByRole("listitem")[0]).toBe(firstStop);
     await waitFor(() =>
-      expect(seenTextOf(headline())).toMatch(/^A lively Saturday in Madrid.*with family$/),
+      expect(seenTextOf(headline())).toMatch(/^A lively Sunday in Madrid.*with family$/),
     );
     expect(screen.getByText(replanningOf("with family"))).toBeInTheDocument();
     expect(screen.queryByText(UNFINISHED, { exact: false })).not.toBeInTheDocument();
@@ -1837,7 +1837,7 @@ describe("a changed word with live generation on", () => {
     ).toBeInTheDocument();
     expect(dayPosts).toHaveLength(2);
     expect(within(dayList()).getAllByRole("listitem")[0]).toBe(firstStop);
-    expect(headline()).toHaveTextContent(/^A lively Saturday in Madrid.*with friends$/);
+    expect(headline()).toHaveTextContent(/^A lively Sunday in Madrid.*with friends$/);
   });
 
   it("re-picks the energy among the versions written, asking for no day", async () => {

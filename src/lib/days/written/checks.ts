@@ -456,19 +456,10 @@ export const START_PLACE_CHECKS: Readonly<Record<string, Readonly<Record<string,
     // Asano River Bank Path
     "stop-7:a1": { kind: "unverified", reason: "no-match" },
   },
-  // rewrite-starts, generation 4645b45c-2da2-4e47-bd59-bd1df35e786c, 2026-11-14
+  // rewrite-starts, generation 9d6bfb70-105a-4901-8246-5e010a84572c, 2026-11-15
   Madrid: {
-    // Churros by Plaza Mayor
-    "stop-0:p": {
-      kind: "verified",
-      by: "area",
-      lat: 40.4155,
-      lng: -3.7075,
-      placesAround: 20,
-      source: "geoapify",
-    },
     // El Rastro
-    "stop-1:p": {
+    "stop-0:p": {
       kind: "verified",
       by: "name",
       lat: 40.4086332,
@@ -477,12 +468,21 @@ export const START_PLACE_CHECKS: Readonly<Record<string, Readonly<Record<string,
         "51e0f76f5e9ca80dc059a807bb174e344440f00101f9019ea7c50000000000c0020192030d52617374726f204d61726b6574",
       source: "geoapify",
     },
-    // Tapas on Cava Baja
+    // Vermouth and tapas on Calle de la Cava Baja
+    "stop-1:p": {
+      kind: "verified",
+      by: "area",
+      lat: 40.4125,
+      lng: -3.7095,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Tapas on Calle de la Cava Baja
     "stop-2:p": {
       kind: "verified",
       by: "area",
-      lat: 40.4127,
-      lng: -3.7094,
+      lat: 40.4121,
+      lng: -3.7092,
       placesAround: 20,
       source: "geoapify",
     },
@@ -496,44 +496,74 @@ export const START_PLACE_CHECKS: Readonly<Record<string, Readonly<Record<string,
         "51e2e82add5d770dc05992cd55f31c354440f00101f90121c7cf0000000000c0020192030e456c2052657469726f205061726b",
       source: "geoapify",
     },
-    // Plaza del Dos de Mayo
+    // Caña and vermouth on Plaza de Santa Ana
     "stop-4:p": {
       kind: "verified",
       by: "area",
-      lat: 40.4251,
-      lng: -3.7048,
+      lat: 40.4146,
+      lng: -3.701,
       placesAround: 20,
       source: "geoapify",
     },
-    // Raciones on Calle del Pez
+    // Dinner around Plaza de Chueca
     "stop-5:p": {
       kind: "verified",
       by: "area",
-      lat: 40.4263,
-      lng: -3.7061,
+      lat: 40.4219,
+      lng: -3.6975,
       placesAround: 20,
       source: "geoapify",
     },
-    // Cocktails around Calle de la Palma
+    // Drinks on Calle de Pelayo
     "stop-6:p": {
       kind: "verified",
       by: "area",
-      lat: 40.4268,
-      lng: -3.7055,
+      lat: 40.4224,
+      lng: -3.6998,
       placesAround: 20,
       source: "geoapify",
     },
-    // Coffee on Calle del Arenal
+    // Plaza de la Cebada Market
     "stop-0:a1": {
       kind: "verified",
+      by: "name",
+      lat: 40.4110938,
+      lng: -3.7098246,
+      providerId:
+        "51962b1785b8ad0dc059504bbdb89e344440f00102f901b851420000000000c002019203144d65726361646f206465206c6120436562616461",
+      source: "geoapify",
+    },
+    // Plaza de Tirso de Molina
+    "stop-0:a2": {
+      kind: "verified",
+      by: "name",
+      lat: 40.4123261,
+      lng: -3.7052643,
+      providerId:
+        "51694afc9b61a40dc059c464051ac7344440f00102f9017006dd0100000000c00204920318506c617a6120646520546972736f206465204d6f6c696e61",
+      source: "geoapify",
+    },
+    // Plaza de los Carros
+    "stop-1:a1": {
+      kind: "verified",
+      by: "name",
+      lat: 40.4116612,
+      lng: -3.711312,
+      providerId:
+        "51d1048a58c4b00dc0591c846f50b1344440f00101f9019c2a8c0000000000c00201920313506c617a61206465206c6f7320436172726f73",
+      source: "geoapify",
+    },
+    // Calle de Segovia Bars
+    "stop-1:a2": {
+      kind: "verified",
       by: "area",
-      lat: 40.4177,
-      lng: -3.7084,
+      lat: 40.4133,
+      lng: -3.7118,
       placesAround: 20,
       source: "geoapify",
     },
     // Mercado de San Miguel
-    "stop-0:a2": {
+    "stop-2:a1": {
       kind: "verified",
       by: "name",
       lat: 40.4153741,
@@ -542,68 +572,70 @@ export const START_PLACE_CHECKS: Readonly<Record<string, Readonly<Record<string,
         "511bf6d61b10ac0dc0597f8d7ffa2a354440f00102f901bef3440000000000c002019203154d65726361646f2064652053616e204d696775656c",
       source: "geoapify",
     },
-    // Plaza de la Paja
-    "stop-1:a1": {
-      kind: "verified",
-      by: "name",
-      lat: 40.4129877,
-      lng: -3.7115786,
-      providerId:
-        "518a44fc1e50b10dc0593c93ecc7dc344440f00102f9018c57420000000000c00201920310506c617a61206465206c612050616a61",
-      source: "geoapify",
-    },
-    // Plaza de Cascorro
-    "stop-1:a2": {
-      kind: "verified",
-      by: "name",
-      lat: 40.4105843,
-      lng: -3.7073209,
-      providerId:
-        "51e2372adc97a80dc0592260be068e344440f00102f90103d2fa1300000000c00201920311506c617a6120646520436173636f72726f",
-      source: "geoapify",
-    },
-    // Calle de Segovia
-    "stop-2:a1": {
+    // Calle de la Cava Baja Late Lunch
+    "stop-2:a2": {
       kind: "verified",
       by: "area",
-      lat: 40.4143,
-      lng: -3.7128,
+      lat: 40.4119,
+      lng: -3.7094,
       placesAround: 20,
       source: "geoapify",
     },
-    // Plaza de San Ildefonso
+    // Real Jardín Botánico
+    "stop-3:a1": {
+      kind: "verified",
+      by: "name",
+      lat: 40.4123656,
+      lng: -3.6921452,
+      providerId:
+        "51c3aa306c83890dc0596aff5e65c8344440f00103f9011c1a6a4c02000000c002019203165265616c204a617264c3ad6e20426f74c3a16e69636f",
+      source: "geoapify",
+    },
+    // Paseo de Coches
+    "stop-3:a2": { kind: "unverified", reason: "no-match" },
+    // Plaza de las Cortes
     "stop-4:a1": {
       kind: "verified",
-      by: "area",
-      lat: 40.4263,
-      lng: -3.701,
-      placesAround: 20,
+      by: "name",
+      lat: 40.4159372,
+      lng: -3.6965414,
+      providerId:
+        "51fe7a2a4c84920dc0594c981f6e3d354440f00102f9016d1a8d4000000000c00204920313506c617a61206465206c617320436f72746573",
       source: "geoapify",
     },
-    // Calle de San Vicente Ferrer
+    // Calle de Echegaray
     "stop-4:a2": {
       kind: "verified",
       by: "area",
-      lat: 40.4266,
-      lng: -3.7048,
+      lat: 40.4137,
+      lng: -3.6997,
       placesAround: 20,
       source: "geoapify",
     },
-    // Calle del Pez side streets
-    "stop-5:a1": {
+    // Calle de Hortaleza Late Dinner
+    "stop-5:a2": {
       kind: "verified",
       by: "area",
-      lat: 40.4258,
-      lng: -3.7066,
+      lat: 40.4222,
+      lng: -3.6996,
       placesAround: 20,
       source: "geoapify",
     },
-    // Wine bars around Plaza de San Ildefonso
+    // Calle de San Andrés
     "stop-6:a1": {
       kind: "verified",
       by: "area",
       lat: 40.4263,
-      lng: -3.701,
+      lng: -3.7055,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Calle de Fuencarral
+    "stop-6:a2": {
+      kind: "verified",
+      by: "area",
+      lat: 40.4251,
+      lng: -3.7013,
       placesAround: 20,
       source: "geoapify",
     },

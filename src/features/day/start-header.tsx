@@ -428,7 +428,7 @@ function buttonLabelOf(line: StartLine, isLive: boolean): ButtonLabel {
 
 /**
  * The line under the field, holding one line's room whatever it says: a day said back at the
- * body's size takes two lines on a phone, "Opening a lively Saturday in Madrid, out late, with
+ * body's size takes two lines on a phone, "Opening a lively Sunday in Madrid, out late, with
  * friends" at 360 and 390 px, and its second runs on into the room under it, the gap over the
  * starts or the note's held room, where it pushed the starts down 23 px from under the finger
  * that pressed one.

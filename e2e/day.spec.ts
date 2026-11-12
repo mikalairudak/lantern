@@ -267,7 +267,7 @@ const WRITTEN_DAYS = [
     address: "/day/kanazawa",
   },
   {
-    sentence: "A lively Saturday in Madrid, out late, with friends",
+    sentence: "A lively Sunday in Madrid, out late, with friends",
     energy: "lively",
     address: "/day/madrid",
   },
