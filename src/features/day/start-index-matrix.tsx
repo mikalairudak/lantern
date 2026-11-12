@@ -1,6 +1,5 @@
 import { labMatrix, type LabMatrix } from "@/lib/lab-matrix";
-import { startExcerptOf } from "./start-excerpt";
-import { StartExcerptView, StartIndex } from "./start-index";
+import { StartIndex } from "./start-index";
 import { DRAWN_STARTS, LONG_START, UNDRAWN_START } from "./start-index-examples";
 
 const COUNTS = {
@@ -16,7 +15,6 @@ const COUNTS = {
 
 interface StartIndexCellProps {
   count: keyof typeof COUNTS;
-  hasExcerpt: boolean;
   /** Whether a cell is drawn pointed at, as a pointer or the keyboard leaves it: the second. */
   isPointed: boolean;
 }
@@ -24,18 +22,18 @@ interface StartIndexCellProps {
 const ignore = () => undefined;
 
 /**
- * The start screen's second way in (`docs/decisions.md`, "The start
- * screen is an index, with a day's first stops under it"): the index under its label, at the
- * eight cities it offers, each with its engraving, at a city with none among them and the longest
- * caption, and at one cell, and under it a written day's first stops, still. Each cell's
- * picture is the theme's own: the whole scene by day, the subject alone by night. A cell pointed
- * at stands forward, its city ruled and its picture up to full ink from the 90% the others rest at.
+ * The start screen's second way in (`docs/decisions.md`, "The start screen is an index, with a
+ * day's first stops under it"): the index under its label, at the eight cities it offers, each with
+ * its engraving, at a city with none among them and the longest caption, and at one cell. Each
+ * cell's picture is the theme's own: the whole scene by day, the subject alone by night. A cell
+ * pointed at stands forward, its city ruled and its picture up to full ink from the 90% the others
+ * rest at.
  */
 export const START_INDEX_MATRIX: LabMatrix = labMatrix<StartIndexCellProps>({
   key: "start-index",
   title: "The start screen's index",
-  note: "The written days as an index of engravings under “No city in mind? Start from one of these”, at the eight cities it offers, a city with none and one cell, and a day's first stops, still, under it",
-  base: { count: "drawn", hasExcerpt: true, isPointed: false },
+  note: "The written days as an index of engravings under “No city in mind? Start from one of these”, at the eight cities it offers, a city with none and one cell",
+  base: { count: "drawn", isPointed: false },
   wide: "page",
   axes: [
     {
@@ -46,13 +44,6 @@ export const START_INDEX_MATRIX: LabMatrix = labMatrix<StartIndexCellProps>({
       })),
     },
     {
-      name: "under the index",
-      values: [
-        { label: "a day's first stops", props: { hasExcerpt: true } },
-        { label: "nothing", props: { hasExcerpt: false } },
-      ],
-    },
-    {
       name: "pointer",
       values: [
         { label: "at rest", props: { isPointed: false } },
@@ -60,23 +51,14 @@ export const START_INDEX_MATRIX: LabMatrix = labMatrix<StartIndexCellProps>({
       ],
     },
   ],
-  // Every count, a day's first stops under each: the default view; and every count pointed at.
-  baseline: [
-    { rows: 0, columns: 1 },
-    { rows: 0, columns: 2 },
-  ],
-  render: ({ count, hasExcerpt, isPointed }) => {
-    const excerpt = hasExcerpt ? startExcerptOf(new Date()) : null;
+  render: ({ count, isPointed }) => {
     const { starts } = COUNTS[count];
     return (
-      <div>
-        <StartIndex
-          starts={starts}
-          onChoose={ignore}
-          pointedCity={isPointed ? (starts[1] ?? starts[0])?.request.city : null}
-        />
-        {excerpt && <StartExcerptView excerpt={excerpt} />}
-      </div>
+      <StartIndex
+        starts={starts}
+        onChoose={ignore}
+        pointedCity={isPointed ? (starts[1] ?? starts[0])?.request.city : null}
+      />
     );
   },
 });

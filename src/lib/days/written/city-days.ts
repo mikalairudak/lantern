@@ -110,6 +110,3 @@ export const INDEX_REQUESTS: readonly DayRequest[] = [
   BARCELONA_REQUEST,
   SEOUL_REQUEST,
 ];
-
-/** The day the start screen's excerpt shows the first stops of, under the index. */
-export const EXCERPT_REQUEST: DayRequest = BARCELONA_REQUEST;

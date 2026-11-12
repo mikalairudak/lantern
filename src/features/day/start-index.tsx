@@ -1,13 +1,10 @@
 "use client";
 
 import { useId, type Ref } from "react";
-import { modelPicks } from "@/features/abacus/curve";
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
-import { ReadingList } from "./reading-list";
 import { daySlugOf } from "@/lib/days/address";
 import { IndexPictureView } from "./index-picture";
-import { requestShortGistOf, requestSentenceOf } from "./sentence";
-import type { StartExcerpt } from "./start-excerpt";
+import { requestShortGistOf } from "./sentence";
 import type { StartOffer } from "./start-offers";
 
 /** Over the index: it speaks to the visitor the index is for, the one with no city in mind. */
@@ -89,49 +86,6 @@ export function StartIndex({
           );
         })}
       </ul>
-    </section>
-  );
-}
-
-const NO_VERSIONS: ReadonlySet<string> = new Set();
-
-/**
- * Under the ways in, a day Lantern has written, still: its sentence, its line, and its first
- * stops on the plan with the day's light, then a link to the whole day. Nothing plays and nothing
- * in it can be pressed but the link, so it shows what a day is without asking for a press.
- */
-export function StartExcerptView({ excerpt }: { excerpt: StartExcerpt }) {
-  const heading = useId();
-  return (
-    <section
-      aria-labelledby={heading}
-      className="mt-12 flex flex-col gap-4 border-t border-line pt-6"
-    >
-      <div className="flex flex-col gap-1">
-        <h2 id={heading} className="type-note text-muted">
-          What a day looks like
-        </h2>
-        <p className="type-voice text-heading text-pretty text-ink">
-          {requestSentenceOf(excerpt.request)}
-        </p>
-        <p className="type-prose text-small text-pretty text-ink-soft">{excerpt.dek}</p>
-      </div>
-      {/* Nothing in it can be pressed or focused; it stays in what a screen reader reads. */}
-      <div className="pointer-events-none">
-        <ReadingList
-          stops={excerpt.stops}
-          entered={excerpt.stops.length}
-          versionsShown={NO_VERSIONS}
-          picks={modelPicks(excerpt.stops)}
-          daylight={excerpt.daylight}
-        />
-      </div>
-      <a
-        href={excerpt.address}
-        className="self-start rounded-sm type-note text-ink underline decoration-line decoration-1 underline-offset-4 focus-ring transition-colors pointed:decoration-ink"
-      >
-        {`The whole day, ${excerpt.total} stops`}
-      </a>
     </section>
   );
 }
