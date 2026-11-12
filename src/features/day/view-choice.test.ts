@@ -15,18 +15,35 @@ afterEach(() => {
 });
 
 describe("the day's view", () => {
-  it("is the list where nothing set it, as a page read without its script", () => {
+  it("is the plan where nothing set it, as a page read without its script", () => {
     document.documentElement.removeAttribute(DAY_VIEW_ATTRIBUTE);
     expect(readDayView()).toBe("read");
   });
 
-  it("is the chart from the head script, unless the visitor chose the list", () => {
-    new Function(dayViewScriptOf(false))();
+  it("opens a day on its plan from the head script, unless the visitor chose the chart", () => {
+    new Function(dayViewScriptOf())();
+    expect(readDayView()).toBe("read");
+
+    // A choice of the chart, kept from a visit when the chart came first, still wins.
+    localStorage.setItem(DAY_VIEW_STORAGE_KEY, "chart");
+    new Function(dayViewScriptOf())();
     expect(readDayView()).toBe("chart");
 
     localStorage.setItem(DAY_VIEW_STORAGE_KEY, "read");
-    new Function(dayViewScriptOf(false))();
+    new Function(dayViewScriptOf())();
     expect(readDayView()).toBe("read");
+  });
+
+  it("opens a day on its plan where storage cannot be read", () => {
+    const getItem = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    new Function(dayViewScriptOf())();
+    expect(readDayView()).toBe("read");
+    document.documentElement.removeAttribute(DAY_VIEW_ATTRIBUTE);
+    restoreDayView();
+    expect(readDayView()).toBe("read");
+    getItem.mockRestore();
   });
 
   it("keeps the visitor's choice for the next visit and tells the page", () => {
@@ -43,28 +60,14 @@ describe("the day's view", () => {
     stop();
   });
 
-  it("opens a day on its plan under the first impression, unless the visitor chose the chart", () => {
-    new Function(dayViewScriptOf(true))();
-    expect(readDayView()).toBe("read");
-
-    localStorage.setItem(DAY_VIEW_STORAGE_KEY, "chart");
-    new Function(dayViewScriptOf(true))();
-    expect(readDayView()).toBe("chart");
-
-    document.documentElement.removeAttribute(DAY_VIEW_ATTRIBUTE);
-    localStorage.clear();
-    restoreDayView(true);
-    expect(readDayView()).toBe("read");
-  });
-
   it("reads a choice cleared in another tab as the view a day opens on", () => {
     const stop = subscribeDayView(() => undefined);
     window.dispatchEvent(
-      new StorageEvent("storage", { key: DAY_VIEW_STORAGE_KEY, newValue: null }),
+      new StorageEvent("storage", { key: DAY_VIEW_STORAGE_KEY, newValue: "chart" }),
     );
     expect(readDayView()).toBe("chart");
     window.dispatchEvent(
-      new StorageEvent("storage", { key: DAY_VIEW_STORAGE_KEY, newValue: "read" }),
+      new StorageEvent("storage", { key: DAY_VIEW_STORAGE_KEY, newValue: null }),
     );
     expect(readDayView()).toBe("read");
     stop();
@@ -72,8 +75,8 @@ describe("the day's view", () => {
 
   it("restores the stored choice on a page the head script did not run on", () => {
     document.documentElement.removeAttribute(DAY_VIEW_ATTRIBUTE);
-    localStorage.setItem(DAY_VIEW_STORAGE_KEY, "read");
+    localStorage.setItem(DAY_VIEW_STORAGE_KEY, "chart");
     restoreDayView();
-    expect(readDayView()).toBe("read");
+    expect(readDayView()).toBe("chart");
   });
 });

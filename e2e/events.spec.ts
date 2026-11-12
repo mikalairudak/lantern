@@ -8,12 +8,12 @@ import { expect, test, type Page, waitMs } from "./fixtures";
 
 /** The route lands a written day in about twelve seconds; a cold server adds a few. */
 const DAY_TIMEOUT_MS = waitMs(30_000);
-/** What the start screen says over the cities Lantern has written. */
-const WRITTEN_HEADING = "Or watch Lantern write a day it knows";
+/** What the start screen says over its index of the days Lantern has written. */
+const INDEX_LABEL = "No city in mind? Start from one of these";
 
 const KANAZAWA_LINK = { city: "kanazawa", via: "link", written: true };
-/** The view a page opens on where the visitor chose none. */
-const ON_CHART = { view: "chart" };
+/** The view a page opens on where the visitor chose none: the day's plan. */
+const ON_PLAN = { view: "read" };
 /** How long the line under a whole day stays in view before it is read (`READ_TO_END_MS`). */
 const READ_TO_END_MS = 1000;
 
@@ -26,7 +26,7 @@ function withoutReadToEnd(events: readonly unknown[]): unknown[] {
 }
 
 async function waitForTheDay(page: Page): Promise<void> {
-  await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+  await expect(page.locator('[aria-label^="The day\'s energy"]')).toHaveAttribute(
     "aria-busy",
     "false",
     { timeout: DAY_TIMEOUT_MS },
@@ -48,7 +48,7 @@ test("a day's address counts its opening, its ending and each word changed", asy
     .poll(() => withoutReadToEnd(productEvents))
     .toEqual([
       { kind: "day-opened", ...KANAZAWA_LINK },
-      { kind: "day-ended", ...KANAZAWA_LINK, ...ON_CHART, outcome: "complete" },
+      { kind: "day-ended", ...KANAZAWA_LINK, ...ON_PLAN, outcome: "complete" },
     ]);
 
   await page.getByRole("heading", { level: 1 }).getByRole("button", { name: "calm" }).click();
@@ -66,13 +66,13 @@ test("a day is counted read to its end once the line under it has stood on scree
   await page.goto("/day/kanazawa");
   await waitForTheDay(page);
 
-  await page.getByRole("button", { name: "Copy link" }).scrollIntoViewIfNeeded();
+  await page.getByRole("button", { name: "Not quite" }).scrollIntoViewIfNeeded();
 
   const readToEnd = () =>
     productEvents.filter((event) => (event as { kind?: string }).kind === "day-read-to-end");
   await expect
     .poll(readToEnd, { timeout: READ_TO_END_MS * 10 })
-    .toEqual([{ kind: "day-read-to-end", ...KANAZAWA_LINK, ...ON_CHART }]);
+    .toEqual([{ kind: "day-read-to-end", ...KANAZAWA_LINK, ...ON_PLAN }]);
   // Once a day opened, however long the line stays.
   await page.waitForTimeout(READ_TO_END_MS * 2);
   expect(readToEnd()).toHaveLength(1);
@@ -85,15 +85,16 @@ test("a day the page leaves while it is written is counted as left, once, by bea
   productEvents,
 }) => {
   await page.goto("/");
+  // Barcelona's, the longest day the index offers, so it is still being written as it is left.
   await page
-    .getByRole("list", { name: WRITTEN_HEADING })
-    .getByRole("button", { name: / in Kanazawa,/ })
+    .getByRole("list", { name: INDEX_LABEL })
+    .getByRole("button", { name: /^Barcelona / })
     .click();
-  const kanazawa = { city: "kanazawa", via: "pressed", written: true };
+  const barcelona = { city: "barcelona", via: "pressed", written: true };
   // The start screen is counted first, once, as its page opens.
   await expect
     .poll(() => productEvents)
-    .toEqual([{ kind: "home-viewed" }, { kind: "day-opened", ...kanazawa }]);
+    .toEqual([{ kind: "home-viewed" }, { kind: "day-opened", ...barcelona }]);
 
   await page.evaluate(() => {
     window.dispatchEvent(new Event("pagehide"));
@@ -104,8 +105,8 @@ test("a day the page leaves while it is written is counted as left, once, by bea
     .poll(() => productEvents)
     .toEqual([
       { kind: "home-viewed" },
-      { kind: "day-opened", ...kanazawa },
-      expect.objectContaining({ kind: "day-left", ...kanazawa }),
+      { kind: "day-opened", ...barcelona },
+      expect.objectContaining({ kind: "day-left", ...barcelona }),
     ]);
   // Left, it is never ended as well.
   await waitForTheDay(page);

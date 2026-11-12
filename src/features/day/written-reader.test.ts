@@ -55,7 +55,7 @@ describe("readWrittenOnly", () => {
   });
 
   it("answers a text without a written city as the written intake does", async () => {
-    expect(await read("Paris, slow morning")).toEqual({ kind: "unavailable" });
+    expect(await read("Lisbon, slow morning")).toEqual({ kind: "unavailable" });
     // The days written by hand are no days of the site's.
     expect(await read("Lisbon, with friends")).toEqual({ kind: "unavailable" });
   });

@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/components/ui/cn";
+import { isRevealing } from "@/components/ui/reveal-in-view";
 import { runningSpans } from "@/lib/time/clock";
 import { AbacusChart, type AbacusChartProps } from "./abacus-chart";
 
@@ -682,7 +683,9 @@ export function DayRows({
     // On the page, not the screen, so the visitor's own scrolling is never taken back.
     const held = heldInView.current;
     const atNow = held === null ? -1 : stopIds.indexOf(held.id);
-    if (held !== null && atNow !== -1) {
+    // A smooth scroll to a place the visitor asked for is left to run: a scroll of the hold's
+    // own would stop it where it stands.
+    if (held !== null && atNow !== -1 && !isRevealing()) {
       const moved = Math.round(chartTop + window.scrollY + (anchorsNow[atNow] ?? 0) - held.y);
       if (moved !== 0) window.scrollBy(0, moved);
     }
@@ -1010,7 +1013,7 @@ export function DayRows({
             // the name in there (`docs/decisions.md`, "A row's words go where its bead comes to
             // rest, and rows ease rather than jump"). Laid out beside the hollow bead, a name
             // written there took a line more or less as the bead was weighed: 8 of 43 rows on a
-            // phone's six quick starts. A stop the lab writes again keeps its words while it is.
+            // phone's six written days. A stop the lab writes again keeps its words while it is.
             const isWordsHeld = !isShownAtRest && !arrival.isRewritten;
             // While the bead slides in, the words of a row weighed in its frame ride it: drawn
             // from the same value as the bead in the same frame, so they set off together and

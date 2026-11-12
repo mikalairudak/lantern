@@ -1,8 +1,7 @@
-import { expect, test, type Page, waitMs } from "../fixtures";
+import { expect, test, type Page, waitMs } from "./fixtures";
 
 /**
- * The day under the first impression (`src/lib/first-impression.ts`), against its own server with
- * the flag on: a day opens on its plan, lit by its light; the energy's five words move it; the
+ * The day's plan: a day opens on its plan, lit by its light; the energy's five words move it; the
  * masthead's menu holds the ways to take it along; the chart is one press away and kept.
  */
 

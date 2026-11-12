@@ -5,11 +5,8 @@ import { CURATED_REQUESTS, KYOTO_REQUEST } from "@/lib/fixtures/curated/requests
 import { COPY_LINK, LINK_COPIED, LINK_NOT_COPIED } from "./day-export-words";
 import type { DayExports } from "./day-exports";
 import { DAY_END_EXAMPLES } from "./day-end-examples";
-import { DayEnd } from "./day-end-line";
 import { DayMenu, TAKE_THIS_DAY, type DayMenuItem } from "./day-menu";
 import { DayStageHeader } from "./day-stage-header";
-import { FirstImpressionProvider } from "./first-impression";
-import { Masthead } from "./masthead";
 import { sentenceFactsOf } from "./sentence";
 import { ADD_TO_YOUR_CALENDAR, COPY_THE_LINK, takeAlongOf, WAITING_NOTE } from "./take-along";
 
@@ -260,91 +257,39 @@ describe("the ways to take a day along", () => {
   });
 });
 
-describe("the line under a day whose ways the menu holds", () => {
-  it("offers no way but keeps its summary, and its walking route for a page without script", () => {
-    const { container } = render(
-      <DayEnd {...KANAZAWA} calendarKey="kanazawa" hasWaysAlong={false} />,
-    );
-    expect(screen.getByText(/8 stops/)).toBeInTheDocument();
-    expect(screen.queryByRole("button")).toBeNull();
-    expect(container.querySelector("noscript")).not.toBeNull();
-  });
-});
-
-describe("the first impression's masthead", () => {
-  it("sets the wordmark's mark in ems of the word, and the action and theme as one group", () => {
-    render(
-      <FirstImpressionProvider isOn>
-        <Masthead action={<button type="button">Plan another day</button>} />
-      </FirstImpressionProvider>,
-    );
-    const home = screen.getByRole("link", { name: "Lantern" });
-    expect(home.querySelector("svg")).toHaveStyle({ height: "1.75em" });
-    expect(screen.getByRole("button", { name: "Plan another day" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Theme: System" })).toBeInTheDocument();
-  });
-
-  it("puts the day's menu in the action's place, and draws no rule with no action", () => {
-    const { unmount } = render(
-      <FirstImpressionProvider isOn>
-        <Masthead action={<span>Plan another day</span>} menu={<DayMenu items={ITEMS} />} />
-      </FirstImpressionProvider>,
-    );
-    expect(screen.getByRole("button", { name: TAKE_THIS_DAY })).toBeInTheDocument();
-    expect(screen.queryByText("Plan another day")).toBeNull();
-    unmount();
-
-    const { container } = render(
-      <FirstImpressionProvider isOn>
-        <Masthead isHome />
-      </FirstImpressionProvider>,
-    );
-    expect(container.querySelector(".w-px")).toBeNull();
-    expect(screen.queryByRole("link")).toBeNull();
-  });
-
-  it("keeps today's masthead, and no menu, with the first impression off", () => {
-    render(<Masthead action={<span>Plan another day</span>} menu={<DayMenu items={ITEMS} />} />);
-    expect(screen.getByText("Plan another day")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: TAKE_THIS_DAY })).toBeNull();
-  });
-});
-
 describe("the day header's menu", () => {
   it("holds the ways along and opens the city's field from “Plan another day”", async () => {
     const user = userEvent.setup();
     const onCityOpenChange = vi.fn();
     const facts = sentenceFactsOf(KYOTO_REQUEST, {});
     render(
-      <FirstImpressionProvider isOn>
-        <DayStageHeader
-          request={KYOTO_REQUEST}
-          facts={facts}
-          reservedFacts={facts}
-          clause={null}
-          dek="Food carts at noon, the river at dusk."
-          reservedDek="Food carts at noon, the river at dusk."
-          isDekWriting={false}
-          sunrise={null}
-          sunset={null}
-          isSunShown={false}
-          slot={null}
-          reservedSlot={null}
-          notice={null}
-          isEnabled
-          isWaiting={false}
-          written={CURATED_REQUESTS}
-          cityOpenAt={null}
-          isCityFocused={false}
-          onCityOpenChange={onCityOpenChange}
-          takeAlong={[ITEMS[1]!]}
-          onChooseWritten={ignore}
-          onChooseCity={ignore}
-          onChoose={ignore}
-          onLight={ignore}
-          onRetry={ignore}
-        />
-      </FirstImpressionProvider>,
+      <DayStageHeader
+        request={KYOTO_REQUEST}
+        facts={facts}
+        reservedFacts={facts}
+        clause={null}
+        dek="Food carts at noon, the river at dusk."
+        reservedDek="Food carts at noon, the river at dusk."
+        isDekWriting={false}
+        sunrise={null}
+        sunset={null}
+        isSunShown={false}
+        slot={null}
+        reservedSlot={null}
+        notice={null}
+        isEnabled
+        isWaiting={false}
+        written={CURATED_REQUESTS}
+        cityOpenAt={null}
+        isCityFocused={false}
+        onCityOpenChange={onCityOpenChange}
+        takeAlong={[ITEMS[1]!]}
+        onChooseWritten={ignore}
+        onChooseCity={ignore}
+        onChoose={ignore}
+        onLight={ignore}
+        onRetry={ignore}
+      />,
     );
     await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
     expect(menuItems()).toHaveLength(2);

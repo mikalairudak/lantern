@@ -3,7 +3,7 @@ import { BOLOGNA_START_REQUEST } from "./quick-starts";
 
 /**
  * Bologna, as claude-sonnet-5-5 wrote it on 2026-10-31 under day-v8, for the
- * quick start that offers it (generation faebcc08-8385-4a92-ba3e-aa61475b419f). Kept as written, letters
+ * start that offers it (generation faebcc08-8385-4a92-ba3e-aa61475b419f). Kept as written, letters
  * escaped twice read as the reader reads them, so the start opens a day the product really
  * wrote, slips and all; the normalizer repairs what it repairs for any live day.
  */

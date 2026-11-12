@@ -59,14 +59,14 @@ const READ_LONG =
   "Porto, with my dog, a slow morning with coffee somewhere quiet, a long lunch by the river and a cloister in the afternoon";
 
 /**
- * The start screen in every line a reading can give, with live generation off and on, over the
- * quick starts: the day on its way from the visitor's words or from a city
+ * The start screen in every line a reading can give, with live generation off and on, over its
+ * index: the day on its way from the visitor's words or from a city
  * pressed with the field left empty, the city asked for, and each ending without a day.
  */
 export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
   key: "start-header",
   title: "Start header",
-  note: "The start screen's question and the quick starts, in every line a reading can give",
+  note: "The start screen's question and its index, in every line a reading can give",
   base: {
     starts: startOffersOf(writtenPool()),
     line: null,

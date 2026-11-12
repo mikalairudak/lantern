@@ -1,8 +1,7 @@
-import { expect, test, waitMs } from "../fixtures";
+import { expect, test, waitMs } from "./fixtures";
 
 /**
- * The day's end answer under the first impression (`src/lib/first-impression.ts`), against its own
- * server with the flag on: asked under the finished day, answered in one tap, thanked in place.
+ * The day's end answer: asked under the finished day, answered in one tap, thanked in place.
  */
 
 const DAY_TIMEOUT_MS = waitMs(30_000);

@@ -94,7 +94,7 @@ function example(
 }
 
 export const DAY_END_EXAMPLES: readonly DayEndExample[] = [
-  example("a quick start, its places checked", KANAZAWA, { checks: KANAZAWA_CHECKS }),
+  example("a written day, its places checked", KANAZAWA, { checks: KANAZAWA_CHECKS }),
   example("a version swapped in: the way and the count follow it", KANAZAWA, {
     checks: KANAZAWA_CHECKS,
     shown: swappedKanazawa(),

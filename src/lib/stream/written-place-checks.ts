@@ -10,7 +10,7 @@ import { readyPlacesIn } from "./place-checks";
 
 /**
  * A written day's place checks, played as a live day's (`src/lib/live/place-checks-in-stream.ts`):
- * a quick start's day carries the checks its run had (`src/lib/days/written/checks.ts`), and
+ * a start's day carries the checks its run had (`src/lib/days/written/checks.ts`), and
  * the route answers each place with its own once the place is written, after about the time
  * Geoapify took on production, so a start shows its marks as the live day it was. Loadable in a
  * browser, as the route's module is read by the lab's pages.

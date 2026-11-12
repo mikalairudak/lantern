@@ -363,7 +363,7 @@ describe("the request sentence", () => {
 
     expect(screen.getByText("click a word to change it", SEEN)).toBeInTheDocument();
 
-    await answer(user, "with …?", /with family/);
+    await answer(user, "with anyone", /with family/);
 
     await waitFor(() => expect(within(list).getByText("Rice on Calle Mayor")).toBeInTheDocument());
     expect(within(headline).getByText("eating late").closest("del")).toBeInTheDocument();
@@ -422,13 +422,13 @@ describe("the request sentence", () => {
     const { list } = await renderDay();
 
     await user.click(screen.getByRole("button", { name: "fail" }));
-    await answer(user, "with …?", /with family/);
+    await answer(user, "with anyone", /with family/);
 
     const retry = await screen.findByRole("button", { name: "family" }, { timeout: 3000 });
     expect(screen.getByText(/Couldn.t re-plan\. Try/, SEEN)).toBeInTheDocument();
     expect(within(list).getByText("Tapas on Calle Villegas")).toBeInTheDocument();
     await waitFor(
-      () => expect(screen.getByRole("button", { name: "with …?" })).toBeInTheDocument(),
+      () => expect(screen.getByRole("button", { name: "with anyone" })).toBeInTheDocument(),
       CLAUSE_TIMEOUT,
     );
     expect(screen.getByRole("button", { name: "ok" })).toHaveAttribute("aria-pressed", "true");

@@ -3,7 +3,7 @@ import { MADRID_START_REQUEST } from "./quick-starts";
 
 /**
  * Madrid, as claude-sonnet-5-5 wrote it on 2026-10-31 under day-v8, for the
- * quick start that offers it (generation 4645b45c-2da2-4e47-bd59-bd1df35e786c). Kept as written, letters
+ * start that offers it (generation 4645b45c-2da2-4e47-bd59-bd1df35e786c). Kept as written, letters
  * escaped twice read as the reader reads them, so the start opens a day the product really
  * wrote, slips and all; the normalizer repairs what it repairs for any live day.
  */

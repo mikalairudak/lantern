@@ -14,7 +14,7 @@ import { newStopsOf, type ReplanFrame, type ReplanRow } from "./replan-frame";
 /** A changed word as the work line says it. */
 export interface WorkChange {
   word: AssumableFactKey;
-  /** The answer before, as the sentence said it: "early dinner", or a question's cue, "with …?". */
+  /** The answer before, as the sentence said it: "early dinner", or a question's cue, "with anyone". */
   from: string;
   /** Whether `from` was the word's own question, which no answer had filled. */
   isFromAsked: boolean;

@@ -3,7 +3,7 @@ import { NAFPLIO_START_REQUEST } from "./quick-starts";
 
 /**
  * Nafplio, as claude-sonnet-5-5 wrote it on 2026-10-31 under day-v8, for the
- * quick start that offers it (generation f2bf6ba0-2037-48e6-be18-09ff41f9e2c0). Kept as written, letters
+ * start that offers it (generation f2bf6ba0-2037-48e6-be18-09ff41f9e2c0). Kept as written, letters
  * escaped twice read as the reader reads them, so the start opens a day the product really
  * wrote, slips and all; the normalizer repairs what it repairs for any live day.
  */

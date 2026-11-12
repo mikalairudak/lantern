@@ -22,6 +22,7 @@
 # next.js
 /.next/
 /.next-e2e/
+# A build directory of an e2e server the run no longer starts, which a checkout may still hold
 /.next-e2e-fi/
 # `pnpm build:check`'s production build (scripts/build-check.mts)
 /.next-build/

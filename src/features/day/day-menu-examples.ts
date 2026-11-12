@@ -44,8 +44,8 @@ function itemsOf(options: Partial<Parameters<typeof takeAlongOf>[0]>): DayMenuIt
   ];
 }
 
-/** Which masthead a cell draws: a day's with its menu, the start screen's, or a page's action. */
-export type MastheadPage = "day" | "start" | "action";
+/** Which masthead a cell draws: a day's with its menu, or the start screen's. */
+type MastheadPage = "day" | "start";
 
 export interface DayMenuState {
   label: string;
@@ -114,5 +114,4 @@ export const DAY_MENU_STATES: readonly DayMenuState[] = [
     isOpen: true,
   },
   { label: "the start screen", page: "start", items: [], isOpen: false },
-  { label: "a page with an action", page: "action", items: [], isOpen: false },
 ];

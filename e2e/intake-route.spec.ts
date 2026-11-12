@@ -17,7 +17,7 @@ test("reads a text that names a written city into its day's request", async ({ r
 });
 
 test("answers a city with no written day as unavailable, a 503", async ({ request }) => {
-  const response = await request.post("/api/intake", { data: { text: "Paris" } });
+  const response = await request.post("/api/intake", { data: { text: "Lisbon" } });
 
   expect(response.status()).toBe(503);
   expect(await response.json()).toEqual({ kind: "unavailable" });

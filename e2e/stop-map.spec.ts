@@ -4,7 +4,13 @@ import {
   OPEN_IN_GOOGLE_MAPS,
   SEARCH_IN_GOOGLE_MAPS,
 } from "../src/features/abacus/map-action";
-import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs, chooseTheChart } from "./fixtures";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 /**
  * An open stop's "map" row on the written days a visitor opens: Bologna's places carry the

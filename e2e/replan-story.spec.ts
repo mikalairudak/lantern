@@ -1,4 +1,10 @@
-import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs, chooseTheChart } from "./fixtures";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 /**
  * A changed word's fork on the lab's re-plan bench (`docs/decisions.md`, "A changed word

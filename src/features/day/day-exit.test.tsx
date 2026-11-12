@@ -275,7 +275,13 @@ describe("a day that ends without one, with motion", () => {
     const line = `${UNFINISHED} Write it again, or open one it has written:`;
     const notice = document.querySelector<HTMLElement>("header p.text-quote");
     expect(notice).toHaveTextContent(line);
-    expect(screen.getByRole("status")).toHaveTextContent(line);
+    // The day menu's own status, for a copied link, stands empty beside it.
+    expect(
+      screen.getAllByRole("status").filter((status) => status.textContent !== ""),
+    ).toHaveLength(1);
+    expect(
+      screen.getAllByRole("status").find((status) => status.textContent !== ""),
+    ).toHaveTextContent(line);
     await waitFor(() => expect(notice?.querySelector(".opacity-0")).toBeNull(), EXIT_TIMEOUT);
   });
 

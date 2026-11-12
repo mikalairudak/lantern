@@ -1,11 +1,10 @@
-import { daySlugOf } from "../../src/lib/days/slug";
-import { INDEX_REQUESTS } from "../../src/lib/days/written/city-days";
-import { expect, test } from "../fixtures";
+import { daySlugOf } from "../src/lib/days/slug";
+import { INDEX_REQUESTS } from "../src/lib/days/written/city-days";
+import { expect, test } from "./fixtures";
 
 /**
- * The start screen under the first impression (`src/lib/first-impression.ts`), against its own
- * server with the flag on: the question and the index as two ways in, and a written day's first
- * stops, still, under them.
+ * The start screen: the question and the index as two ways in, and a written day's first stops,
+ * still, under them.
  */
 
 test.use({ reducedMotion: "reduce" });

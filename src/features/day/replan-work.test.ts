@@ -35,7 +35,7 @@ function lateDinner(step: Partial<ReplanControls>): ReplanControls {
 /** The family's whole day, as the page tells it at a step. */
 function withFamily(step: Partial<ReplanControls>): ReplanControls {
   return lateDinner({
-    change: { word: "company", from: "with …?", to: "with family" },
+    change: { word: "company", from: "with anyone", to: "with family" },
     reach: "whole",
     ...step,
   });

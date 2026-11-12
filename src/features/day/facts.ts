@@ -114,16 +114,16 @@ export const FACT_OPTIONS: Readonly<Record<FactKey, readonly FactOption[]>> = {
 
 /**
  * How the sentence says a word the model left empty, before it is answered: each its own
- * cue, the day's arc from morning to night, then who it is with. Only the company asks with
- * a question mark: it is always the sentence's last word, so a "?," never stands mid-
- * sentence. The energy is never left empty, since every request has one.
+ * cue, the day's arc from morning to night, then who it is with. The company reads as a plain
+ * phrase, "with anyone", rather than a word left unfinished, in muted ink as an open question
+ * is, one tap from change. The energy is never left empty, since every request has one.
  */
 export const ASKED_LABELS: Readonly<Record<AssumableFactKey, string>> = {
   travel: "getting around …",
   start: "morning …",
   dinner: "dinner …",
   end: "night …",
-  company: "with …?",
+  company: "with anyone",
 };
 
 /** The option a value stands for, if it is one of the fact's. */
@@ -131,26 +131,9 @@ export function optionOf(fact: Pick<Fact, "options">, value: string | null): Fac
   return fact.options.find((each) => each.value === value) ?? null;
 }
 
-/**
- * The open questions under the first impression: the company reads as a plain phrase, "with
- * anyone", rather than a word left unfinished, in muted ink as an open question is, one tap from
- * change.
- */
-export const PLAN_ASKED_LABELS: Readonly<Record<AssumableFactKey, string>> = {
-  ...ASKED_LABELS,
-  company: "with anyone",
-};
-
-/** The open questions as the page says them, with the first impression on or off. */
-export function askedLabelsOf(
-  isFirstImpression: boolean,
-): Readonly<Record<AssumableFactKey, string>> {
-  return isFirstImpression ? PLAN_ASKED_LABELS : ASKED_LABELS;
-}
-
 /** The fact as the sentence says it: its option's label, or its own open question. */
-export function labelOf(fact: Fact, isFirstImpression = false): string {
+export function labelOf(fact: Fact): string {
   const label = optionOf(fact, fact.value)?.label;
   if (label !== undefined) return label;
-  return fact.key === "energy" ? "" : askedLabelsOf(isFirstImpression)[fact.key];
+  return fact.key === "energy" ? "" : ASKED_LABELS[fact.key];
 }

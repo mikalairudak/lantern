@@ -9,14 +9,43 @@ type Edge = "top" | "foot";
  */
 let revealing: { stop: () => void; isScrolling: boolean } | null = null;
 
+/** A smooth scroll the page set off to a place the visitor asked for, until it ends. */
+let isScrollingToPlace = false;
+
 /**
- * Whether a reveal is scrolling the page (`revealInView`). What holds the view still as
- * something above it grows stands down meanwhile: the reveal's way is read from where the
- * element stands each frame, so that growth is already in it, and a second scroll in the same
- * frame would pull against it. A reveal that only watches leaves the hold to it.
+ * Whether a reveal is scrolling the page (`revealInView`), or the page is scrolling smoothly to
+ * a place the visitor asked for (`scrollToPlace`). What holds the view still as something above
+ * it grows stands down meanwhile: the reveal's way is read from where the element stands each
+ * frame, so that growth is already in it, and a second scroll in the same frame would pull
+ * against it; a scroll of the hold's own stops the browser's smooth scroll where it stands. A
+ * reveal that only watches leaves the hold to it.
  */
 export function isRevealing(): boolean {
-  return revealing?.isScrolling ?? false;
+  return (revealing?.isScrolling ?? false) || isScrollingToPlace;
+}
+
+/** Longer than the browser's smooth scroll over a long page, for one whose end is never told. */
+const SCROLL_TO_PLACE_MS = 2000;
+
+/**
+ * Brings `element` into view as `scrollIntoView` does, and while a smooth scroll is on its way
+ * tells the holds to stand down (`isRevealing`), until the scroll ends or the visitor takes the
+ * page back. The place is read once, as the press is: what grows above it meanwhile moves it
+ * down a little, rather than stopping the scroll short.
+ */
+export function scrollToPlace(element: HTMLElement, options: ScrollIntoViewOptions): void {
+  element.scrollIntoView(options);
+  if (options.behavior !== "smooth") return;
+  isScrollingToPlace = true;
+  const done = () => {
+    isScrollingToPlace = false;
+    clearTimeout(timeout);
+    removeEventListener("scrollend", done);
+    for (const kind of TAKEN_BACK_BY) removeEventListener(kind, done, { capture: true });
+  };
+  const timeout = setTimeout(done, SCROLL_TO_PLACE_MS);
+  addEventListener("scrollend", done);
+  for (const kind of TAKEN_BACK_BY) addEventListener(kind, done, { capture: true, passive: true });
 }
 
 /** What the visitor does that takes the page back from a reveal on its way. */

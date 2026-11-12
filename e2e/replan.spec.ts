@@ -1,7 +1,13 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { expect, test, type Page, type Route, waitMs } from "./fixtures";
+import { expect, test, type Page, type Route, waitMs, chooseTheChart } from "./fixtures";
 import { NAFPLIO_START_REQUEST } from "../src/lib/days/written/quick-starts";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 /**
  * A changed word on a live day: the day on screen holds its place while the day asked for

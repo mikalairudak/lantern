@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { REVEAL_STEP_PX } from "@/lib/tokens/motion";
-import { isRevealing, revealInView } from "./reveal-in-view";
+import { isRevealing, revealInView, scrollToPlace } from "./reveal-in-view";
 
 const SCREEN_PX = 800;
 const PAGE_PX = 4000;
@@ -274,5 +274,32 @@ describe("revealInView on an element that grows on its way", () => {
     scrollsUntilRest();
 
     expect(scrolled).toBeCloseTo(900, 0);
+  });
+});
+
+describe("scrollToPlace", () => {
+  it("tells the holds to stand down while its smooth scroll is on its way, until it ends", () => {
+    const element = document.createElement("div");
+    const scrollIntoView = vi.fn();
+    element.scrollIntoView = scrollIntoView;
+
+    scrollToPlace(element, { block: "center", behavior: "smooth" });
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "smooth" });
+    expect(isRevealing()).toBe(true);
+
+    window.dispatchEvent(new Event("scrollend"));
+    expect(isRevealing()).toBe(false);
+  });
+
+  it("stands nothing down for a scroll that is there at once, or one the visitor takes back", () => {
+    const element = document.createElement("div");
+    element.scrollIntoView = vi.fn();
+
+    scrollToPlace(element, { block: "center", behavior: "instant" });
+    expect(isRevealing()).toBe(false);
+
+    scrollToPlace(element, { block: "center", behavior: "smooth" });
+    window.dispatchEvent(new Event("wheel"));
+    expect(isRevealing()).toBe(false);
   });
 });

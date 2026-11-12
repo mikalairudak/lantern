@@ -1,4 +1,10 @@
-import { expect, test, waitMs } from "./fixtures";
+import { expect, test, waitMs, chooseTheChart } from "./fixtures";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 /** Where a day is played at a live model's pace. */
 const BENCH = "/lab/concepts/day";

@@ -6,7 +6,7 @@ import { MADRID_START_REQUEST, startRequestOf, type QuickStart } from "./quick-s
  * have a written day at their own address"): with Madrid's start, a day in eight cities from
  * Euromonitor's Top 100 City Destinations Index 2025. Each is a day the product wrote, at its own
  * address and played from its file as a start's is; no quick start opens it, and the start
- * screen's index does under the first impression (`INDEX_REQUESTS`). Requests only,
+ * screen's index does (`INDEX_REQUESTS`). Requests only,
  * apart from the days, so a page can say each day's date without loading its text, and with no
  * runtime import but relative ones, so the router's config can read the addresses. Their words
  * differ across the set, so the days between them show what the request changes.
@@ -96,7 +96,7 @@ export const CITY_DAYS: readonly CityDay[] = [
 export const CITY_REQUESTS: readonly DayRequest[] = CITY_DAYS.map(({ request }) => request);
 
 /**
- * The days the start screen's index offers under the first impression, in the order of the
+ * The days the start screen's index offers, in the order of the
  * Index's ranking: the seven city days and Madrid's start. The quick starts' other five keep
  * their pages, their addresses and the sitemap. Each line's picture is named by its day's slug.
  */

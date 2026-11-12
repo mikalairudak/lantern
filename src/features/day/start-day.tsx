@@ -9,7 +9,7 @@ import { readWrittenOnly } from "./written-reader";
 interface StartDayProps {
   /** The days Lantern has written, read on the server into what the start screen needs. */
   pool: readonly WrittenGist[];
-  /** A written day's first stops, still, under the ways in, with the first impression on. */
+  /** A written day's first stops, still, under the ways in. */
   excerpt?: StartExcerpt | null;
   /** Live generation is on, read on the server when the page was asked for. */
   isLive: boolean;
@@ -23,8 +23,8 @@ interface StartDayProps {
 }
 
 /**
- * The start screen as the product lands on it: one question, and the cities Lantern has written as
- * words, with no day until the visitor asks for one. With live generation off the visitor's text is
+ * The start screen as the product lands on it: one question, and the index of the cities Lantern
+ * has written, with no day playing until the visitor asks for one. With live generation off the visitor's text is
  * read by the intake's stand-in, which plays only the days already written and says nothing else
  * back; with live generation on it goes to the intake route, and Lantern says it writes new days.
  * The address names the day once one takes the page, so a copied link opens it.

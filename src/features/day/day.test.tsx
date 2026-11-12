@@ -27,6 +27,7 @@ import {
 } from "./not-yet";
 import { requestSentenceOf, widestClauses } from "./sentence";
 import { DayStage } from "./day-stage";
+import { TAKE_THIS_DAY } from "./day-menu";
 
 const ORIGIN = "http://lantern.test";
 /** Large deltas and no pauses, so a day streams in a few frames. */
@@ -267,7 +268,7 @@ describe("the day", () => {
     await waitFor(
       () =>
         expect(headline()).toHaveTextContent(
-          "A calm Saturday in Kanazawa, on foot, early start, early dinner, home by eleven, with …?",
+          "A calm Saturday in Kanazawa, on foot, early start, early dinner, home by eleven, with anyone",
         ),
       DAY_TIMEOUT,
     );
@@ -366,7 +367,7 @@ describe("the day", () => {
   it("takes a word no stop names as the visitor's at once, live or not, and says every stop stays", async () => {
     const user = await renderWritten();
 
-    await user.click(within(headline()).getByRole("button", { name: "with …?" }));
+    await user.click(within(headline()).getByRole("button", { name: "with anyone" }));
     await user.click(screen.getByRole("option", { name: "with family" }));
 
     expect(headline()).toHaveTextContent("home by eleven, with family");
@@ -437,7 +438,8 @@ describe("the day", () => {
     await waitForTheDay();
 
     await user.click(within(headline()).getByRole("button", { name: "Kanazawa" }));
-    await user.click(screen.getAllByRole("button", { name: "Plan another day" })[0]!);
+    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
     await user.keyboard("Porto{Enter}");
 
     expect(onPlay).toHaveBeenCalledWith(
@@ -552,11 +554,12 @@ describe("the day", () => {
   it("says a city Lantern has no day for back as asked, with the days that are written", async () => {
     const user = await renderWritten();
 
-    await user.click(screen.getAllByRole("button", { name: "Plan another day" })[0]!);
+    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
     expect(screen.getByRole("textbox", { name: "Somewhere else" })).toHaveFocus();
-    await user.keyboard("Paris{Enter}");
+    await user.keyboard("Lisbon{Enter}");
 
-    expect(headline()).toHaveTextContent(/^A calm Saturday in Paris, early start$/);
+    expect(headline()).toHaveTextContent(/^A calm Saturday in Lisbon, early start$/);
     await expectNotice(NOT_WRITING_YET);
     expect(screen.queryByRole("group", { name: /The day's energy/ })).not.toBeInTheDocument();
 
@@ -573,7 +576,8 @@ describe("the day", () => {
   it("takes a typed city that is written as its written day, and ignores an empty one", async () => {
     const user = await renderWritten();
 
-    await user.click(screen.getAllByRole("button", { name: "Plan another day" })[0]!);
+    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
     await user.keyboard("   {Enter}");
     expect(screen.getByRole("group", { name: "Where" })).toBeInTheDocument();
     await user.keyboard("bologna{Enter}");
@@ -673,8 +677,9 @@ describe("the day", () => {
 
     await user.click(retry);
     await waitForTheDay();
-    await user.click(screen.getAllByRole("button", { name: "Plan another day" })[0]!);
-    await user.keyboard("Paris{Enter}");
+    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
+    await user.keyboard("Lisbon{Enter}");
 
     await expectNotice(NOT_WRITING_YET);
     expect(screen.queryByText(BUSY, { exact: false })).not.toBeInTheDocument();

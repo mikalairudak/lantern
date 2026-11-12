@@ -4,21 +4,17 @@ import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { LISBON_REQUEST } from "@/lib/fixtures/curated/requests";
-import { BOLOGNA_START_REQUEST, PORTO_START_REQUEST } from "@/lib/days/written/quick-starts";
+import { INDEX_REQUESTS, PARIS_REQUEST } from "@/lib/days/written/city-days";
+import { MADRID_START_REQUEST } from "@/lib/days/written/quick-starts";
 import { MAX_INTAKE_TEXT_CHARS, type IntakeWords } from "@/lib/schema/intake.schema";
-import {
-  NOT_LIVE_NOTE,
-  PROMISE,
-  StartHeader,
-  WRITTEN_HEADING,
-  type StartHeaderProps,
-} from "./start-header";
+import { NOT_LIVE_NOTE, PROMISE, StartHeader, type StartHeaderProps } from "./start-header";
+import { INDEX_LABEL } from "./start-index";
 import { startOffersOf } from "./start-offers";
 import { writtenPool } from "./written-pool";
 import type { YourDay } from "./your-days";
 import { FORGET_YOUR_DAYS } from "./your-days-list";
 
-/** The quick starts as the page offers them. */
+/** The written days as the index offers them. */
 const STARTS = startOffersOf(writtenPool());
 
 const NO_WORDS: IntakeWords = {
@@ -50,61 +46,38 @@ function renderStart(props: Partial<StartHeaderProps> = {}) {
   return { ...view, ...handlers };
 }
 
-const writtenDays = () => screen.getByRole("list", { name: WRITTEN_HEADING });
+const writtenDays = () => screen.getByRole("list", { name: INDEX_LABEL });
 
 describe("StartHeader", () => {
-  it("says what Lantern is, asks one question, and offers the quick starts", () => {
+  it("says what Lantern is, asks one question, and offers the written days as an index", () => {
     renderStart();
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(PROMISE);
     expect(screen.getByRole("textbox", { name: "Where, and anything else" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Plan this day" })).toBeInTheDocument();
-    expect(
-      within(writtenDays())
-        .getAllByRole("button")
-        .map((button) => button.textContent),
-    ).toEqual([
-      "A lively Saturday in Bologna, with friends. Italy",
-      "A calm Sunday in Porto, slow morning. Portugal",
-      "A calm Saturday in Kanazawa, early start. Japan",
-      "A lively Saturday in Madrid, out late, with friends. Spain",
-      "A balanced Sunday in Utrecht, with family. Netherlands",
-      "A quiet Saturday in Nafplio, slow morning. Greece",
-    ]);
-  });
-
-  it("says each start's day in its city, its energy in its colour, its country under, beside its shape", () => {
-    renderStart();
-
-    const bologna = within(writtenDays()).getByRole("button", { name: /in Bologna/ });
-    expect(within(bologna).getByText("lively")).toHaveClass("text-energy");
-    // Only the day's words are underlined, as a link is: the country under them is not.
-    expect(within(bologna).getByText("Italy")).not.toHaveClass("underline");
-    expect(within(bologna).getByText("Italy").closest(".underline")).toBeNull();
-    expect(within(bologna).getByText("lively").closest(".underline")).not.toBeNull();
-    // A bead for each of the day's stops, drawn and unheard.
-    const shape = bologna.querySelector("svg");
-    expect(shape).toHaveAttribute("aria-hidden");
-    expect(shape?.querySelectorAll("circle")).toHaveLength(STARTS[0]!.energies.length);
+    const cells = within(writtenDays()).getAllByRole("button");
+    expect(cells.map((cell) => cell.textContent)).toEqual(
+      INDEX_REQUESTS.map(({ city }) => expect.stringMatching(new RegExp(`^${city} `))),
+    );
   });
 
   it("writes a start's day when it is pressed, from the keyboard too", async () => {
     const user = userEvent.setup();
     const { onChooseWritten } = renderStart();
 
-    await user.click(within(writtenDays()).getByRole("button", { name: /in Bologna/ }));
-    expect(onChooseWritten).toHaveBeenLastCalledWith(BOLOGNA_START_REQUEST);
+    await user.click(within(writtenDays()).getByRole("button", { name: /^Paris / }));
+    expect(onChooseWritten).toHaveBeenLastCalledWith(PARIS_REQUEST);
 
     // After the field and its button, the starts, in the order they are written.
     screen.getByRole("textbox").focus();
     await user.tab();
     expect(screen.getByRole("button", { name: "Plan this day" })).toHaveFocus();
     await user.tab();
-    expect(within(writtenDays()).getByRole("button", { name: /in Bologna/ })).toHaveFocus();
+    expect(within(writtenDays()).getByRole("button", { name: /^Paris / })).toHaveFocus();
     await user.tab();
-    expect(within(writtenDays()).getByRole("button", { name: /in Porto/ })).toHaveFocus();
+    expect(within(writtenDays()).getByRole("button", { name: /^Madrid / })).toHaveFocus();
     await user.keyboard("{Enter}");
-    expect(onChooseWritten).toHaveBeenLastCalledWith(PORTO_START_REQUEST);
+    expect(onChooseWritten).toHaveBeenLastCalledWith(MADRID_START_REQUEST);
   });
 
   it("keeps the starts on screen while a day is on its way, and the field its words", () => {
@@ -120,9 +93,9 @@ describe("StartHeader", () => {
 
   it("says with live generation off that no new day is written, and with it on what happens next", () => {
     const { rerender, ...handlers } = renderStart();
-    // The written days are named once, as the words below, not again in the note.
+    // The written days are named once, as the index below, not again in the note.
     expect(screen.getByText(NOT_LIVE_NOTE)).toBeInTheDocument();
-    expect(screen.getAllByText(/Italy/)).toHaveLength(1);
+    expect(screen.getAllByText("Paris")).toHaveLength(1);
 
     rerender(
       <HeldStart
@@ -366,22 +339,19 @@ describe("StartHeader", () => {
     ["not-yet", "Lantern isn't writing new days right now."],
     ["refused", "Lantern can't plan that day."],
     ["limited", "Lantern has written all the days it can for now."],
-  ] as const)(
-    "points to the written days below when no day can be written (%s)",
-    async (kind, said) => {
-      const user = userEvent.setup();
-      const { onChooseWritten } = renderStart({ line: { kind } });
+  ] as const)("points to the index below when no day can be written (%s)", async (kind, said) => {
+    const user = userEvent.setup();
+    const { onChooseWritten } = renderStart({ line: { kind } });
 
-      const line = screen.getByRole("status");
-      expect(line).toHaveTextContent(`${said} Watch one it knows, below.`);
-      // Said once, in place of the note, and the days are offered once, as the words below.
-      expect(screen.queryByText(NOT_LIVE_NOTE)).not.toBeInTheDocument();
-      expect(within(line).queryByRole("button")).not.toBeInTheDocument();
-      expect(screen.getAllByText(/Italy/)).toHaveLength(1);
-      await user.click(within(writtenDays()).getByRole("button", { name: /in Bologna/ }));
-      expect(onChooseWritten).toHaveBeenCalledWith(BOLOGNA_START_REQUEST);
-    },
-  );
+    const line = screen.getByRole("status");
+    expect(line).toHaveTextContent(`${said} Start from one of the days below.`);
+    // Said once, in place of the note, and the days are offered once, as the index below.
+    expect(screen.queryByText(NOT_LIVE_NOTE)).not.toBeInTheDocument();
+    expect(within(line).queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Paris")).toHaveLength(1);
+    await user.click(within(writtenDays()).getByRole("button", { name: /^Paris / }));
+    expect(onChooseWritten).toHaveBeenCalledWith(PARIS_REQUEST);
+  });
 
   it("says with live generation on that the text could not be read, rather than that no days are written", () => {
     renderStart({ line: { kind: "not-yet" }, isLive: true });
@@ -412,12 +382,12 @@ describe("the visitor's days over the starts", () => {
     onChooseReading: vi.fn(),
   };
 
-  it("draws the starts once the list is read, so the list never pushes them down", () => {
+  it("draws the index once the list is read, so the list never pushes it down", () => {
     expect(renderToString(<StartHeader {...props} yourDays={yourDays()} />)).not.toContain(
-      WRITTEN_HEADING,
+      INDEX_LABEL,
     );
-    // A header with no list of the visitor's, as a lab's, draws its starts on the server.
-    expect(renderToString(<StartHeader {...props} />)).toContain(WRITTEN_HEADING);
+    // A header with no list of the visitor's, as a lab's, draws its index on the server.
+    expect(renderToString(<StartHeader {...props} />)).toContain(INDEX_LABEL);
   });
 
   it("hands the focus to the first start once the days are forgotten", async () => {

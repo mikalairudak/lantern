@@ -22,11 +22,11 @@ const WRITTEN: StoredDay = {
 
 test.use({ reducedMotion: "reduce" });
 
-type View = "Chart" | "Read";
+type View = "Chart" | "Plan";
 
-/** What shows the day in a view: the chart, or the list to read; the styles show one. */
+/** What shows the day in a view: the chart, or its plan; the styles show one. */
 function viewOf(page: Page, view: View) {
-  return view === "Read"
+  return view === "Plan"
     ? page.getByRole("list", { name: "The day, to read" })
     : page.getByRole("group", { name: /The day's energy/ });
 }
@@ -52,7 +52,7 @@ async function waitForThePlaying(page: Page): Promise<void> {
 
 /** The day is shown in this view, and the other is not on the page's face. */
 async function expectTheView(page: Page, view: View): Promise<void> {
-  const other: View = view === "Read" ? "Chart" : "Read";
+  const other: View = view === "Plan" ? "Chart" : "Plan";
   await expect(viewOf(page, view)).toBeVisible({ timeout: DAY_TIMEOUT_MS });
   await expect(viewOf(page, other)).toBeHidden();
   await expect(
@@ -60,14 +60,14 @@ async function expectTheView(page: Page, view: View): Promise<void> {
   ).toHaveAttribute("aria-pressed", "true");
 }
 
-for (const view of ["Read", "Chart"] as const) {
+for (const view of ["Plan", "Chart"] as const) {
   test(`${view}, once chosen, holds after a reload, on another city, a re-planned day and a kept day's page`, async ({
     page,
   }) => {
     // Five days played, Kanazawa's twice, each at the landing's pace.
     test.setTimeout(5 * DAY_TIMEOUT_MS);
     // The other view was the visitor's before, so choosing this one changes something.
-    const before = view === "Read" ? "chart" : "read";
+    const before = view === "Plan" ? "chart" : "read";
     await page.addInitScript(
       ([key, value]) => {
         if (sessionStorage.getItem("chosen") === null) localStorage.setItem(key!, value!);
@@ -127,22 +127,25 @@ for (const view of ["Read", "Chart"] as const) {
 test.describe("with motion", { tag: "@frame" }, () => {
   test.use({ reducedMotion: "no-preference" });
 
-  test("the chart shown first after the list stands in place from its first frame", async ({
+  test("the chart shown first after the plan stands in place from its first frame", async ({
     page,
   }) => {
     await page.addInitScript(() => localStorage.setItem("lantern-day-view", "read"));
     await page.goto("/day/kanazawa");
     await waitForTheDay(page);
-    await expectTheView(page, "Read");
+    await expectTheView(page, "Plan");
 
-    // Every frame's row tops from the press on: drawn first behind the list under
-    // display: none, they slid 1.4 s to their places over one another.
+    // Every frame's row tops from the press on, against the chart's own top: drawn first behind
+    // the list under display: none, they slid 1.4 s to their places over one another. The bar
+    // over the day drops the energy's words on the chart, which moves the whole chart once.
     await page.evaluate(() => {
       const tops: number[][] = [];
       (window as unknown as { tops: number[][] }).tops = tops;
       const sample = () => {
+        const chart = document.querySelector('[aria-label="The day"]');
+        const chartTop = chart?.getBoundingClientRect().top ?? 0;
         const rows = [...document.querySelectorAll('[aria-label="The day"] > li')];
-        tops.push(rows.map((row) => row.getBoundingClientRect().top + scrollY));
+        tops.push(rows.map((row) => row.getBoundingClientRect().top - chartTop));
         if (tops.length < 60) requestAnimationFrame(sample);
       };
       requestAnimationFrame(sample);
@@ -157,13 +160,13 @@ test.describe("with motion", { tag: "@frame" }, () => {
     expect(Math.max(0, ...steps)).toBeLessThan(1);
   });
 
-  test("the line under the list counts the stops and versions the list shows, never more", async ({
+  test("the line under the plan counts the stops and versions the plan shows, never more", async ({
     page,
   }) => {
     await page.addInitScript(() => {
       localStorage.setItem("lantern-day-view", "read");
-      // Every frame from the first: how many rows and versions' lines the list shows, and
-      // what the line under it says.
+      // Every frame from the first: how many rows the plan shows, how many of them with their
+      // versions to swipe to, and what the line under it says.
       const said: { rows: number; versions: number; line: string }[] = [];
       (window as unknown as { said: typeof said }).said = said;
       const sample = () => {
@@ -174,7 +177,9 @@ test.describe("with motion", { tag: "@frame" }, () => {
         said.push({
           rows: rows.length,
           versions: rows.filter((row) =>
-            [...row.querySelectorAll("p")].some((line) => line.textContent?.startsWith("or ")),
+            [...row.querySelectorAll("button")].some((arrow) =>
+              /^(Quieter|Livelier|Same energy): /.test(arrow.getAttribute("aria-label") ?? ""),
+            ),
           ).length,
           line: line?.textContent ?? "",
         });
@@ -206,7 +211,7 @@ test.describe("with motion", { tag: "@frame" }, () => {
     expect(ahead).toEqual([]);
   });
 
-  test("a new energy reshapes the list in about 1.5 s, the rows on screen gliding under 3 px a frame", async ({
+  test("a new energy reshapes the plan in about 1.5 s, the rows on screen gliding under 3 px a frame", async ({
     page,
   }) => {
     await page.addInitScript(() => localStorage.setItem("lantern-day-view", "read"));

@@ -98,13 +98,12 @@ import { replanningOf, replanningPartOf } from "./not-yet";
 import { requestFor, standInZoneOf } from "./start";
 import { StartHeader, type CityQuestion, type StartLine } from "./start-header";
 import type { TypedCity, TypedCityFailure } from "./city-word";
-import { askedLabelsOf, FACT_OPTIONS, optionOf, type FactKey } from "./facts";
-import { useFirstImpression } from "./first-impression";
+import { ASKED_LABELS, FACT_OPTIONS, optionOf, type FactKey } from "./facts";
 import { useDayEvents } from "./use-day-events";
 import { NO_CONFIRMED, DayStage } from "./day-stage";
 import { shownDayOf, wholeInPlaceOf, type EndedDay } from "./shown-day";
 import type { StartExcerpt } from "./start-excerpt";
-import { indexOffersOf, startOffersOf } from "./start-offers";
+import { startOffersOf } from "./start-offers";
 import { keptKeyOf, type KeptLanding } from "./kept-day";
 import type { StartReader, StartResult } from "./written-reader";
 
@@ -394,14 +393,13 @@ const NO_PHRASES: readonly string[] = [];
 const NO_YOUR_DAYS: readonly YourDay[] = [];
 
 /**
- * A day Lantern has already written, as the page hands it to the start screen: its request,
- * what the day says of each word, and the energy of each stop the day shows. Never the day
- * itself, which plays from the route when it is asked for, so the first page stays light.
+ * A day Lantern has already written, as the page hands it to the start screen: its request and
+ * what the day says of each word. Never the day itself, which plays from the route when it is
+ * asked for, so the first page stays light.
  */
 export interface WrittenGist {
   request: DayRequest;
   facts: Itinerary["facts"];
-  energies: readonly EnergyLevel[];
 }
 
 /** The start screen: one question, and the days Lantern has written, as words. */
@@ -525,13 +523,8 @@ export function Day({
   // for this visit comes after (`LiveFlag`).
   const isLive = useLiveNow(isLiveGiven);
   const isHydrated = useHydrated();
-  const isFirstImpression = useFirstImpression();
-  // The days the start screen offers, each with the shape of its written day: the index's under
-  // the first impression, the quick starts otherwise.
-  const starts = useMemo(() => {
-    if (!start) return [];
-    return isFirstImpression ? indexOffersOf(start.pool) : startOffersOf(start.pool);
-  }, [start, isFirstImpression]);
+  // The written days the start screen's index offers.
+  const starts = useMemo(() => (start ? startOffersOf(start.pool) : []), [start]);
   // The page's own written day, by the key this device notes it seen by.
   const firstSeenKey =
     first !== undefined && written !== undefined
@@ -1067,7 +1060,7 @@ export function Day({
     const fromValue = day ? day.facts[key].value : (shownRequest?.[key] ?? null);
     const toValue = ask.request[key];
     if (toValue === null) return null;
-    const from = wordLabelOf(key, fromValue, isFirstImpression);
+    const from = wordLabelOf(key, fromValue);
     return {
       run: asked.run,
       word: key,
@@ -2001,14 +1994,8 @@ function keptLandingOf(kept: KeptLanding, run: number, isWhole: boolean): Asked 
 }
 
 /** A word as the sentence says it: its answer's label, or its open question's cue. */
-function wordLabelOf(
-  key: AssumableFactKey,
-  value: string | null,
-  isFirstImpression: boolean,
-): string {
-  return (
-    optionOf({ options: FACT_OPTIONS[key] }, value)?.label ?? askedLabelsOf(isFirstImpression)[key]
-  );
+function wordLabelOf(key: AssumableFactKey, value: string | null): string {
+  return optionOf({ options: FACT_OPTIONS[key] }, value)?.label ?? ASKED_LABELS[key];
 }
 
 /** A city an answer would play a day in, with the cities its name could mean. */
