@@ -1,7 +1,13 @@
 import type { Page } from "@playwright/test";
-import { expect, test, waitMs } from "./fixtures";
+import { expect, test, waitMs, chooseTheChart } from "./fixtures";
 import { VIEW_HELD_AFTER_GESTURE_MS } from "../src/features/day/view-hold";
 import { REVEAL_STEP_PX } from "../src/lib/tokens/motion";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 /**
  * A swap holds the day under the hand (`docs/decisions.md`, "A row's words go where its bead comes

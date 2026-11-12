@@ -20,7 +20,7 @@ import { Day, START_WORDS_CAP_MS, type WrittenGist } from "./day";
 import { StartDay } from "./start-day";
 import { writtenDayAt } from "@/lib/days/written/days";
 import { writtenPool } from "./written-pool";
-import { WRITTEN_HEADING } from "./start-header";
+import { INDEX_LABEL } from "./start-index";
 import { keepYourDay, readYourDays } from "./your-days";
 import { shownEnergiesOf } from "./day-shape";
 import { FORGET_YOUR_DAYS, YOUR_DAYS_HEADING } from "./your-days-list";
@@ -29,6 +29,7 @@ import { DAY_ROUTE } from "@/features/itinerary/day-route";
 import type { DaySource } from "@/features/itinerary/use-day-stream";
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
 import type { IntakeReader, IntakeResult, IntakeWords } from "@/lib/schema/intake.schema";
+import { TAKE_THIS_DAY } from "./day-menu";
 
 const ORIGIN = "http://lantern.test";
 const DAY_TIMEOUT = { timeout: 5000 };
@@ -180,15 +181,15 @@ function stallInTheLine(): void {
   });
 }
 /** The line under the field, with live generation off, for a text that asks for no written day. */
-const NOT_YET_LINE = "Lantern isn't writing new days right now. Watch one it knows, below.";
+const NOT_YET_LINE = "Lantern isn't writing new days right now. Start from one of the days below.";
 /** The line under the field, saying a day back as it is on its way. */
 const saysBack = (sentence: string) =>
   screen.findByText((_, element) => element?.tagName === "P" && element.textContent === sentence);
 
-/** A quick start on the start screen, by the city its day is written in, which its words say. */
+/** A day in the start screen's index, by the city its day is written in, which its cell names. */
 const cityWord = (city: string) =>
-  within(screen.getByRole("list", { name: WRITTEN_HEADING })).getByRole("button", {
-    name: new RegExp(` in ${city}[,.]`),
+  within(screen.getByRole("list", { name: INDEX_LABEL })).getByRole("button", {
+    name: new RegExp(`^${city} `),
   });
 
 async function waitForTheDay(): Promise<void> {
@@ -203,16 +204,12 @@ async function waitForTheDay(): Promise<void> {
 }
 
 describe("the day under its start screen", () => {
-  it("lands on the question and the quick starts, with no day and no stream", async () => {
+  it("lands on the question and the index, with no day and no stream", async () => {
     renderStart();
 
     expect(headline()).toHaveTextContent(/^One day in a city/);
-    expect(cityWord("Kanazawa")).toHaveAccessibleName(
-      "A calm Saturday in Kanazawa, early start. Japan",
-    );
-    expect(cityWord("Bologna")).toHaveAccessibleName(
-      "A lively Saturday in Bologna, with friends. Italy",
-    );
+    expect(cityWord("Paris")).toHaveAccessibleName("Paris Calm Sunday slow morning");
+    expect(cityWord("Tokyo")).toHaveAccessibleName("Tokyo Lively Saturday early start");
     // Nothing of a day is drawn, or asked for, until the visitor asks.
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(screen.queryByRole("list", { name: "The day" })).not.toBeInTheDocument();
@@ -223,32 +220,32 @@ describe("the day under its start screen", () => {
   it("writes a city's day where the question was when its word is pressed, its city word focused", async () => {
     const { user } = renderStart();
 
-    await user.click(cityWord("Nafplio"));
+    await user.click(cityWord("Rome"));
 
     await waitFor(() =>
-      expect(headline()).toHaveTextContent(/^A quiet Saturday in Nafplio, on foot/),
+      expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome, on foot/),
     );
     expect(fetchDay).toHaveBeenCalledOnce();
-    expect(within(headline()).getByRole("button", { name: /^Nafplio/ })).toHaveFocus();
+    expect(within(headline()).getByRole("button", { name: /^Rome/ })).toHaveFocus();
     await waitForTheDay();
     expect(
-      within(dayList()).getByRole("button", { name: /^Coffee on Staikopoulou/ }),
+      within(dayList()).getByRole("button", { name: /^Cornetti on Via Leonina/ }),
     ).toBeInTheDocument();
   });
 
   it("asks a city pressed on the date its day is shown on, not the date it was written for", async () => {
-    // Wednesday 11 November in Athens: Nafplio's Saturday is the 14th.
+    // Wednesday 18 November in Rome: its Saturday is the 21st, a week after the one written for.
     vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-11-11T09:00:00Z"));
+    vi.setSystemTime(new Date("2026-11-18T09:00:00Z"));
     try {
       const { user } = renderStart();
 
-      await user.click(cityWord("Nafplio"));
+      await user.click(cityWord("Rome"));
 
       await waitFor(() => expect(fetchDay).toHaveBeenCalledOnce());
       const [, init] = fetchDay.mock.calls[0]!;
-      expect(JSON.parse(String(init.body))).toMatchObject({ city: "Nafplio", date: "2026-11-14" });
-      await waitFor(() => expect(factsLine()).toHaveTextContent(/^Sat 14 Nov/));
+      expect(JSON.parse(String(init.body))).toMatchObject({ city: "Rome", date: "2026-11-21" });
+      await waitFor(() => expect(factsLine()).toHaveTextContent(/^Sat 21 Nov/));
     } finally {
       vi.useRealTimers();
     }
@@ -286,7 +283,7 @@ describe("the day under its start screen", () => {
     expect(screen.getByRole("button", { name: "Opening" })).toBeInTheDocument();
     // The question keeps the visitor's words, and the written cities stay, while it is on its way.
     expect(screen.getByRole("textbox")).toHaveValue("Bologna");
-    expect(cityWord("Kanazawa")).toBeVisible();
+    expect(cityWord("Paris")).toBeVisible();
     // The page turns once the day's own words have come.
     release();
     await waitFor(() => expect(headline()).toHaveTextContent(/^A lively Saturday in Bologna/), {
@@ -299,32 +296,34 @@ describe("the day under its start screen", () => {
     const { user } = renderStart();
     await user.type(screen.getByRole("textbox"), "somewhere quiet");
 
-    await user.click(cityWord("Kanazawa"));
+    await user.click(cityWord("Paris"));
 
-    expect(await saysBack("Opening a calm Saturday in Kanazawa, early start")).toBeVisible();
+    expect(
+      await saysBack("Opening a calm Sunday in Paris, slow morning, with a partner"),
+    ).toBeVisible();
     expect(screen.getByRole("textbox")).toHaveValue("somewhere quiet");
     expect(screen.queryByRole("list", { name: "The day" })).not.toBeInTheDocument();
     release();
-    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Saturday in Kanazawa/), {
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/), {
       timeout: 3000,
     });
   });
 
   it("writes the city pressed last when another is pressed while the first is on its way", async () => {
     stallDay();
-    const releaseNafplio = holdDay();
+    const releaseRome = holdDay();
     const { user } = renderStart();
-    await user.click(cityWord("Bologna"));
-    await saysBack("Opening a lively Saturday in Bologna, with friends");
+    await user.click(cityWord("Tokyo"));
+    await saysBack("Opening a lively Saturday in Tokyo, early start, alone");
 
-    await user.click(cityWord("Nafplio"));
-    await saysBack("Opening a quiet Saturday in Nafplio, slow morning");
+    await user.click(cityWord("Rome"));
+    await saysBack("Opening a balanced Saturday in Rome, eating late, with family");
 
-    releaseNafplio();
-    await waitFor(() => expect(headline()).toHaveTextContent(/^A quiet Saturday in Nafplio/));
+    releaseRome();
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
     await waitForTheDay();
     expect(
-      within(dayList()).getByRole("button", { name: /^Coffee on Staikopoulou/ }),
+      within(dayList()).getByRole("button", { name: /^Cornetti on Via Leonina/ }),
     ).toBeInTheDocument();
     expect(fetchDay).toHaveBeenCalledTimes(2);
   });
@@ -333,12 +332,12 @@ describe("the day under its start screen", () => {
     const release = holdDay();
     const { user } = renderStart();
 
-    await user.click(cityWord("Kanazawa"));
-    await saysBack("Opening a calm Saturday in Kanazawa, early start");
-    await user.click(cityWord("Kanazawa"));
+    await user.click(cityWord("Tokyo"));
+    await saysBack("Opening a lively Saturday in Tokyo, early start, alone");
+    await user.click(cityWord("Tokyo"));
     release();
 
-    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Saturday in Kanazawa/), {
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A lively Saturday in Tokyo/), {
       timeout: 3000,
     });
     expect(fetchDay).toHaveBeenCalledOnce();
@@ -384,14 +383,14 @@ describe("the day under its start screen", () => {
           element?.tagName === "P" && element.textContent === "A balanced day in …?, with family",
       ),
     ).toBeInTheDocument();
-    await user.type(city, "Paris{Enter}");
+    await user.type(city, "Lisbon{Enter}");
 
-    // Lantern has not written Paris, so the line never says the day is on its way, nor does
+    // Lantern has not written Lisbon, so the line never says the day is on its way, nor does
     // the button, whose unshown words share its cell hidden.
     expect(screen.queryByText(/^Opening/, { ignore: "[aria-hidden]" })).not.toBeInTheDocument();
     expect(read).toHaveBeenCalledOnce();
     await waitFor(() =>
-      expect(headline()).toHaveTextContent(/^A balanced Sunday in Paris, with family$/),
+      expect(headline()).toHaveTextContent(/^A balanced Sunday in Lisbon, with family$/),
     );
     // On screen, under the headline, and not only to a screen reader.
     expect(
@@ -527,10 +526,10 @@ describe("the day under its start screen", () => {
 
     await user.type(screen.getByRole("textbox"), "a day with my kids{Enter}");
     await user.type(await screen.findByRole("textbox", { name: "Which city?" }), "Lis");
-    await user.click(cityWord("Nafplio"));
+    await user.click(cityWord("Tokyo"));
 
     // The written day as it was written, not the words read: it is a day Lantern knows.
-    expect(await saysBack("Opening a quiet Saturday in Nafplio, slow morning")).toBeVisible();
+    expect(await saysBack("Opening a lively Saturday in Tokyo, early start, alone")).toBeVisible();
     expect(screen.getByRole("textbox")).toHaveValue("Lis");
   });
 
@@ -549,12 +548,12 @@ describe("the day under its start screen", () => {
     render(<Day start={{ pool: POOL, read }} />);
 
     await user.type(screen.getByRole("textbox"), "Bologna{Enter}");
-    await user.click(cityWord("Kanazawa"));
+    await user.click(cityWord("Paris"));
     land({ kind: "request", request: BOLOGNA_START_REQUEST, readings: [], unplaced: [] });
 
-    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Saturday in Kanazawa/));
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
     await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
-    expect(headline()).toHaveTextContent(/^A calm Saturday in Kanazawa/);
+    expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/);
     expect(fetchDay).toHaveBeenCalledOnce();
   });
 
@@ -574,13 +573,13 @@ describe("the day under its start screen", () => {
   it("points to the written days when it can write none, and writes the one pressed", async () => {
     const { user } = renderStart({ kind: "unavailable" });
 
-    await user.type(screen.getByRole("textbox"), "Paris{Enter}");
+    await user.type(screen.getByRole("textbox"), "Lisbon{Enter}");
     expect(await saysBack(NOT_YET_LINE)).toBeVisible();
-    await user.click(cityWord("Bologna"));
+    await user.click(cityWord("Rome"));
 
-    await waitFor(() => expect(headline()).toHaveTextContent(/^A lively Saturday in Bologna/));
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
     await waitForTheDay();
-    expect(within(dayList()).getByText("Coffee along Via Drapperie")).toBeInTheDocument();
+    expect(within(dayList()).getByText("Cornetti on Via Leonina")).toBeInTheDocument();
     expect(fetchDay).toHaveBeenCalledOnce();
   });
 });
@@ -616,13 +615,15 @@ describe("the wait for the day's own words", () => {
     const release = holdDay();
     const { user } = renderHeld();
 
-    await user.click(cityWord("Porto"));
-    expect(await saysBack("Opening a calm Sunday in Porto, slow morning")).toBeVisible();
+    await user.click(cityWord("Paris"));
+    expect(
+      await saysBack("Opening a calm Sunday in Paris, slow morning, with a partner"),
+    ).toBeVisible();
     await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
     expect(headline()).toHaveTextContent(/^One day in a city/);
 
     release();
-    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Porto/));
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
     await waitForTheDay();
   });
 
@@ -630,10 +631,10 @@ describe("the wait for the day's own words", () => {
     stallInTheLine();
     const { user } = renderHeld();
 
-    await user.click(cityWord("Porto"));
+    await user.click(cityWord("Paris"));
 
     // Well before the cap: the turn waits for the sentence's words, not the line about the day.
-    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Porto/), {
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/), {
       timeout: START_WORDS_CAP_MS / 2,
     });
     expect(screen.queryByRole("group", { name: /The day's energy/ })).not.toBeInTheDocument();
@@ -646,8 +647,10 @@ describe("the wait for the day's own words", () => {
     const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
     render(<Day start={{ pool: POOL, read }} />);
 
-    await user.click(cityWord("Porto"));
-    expect(await saysBack("Opening a calm Sunday in Porto, slow morning")).toBeVisible();
+    await user.click(cityWord("Paris"));
+    expect(
+      await saysBack("Opening a calm Sunday in Paris, slow morning, with a partner"),
+    ).toBeVisible();
     act(() => vi.advanceTimersByTime(START_WORDS_CAP_MS - 100));
     // The page turns a frame after it is due, so two frames pass before it is read.
     await act(
@@ -659,7 +662,7 @@ describe("the wait for the day's own words", () => {
     expect(headline()).toHaveTextContent(/^One day in a city/);
 
     act(() => vi.advanceTimersByTime(200));
-    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Porto/));
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
     // Its line about the day has not arrived, so the room it takes is not known.
     expect(screen.queryByRole("group", { name: /The day's energy/ })).not.toBeInTheDocument();
 
@@ -772,9 +775,9 @@ describe("the address, on a page that asks the day to keep it", () => {
     const user = renderAddressed();
     expect(document.title).toBe("Lantern");
 
-    await user.click(cityWord("Bologna"));
+    await user.click(cityWord("Tokyo"));
 
-    await saysBack("Opening a lively Saturday in Bologna, with friends");
+    await saysBack("Opening a lively Saturday in Tokyo, early start, alone");
     expect(window.location.pathname).toBe("/");
     expect(document.title).toBe("Lantern");
   });
@@ -783,18 +786,18 @@ describe("the address, on a page that asks the day to keep it", () => {
     const user = renderAddressed();
     const entries = window.history.length;
 
-    await user.click(cityWord("Kanazawa"));
+    await user.click(cityWord("Paris"));
 
-    await waitFor(() => expect(window.location.pathname).toBe("/day/kanazawa"));
-    expect(document.title).toBe("A calm Saturday in Kanazawa, early start · Lantern");
+    await waitFor(() => expect(window.location.pathname).toBe("/day/paris"));
+    expect(document.title).toBe("A calm Sunday in Paris, slow morning, with a partner · Lantern");
     // Pushed, so Back comes back to the start screen rather than leaving Lantern.
     expect(window.history.length).toBe(entries + 1);
   });
 
   it("shows the start screen on Back while the day writes on, and the day again on Forward", async () => {
     const user = renderAddressed();
-    await user.click(cityWord("Kanazawa"));
-    await waitFor(() => expect(window.location.pathname).toBe("/day/kanazawa"));
+    await user.click(cityWord("Paris"));
+    await waitFor(() => expect(window.location.pathname).toBe("/day/paris"));
 
     act(() => window.history.back());
 
@@ -804,20 +807,21 @@ describe("the address, on a page that asks the day to keep it", () => {
 
     act(() => window.history.forward());
 
-    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Saturday in Kanazawa/));
-    expect(window.location.pathname).toBe("/day/kanazawa");
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+    expect(window.location.pathname).toBe("/day/paris");
     // One day, played once: Back and Forward ask the route for nothing.
     expect(fetchDay).toHaveBeenCalledOnce();
   });
 
   it("brings the day back on Forward as the visitor left it, its energy and open stop included", async () => {
     const user = renderAddressed();
-    await user.click(cityWord("Kanazawa"));
+    await user.click(cityWord("Paris"));
     await waitForTheDay();
     await user.click(within(headline()).getByRole("button", { name: "calm" }));
     await user.click(screen.getByRole("option", { name: "lively" }));
     const [first] = within(dayList()).getAllByRole("button");
-    const name = writtenDayAt("kanazawa")!.itinerary.stops[0]!.primary.name;
+    // Lively, the first stop shows its livelier place, which its panel opens.
+    const name = writtenDayAt("paris")!.itinerary.stops[0]!.alternatives[0]!.name;
     await user.click(first!);
     expect(screen.getByRole("region", { name: /^About / })).toHaveAccessibleName(
       new RegExp(`^About ${name}`),
@@ -830,8 +834,8 @@ describe("the address, on a page that asks the day to keep it", () => {
 
     act(() => window.history.forward());
     // The same day, drawn as it stood: no landing played again, no word changed back.
-    await waitFor(() => expect(headline()).toHaveTextContent(/^A lively Saturday in Kanazawa/));
-    expect(document.title).toBe("A lively Saturday in Kanazawa, early start · Lantern");
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A lively Sunday in Paris/));
+    expect(document.title).toBe("A lively Sunday in Paris, slow morning, with a partner · Lantern");
     expect(screen.getByRole("region", { name: /^About / })).toHaveAccessibleName(
       new RegExp(`^About ${name}`),
     );
@@ -844,13 +848,14 @@ describe("the address, on a page that asks the day to keep it", () => {
 
   it("gives a city Lantern has not written the start screen's address again", async () => {
     const user = renderAddressed();
-    await user.click(cityWord("Kanazawa"));
+    await user.click(cityWord("Paris"));
     await waitForTheDay();
 
-    await user.click(screen.getAllByRole("button", { name: "Plan another day" })[0]!);
-    await user.keyboard("Paris{Enter}");
+    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
+    await user.keyboard("Lisbon{Enter}");
 
-    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Saturday in Paris/));
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Lisbon/));
     expect(window.location.pathname).toBe("/");
     expect(document.title).toBe("Lantern");
   });
@@ -859,9 +864,9 @@ describe("the address, on a page that asks the day to keep it", () => {
     const user = userEvent.setup();
     render(<Day start={{ pool: POOL, read: vi.fn<IntakeReader>() }} />);
 
-    await user.click(cityWord("Kanazawa"));
+    await user.click(cityWord("Paris"));
 
-    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Saturday in Kanazawa/));
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
     expect(window.location.pathname).toBe("/");
     expect(document.title).toBe(TITLE_BEFORE);
   });
@@ -897,21 +902,21 @@ describe("the visitor's own days", () => {
     const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
     render(<Day start={{ pool: POOL, read }} sourceFor={namedSourceFor} isAddressed />);
 
-    await user.click(cityWord("Nafplio"));
+    await user.click(cityWord("Rome"));
     await waitFor(() => expect(window.location.pathname).toBe(`/day/${ID}`));
     await waitForTheDay();
     const [kept] = readYourDays(window.localStorage);
-    expect(kept).toMatchObject({ id: ID, ending: "written", request: { city: "Nafplio" } });
+    expect(kept).toMatchObject({ id: ID, ending: "written", request: { city: "Rome" } });
     expect(kept!.energies.length).toBeGreaterThan(0);
 
     act(() => window.history.back());
 
     const yours = await screen.findByRole("list", { name: YOUR_DAYS_HEADING });
     expect(within(yours).getByRole("button")).toHaveTextContent(
-      /^A quiet Saturday in Nafplio, slow morning\. today$/,
+      /^A balanced Saturday in Rome, eating late, with family\. today$/,
     );
     await user.click(within(yours).getByRole("button"));
-    await waitFor(() => expect(headline()).toHaveTextContent(/^A quiet Saturday in Nafplio/));
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
     expect(window.location.pathname).toBe(`/day/${ID}`);
 
     act(() => window.history.back());

@@ -1,4 +1,10 @@
-import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs, chooseTheChart } from "./fixtures";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 /** The route lands a written day in about twelve seconds; a cold server adds a few. */
 const DAY_TIMEOUT_MS = waitMs(30_000);
@@ -160,7 +166,7 @@ test("the keyboard's focus rings each word and link in ink, and the theme's icon
     ["the energy word", headline.getByRole("button", { name: "calm", exact: true }), "2px"],
     [
       "the view to go to",
-      page.getByRole("group", { name: "View" }).getByRole("button", { name: "Read" }),
+      page.getByRole("group", { name: "View" }).getByRole("button", { name: "Plan" }),
       "2px",
     ],
     ["the theme's icon", page.getByRole("button", { name: /^Theme: / }), "-2px"],

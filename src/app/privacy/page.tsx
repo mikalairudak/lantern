@@ -6,7 +6,6 @@ import { LINK_CLASSES } from "@/features/day/link-classes";
 import { Masthead } from "@/features/day/masthead";
 import { DAY_LINK_DAYS } from "@/lib/days/stored-day";
 import { VISITOR_DAILY_LIMITS } from "@/lib/live/limits";
-import { isFirstImpression } from "@/lib/first-impression";
 import { isLiveNow } from "@/lib/live/live-now";
 import { VISITOR_TEXT_RETENTION_DAYS } from "@/lib/live/retention";
 import { listedPageMetadata } from "@/lib/site";
@@ -86,8 +85,6 @@ export default function Privacy() {
  */
 async function Notice() {
   const isLive = await isLiveNow();
-  // The day's end asks its one question under the first impression alone.
-  const isAnswerAsked = isFirstImpression(process.env);
   const contact = (
     <a href={`mailto:${CONTACT_EMAIL}`} className={BODY_LINK_CLASSES}>
       {CONTACT_EMAIL}
@@ -152,14 +149,11 @@ async function Notice() {
           <li>
             <span className={TERM_CLASSES}>How the page is used.</span> Short notes such as
             &ldquo;the start page was opened&rdquo;, &ldquo;a day was opened&rdquo;, &ldquo;a stop
-            was swapped&rdquo; or &ldquo;a day was read to its end&rdquo;
-            {isAnswerAsked && (
-              <>, and your answer to &ldquo;Would you follow this day?&rdquo;, yes or not quite</>
-            )}
-            , with the city, the date, how you came to the day and whether you were reading it on
-            the chart or as a list. They carry a code that changes every day and can&apos;t be
-            traced back to you after that day. They never hold your IP address, your device or what
-            you typed.
+            was swapped&rdquo; or &ldquo;a day was read to its end&rdquo;, and your answer to
+            &ldquo;Would you follow this day?&rdquo;, yes or not quite, with the city, the date, how
+            you came to the day and whether you were reading it on the chart or as a list. They
+            carry a code that changes every day and can&apos;t be traced back to you after that day.
+            They never hold your IP address, your device or what you typed.
           </li>
           <li>
             <span className={TERM_CLASSES}>Page views.</span> Our host&apos;s analytics notes each

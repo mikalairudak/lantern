@@ -7,7 +7,7 @@ Lantern plans one day in a city, hour by hour, as quiet or as lively as the visi
 ## Ground rules
 
 - **Current stage: v1.0 (from 2026-11-09).** Live calls to Claude and Geoapify run only behind the `LIVE_GENERATION` flag. It has been on in production since 2026-10-31, behind per-visitor limits and the app's daily and monthly spend caps (`src/lib/live/limits.ts`); a schema change that a live day writes needs production migrated before the release that carries it (`docs/harness.md`, "Database"). Provider API keys and secrets, the studio's password (`STUDIO_PASSWORD`) among them, live only in `.env.local` and Vercel's environment, never in the repository. One credential lives elsewhere: the production read-only role's connection string, in the owner's macOS Keychain, read only by `pnpm prod:read` (`docs/ops.md`). Tests never call a live service: they run on mock models and recorded responses.
-- **Work reaches `develop` through pull requests; `main` holds only releases.** Commit on a branch named `<kind>/<words>`, one change each, with conventional commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`). Once the definition of done holds and `/pr-ready` is clean, the engineering session pushes the branch and opens a pull request into `develop`; the owner reviews it and squash-merges it on GitHub, and Vercel builds `develop` as a preview. A release, on the owner's word, fast-forwards `main` to a `develop` that passed the gate and is tagged (`v1.1`, or `v1.0.1` for fixes alone); Vercel builds production from `main`. Only the engineering session pushes, and only a work branch, or `main` and its tag for a release; `develop` moves only by a merged pull request. Agents never push and never merge.
+- **Work reaches `develop` through pull requests; `main` holds only releases.** Commit on a branch named `<kind>/<words>`, one change each, with conventional commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`). Once the definition of done holds and `/pr-ready` is clean, the engineering session pushes the branch and opens a pull request into `develop`; once its checks on GitHub pass, the engineering session squash-merges it, and Vercel builds `develop` as a preview. A release, on the owner's word, fast-forwards `main` to a `develop` that passed the gate and is tagged (`v1.1`, or `v1.0.1` for fixes alone); Vercel builds production from `main`. Only the engineering session pushes, and only a work branch, or `main` and its tag for a release; `develop` moves only by a merged pull request. Agents never push and never merge.
 - A pre-commit hook runs `pnpm check`. Never bypass it with `--no-verify`; fix what it reports.
 - **Comments say what is true now.** State the rule and one clause of why, in the present tense; name a state ("with live generation off"), not a stage or a date, and cite a decision by its heading in `docs/decisions.md`. What used to be true belongs in the decision's entry and in git.
 - When a decision is worth explaining to someone who reads the code later, add an entry to `docs/decisions.md`.
@@ -28,17 +28,17 @@ The repository is public, and so is everything pushed to it, `develop` included:
 
 Node 24 (`.nvmrc`) and pnpm (pinned in `package.json`; run `corepack enable` once). `pnpm install` also turns on the commit gate in `.githooks/`; an install that is already up to date skips that, so run `pnpm run prepare` once. In Claude Code, a SessionStart hook (`.claude/hooks/use-project-node.sh`) puts this Node first on PATH; if `node --version` is not 24, the hook did not run.
 
-| Command                | What it does                                                                                                                                                                                                                                |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm dev`             | Dev server on port 3000                                                                                                                                                                                                                     |
-| `pnpm dev:lan`         | The same, reachable from a phone on the local network at `http://<computer's IP>:3000`                                                                                                                                                      |
-| `pnpm check`           | Format check, lint, typecheck, and unit tests with an 80% coverage gate (routes are excluded and covered by e2e). Runs on every commit.                                                                                                     |
-| `pnpm e2e`             | Playwright on desktop and phone. Its own server (port 3417, `.next-e2e`) runs alongside `pnpm dev`, and a second with the first impression's flag on (3418, `.next-e2e-fi`) for `e2e/first-impression/`; a parallel session sets `E2E_PORT` |
-| `pnpm e2e:visual`      | The matrices' visual baseline at a phone's width, in both themes. Never beside `pnpm e2e` in one checkout: they share `.next-e2e`                                                                                                           |
-| `pnpm e2e:busy`        | `pnpm e2e` with each page's CPU twice as slow, as on a busy machine; `E2E_CPU_RATE=4` for one spec. Before a frame-by-frame spec lands                                                                                                      |
-| `pnpm e2e:replan-pace` | The fork's story on the Elche bench (`e2e/replan-story.spec.ts`) alone, at the bench's live pace, which `pnpm e2e` plays too. Before a re-plan change merges                                                                                |
-| `pnpm build:check`     | The production build Vercel runs, in `.next-build` beside a running `pnpm dev`, then served and asked for its pages, as production renders them                                                                                             |
-| `pnpm format`          | Prettier, including Tailwind class sorting                                                                                                                                                                                                  |
+| Command                | What it does                                                                                                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm dev`             | Dev server on port 3000                                                                                                                                      |
+| `pnpm dev:lan`         | The same, reachable from a phone on the local network at `http://<computer's IP>:3000`                                                                       |
+| `pnpm check`           | Format check, lint, typecheck, and unit tests with an 80% coverage gate (routes are excluded and covered by e2e). Runs on every commit.                      |
+| `pnpm e2e`             | Playwright on desktop and phone. Its own server (port 3417, `.next-e2e`) runs alongside `pnpm dev`; a parallel session sets `E2E_PORT`                       |
+| `pnpm e2e:visual`      | The matrices' visual baseline at a phone's width, in both themes. Never beside `pnpm e2e` in one checkout: they share `.next-e2e`                            |
+| `pnpm e2e:busy`        | `pnpm e2e` with each page's CPU twice as slow, as on a busy machine; `E2E_CPU_RATE=4` for one spec. Before a frame-by-frame spec lands                       |
+| `pnpm e2e:replan-pace` | The fork's story on the Elche bench (`e2e/replan-story.spec.ts`) alone, at the bench's live pace, which `pnpm e2e` plays too. Before a re-plan change merges |
+| `pnpm build:check`     | The production build Vercel runs, in `.next-build` beside a running `pnpm dev`, then served and asked for its pages, as production renders them              |
+| `pnpm format`          | Prettier, including Tailwind class sorting                                                                                                                   |
 
 ## Architecture
 
@@ -58,7 +58,7 @@ src/app/                    routes: / (the start screen), /day/[city] (a written
                             /privacy, the API (intake, day, day/[id], replan, events), and /lab and /studio
 src/proxy.ts                asks for the owner's password on /lab and /studio, and nowhere else
 src/features/<x>/           components, hooks and logic per feature; day, abacus and itinerary open on a README.md
-  day/                      the page around a day: the start screen, the request as a sentence, the list to read,
+  day/                      the page around a day: the start screen, the request as a sentence, the day's plan,
                             the visitor's days, kept days, and the orchestrator (day.tsx)
   abacus/                   the chart: rows, beads, the energy curve and swaps, light on the time axis,
                             the streamed draft and a re-plan's fork
@@ -76,7 +76,7 @@ src/lib/                    everything under the React layer, mapped in its READ
   live/                     live generation on the server: model calls, prompts, limits and spend, the generation log
   intake/                   POST /api/intake: the model reads the text, the city is looked up and signed
   replan/                   a targeted re-plan: its request, windows and merge
-  days/                     the six written days the site serves (written/), a day's address, a kept day's
+  days/                     the thirteen written days the site serves (written/), a day's address, a kept day's
                             record, and what GET /api/day/<id> answers
   places/                   Geoapify and place matching
   quality/                  checks over one generation, recorded on every live day

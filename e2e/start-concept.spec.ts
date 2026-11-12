@@ -1,3 +1,4 @@
+import { INDEX_REQUESTS } from "../src/lib/days/written/city-days";
 import { expect, test, type Page, waitMs } from "./fixtures";
 
 const URL = "/lab/concepts/start";
@@ -10,8 +11,12 @@ const STEP_FRAMES = 2;
 const STILL_PX = 0.5;
 const TALL_LAPTOP = { width: 1440, height: 900 };
 const PHONE = { width: 390, height: 844 };
-/** What the start screen says over the cities Lantern has written. */
-const WRITTEN_HEADING = "Or watch Lantern write a day it knows";
+/** What the start screen says over its index of the days Lantern has written. */
+const INDEX_LABEL = "No city in mind? Start from one of these";
+/** The cities the index offers, in its order, and its first and last. */
+const INDEX_CITIES = INDEX_REQUESTS.map(({ city }) => city);
+const FIRST_INDEX_CITY = INDEX_CITIES[0]!;
+const LAST_INDEX_CITY = INDEX_CITIES.at(-1)!;
 /** A fade seen as one: the notice's opacity passes through at least this many values. */
 const FADE_VALUES = 3;
 /**
@@ -296,7 +301,7 @@ async function expectFocusMovesOnce(
 
 /** A place on the day, which shows its name on the chart and in the list. */
 function place(page: Page, name: string) {
-  return page.getByText(name, { exact: true }).first();
+  return page.getByText(name, { exact: true }).filter({ visible: true }).first();
 }
 
 async function openStart(page: Page): Promise<void> {
@@ -304,13 +309,14 @@ async function openStart(page: Page): Promise<void> {
   await page.goto(URL);
 }
 
-/** The cities Lantern has written, as words under the question. */
+/** The cities Lantern has written, as the index under the question. */
 function writtenCities(page: Page) {
-  return page.getByRole("list", { name: WRITTEN_HEADING });
+  return page.getByRole("list", { name: INDEX_LABEL });
 }
 
+/** A city's cell in the index, named by its city and its day in a few words. */
 function cityWord(page: Page, city: string) {
-  return writtenCities(page).getByRole("button", { name: new RegExp(` in ${city}[,.]`) });
+  return writtenCities(page).getByRole("button", { name: new RegExp(`^${city} `) });
 }
 
 /** The lab's days at a warm live start's pace, so a day on its way stays on its way for the hold. */
@@ -330,32 +336,27 @@ test("asks one question over the cities Lantern has written, with no day on scre
   );
   await expect(page.getByRole("textbox", { name: "Where, and anything else" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Plan this day" })).toBeVisible();
-  await expect(writtenCities(page).getByRole("button")).toHaveText([
-    /^A lively Saturday in Bologna, with friends\.\s*Italy$/,
-    /^A calm Sunday in Porto, slow morning\.\s*Portugal$/,
-    /^A calm Saturday in Kanazawa, early start\.\s*Japan$/,
-    /^A lively Saturday in Madrid, out late, with friends\.\s*Spain$/,
-    /^A balanced Sunday in Utrecht, with family\.\s*Netherlands$/,
-    /^A quiet Saturday in Nafplio, slow morning\.\s*Greece$/,
-  ]);
+  await expect(writtenCities(page).getByRole("button")).toHaveText(
+    INDEX_CITIES.map((city) => new RegExp(`^${city}\\s`)),
+  );
   // No day, no chart and no stream until the visitor asks.
   await expect(page.locator('svg[role="group"]')).toHaveCount(0);
   await expect(page.getByRole("list", { name: "The day" })).toHaveCount(0);
 });
 
-test("a city's word writes its day where the question was, and the day's city word takes the focus", async ({
+test("a city's cell writes its day where the question was, and the day's city word takes the focus", async ({
   page,
 }) => {
   await openStart(page);
 
-  await cityWord(page, "Nafplio").click();
+  await cityWord(page, "Rome").click();
 
   const headline = page.getByRole("heading", { level: 1 });
-  await expect(headline).toContainText("A quiet Saturday in Nafplio, on foot", {
+  await expect(headline).toContainText("A balanced Saturday in Rome, on foot", {
     timeout: DAY_TIMEOUT_MS,
   });
-  await expect(headline.getByRole("button", { name: "Nafplio", exact: true })).toBeFocused();
-  await expect(place(page, "Coffee on Staikopoulou")).toBeVisible({ timeout: DAY_TIMEOUT_MS });
+  await expect(headline.getByRole("button", { name: "Rome", exact: true })).toBeFocused();
+  await expect(place(page, "Cornetti on Via Leonina")).toBeVisible({ timeout: DAY_TIMEOUT_MS });
 });
 
 test("a field written in thickens and darkens its own line, lights its question, and moves nothing", async ({
@@ -535,7 +536,7 @@ test("the keyboard reaches the written cities after the question, ringed, and En
   const ink = await page.evaluate(() => getComputedStyle(document.body).color);
   // The written cities come once the page has run, after the visitor's own days are read:
   // a Tab pressed before them went on past where they were to be (a full run, load past 30).
-  for (const city of ["Bologna", "Nafplio"]) {
+  for (const city of [FIRST_INDEX_CITY, LAST_INDEX_CITY]) {
     await expect(cityWord(page, city)).toBeVisible();
     await expect(cityWord(page, city)).toBeEnabled();
   }
@@ -543,7 +544,7 @@ test("the keyboard reaches the written cities after the question, ringed, and En
 
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Plan this day" })).toBeFocused();
-  for (const city of ["Bologna", "Porto", "Kanazawa", "Madrid", "Utrecht", "Nafplio"]) {
+  for (const city of INDEX_CITIES) {
     await page.keyboard.press("Tab");
     const word = cityWord(page, city);
     await expect(word).toBeFocused();
@@ -556,7 +557,7 @@ test("the keyboard reaches the written cities after the question, ringed, and En
   await page.keyboard.press("Enter");
 
   const headline = page.getByRole("heading", { level: 1 });
-  await expect(headline.getByRole("button", { name: "Nafplio", exact: true })).toBeFocused({
+  await expect(headline.getByRole("button", { name: LAST_INDEX_CITY, exact: true })).toBeFocused({
     timeout: DAY_TIMEOUT_MS,
   });
 });
@@ -569,17 +570,16 @@ test("keeps the visitor's words, and the cities, while a pressed city's day is o
   const field = page.getByRole("textbox", { name: "Where, and anything else" });
   await field.fill("somewhere quiet");
 
-  await cityWord(page, "Kanazawa").click();
+  await cityWord(page, "Paris").click();
 
-  await expect(page.getByText("Opening a calm Saturday in Kanazawa, early start")).toBeVisible();
+  await expect(
+    page.getByText("Opening a calm Sunday in Paris, slow morning, with a partner"),
+  ).toBeVisible();
   await expect(field).toHaveValue("somewhere quiet");
-  await expect(writtenCities(page).getByRole("button")).toHaveCount(6);
-  await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "A calm Saturday in Kanazawa",
-    {
-      timeout: DAY_TIMEOUT_MS,
-    },
-  );
+  await expect(writtenCities(page).getByRole("button")).toHaveCount(INDEX_CITIES.length);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("A calm Sunday in Paris", {
+    timeout: DAY_TIMEOUT_MS,
+  });
 });
 
 test("writes the day a text asks for, and with live generation off says nothing else back", async ({

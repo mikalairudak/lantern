@@ -1,4 +1,10 @@
-import { expect, test, waitMs } from "./fixtures";
+import { expect, test, waitMs, chooseTheChart } from "./fixtures";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 /**
  * A fork's Compare draws the version not taken beside the day again (`docs/decisions.md`, "A

@@ -72,7 +72,7 @@ const HTTP_NOT_FOUND = 404;
  * (`notADaySource` in `src/lib/days/not-a-day.ts`). Asked once each, so the first visit is the one
  * checked.
  */
-const NOT_FOUND_PATHS: readonly string[] = ["/day/kyoto", "/day/caf%C3%A9"];
+const NOT_FOUND_PATHS: readonly string[] = ["/day/kyoto", "/day/vienna", "/day/caf%C3%A9"];
 
 /** What is wrong with an address that names no day's answer, or null when it is a 404. */
 function notFoundProblemOf(path: string, response: Response): string | null {
@@ -82,12 +82,15 @@ function notFoundProblemOf(path: string, response: Response): string | null {
 
 /**
  * Addresses that name a day, each answered 200, so the rule that refuses the rest leaves them
- * to their page: three written days, prerendered by the build, and a kept day's id it never saw.
+ * to their page: three starts' days and two city days, prerendered by the build, and a kept
+ * day's id it never saw.
  */
 const DAY_PATHS: readonly string[] = [
   "/day/kanazawa",
   "/day/bologna",
   "/day/porto",
+  "/day/paris",
+  "/day/seoul",
   `/day/${randomUUID()}`,
 ];
 

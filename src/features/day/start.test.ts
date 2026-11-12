@@ -48,12 +48,12 @@ describe("requestFor", () => {
       start: "slow",
     };
 
-    expect(requestFor("Paris", words, TOKYO, NOW)).toEqual({
+    expect(requestFor("Lisbon", words, TOKYO, NOW)).toEqual({
       ...NO_WORDS,
       energy: "calm",
       energySource: "chosen",
       start: "slow",
-      city: "Paris",
+      city: "Lisbon",
       citySource: "chosen",
       // The stand-in zone holds until the resolver knows the city's.
       timezone: TOKYO,
@@ -62,7 +62,7 @@ describe("requestFor", () => {
   });
 
   it("keeps a date the text named", () => {
-    expect(requestFor("Paris", { ...NO_WORDS, date: "2026-11-15" }, TOKYO, NOW).date).toBe(
+    expect(requestFor("Lisbon", { ...NO_WORDS, date: "2026-11-15" }, TOKYO, NOW).date).toBe(
       "2026-11-15",
     );
   });

@@ -1,6 +1,12 @@
 import { dayAddressOf } from "../src/lib/days/address";
 import { START_DAYS } from "../src/lib/days/written/start-days";
-import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs, chooseTheChart } from "./fixtures";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 /** The route lands a written day in about twelve seconds; a cold server adds a few. */
 const DAY_TIMEOUT_MS = waitMs(30_000);
@@ -280,7 +286,7 @@ const WRITTEN_DAYS = [
 // A 404 from the first visit: an address under /day that names no day is rewritten to no page
 // before the route could send its shell with a 200 (`notADaySource`).
 for (const [what, address] of [
-  ["a city Lantern has not written", "/day/paris"],
+  ["a city Lantern has not written", "/day/vienna"],
   ["a city written with an accent", "/day/caf%C3%A9"],
   ["an address Lantern does not have", "/nope"],
   // The days written by hand are fixtures, no days of the site's (`docs/decisions.md`, "The public
@@ -386,7 +392,7 @@ test("a day's page ends with its sources, crediting OpenStreetMap in the page's 
 /** How far past its words a small link still takes a press. */
 const TARGET_REACH_PX = 6;
 
-test("the masthead's action and the foot's credit take a press a little past their words", async ({
+test("the day's end answer and the foot's credit take a press a little past their words", async ({
   page,
   isMobile,
 }) => {
@@ -395,7 +401,7 @@ test("the masthead's action and the foot's credit take a press a little past the
   const credit = page.getByRole("link", { name: "© OpenStreetMap contributors" });
   await expect(credit).toBeAttached({ timeout: DAY_TIMEOUT_MS });
 
-  for (const target of [page.getByRole("button", { name: "Plan another day" }).first(), credit]) {
+  for (const target of [page.getByRole("button", { name: "Yes" }), credit]) {
     // In the middle of the screen, so every side's probe is inside it.
     await target.evaluate((element) => element.scrollIntoView({ block: "center" }));
     const reached = await target.evaluate((element, reach) => {
@@ -455,6 +461,10 @@ async function writeMadrid(page: Page, isMobile: boolean): Promise<void> {
     "false",
     { timeout: DAY_TIMEOUT_MS },
   );
+  // The day's end lands under the chart once the frame has risen to its last hour.
+  await expect(page.getByRole("button", { name: "Not quite" })).toBeVisible({
+    timeout: DAY_TIMEOUT_MS,
+  });
 }
 
 /** Opens Madrid's last stop, whose sheet the day has no room for below it. */

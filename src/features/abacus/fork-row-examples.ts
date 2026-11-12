@@ -161,7 +161,7 @@ export const FORK_EXAMPLES: readonly { label: string; example: ForkExample }[] =
   {
     label: "a whole day, a question answered",
     example: {
-      change: { word: "company", from: "with …?", to: "with family" },
+      change: { word: "company", from: "with anyone", to: "with family" },
       reach: "whole",
       receipts: {
         proposal: receiptOf(
@@ -172,7 +172,7 @@ export const FORK_EXAMPLES: readonly { label: string; example: ForkExample }[] =
           { ...FAMILY_PLACES, added: 3 },
         ),
         before: receiptOf(
-          { word: "company", to: "with …?" },
+          { word: "company", to: "with anyone" },
           "whole",
           ELCHE_BEFORE.stops,
           ELCHE_BEFORE.stops,

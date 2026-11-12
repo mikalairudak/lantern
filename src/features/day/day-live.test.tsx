@@ -35,6 +35,7 @@ import { replanEndedOf, replanningOf, UNFINISHED } from "./not-yet";
 import { NOT_LIVE_NOTE } from "./start-header";
 import { StartDay } from "./start-day";
 import { writtenPool } from "./written-pool";
+import { TAKE_THIS_DAY } from "./day-menu";
 
 /**
  * The start screen and the day with live generation on, against stand-ins of both routes:
@@ -47,22 +48,22 @@ const ORIGIN = "http://lantern.test";
 const DAY_TIMEOUT = { timeout: 5000 };
 const POOL = writtenPool();
 
-const PARIS: DayRequest = {
+const LISBON: DayRequest = {
   ...KYOTO_REQUEST,
-  city: "Paris",
+  city: "Lisbon",
   citySource: "chosen",
-  timezone: "Europe/Paris",
+  timezone: "Europe/Lisbon",
   date: "2026-11-14",
   energy: "calm",
   energySource: "chosen",
 };
-const SIGNED_PARIS = { city: "Paris", timezone: "Europe/Paris", signature: "paris-signed" };
+const SIGNED_LISBON = { city: "Lisbon", timezone: "Europe/Lisbon", signature: "lisbon-signed" };
 /** Kyoto has no written day: the intake signs it as any city. */
 const SIGNED_KYOTO = { city: "Kyoto", timezone: "Asia/Tokyo", signature: "kyoto-signed" };
 /** The signatures the stand-in intake hands out, by city and zone, as the day route checks them. */
 const SIGNATURES = new Map<string, string>(
   [
-    SIGNED_PARIS,
+    SIGNED_LISBON,
     SIGNED_KYOTO,
     { city: "Portland", timezone: PORTLAND_OREGON.timezone, signature: "oregon-signed" },
     { city: "Portland", timezone: PORTLAND_MAINE.timezone, signature: "maine-signed" },
@@ -573,23 +574,23 @@ describe("the start screen with live generation on", () => {
     const user = renderLive(
       answered({
         kind: "request",
-        request: PARIS,
+        request: LISBON,
         readings: [],
         unplaced: ["with my dog"],
-        signed: [SIGNED_PARIS],
+        signed: [SIGNED_LISBON],
       }),
     );
 
-    await ask(user, "Paris, a calm day, with my dog");
+    await ask(user, "Lisbon, a calm day, with my dog");
 
-    expect(intakeTexts).toEqual(["Paris, a calm day, with my dog"]);
+    expect(intakeTexts).toEqual(["Lisbon, a calm day, with my dog"]);
     await waitFor(
-      () => expect(headline()).toHaveTextContent(/^A calm Saturday in Paris/),
+      () => expect(headline()).toHaveTextContent(/^A calm Saturday in Lisbon/),
       DAY_TIMEOUT,
     );
     expect(screen.getAllByText("Lantern can't plan around “with my dog”.")[0]).toBeVisible();
     await waitFor(() => expect(dayList()).toBeInTheDocument(), DAY_TIMEOUT);
-    expect(dayPosts).toEqual([{ request: PARIS, signature: "paris-signed" }]);
+    expect(dayPosts).toEqual([{ request: LISBON, signature: "lisbon-signed" }]);
     // A day Lantern has not written word for word keeps the start screen's address.
     expect(window.location.pathname).toBe("/");
   });
@@ -632,23 +633,23 @@ describe("the start screen with live generation on", () => {
       }),
       answered({
         kind: "request",
-        request: { ...PARIS, energy: "balanced", energySource: "assumed" },
+        request: { ...LISBON, energy: "balanced", energySource: "assumed" },
         readings: [],
         unplaced: [],
-        signed: [SIGNED_PARIS],
+        signed: [SIGNED_LISBON],
       }),
     );
 
     await ask(user, "a calm day with my kids");
-    await user.type(await screen.findByRole("textbox", { name: "Which city?" }), "Paris{Enter}");
+    await user.type(await screen.findByRole("textbox", { name: "Which city?" }), "Lisbon{Enter}");
 
     await waitFor(() => expect(dayList()).toBeInTheDocument(), DAY_TIMEOUT);
-    expect(intakeTexts).toEqual(["a calm day with my kids", "Paris"]);
-    expect(headline()).toHaveTextContent(/^A calm Saturday in Paris, .*with family$/);
+    expect(intakeTexts).toEqual(["a calm day with my kids", "Lisbon"]);
+    expect(headline()).toHaveTextContent(/^A calm Saturday in Lisbon, .*with family$/);
     expect(dayPosts).toEqual([
       {
-        request: expect.objectContaining({ city: "Paris", energy: "calm", company: "family" }),
-        signature: "paris-signed",
+        request: expect.objectContaining({ city: "Lisbon", energy: "calm", company: "family" }),
+        signature: "lisbon-signed",
       },
     ]);
   });
@@ -667,14 +668,16 @@ describe("the start screen with live generation on", () => {
 
     await ask(user, "a calm day with my kids");
     const field = await screen.findByRole("textbox", { name: "Which city?" });
-    await user.type(field, "Paris{Enter}");
+    await user.type(field, "Lisbon{Enter}");
 
     await screen.findByRole("button", { name: "Reading" });
     expect(screen.getByRole("textbox", { name: "Which city?" })).toBe(field);
-    expect(field).toHaveValue("Paris");
+    expect(field).toHaveValue("Lisbon");
     expect(field).toHaveAttribute("readonly");
     expect(
-      screen.getByText((_, element) => element?.textContent === "A calm day in Paris, with family"),
+      screen.getByText(
+        (_, element) => element?.textContent === "A calm day in Lisbon, with family",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -693,7 +696,7 @@ describe("the start screen with live generation on", () => {
     await ask(user, "a calm day");
     await user.type(await screen.findByRole("textbox", { name: "Which city?" }), "Atlantis{Enter}");
 
-    await saysBack("Lantern can't plan that day. Watch one it knows, below.");
+    await saysBack("Lantern can't plan that day. Start from one of the days below.");
     expect(screen.getByRole("textbox", { name: "Where, and anything else" })).toHaveFocus();
   });
 
@@ -747,7 +750,7 @@ describe("the start screen with live generation on", () => {
 
       await ask(user, "Amsterdam");
 
-      expect(await saysBack(`${said} Watch one it knows, below.`)).toBeVisible();
+      expect(await saysBack(`${said} Start from one of the days below.`)).toBeVisible();
       expect(screen.getByRole("textbox")).toHaveValue("Amsterdam");
       expect(dayPosts).toEqual([]);
     },
@@ -759,40 +762,40 @@ describe("the start screen with live generation on", () => {
     await ask(user, "Amsterdam");
 
     expect(
-      await saysBack("Lantern couldn't read that just now. Watch one it knows, below."),
+      await saysBack("Lantern couldn't read that just now. Start from one of the days below."),
     ).toBeVisible();
   });
 });
 
 // `docs/decisions.md`, "A day has at least one stop".
 describe("a first day that comes back empty, with live generation on", () => {
-  const ASKED_FOR_PARIS = answered({
+  const ASKED_FOR_LISBON = answered({
     kind: "request",
-    request: PARIS,
+    request: LISBON,
     readings: [],
     unplaced: [],
-    signed: [SIGNED_PARIS],
+    signed: [SIGNED_LISBON],
   });
 
   it("is asked for once more under the same signature, and written", async () => {
-    const user = renderLive(ASKED_FOR_PARIS);
+    const user = renderLive(ASKED_FOR_LISBON);
     dayReplies.push("empty");
 
-    await ask(user, "Paris, a calm day");
+    await ask(user, "Lisbon, a calm day");
 
     await waitForTheDay();
     expect(dayPosts).toEqual([
-      { request: PARIS, signature: "paris-signed" },
-      { request: PARIS, signature: "paris-signed" },
+      { request: LISBON, signature: "lisbon-signed" },
+      { request: LISBON, signature: "lisbon-signed" },
     ]);
     expect(screen.queryByText(UNFINISHED, { exact: false })).not.toBeInTheDocument();
   });
 
   it("holds what the empty day wrote, and its city word the focus, while it is asked again", async () => {
-    const user = renderLive(ASKED_FOR_PARIS);
+    const user = renderLive(ASKED_FOR_LISBON);
     dayReplies.push("empty", "pending");
 
-    await ask(user, "Paris, a calm day");
+    await ask(user, "Lisbon, a calm day");
 
     // The empty day takes the page as any first day does, its city word the focus.
     // The line about the day is set unseen too, to measure its room: any copy is the line.
@@ -809,10 +812,10 @@ describe("a first day that comes back empty, with live generation on", () => {
   });
 
   it("says Lantern couldn't finish it when it comes back empty again, asking no third time", async () => {
-    const user = renderLive(ASKED_FOR_PARIS);
+    const user = renderLive(ASKED_FOR_LISBON);
     dayReplies.push("empty", "empty");
 
-    await ask(user, "Paris, a calm day");
+    await ask(user, "Lisbon, a calm day");
 
     expect(await screen.findByText(UNFINISHED, { exact: false }, DAY_TIMEOUT)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Write it again" })).toBeVisible();
@@ -823,7 +826,8 @@ describe("a first day that comes back empty, with live generation on", () => {
 describe("the city word with live generation on", () => {
   async function typeCity(user: ReturnType<typeof userEvent.setup>, city: string): Promise<void> {
     await user.click(within(headline()).getByRole("button", { name: "Kanazawa" }));
-    await user.click(screen.getAllByRole("button", { name: "Plan another day" })[0]!);
+    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
     await user.keyboard(`${city}{Enter}`);
   }
 
@@ -831,26 +835,26 @@ describe("the city word with live generation on", () => {
     const user = await landOnKanazawa(
       answered({
         kind: "request",
-        request: { ...PARIS, energy: "balanced" },
+        request: { ...LISBON, energy: "balanced" },
         readings: [],
         unplaced: [],
-        signed: [SIGNED_PARIS],
+        signed: [SIGNED_LISBON],
       }),
     );
 
-    await typeCity(user, "Paris");
+    await typeCity(user, "Lisbon");
 
-    await waitFor(() => expect(headline()).toHaveTextContent(/in Paris/), DAY_TIMEOUT);
-    expect(intakeTexts).toEqual(["Paris"]);
+    await waitFor(() => expect(headline()).toHaveTextContent(/in Lisbon/), DAY_TIMEOUT);
+    expect(intakeTexts).toEqual(["Lisbon"]);
     // The day's own words stay, in the zone the intake found.
     expect(dayPosts).toEqual([
       {
         request: expect.objectContaining({
-          city: "Paris",
-          timezone: "Europe/Paris",
+          city: "Lisbon",
+          timezone: "Europe/Lisbon",
           energy: KANAZAWA_START_REQUEST.energy,
         }),
-        signature: "paris-signed",
+        signature: "lisbon-signed",
       },
     ]);
   });
@@ -885,15 +889,15 @@ describe("the city word with live generation on", () => {
   it("says in the word's list that a typed city is read, and stops reading it when the list closes", async () => {
     const user = await landOnKanazawa("pending");
 
-    await typeCity(user, "Paris");
+    await typeCity(user, "Lisbon");
 
     const list = await screen.findByRole("group", { name: "Where" });
     expect(within(list).getByRole("status")).toHaveTextContent("Reading");
-    expect(within(list).getByRole("textbox", { name: "Somewhere else" })).toHaveValue("Paris");
+    expect(within(list).getByRole("textbox", { name: "Somewhere else" })).toHaveValue("Lisbon");
     await user.keyboard("{Escape}");
 
     await waitFor(() => expect(screen.queryByRole("group", { name: "Where" })).toBeNull());
-    expect(intakeTexts).toEqual(["Paris"]);
+    expect(intakeTexts).toEqual(["Lisbon"]);
     expect(dayPosts).toEqual([]);
     expect(headline()).toHaveTextContent(/in Kanazawa/);
   });
@@ -1213,7 +1217,7 @@ describe("a changed time word with live generation on", () => {
 
     // A word whose re-plan is the whole day: the route answers 409 and the day is asked again.
     dayIds.push(NEXT_DAY_ID);
-    await changeWord(user, "with …?", "with family");
+    await changeWord(user, "with anyone", "with family");
     await takeProposal(user, "with family");
 
     await waitFor(() => expect(window.location.pathname).toBe(`/day/${NEXT_DAY_ID}`), DAY_TIMEOUT);
@@ -1521,7 +1525,7 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     const sentence = seenTextOf(headline());
     dayReplies.push("held");
 
-    await changeWord(user, "with …?", "with family");
+    await changeWord(user, "with anyone", "with family");
 
     // The new day's header and its first stops have streamed; the day before stays the day.
     await waitFor(() => expect(day.current?.replan().status).toBe("writing"), DAY_TIMEOUT);
@@ -1535,7 +1539,9 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     await new Promise((resolve) => setTimeout(resolve, 300));
     expect(within(dayList()).getAllByRole("listitem")[0]).toBe(firstStop);
     // Only the pair was written in at the press: the rest of the headline stands.
-    expect(seenTextOf(headline())).toBe(sentence.replace("with …?", "with …? or with family"));
+    expect(seenTextOf(headline())).toBe(
+      sentence.replace("with anyone", "with anyone or with family"),
+    );
     // The day held keeps its own address while the new one is on its way.
     expect(window.location.pathname).toBe(`/day/${KYOTO_DAY_ID}`);
   });
@@ -1546,7 +1552,7 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     dayIds.push(KYOTO_DAY_ID, NEXT_DAY_ID);
     const user = await askForKyoto(day);
 
-    await changeWord(user, "with …?", "with family");
+    await changeWord(user, "with anyone", "with family");
 
     await waitFor(() => expect(window.location.pathname).toBe(`/day/${NEXT_DAY_ID}`), DAY_TIMEOUT);
     await waitForTheDay();
@@ -1592,11 +1598,11 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     const day = createRef<DayHandle>();
     dayIds.push(KYOTO_DAY_ID, NEXT_DAY_ID);
     const user = await askForKyoto(day);
-    await changeWord(user, "with …?", "with family");
+    await changeWord(user, "with anyone", "with family");
     await waitFor(() => expect(day.current?.replan().status).toBe("proposed"), DAY_TIMEOUT);
     // Whole, it waits to be taken: the day before still the day, at its own address.
     expect(window.location.pathname).toBe(`/day/${KYOTO_DAY_ID}`);
-    expect(headline()).toHaveTextContent(/with …\? or with family$/);
+    expect(headline()).toHaveTextContent(/with anyone or with family$/);
 
     await takeProposal(user, "with family");
 
@@ -1609,7 +1615,7 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
       day.current?.replan().choose("from");
     });
 
-    await waitFor(() => expect(headline()).toHaveTextContent(/with …\?$/));
+    await waitFor(() => expect(headline()).toHaveTextContent(/with anyone$/));
     expect(window.location.pathname).toBe(`/day/${KYOTO_DAY_ID}`);
     expect(day.current?.replan().status).toBe("left");
     expect(dayPosts).toHaveLength(1);
@@ -1654,13 +1660,13 @@ describe("a changed word with live generation on", () => {
     const user = renderLive(
       answered({
         kind: "request",
-        request: PARIS,
+        request: LISBON,
         readings: [],
         unplaced: [],
-        signed: [SIGNED_PARIS],
+        signed: [SIGNED_LISBON],
       }),
     );
-    await ask(user, "Paris, a calm day");
+    await ask(user, "Lisbon, a calm day");
     await waitForTheDay();
     dayPosts.length = 0;
 
@@ -1669,8 +1675,8 @@ describe("a changed word with live generation on", () => {
     await waitFor(() => expect(dayPosts).toHaveLength(1), DAY_TIMEOUT);
     expect(replanPosts).toEqual([]);
     expect(dayPosts[0]).toEqual({
-      request: { ...PARIS, dinner: "late" },
-      signature: "paris-signed",
+      request: { ...LISBON, dinner: "late" },
+      signature: "lisbon-signed",
     });
   });
 
@@ -1678,15 +1684,15 @@ describe("a changed word with live generation on", () => {
     const user = renderLive(
       answered({
         kind: "request",
-        request: PARIS,
+        request: LISBON,
         readings: [],
         unplaced: ["with my dog"],
-        signed: [SIGNED_PARIS],
+        signed: [SIGNED_LISBON],
       }),
     );
     // The day is kept in the log, so a re-plan can name it.
     dayIds.push(NEXT_DAY_ID);
-    await ask(user, "Paris, a calm day, with my dog");
+    await ask(user, "Lisbon, a calm day, with my dog");
     await waitForTheDay();
     dayPosts.length = 0;
     const struck = watchStruck(dayList());
@@ -1701,21 +1707,21 @@ describe("a changed word with live generation on", () => {
     expect(replanPosts[0]).toMatchObject({
       body: {
         basis: { kind: "kept", id: NEXT_DAY_ID },
-        request: { ...PARIS, dinner: "late" },
+        request: { ...LISBON, dinner: "late" },
         changed: "dinner",
         round: 1,
       },
       signature: null,
     });
     expect(dayPosts[0]).toEqual({
-      request: { ...PARIS, dinner: "late" },
-      signature: "paris-signed",
+      request: { ...LISBON, dinner: "late" },
+      signature: "lisbon-signed",
     });
     // Sent on to the whole day, the dinner's stretch was never struck and taken back.
     struck.stop();
     expect(struck.wasStruck()).toBe(false);
     await waitFor(
-      () => expect(headline()).toHaveTextContent(/in Paris, .*eating late/),
+      () => expect(headline()).toHaveTextContent(/in Lisbon, .*eating late/),
       DAY_TIMEOUT,
     );
     await waitForTheDay();

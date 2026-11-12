@@ -1,9 +1,10 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { INDEX_REQUESTS } from "@/lib/days/written/city-days";
 import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { StartDay } from "./start-day";
-import { WRITTEN_HEADING } from "./start-header";
+import { INDEX_LABEL } from "./start-index";
 import { writtenPool } from "./written-pool";
 
 const ORIGIN = "http://lantern.test";
@@ -54,7 +55,7 @@ afterAll(() => {
 });
 
 describe("StartDay", () => {
-  it("asks one question over the quick starts, with no day, with live generation off", () => {
+  it("asks one question over the index, with no day, with live generation off", () => {
     render(<StartDay pool={writtenPool()} isLive={false} />);
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
@@ -63,8 +64,8 @@ describe("StartDay", () => {
     expect(screen.getByRole("textbox", { name: "Where, and anything else" })).toBeVisible();
     expect(screen.getByText("Lantern isn't writing new days right now.")).toBeVisible();
     expect(
-      within(screen.getByRole("list", { name: WRITTEN_HEADING })).getAllByRole("button"),
-    ).toHaveLength(6);
+      within(screen.getByRole("list", { name: INDEX_LABEL })).getAllByRole("button"),
+    ).toHaveLength(INDEX_REQUESTS.length);
     expect(screen.queryByRole("list", { name: "The day" })).not.toBeInTheDocument();
     expect(screen.queryByRole("group", { name: /The day's energy/ })).not.toBeInTheDocument();
   });
@@ -73,16 +74,16 @@ describe("StartDay", () => {
     const user = userEvent.setup();
     render(<StartDay pool={writtenPool()} isLive={false} />);
 
-    await user.click(screen.getByRole("button", { name: /in Nafplio/ }));
+    await user.click(screen.getByRole("button", { name: /^Tokyo / }));
 
     await waitFor(
       () =>
         expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-          "A quiet Saturday in Nafplio",
+          "A lively Saturday in Tokyo",
         ),
       DAY_TIMEOUT,
     );
-    expect(window.location.pathname).toBe("/day/nafplio");
+    expect(window.location.pathname).toBe("/day/tokyo");
   });
 
   it("reads the visitor's text with the stand-in, and writes a written city's day at its address", async () => {

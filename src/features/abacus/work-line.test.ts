@@ -28,7 +28,7 @@ const LATE_DINNER: WorkChange = {
 
 const FAMILY: WorkChange = {
   word: "company",
-  from: "with …?",
+  from: "with anyone",
   isFromAsked: true,
   toValue: "family",
   to: "with family",
@@ -105,7 +105,7 @@ describe("workLineOf", () => {
       { word: "start", values: ["early", "slow"], from: "early start" },
       { word: "dinner", values: ["early", "late"], from: "early dinner" },
       { word: "end", values: ["evening", "early", "late"], from: "home by eleven" },
-      { word: "company", values: ["alone", "partner", "family", "friends"], from: "with …?" },
+      { word: "company", values: ["alone", "partner", "family", "friends"], from: "with anyone" },
     ] as const;
     const moments: WorkMoment[] = [
       { kind: "looking" },

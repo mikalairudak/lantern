@@ -1,9 +1,10 @@
+import { INDEX_REQUESTS } from "../src/lib/days/written/city-days";
 import { expect, test, waitMs } from "./fixtures";
 
 /** A written day lands in about twelve seconds; a cold dev server adds a few. */
 const DAY_TIMEOUT_MS = waitMs(30_000);
-/** What the start screen says over the cities Lantern has written. */
-const WRITTEN_HEADING = "Or watch Lantern write a day it knows";
+/** What the start screen says over its index of the days Lantern has written. */
+const INDEX_LABEL = "No city in mind? Start from one of these";
 /** What Lantern is, the start screen's first line. */
 const PROMISE = "One day in a city, planned hour by hour, as quiet or as lively as you want it.";
 /** The widths the start screen is judged at: the narrowest phone, a common one, a laptop. */
@@ -15,7 +16,7 @@ test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
 });
 
-test("lands on the start screen: one question over the quick starts, and no day", async ({
+test("lands on the start screen: one question over the index of written days, and no day playing", async ({
   page,
 }) => {
   await page.goto("/");
@@ -25,23 +26,23 @@ test("lands on the start screen: one question over the quick starts, and no day"
     "One day in a city, planned hour by hour, as quiet or as lively as you want it.",
   );
   await expect(page.getByRole("textbox", { name: "Where, and anything else" })).toBeVisible();
-  await expect(page.getByRole("list", { name: WRITTEN_HEADING }).getByRole("button")).toHaveCount(
-    6,
+  await expect(page.getByRole("list", { name: INDEX_LABEL }).getByRole("button")).toHaveCount(
+    INDEX_REQUESTS.length,
   );
   await expect(page.locator('svg[role="group"]')).toHaveCount(0);
 });
 
-// The starts wait for the visitor's own days, which the browser alone keeps, so the list over
-// them never pushes them down (`docs/decisions.md`, "A row's words go where its bead comes to rest,
+// The index waits for the visitor's own days, which the browser alone keeps, so the list over
+// it never pushes it down (`docs/decisions.md`, "A row's words go where its bead comes to rest,
 // and rows ease rather than jump"): the server draws the question.
-test("the server's first page holds the question and no chart, and the browser the starts", async ({
+test("the server's first page holds the question and no chart, and the browser the index", async ({
   request,
 }) => {
   const html = await (await request.get("/")).text();
 
   expect(html).toContain(PROMISE);
   expect(html).toContain("Where, and anything else");
-  expect(html).not.toContain(WRITTEN_HEADING);
+  expect(html).not.toContain(INDEX_LABEL);
   expect(html).not.toContain('role="group"');
 });
 
@@ -49,7 +50,7 @@ for (const width of WIDTHS) {
   test(`the start screen never scrolls sideways at ${width} px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/");
-    await expect(page.getByRole("list", { name: WRITTEN_HEADING })).toBeVisible();
+    await expect(page.getByRole("list", { name: INDEX_LABEL })).toBeVisible();
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -63,7 +64,7 @@ for (const width of WIDTHS) {
 test("a day's city list never takes the narrowest phone sideways", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 700 });
   await page.goto("/day/kanazawa");
-  await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+  await expect(page.locator('[aria-label^="The day\'s energy"]')).toHaveAttribute(
     "aria-busy",
     "false",
     { timeout: DAY_TIMEOUT_MS },
@@ -95,7 +96,7 @@ test("writes a written city's day where the question was", async ({ page }) => {
     "A lively Saturday in Bologna",
     { timeout: DAY_TIMEOUT_MS },
   );
-  await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+  await expect(page.locator('[aria-label^="The day\'s energy"]')).toHaveAttribute(
     "aria-busy",
     "false",
     { timeout: DAY_TIMEOUT_MS },
@@ -109,13 +110,13 @@ test(
     await page.setViewportSize(SMALL_PHONE);
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto("/");
-    // The last start, in view at the page's foot, so the press itself scrolls nothing.
+    // The index's last cell, scrolled to the screen's foot, so the press itself scrolls nothing.
     const lastStart = page
-      .getByRole("list", { name: WRITTEN_HEADING })
-      .getByRole("button", { name: / in Nafplio,/ });
+      .getByRole("list", { name: INDEX_LABEL })
+      .getByRole("button", { name: new RegExp(`^${INDEX_REQUESTS.at(-1)!.city} `) });
     // Drawn once the visitor's days are read, so the page is tall enough to scroll.
     await expect(lastStart).toBeAttached();
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await lastStart.evaluate((cell) => cell.scrollIntoView({ block: "end" }));
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
     const scrolled = await page.evaluate(() => window.scrollY);
     const sampled = page.evaluate(

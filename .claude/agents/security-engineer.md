@@ -37,7 +37,7 @@ Read before anything else: `CLAUDE.md`, `AGENTS.md`, `docs/roadmap.md`, `docs/de
    - preview deploys' reach into `lantern-dev` and live keys;
    - error messages and logs that say too much;
    - the `/lab` routes in production.
-3. **Recommend, then build what the owner agrees.** Fixes go on your branch with tests; the engineering session reviews them and opens their pull request into `develop`, which the owner merges.
+3. **Recommend, then build what the owner agrees.** Fixes go on your branch with tests; the engineering session reviews them and opens their pull request into `develop`, and merges it once its checks pass.
 
 Your first deliverable is the threat model and the ranked audit, and a short summary to the engineering session with two to four options and your recommendation. Do not write to the owner first: the engineering session brings the owner one list. The repository is public, so an open finding, and how one would use it, stays in your notes (the gitignored `/notes/`) and your reports until it is fixed; `docs/security.md` holds the threat model, the controls in place and the findings already fixed.
 

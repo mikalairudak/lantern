@@ -21,12 +21,12 @@ const CELL_CLASSES =
   "group row-span-2 grid w-full grid-rows-subgrid rounded-sm text-center focus-ring";
 
 /**
- * The start screen's index under the first impression (`docs/decisions.md`, "The start screen is
+ * The start screen's index (`docs/decisions.md`, "The start screen is
  * an index, with a day's first stops under it"): the second way in, of one weight with the
  * question. Each cell is a day Lantern has written: its city's engraving, its city, and its day in
  * a few words, set on the page's paper two across on a phone and four on a laptop
  * (`docs/decisions.md`, "The index's pictures are engravings of a city's everyday thing"). A press
- * opens it where the question was, as a quick start did. A city with no picture keeps its caption
+ * opens it where the question was. A city with no picture keeps its caption
  * on the row's line, with nothing over it.
  */
 export function StartIndex({

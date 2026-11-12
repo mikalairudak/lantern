@@ -126,7 +126,7 @@ describe("POST /api/intake with live generation off", () => {
   });
 
   it("answers a city with no written day as unavailable, a 503", async () => {
-    const response = await answerIntakeRequest(post({ text: "Paris" }));
+    const response = await answerIntakeRequest(post({ text: "Lisbon" }));
 
     expect(response.status).toBe(503);
     expect(await answerOf(response)).toEqual({ kind: "unavailable" });

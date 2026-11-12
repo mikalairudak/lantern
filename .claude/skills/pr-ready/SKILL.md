@@ -8,7 +8,7 @@ arguments: [branch]
 
 # Make a branch ready for its pull request
 
-Every change reaches `develop` as a pull request the owner reviews and merges on GitHub. A branch's name, its commits and the pull request's title and body are public the moment the branch is pushed, and a push cannot be taken back (`CLAUDE.md`, "Everything committed is public"). So everything below happens before the push, in this order, and the push waits until all of it is clean. **This skill never merges.** It runs in the main session, not in a forked context, because it pushes and opens the pull request.
+Every change reaches `develop` as a pull request, which the engineering session squash-merges once its checks on GitHub pass. A branch's name, its commits and the pull request's title and body are public the moment the branch is pushed, and a push cannot be taken back (`CLAUDE.md`, "Everything committed is public"). So everything below happens before the push, in this order, and the push waits until all of it is clean. It runs in the main session, not in a forked context, because it pushes, opens the pull request and merges it.
 
 - **What is reviewed:** `$branch`, against `develop`. Its change is `git diff develop...$branch`, its commits `git log develop..$branch`.
 - **Where:** the branch's own checkout, clean (`git status` shows nothing to commit).
@@ -69,7 +69,18 @@ Only when every step above is clean:
    gh pr create --base develop --head $branch --title "$title" --body-file <body file>
    ```
 
-5. Give the owner the pull request's address. The owner reviews and merges it on GitHub.
+5. Give the owner the pull request's address.
+
+## 6. Merge it once its checks pass
+
+1. Wait for Check, PR text / Text and E2E result. A red check is read, not retried blind: a failure in the change is fixed on the branch; one in the runner (a mirror that did not answer, a test that passes alone) is said so in the report, and the failed jobs run again.
+2. When all three pass, squash-merge with the body file, so the commit on `develop` carries the pull request's text and its trailer:
+
+   ```sh
+   gh pr merge <number> --squash --subject "$title (#<number>)" --body-file <body file>
+   ```
+
+3. Never merge into `main`: a release is the owner's.
 
 ## Done when
 

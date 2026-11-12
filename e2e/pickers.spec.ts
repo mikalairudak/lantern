@@ -1,4 +1,10 @@
-import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs, chooseTheChart } from "./fixtures";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 /** The route lands a written day in about twelve seconds; a cold dev server adds a few. */
 const DAY_TIMEOUT_MS = waitMs(30_000);

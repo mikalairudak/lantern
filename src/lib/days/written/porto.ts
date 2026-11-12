@@ -3,7 +3,7 @@ import { PORTO_START_REQUEST } from "./quick-starts";
 
 /**
  * Porto, as claude-sonnet-5-5 wrote it on 2026-10-31 under day-v8, for the
- * quick start that offers it (generation 08c69745-9337-4b67-b267-8ffb1daff6db). Kept as written, letters
+ * start that offers it (generation 08c69745-9337-4b67-b267-8ffb1daff6db). Kept as written, letters
  * escaped twice read as the reader reads them, so the start opens a day the product really
  * wrote, slips and all; the normalizer repairs what it repairs for any live day.
  */

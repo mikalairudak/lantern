@@ -23,7 +23,7 @@ describe("readInLab", () => {
       unplaced: [],
       confirmed: [],
     });
-    expect(await read("Paris")).toEqual({ kind: "unavailable" });
+    expect(await read("Lisbon")).toEqual({ kind: "unavailable" });
   });
 
   it("makes Lantern's words the text says the visitor's, as the start screen", async () => {

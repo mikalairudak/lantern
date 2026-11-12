@@ -3,7 +3,7 @@ import { UTRECHT_START_REQUEST } from "./quick-starts";
 
 /**
  * Utrecht, as claude-sonnet-5-5 wrote it on 2026-10-31 under day-v8, for the
- * quick start that offers it (generation 9e34e7ed-deb2-47ba-8834-ce60dc61cd61). Kept as written, letters
+ * start that offers it (generation 9e34e7ed-deb2-47ba-8834-ce60dc61cd61). Kept as written, letters
  * escaped twice read as the reader reads them, so the start opens a day the product really
  * wrote, slips and all; the normalizer repairs what it repairs for any live day.
  */

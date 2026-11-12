@@ -122,6 +122,6 @@ describe("DayStageHeader's pen", () => {
     await frames(STILL_MS / FRAME_MS);
 
     expect(seenTextOf(headline)).toBe(still);
-    expect(still).not.toMatch(/with …\?/);
+    expect(still).not.toMatch(/with anyone/);
   });
 });

@@ -1,12 +1,12 @@
 # day
 
-The page around a day: the start screen, the request said as a sentence over the chart, the list to read, a day's address, the visitor's own days, and every ending without a day. The chart itself is `src/features/abacus`, and the stream's hooks are `src/features/itinerary`.
+The page around a day: the start screen, the request said as a sentence over the day, its plan, a day's address, the visitor's own days, and every ending without a day. The chart itself is `src/features/abacus`, and the stream's hooks are `src/features/itinerary`.
 
 ## Layers
 
 - **Where the pages call in.** `src/app/page.tsx` renders `StartDay` (`start-day.tsx`) with the written days' gists (`written-pool.ts`). `src/app/day/[city]/page.tsx` renders `Day` for a written day, prerendered whole, and `KeptDayPage` (`kept-day-page.tsx`) for a kept day's id. `src/app/not-found.tsx` renders `NoDayHere`.
 - **The orchestrator.** `day.tsx`. `Day` lands on a request, the start screen or a kept day; turns the visitor's text or a pressed start into a run; holds the start screen while the run's header streams; re-plans a changed word; names the day's address and history entry; and keeps the visitor's list of days.
-- **Views.** `day-stage.tsx` (`DayStage`: one run drawn, its header, its chart or list, its ending), `day-stage-header.tsx` (`DayStageHeader`: the sentence, the line about the day, the facts line, the notice), `start-header.tsx` (the question and the quick starts), `reading-list.tsx`, `city-word.tsx` and `sentence-word.tsx` (a word's list), `view-switch.tsx` (Chart · Read), `your-days-list.tsx`, `masthead.tsx`, `foot-line.tsx`, and smaller pieces.
+- **Views.** `day-stage.tsx` (`DayStage`: one run drawn, its header, its chart or list, its ending), `day-stage-header.tsx` (`DayStageHeader`: the sentence, the line about the day, the facts line, the notice), `start-header.tsx` (the question, and the index of written days in `start-index.tsx`), `reading-list.tsx` (the day's plan), `city-word.tsx` and `sentence-word.tsx` (a word's list), `view-switch.tsx` (Plan · Chart), `day-menu.tsx` (the ways to take a day along), `your-days-list.tsx`, `masthead.tsx`, `foot-line.tsx`, and smaller pieces.
 - **Pure logic.** `sentence.ts` and `facts.ts` (the request as words, every label owned by code), `stream-ending.ts` (an outcome to what the header says), `shown-day.ts` (which day is drawn, from the five the page holds), `progress.ts` (the line under the chart), `header-ready.ts`, `kept-day.ts`, `seen-days.ts`, `your-days.ts`, `picked-places.ts`, `view-choice.ts`, `day-title.ts` (a tab's title; a day's address is `src/lib/days/address.ts`), `not-yet.ts` (the re-plan's words, each answer's forecast among them), `replan-controls.ts` (a word change as the page tells the header of it), `intake-route.ts`, and the rest of the `.ts` files.
 - **Hooks.** `use-pen.ts`, `use-silence.ts`, `use-your-days.ts`, `use-picked-places.ts`, `use-day-events.ts` (the product's events, the start screen's among them) and `use-read-to-end.ts` (the line under a whole day staying in view). `live-flag.tsx` holds the live flag, read for each visit, which the static shell never waits for.
 - **Lab registration.** `*-matrix.tsx` is a component's `/lab/matrix` entry, `*-cell.tsx` draws one of its cells, and `*-examples.ts` holds its data. They are registered in `src/app/lab/matrix/matrices.tsx`, and the product never imports them.
@@ -29,7 +29,7 @@ A run is one request on screen, counted so that a day played since is told apart
 - **takes the page**: replaces what is on screen, once enough of it has streamed to stand in its place.
 - **whole**: drawn complete at once, with nothing played.
 - **stage**: one run drawn (`day-stage.tsx`): its header (`day-stage-header.tsx`), its chart or list, and its ending. The views are named for what they draw; "written" is kept for the days below.
-- **written day**: one of the six days the product wrote ahead of time, served from the build at its own address. **Kept day**: a live day in the generation log, opened at `/day/<id>` for 30 days.
+- **written day**: one of the thirteen days the product wrote ahead of time, six opened by the quick starts and seven city days, served from the build at its own address. **Kept day**: a live day in the generation log, opened at `/day/<id>` for 30 days.
 
 ## Read first
 

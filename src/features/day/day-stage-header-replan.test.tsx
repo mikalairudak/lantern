@@ -9,7 +9,7 @@ import {
   ELCHE_REQUEST,
 } from "@/lib/fixtures/replan/elche-dinner";
 import { KANAZAWA_START_DAY } from "@/lib/days/written/kanazawa";
-import { WRITTEN_REQUESTS } from "@/lib/days/written/requests";
+import { START_REQUESTS } from "@/lib/days/written/quick-starts";
 import { normalizeDay } from "@/lib/normalizer/normalize";
 import { mergeShownReplan } from "@/lib/replan/merge";
 import {
@@ -30,6 +30,7 @@ import {
 import type { ReplanControls } from "./replan-controls";
 import { sentenceFactsOf } from "./sentence";
 import { ONE_CHANGE_AT_A_TIME, DayStageHeader, type HeaderSlot } from "./day-stage-header";
+import { TAKE_THIS_DAY } from "./day-menu";
 
 /** jsdom lays nothing out; the header's gliding boxes only need to be told nothing moved. */
 class SilentObserver {
@@ -140,7 +141,7 @@ function headerAt({
       notice={null}
       isEnabled={controls === undefined || controls.status !== "writing"}
       isWaiting={false}
-      written={WRITTEN_REQUESTS}
+      written={START_REQUESTS}
       cityOpenAt={null}
       isCityFocused={false}
       replan={controls}
@@ -347,18 +348,17 @@ describe("DayStageHeader through a word's fork", () => {
     expect(onFoot).toHaveAttribute("aria-disabled", "true");
     expect(onFoot).toHaveClass("text-muted");
     expect(onFoot).not.toHaveClass("hover:underline");
-    // The way to another day is locked as the words are: muted, unmarked, said so.
-    const planAnother = screen.getByRole("button", { name: "Plan another day" });
-    expect(planAnother).toHaveAttribute("aria-disabled", "true");
-    expect(planAnother).toHaveClass("text-muted");
-    expect(planAnother).not.toHaveClass("underline");
-    expect(planAnother).not.toHaveClass("hover:text-energy");
     // So is the date.
     expect(within(headline()).getByText("Thursday")).toHaveClass("text-muted");
 
     await user.click(onFoot);
     await user.click(within(headline()).getByRole("button", { name: /Elx \/ Elche/ }));
-    await user.click(screen.getByRole("button", { name: "Plan another day" }));
+    // The way to another day, in the day menu, is locked as the words are: muted, and said so.
+    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+    const planAnother = screen.getByRole("menuitem", { name: /^Plan another day/ });
+    expect(planAnother).toHaveAttribute("aria-disabled", "true");
+    expect(within(planAnother).getByText("Plan another day")).toHaveClass("text-muted");
+    await user.click(planAnother);
 
     expect(seenTextOf(factsLine())).toContain(ONE_CHANGE_AT_A_TIME);
     expect(status).toHaveTextContent(ONE_CHANGE_AT_A_TIME);
@@ -449,7 +449,7 @@ describe("DayStageHeader through a word's fork", () => {
 
   it("writes an answer to Lantern's question as the pair after it, the question the visitor's day", async () => {
     const user = userEvent.setup();
-    const change = { word: "company", from: "with …?", to: "with family" } as const;
+    const change = { word: "company", from: "with anyone", to: "with family" } as const;
     const view = render(headerAt({ request: KANAZAWA_START_DAY.request, day: KANAZAWA }));
     const headlines = watchLetters(headline(), seenTextOf);
 
@@ -460,12 +460,12 @@ describe("DayStageHeader through a word's fork", () => {
         replan: { status: "writing", change, reach: "whole" },
       }),
     );
-    await waitFor(() => expect(seenTextOf(headline())).toMatch(/, with …\? or with family$/));
+    await waitFor(() => expect(seenTextOf(headline())).toMatch(/, with anyone or with family$/));
 
     // The question stays: only " or with family" is written after it.
-    expect(headlines().every((text) => text.includes("home by eleven, with …?"))).toBe(true);
-    await user.click(within(headline()).getByRole("button", { name: "with …?" }));
-    expect(screen.getByRole("option", { name: "with …?" })).toHaveAccessibleDescription(
+    expect(headlines().every((text) => text.includes("home by eleven, with anyone"))).toBe(true);
+    await user.click(within(headline()).getByRole("button", { name: "with anyone" }));
+    expect(screen.getByRole("option", { name: "with anyone" })).toHaveAccessibleDescription(
       YOUR_DAY_WHILE_WRITTEN,
     );
   });

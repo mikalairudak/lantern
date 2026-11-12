@@ -1,4 +1,4 @@
-import { expect, test, type Page, waitMs } from "./fixtures";
+import { expect, test, type Page, waitMs, chooseTheChart } from "./fixtures";
 import { writtenDayAt } from "../src/lib/days/written/days";
 import { YOUR_DAYS_KEY, type YourDay } from "../src/features/day/your-days";
 import { BROWSER_STORAGE } from "../src/lib/browser-storage";
@@ -6,6 +6,12 @@ import { writtenVersionOf } from "../src/lib/days/written/version";
 import type { StoredDay } from "../src/lib/days/stored-day";
 import { KYOTO_REQUEST } from "../src/lib/fixtures/curated/requests";
 import { KYOTO_ITINERARY } from "../src/lib/fixtures/replan/kyoto-morning";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 // The e2e server runs with no database, so its log keeps no day and answers every id as one
 // not found yet: the page's own reads of the log are answered here instead.

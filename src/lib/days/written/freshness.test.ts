@@ -91,6 +91,13 @@ describe("the freshness report", () => {
       "madrid: shown 2026-11-14, season 2026-11-14 to open, holds until 2027-02-06, 87 days left",
       "utrecht: shown 2026-11-15, season 2026-11-08 to open, holds until 2027-01-31, 81 days left",
       "nafplio: shown 2026-11-14, season 2026-11-07 to open, holds until 2027-02-06, 87 days left",
+      "paris: shown 2026-11-15, season 2026-11-15 to open, holds until 2027-01-10, 60 days left",
+      "tokyo: shown 2026-11-14, season 2026-11-14 to open, holds until 2027-01-02, 52 days left",
+      "rome: shown 2026-11-14, season 2026-11-14 to open, holds until 2027-01-30, 80 days left",
+      "new-york: shown 2026-11-14, season 2026-11-14 to open, holds until 2027-01-16, 66 days left",
+      "amsterdam: shown 2026-11-15, season 2026-11-15 to open, holds until 2027-01-17, 67 days left",
+      "barcelona: shown 2026-11-14, season 2026-11-14 to open, holds until 2027-02-13, 94 days left",
+      "seoul: shown 2026-11-13, season 2026-11-13 to open, holds until 2027-02-05, 86 days left",
       "Under 21 days: Porto. Each needs its next season written.",
     ]);
   });

@@ -245,7 +245,7 @@ describe("a day's own address", () => {
     };
     render(<KeptDayPage id={ID} stored={companied} isLive />);
 
-    await user.click(within(headline()).getByRole("button", { name: "with …?" }));
+    await user.click(within(headline()).getByRole("button", { name: "with anyone" }));
     await user.click(screen.getByRole("option", { name: "with family" }));
 
     await waitFor(() => expect(dayAsks()).toBe(1));

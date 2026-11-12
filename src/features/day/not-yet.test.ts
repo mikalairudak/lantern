@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ELCHE_ITINERARY, ELCHE_REQUEST } from "@/lib/fixtures/replan/elche-dinner";
-import { WRITTEN_DAYS } from "@/lib/days/written/days";
+import { START_DAYS } from "@/lib/days/written/start-days";
 import { normalizeDay } from "@/lib/normalizer/normalize";
 import { replanPlanOf } from "@/lib/replan/windows";
 import {
@@ -92,8 +92,8 @@ interface ShownDay {
   facts: SentenceFacts;
 }
 
-/** Each of the six written days as its page shows it, written to its end. */
-const SHOWN_DAYS: readonly ShownDay[] = WRITTEN_DAYS.map(({ request, day }) => {
+/** Each of the six starts' days as its page shows it, written to its end. */
+const SHOWN_DAYS: readonly ShownDay[] = START_DAYS.map(({ request, day }) => {
   const normalized = normalizeDay(request, day);
   if (!normalized.ok) throw new Error(`${request.city}'s day normalizes`);
   const itinerary = normalized.itinerary;
@@ -108,7 +108,7 @@ const SHOWN_DAYS: readonly ShownDay[] = WRITTEN_DAYS.map(({ request, day }) => {
 const HALF_A_MINUTE = " · about\u00A0half\u00A0a\u00A0minute";
 
 /**
- * Every answer of the six written days that rewrites part of the day, as the route's plan
+ * Every answer of the six starts' days that rewrites part of the day, as the route's plan
  * reads it, and the line it says; every other answer writes the whole day again, re-picks
  * the energy at once, or is the word's own.
  */
@@ -145,7 +145,7 @@ const PART_LINES: Readonly<Record<string, string>> = {
 };
 
 describe("forecastOf", () => {
-  it("says under every answer of every written day what the route's own plan for it does", () => {
+  it("says under every answer of every start's day what the route's own plan for it does", () => {
     const parts: string[] = [];
     for (const { city, day, request, facts } of SHOWN_DAYS) {
       for (const key of FACT_KEYS) {

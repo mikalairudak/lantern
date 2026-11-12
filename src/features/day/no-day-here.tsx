@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cn } from "@/components/ui/cn";
-import { WRITTEN_REQUESTS } from "@/lib/days/written/requests";
+import { START_REQUESTS } from "@/lib/days/written/quick-starts";
 import { AddressPage } from "./address-page";
 import { daySlugOf } from "@/lib/days/address";
 import { LINK_CLASSES } from "./link-classes";
@@ -18,14 +18,14 @@ export const STILL_WRITING_TITLE = "A day being written";
 
 /**
  * Any address Lantern has no page for, a city it has written no day for, and a day's id the
- * log never kept: said plainly, with the days it has written, each as its sentence, and the
- * way to one's own.
+ * log never kept: said plainly, with the days the quick starts open, each as its sentence, and
+ * the way to one's own.
  */
 export function NoDayHere() {
   return (
     <AddressPage headline={NO_DAY_HERE}>
       <ul className="flex flex-wrap gap-x-5 gap-y-1">
-        {WRITTEN_REQUESTS.map((request) => (
+        {START_REQUESTS.map((request) => (
           <li key={request.city}>
             <Link
               href={`/day/${daySlugOf(request)}`}

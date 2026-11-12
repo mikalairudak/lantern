@@ -76,11 +76,15 @@ test("a day ends with what Lantern keeps and where to write, beside its sources"
   await expect(foot.getByRole("link", { name: "© OpenStreetMap contributors" })).toBeVisible({
     timeout: DAY_TIMEOUT_MS,
   });
+  // Once the day's end has landed over the foot, which it moves down as it comes.
+  await expect(page.getByRole("button", { name: "Not quite" })).toBeVisible({
+    timeout: DAY_TIMEOUT_MS,
+  });
   await followsTheFootLine(page);
 });
 
 test("the page for no day ends with the same line", async ({ page }) => {
-  await page.goto("/day/paris");
+  await page.goto("/day/vienna");
 
   await followsTheFootLine(page);
 });

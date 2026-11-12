@@ -1,6 +1,6 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { expect, test, type Page, type Route, waitMs } from "./fixtures";
+import { expect, test, type Page, type Route, waitMs, chooseTheChart } from "./fixtures";
 import { openLive, seeWrittenDay } from "./live-page";
 import { writtenDayAt } from "../src/lib/days/written/days";
 import { YOUR_DAYS_KEY } from "../src/features/day/your-days";
@@ -10,6 +10,12 @@ import { KANAZAWA_LATE_DINNER } from "../src/lib/fixtures/replan/kanazawa-dinner
 import { KYOTO_LATE_EVENING } from "../src/lib/fixtures/replan/kyoto-evening";
 import { KYOTO_ITINERARY, KYOTO_SLOW_MORNING } from "../src/lib/fixtures/replan/kyoto-morning";
 import type { GeneratedReplan } from "../src/lib/schema/replan.schema";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 /**
  * A changed word's fork on a written day's own page: its proposal drawn beside the day, taken,
@@ -430,7 +436,7 @@ test("a word that changes no stop is the visitor's at once: no route is asked, e
   const facts = page.locator("header p.type-note").first();
 
   // Company, which no stop of Kanazawa's names.
-  await changeWord(page, "with …?", "with family");
+  await changeWord(page, "with anyone", "with family");
   await expect(headline).toContainText(/with family$/);
   await expect(facts).toContainText("every stop stays, fit for any company");
   // Travel, which changes no stop on any day.

@@ -71,9 +71,9 @@ test("names the setting and the choice under the keyboard's focus, and moves not
   const hint = page.locator("[data-theme-hint]");
   const header = page.locator("header").first();
   await expect(hint).toBeHidden();
-  // The header holds the starts, drawn once the visitor's days are read.
+  // The header holds the index, drawn once the visitor's days are read.
   await expect(
-    page.getByRole("list", { name: "Or watch Lantern write a day it knows" }),
+    page.getByRole("list", { name: "No city in mind? Start from one of these" }),
   ).toBeVisible();
   const before = await header.boundingBox();
 

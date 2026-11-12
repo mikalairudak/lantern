@@ -83,11 +83,11 @@ describe("routeSourceFor", () => {
   it("with live generation on, posts every request, and a city's signature in its header", async () => {
     const fetch = vi.fn((_path: string, _init: RequestInit) => Promise.resolve(new Response(null)));
     vi.stubGlobal("fetch", fetch);
-    const paris = { ...KANAZAWA_START_REQUEST, city: "Paris", timezone: "Europe/Paris" };
+    const marseille = { ...KANAZAWA_START_REQUEST, city: "Marseille", timezone: "Europe/Paris" };
     const signal = new AbortController().signal;
 
-    await routeSourceFor(paris, LIVE_UNSIGNED).open(signal);
-    await routeSourceFor(paris, { isLive: true, signature: "signed" }).open(signal);
+    await routeSourceFor(marseille, LIVE_UNSIGNED).open(signal);
+    await routeSourceFor(marseille, { isLive: true, signature: "signed" }).open(signal);
 
     const [unsigned, signed] = fetch.mock.calls.map(([, init]) => new Headers(init.headers));
     expect(unsigned?.has(CITY_SIGNATURE_HEADER)).toBe(false);
@@ -97,12 +97,12 @@ describe("routeSourceFor", () => {
   it("names the kept day a request was asked from, by its id, and no day otherwise", async () => {
     const fetch = vi.fn((_path: string, _init: RequestInit) => Promise.resolve(new Response(null)));
     vi.stubGlobal("fetch", fetch);
-    const paris = { ...KANAZAWA_START_REQUEST, city: "Paris", timezone: "Europe/Paris" };
+    const marseille = { ...KANAZAWA_START_REQUEST, city: "Marseille", timezone: "Europe/Paris" };
     const id = "1b6f0c2e-4d3a-4f5b-9c7e-2a1d3e4f5a6b";
     const signal = new AbortController().signal;
 
-    await routeSourceFor(paris, { ...LIVE_UNSIGNED, keptId: id }).open(signal);
-    await routeSourceFor(paris, LIVE_UNSIGNED).open(signal);
+    await routeSourceFor(marseille, { ...LIVE_UNSIGNED, keptId: id }).open(signal);
+    await routeSourceFor(marseille, LIVE_UNSIGNED).open(signal);
 
     const [kept, other] = fetch.mock.calls.map(([, init]) => new Headers(init.headers));
     expect(kept?.get(KEPT_DAY_HEADER)).toBe(id);
@@ -111,8 +111,8 @@ describe("routeSourceFor", () => {
 });
 
 describe("a day for a city Lantern has not written, from the intake to the day route", () => {
-  const PARIS_INTAKE: GeneratedIntake = {
-    city: "Paris",
+  const SEVILLE_INTAKE: GeneratedIntake = {
+    city: "Seville",
     cityReadings: [],
     energy: "calm",
     energyGuess: null,
@@ -142,17 +142,17 @@ describe("a day for a city Lantern has not written, from the intake to the day r
     };
   }
 
-  async function readParis(): Promise<IntakeRouteAnswer & { kind: "request" }> {
+  async function readSeville(): Promise<IntakeRouteAnswer & { kind: "request" }> {
     const model = fakeClaude({
       kind: "message",
-      text: JSON.stringify(PARIS_INTAKE),
+      text: JSON.stringify(SEVILLE_INTAKE),
       usage: { input: 1_800, output: 150 },
     }).provider("claude-haiku-5-5");
     const deps: LiveIntakeDeps = { ...common(), model, search: searchWrittenPlaces };
     const response = await answerIntakeRequest(
       new Request(new URL("/api/intake", ORIGIN), {
         method: "POST",
-        body: JSON.stringify({ text: "Paris, a calm day" }),
+        body: JSON.stringify({ text: "Seville, a calm day" }),
       }),
       deps,
     );
@@ -171,7 +171,7 @@ describe("a day for a city Lantern has not written, from the intake to the day r
   }
 
   it("writes the day the intake read under its signature, with a word changed since", async () => {
-    const answer = await readParis();
+    const answer = await readSeville();
     serveLiveDays();
     const signature =
       answer.signed?.find((city) => signedKeyOf(city) === signedKeyOf(answer.request))?.signature ??
@@ -187,7 +187,7 @@ describe("a day for a city Lantern has not written, from the intake to the day r
   });
 
   it("answers the same city, unsigned, as unavailable", async () => {
-    const answer = await readParis();
+    const answer = await readSeville();
     serveLiveDays();
 
     expect(await read(answer.request, LIVE_UNSIGNED)).toEqual({ kind: "unavailable" });

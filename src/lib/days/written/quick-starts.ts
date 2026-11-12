@@ -1,11 +1,11 @@
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
 
 /**
- * The start screen's quick starts (`docs/decisions.md`, "The first screen asks one question, and no
- * day is drawn until a press"): a day in a city in Lantern's words, its country under them, behind
- * each a day the product wrote ahead of time there, and a short list of the country's other cities
- * for a new one. Requests only, apart from the days, so a page can offer them without loading each
- * day's text.
+ * The start screen's starts, the days its index offers (`docs/decisions.md`, "The start screen is
+ * an index, with a day's first stops under it"): behind each a day the product wrote ahead of time
+ * in its city, its country, which a city typed beside it may name, and a short list of the
+ * country's other cities for a new one. Requests only, apart from the days, so a page can offer
+ * them without loading each day's text.
  */
 
 /** A city a start can write a new day in, with the zone its day is read in. */
@@ -16,7 +16,7 @@ export interface StartCity {
 }
 
 export interface QuickStart {
-  /** Said under the day's words, as a label: "Italy", "Netherlands". */
+  /** The country the city is in, as a visitor may type it beside the city: "Italy". */
   country: string;
   /**
    * The day written ahead of time, which the start opens, on the date it was written for; it
@@ -47,7 +47,9 @@ const NEXT_SATURDAY = "2026-11-14";
 const NEXT_SUNDAY = "2026-11-15";
 
 /** A request as a start asks it: every word chosen, none assumed. */
-function startRequestOf(words: Partial<DayRequest> & Pick<DayRequest, "city" | "timezone">) {
+export function startRequestOf(
+  words: Partial<DayRequest> & Pick<DayRequest, "city" | "timezone">,
+): DayRequest {
   return {
     date: SATURDAY,
     citySource: "chosen",
@@ -108,7 +110,7 @@ export const NAFPLIO_START_REQUEST: DayRequest = startRequestOf({
   start: "slow",
 });
 
-/** In the order the start screen offers them, lively and quiet days mixed so neighbours differ. */
+/** In the order the index offers them, lively and quiet days mixed so neighbours differ. */
 export const QUICK_STARTS: readonly QuickStart[] = [
   {
     country: "Italy",
@@ -166,5 +168,5 @@ export const QUICK_STARTS: readonly QuickStart[] = [
   },
 ];
 
-/** The starts' days, in the order the start screen offers them. */
+/** The starts' days, in the order the index offers them. */
 export const START_REQUESTS: readonly DayRequest[] = QUICK_STARTS.map(({ request }) => request);

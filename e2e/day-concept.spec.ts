@@ -1,4 +1,10 @@
-import { expect, test, type Page, waitMs } from "./fixtures";
+import { expect, test, type Page, waitMs, chooseTheChart } from "./fixtures";
+
+// These tests drive the chart: each page opens as for a visitor who chose it, since a day
+// opens on its plan otherwise.
+test.beforeEach(async ({ page }) => {
+  await chooseTheChart(page);
+});
 
 const URL = "/lab/concepts/day";
 /** The route lands a written day in about twelve seconds; a cold dev server adds a few. */
@@ -127,7 +133,7 @@ test("says the request before the first word, then writes Lantern's words and th
   await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveCount(0);
 
   await expect(headline).toHaveText(
-    "A calm Saturday in Kyoto, on foot, early start, early dinner, home by eight, with …?",
+    "A calm Saturday in Kyoto, on foot, early start, early dinner, home by eight, with anyone",
     { timeout: DAY_TIMEOUT_MS },
   );
   // The line about the day, once: its unseen copy under the header holds its room.
@@ -145,10 +151,10 @@ test("with live generation off, a changed word stays and says what it would have
   await openWritten(page);
   const headline = page.getByRole("heading", { level: 1 });
 
-  await headline.getByRole("button", { name: "with …?" }).click();
+  await headline.getByRole("button", { name: "with anyone" }).click();
   await page.getByRole("option", { name: "with family" }).click();
 
-  await expect(headline).toContainText("home by eight, with …?");
+  await expect(headline).toContainText("home by eight, with anyone");
   await expect(factsLine(page)).toContainText(
     "Lantern isn't re-planning days right now, so dinner stays as written",
   );
@@ -182,7 +188,9 @@ test("the city word plays another written day, whole sentence and all", async ({
 
   await headline.getByRole("button", { name: "Kyoto", exact: true }).click();
   // Kyoto's is no written day: the list offers the starts', the first of them in focus.
-  await expect(page.getByRole("button", { name: /this day$/ })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /this day$/ }).filter({ hasNotText: "Take this day" }),
+  ).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^Bologna/ })).toBeFocused();
   await page.getByRole("button", { name: /^Bologna/ }).click();
 
@@ -206,12 +214,13 @@ test("a city Lantern has no day for is said back as asked, with the days that ar
   await openWritten(page);
   const headline = page.getByRole("heading", { level: 1 });
 
-  await page.getByRole("button", { name: "Plan another day" }).first().click();
+  await page.getByRole("button", { name: "Take this day" }).click();
+  await page.getByRole("menuitem", { name: /^Plan another day/ }).click();
   await expect(page.getByRole("textbox", { name: "Somewhere else" })).toBeFocused();
-  await page.keyboard.type("Paris");
+  await page.keyboard.type("Lisbon");
   await page.keyboard.press("Enter");
 
-  await expect(headline).toHaveText("A calm Saturday in Paris");
+  await expect(headline).toHaveText("A calm Saturday in Lisbon");
   await expect(endingLine(page).filter({ hasText: NOT_YET })).toBeVisible();
   await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveCount(0);
 

@@ -4,9 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { motionValue, type MotionValue } from "motion/react";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { CURATED_REQUESTS, KYOTO_REQUEST, LISBON_REQUEST } from "@/lib/fixtures/curated/requests";
-import { KANAZAWA_START_REQUEST } from "@/lib/days/written/quick-starts";
+import { KANAZAWA_START_REQUEST, START_REQUESTS } from "@/lib/days/written/quick-starts";
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
-import { WRITTEN_REQUESTS } from "@/lib/days/written/requests";
 import type { PartialDay } from "@/lib/stream/outcome";
 import { noticeOf } from "./stream-ending";
 import { requestSentenceOf, sentenceFactsOf } from "./sentence";
@@ -17,7 +16,7 @@ const ignore = () => undefined;
 /** Two `gentle` springs, one in and one out, settle well within this. */
 const SPRINGS_TIMEOUT = { timeout: 3000 };
 /** The written days a notice offers: the starts'. */
-const OFFERED_SENTENCES = WRITTEN_REQUESTS.map(requestSentenceOf);
+const OFFERED_SENTENCES = START_REQUESTS.map(requestSentenceOf);
 
 /** jsdom lays nothing out; the header's gliding box only needs to be told nothing moved. */
 class SilentObserver {
@@ -209,6 +208,13 @@ function slowMorning(step: Partial<ReplanControls>): ReplanControls {
     askAgain: ignore,
     ...step,
   };
+}
+
+/** The header's own live line; the day menu beside it holds one of its own, for a copied link. */
+function headerStatus(): HTMLElement {
+  const status = screen.getAllByRole("status").find((each) => each.tagName === "P");
+  if (!status) throw new Error("The header has no live line");
+  return status;
 }
 
 describe("DayStageHeader", () => {
@@ -477,7 +483,7 @@ describe("DayStageHeader", () => {
     await user.click(retry);
     expect(onRetry).toHaveBeenCalledOnce();
     await user.click(offered[0]!);
-    expect(onChooseWritten).toHaveBeenCalledWith(WRITTEN_REQUESTS[0]);
+    expect(onChooseWritten).toHaveBeenCalledWith(START_REQUESTS[0]);
   });
 
   it("says a notice set from its first frame whole, as a still does", () => {
@@ -494,7 +500,7 @@ describe("DayStageHeader", () => {
     const notice = noticeOf({ kind: "cut", itinerary: null }, KYOTO_REQUEST);
     renderHeader(KYOTO_REQUEST, null, notice, { isNoticeWrittenIn: true });
     const line = noticeLine();
-    const status = screen.getByRole("status");
+    const status = headerStatus();
     const heard: string[] = [];
     const listen = new MutationObserver(() => heard.push(status.textContent ?? ""));
     listen.observe(status, { subtree: true, characterData: true, childList: true });
@@ -800,7 +806,7 @@ describe("DayStageHeader", () => {
     );
     await waitFor(() =>
       expect(seenTextOf(headline)).toBe(
-        "A calm Saturday in Kyoto, on foot, early start, early dinner, home by eleven, with …?",
+        "A calm Saturday in Kyoto, on foot, early start, early dinner, home by eleven, with anyone",
       ),
     );
   });
@@ -845,7 +851,7 @@ describe("DayStageHeader", () => {
     const view = renderHeader(KYOTO_REQUEST, null, null, { assumptions: KYOTO_ASSUMPTIONS });
     const headline = screen.getByRole("heading", { level: 1 });
     expect(headline).toHaveTextContent(
-      "A calm Saturday in Kyoto, on foot, early start, early dinner, home by eleven, with …?",
+      "A calm Saturday in Kyoto, on foot, early start, early dinner, home by eleven, with anyone",
     );
 
     view.rerender(
@@ -868,12 +874,12 @@ describe("DayStageHeader", () => {
   it("offers no retry for a day Lantern will not plan", () => {
     renderHeader(KYOTO_REQUEST, null, noticeOf({ kind: "refused" }, KYOTO_REQUEST));
 
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(headerStatus()).toHaveTextContent(
       /^Lantern can't plan this day\. Open one it has written:$/,
     );
     expect(screen.queryByRole("button", { name: "Write it again" })).not.toBeInTheDocument();
     expect(within(screen.getByRole("list")).getAllByRole("listitem")).toHaveLength(
-      WRITTEN_REQUESTS.length,
+      START_REQUESTS.length,
     );
   });
 
@@ -889,7 +895,7 @@ describe("DayStageHeader", () => {
       /^Write it again$/,
     );
 
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(headerStatus()).toHaveTextContent(
       /^Lantern couldn't write this day just now\. Write it again$/,
     );
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
