@@ -82,7 +82,12 @@ const LATE_DINNER_MINUTES = minutesOf(LATE_DINNER_FROM);
  */
 const EVENING_ROOM_MINUTES = 60;
 const EVENING_ROOM_FROM = minutesOf(EVENING_END_BY) - EVENING_ROOM_MINUTES;
-const EARLY_END_MINUTES = minutesOf(EARLY_END_BY);
+/**
+ * The room an early end keeps for its last stop: the hour before eleven, as the evening's before
+ * eight, where a kept stop over at eleven would leave it none.
+ */
+const EARLY_END_ROOM_MINUTES = 60;
+const EARLY_END_ROOM_FROM = minutesOf(EARLY_END_BY) - EARLY_END_ROOM_MINUTES;
 
 /** A stop's visit in minutes of the day, running past midnight (`runningSpans`). */
 interface Span {
@@ -114,8 +119,8 @@ function widenedBackward(windows: WindowSpan[], spans: readonly Span[], minutes:
  * recorded Lisbon day's 19:00 walk after its 17:30 dinner); an early dinner, the stops before
  * it that end after 19:30; an evening end, the stops before it that end after 19:00, the hour
  * its last stop needs before eight (`EVENING_ROOM_MINUTES`), a late dinner among them; an early
- * end, the stops before it that end after 23:00. Spans run past midnight, so a stop after it
- * compares as late.
+ * end, the stops before it that end after 22:00, the hour before eleven (`EARLY_END_ROOM_MINUTES`).
+ * Spans run past midnight, so a stop after it compares as late.
  */
 function widenedForWord(
   windows: WindowSpan[],
@@ -133,7 +138,7 @@ function widenedForWord(
     return widenedBackward(windows, spans, EVENING_ROOM_FROM);
   }
   if (changed === "end" && request.end === "early") {
-    return widenedBackward(windows, spans, EARLY_END_MINUTES);
+    return widenedBackward(windows, spans, EARLY_END_ROOM_FROM);
   }
   return windows;
 }
