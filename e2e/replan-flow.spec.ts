@@ -28,9 +28,9 @@ test.beforeEach(async ({ page }) => {
 
 const KANAZAWA = writtenDayAt("kanazawa")!;
 const KANAZAWA_ADDRESS = "/day/kanazawa";
-/** Madrid, whose company names six of its seven stops: a change of it writes the day again. */
-const MADRID = writtenDayAt("madrid")!;
-const MADRID_ADDRESS = "/day/madrid";
+/** Porto, whose slow morning no stop names: a change of its start writes the day again. */
+const PORTO = writtenDayAt("porto")!;
+const PORTO_ADDRESS = "/day/porto";
 /** The re-plan's row in the log, as its answer names it. */
 const REPLAN_ID = "6c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f";
 /** A re-plan the visitor opened at its address: its record has taken one re-plan. */
@@ -365,8 +365,8 @@ test(
   "a word that writes the whole day again keeps the day before on screen until its proposal is taken, its headline changed by the pair",
   { tag: "@frame" },
   async ({ page }) => {
-    await seeWrittenDay(page, "madrid", MADRID.itinerary);
-    await openLive(page, MADRID_ADDRESS);
+    await seeWrittenDay(page, "porto", PORTO.itinerary);
+    await openLive(page, PORTO_ADDRESS);
     await waitForTheDay(page);
     // Each frame from now on: the headline's words, without a word's open list, and whether
     // the rows are still the day before's.
@@ -386,22 +386,22 @@ test(
       };
       requestAnimationFrame(sample);
     });
-    // Written for family: the day the route writes for Madrid, at its own pace.
+    // Written for an early start: the day the route writes for Porto, at its own pace.
     await page.route(DAY_ROUTE, (route) =>
-      route.continue({ postData: JSON.stringify(MADRID.request) }),
+      route.continue({ postData: JSON.stringify(PORTO.request) }),
     );
 
-    await changeWord(page, "with friends", "with family");
-    await takeProposal(page, "with family");
+    await changeWord(page, "slow morning", "early start");
+    await takeProposal(page, "early start");
 
-    await expect(page.getByRole("heading", { level: 1 })).not.toContainText("with friends", {
+    await expect(page.getByRole("heading", { level: 1 })).not.toContainText("slow morning", {
       timeout: DAY_TIMEOUT_MS,
     });
     await waitForTheDay(page);
     const frames = await page.evaluate(
       () => (window as unknown as { frames: { sentence: string; rows: string }[] }).frames,
     );
-    const stops = MADRID.itinerary.stops.length;
+    const stops = PORTO.itinerary.stops.length;
     // The rows the day before had, every one, until the new day's, every one, in one pass.
     const rows = frames.map((frame) => frame.rows).filter((each, at, all) => each !== all[at - 1]);
     expect(rows).toEqual([`before:${stops}`, `new:${stops}`]);
@@ -410,10 +410,13 @@ test(
       .map((frame) => frame.sentence)
       .filter((each, at, all) => each !== all[at - 1]);
     const before = sentences[0] ?? "";
-    const lead = before.slice(0, before.lastIndexOf("with friends"));
-    expect(sentences).toContain(`${lead}with friends or with family`);
-    expect(sentences.at(-1)).toBe(`${lead}with family`);
-    for (const sentence of sentences) expect(sentence.startsWith(lead), sentence).toBe(true);
+    const word = before.lastIndexOf("slow morning");
+    const [lead, tail] = [before.slice(0, word), before.slice(word + "slow morning".length)];
+    expect(sentences).toContain(`${lead}slow morning or early start${tail}`);
+    expect(sentences.at(-1)).toBe(`${lead}early start${tail}`);
+    for (const sentence of sentences) {
+      expect(sentence.startsWith(lead) && sentence.endsWith(tail), sentence).toBe(true);
+    }
   },
 );
 
