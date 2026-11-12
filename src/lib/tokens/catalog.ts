@@ -22,7 +22,10 @@ export const COLOR_TOKENS = [
     role: "Light in words: sunrise and sunset, and a stop's time in golden hour",
   },
   { name: "lamp", role: "Light drawn: the mark's bead, the sun, the time axis in golden hour" },
-  { name: "lamp-glow", role: "The mark's inner step of light" },
+  {
+    name: "lamp-glow",
+    role: "The mark's inner step of light, and the step round a lit bead on the plan",
+  },
   { name: "lamp-haze", role: "The mark's outer step of light" },
   { name: "energy", role: 'Energy in words: the energy word and clause, "drag the curve"' },
   { name: "curve", role: "Energy drawn: the curve and the rings on it" },

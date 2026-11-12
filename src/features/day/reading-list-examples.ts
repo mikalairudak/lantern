@@ -11,19 +11,31 @@ import { firstAt, partialAt } from "@/features/itinerary/stream-frames";
 import { ALICANTE_DAY } from "@/lib/fixtures/curated/alicante";
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import { LISBON_DAY } from "@/lib/fixtures/curated/lisbon";
-import { CROWDED_DAY, LATE_NIGHT_DAY, MINIMAL_DAY } from "@/lib/fixtures/edge/edge-days";
+import {
+  CROWDED_DAY,
+  LATE_NIGHT_DAY,
+  MIDNIGHT_SUN_DAY,
+  MINIMAL_DAY,
+  POLAR_NIGHT_DAY,
+} from "@/lib/fixtures/edge/edge-days";
 import type { DayContext } from "@/lib/geo/sun";
 import { dayText } from "@/lib/stream/simulate-day-stream";
 import { enteredOf, versionsWrittenOf } from "./reading-gates";
 
-/** The list to read on the days whose extremes it meets. */
+/**
+ * The list to read on the days whose extremes it meets: Alicante first, then the days whose
+ * light tests the beads' rule, lit wherever the rail is dotted: a polar night (every bead lit), a
+ * midnight sun (none), a night past midnight, and one stop.
+ */
 export const READING_DAYS: readonly { label: string; fixture: ExampleDay }[] = [
+  { label: "Alicante, a sun at its best light", fixture: ALICANTE_DAY },
+  { label: "a polar night: every bead lit", fixture: POLAR_NIGHT_DAY },
+  { label: "a midnight sun: no bead lit", fixture: MIDNIGHT_SUN_DAY },
+  { label: "a night past midnight", fixture: LATE_NIGHT_DAY },
+  { label: "one stop, one version", fixture: MINIMAL_DAY },
   { label: "Kyoto, calm", fixture: KYOTO_DAY },
   { label: "Lisbon, lively: a loud place says its line too", fixture: LISBON_DAY },
-  { label: "Alicante, a sun at its best light", fixture: ALICANTE_DAY },
   { label: "twelve stops, the longest words", fixture: CROWDED_DAY },
-  { label: "one stop, one version", fixture: MINIMAL_DAY },
-  { label: "a night past midnight", fixture: LATE_NIGHT_DAY },
 ];
 
 /**

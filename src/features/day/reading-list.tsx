@@ -439,6 +439,7 @@ function ReadingRow({
           from={span.from}
           to={railTo}
           hasBead
+          isProposed={isProposed}
           // The bead and its rail come with the stop's time, as the pen writes it.
           className={cn(written < time.length && "invisible")}
         />

@@ -7,13 +7,16 @@ import {
   type LightQuality,
 } from "@/lib/geo/sun";
 import { formatClock } from "@/lib/time/clock";
+import { RailBead } from "./rail-bead";
 
 /**
  * The plan's rail: the day's light drawn down beside the times (`docs/decisions.md`, "A day opens
  * on its plan, lit by the day's light"). Through plain daylight it is a wire; through golden hour
  * it is the lamp, thicker; from sunset to sunrise, blue hour and night alike, it is dotted. Each
  * stop's stretch runs from its start to the next stop's, so the rail is one line down the day, and
- * a stop's bead stands on it at its time. The sun's own minutes stand in the list where they fall.
+ * a stop's bead stands on it at its time: in ink, and lit where its stretch begins dotted, in the
+ * lamp with a step of its glow round it, so after dark the beads read as lamps along the night.
+ * The sun's own minutes stand in the list where they fall.
  */
 
 const RAIL_UNITS = 8;
@@ -104,12 +107,18 @@ export function sunsOf(daylight: DayContext): Sun[] {
   return tableOf(daylight).suns;
 }
 
+/** The day's light at a minute, as the rail draws the stretch that begins there. */
+export function lightAt(daylight: DayContext, minute: number): LightQuality {
+  return spansOf(daylight, minute, minute + 1)[0]?.quality ?? "clear";
+}
+
 /** The rail down a stretch of the day, as tall as the row it stands beside. */
 export function LightRail({
   daylight,
   from,
   to,
   hasBead,
+  isProposed = false,
   className,
 }: {
   daylight: DayContext;
@@ -117,9 +126,14 @@ export function LightRail({
   to: number;
   /** A stop's bead stands on the rail at its time. */
   hasBead: boolean;
+  /** A proposal's stop: its bead stays ink whatever its hour, as its row carries no light. */
+  isProposed?: boolean;
   className?: string;
 }) {
   const length = Math.max(1, to - from);
+  const spans = spansOf(daylight, from, to);
+  // The bead reads the very spans the rail is drawn from, so the two never disagree.
+  const isLit = !isProposed && spans[0] !== undefined && isDotted(spans[0].quality);
   return (
     <span
       aria-hidden
@@ -130,7 +144,7 @@ export function LightRail({
         preserveAspectRatio="none"
         className="absolute inset-0 h-full w-full overflow-visible"
       >
-        {spansOf(daylight, from, to).map((span) => (
+        {spans.map((span) => (
           <line
             key={span.from}
             x1={RAIL_X}
@@ -145,7 +159,7 @@ export function LightRail({
           />
         ))}
       </svg>
-      {hasBead && <span className="relative mt-2 size-2 rounded-full bg-ink" />}
+      {hasBead && <RailBead isLit={isLit} />}
     </span>
   );
 }
