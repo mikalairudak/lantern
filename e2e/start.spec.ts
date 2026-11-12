@@ -1,15 +1,32 @@
 import { daySlugOf } from "../src/lib/days/slug";
 import { INDEX_REQUESTS } from "../src/lib/days/written/city-days";
+import { normalizedDayOf, WRITTEN_DAYS } from "../src/lib/days/written/days";
 import { expect, test } from "./fixtures";
 
-/**
- * The start screen: the question and the index as two ways in, and a written day's first stops,
- * still, under them.
- */
+/** The start screen: the question and the index as two ways in, and no day until a press. */
+
+/** Every place a written day can show, in every season, as its row names it. */
+const WRITTEN_PLACE_NAMES = WRITTEN_DAYS.flatMap((written) =>
+  normalizedDayOf(written).itinerary.stops.flatMap((stop) =>
+    [stop.primary, ...stop.alternatives].map((place) => place.name),
+  ),
+);
+
+/** A page's HTML as words: its text's entities and its data's string escapes read back. */
+function wordsOf(html: string): string {
+  return html
+    .replaceAll("&#x27;", "'")
+    .replaceAll("&#39;", "'")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&amp;", "&")
+    .replaceAll('\\"', '"');
+}
 
 test.use({ reducedMotion: "reduce" });
 
-test("the start screen offers the question and an index of written days, with a day still under them", async ({
+test("the start screen offers the question and an index of written days, and holds no stop of any day", async ({
   page,
 }) => {
   await page.goto("/");
@@ -20,11 +37,9 @@ test("the start screen offers the question and an index of written days, with a 
   const second = await index.getByRole("listitem").nth(1).boundingBox();
   if ((page.viewportSize()?.width ?? 0) < 500) expect(second!.y + second!.height).toBeLessThan(664);
 
-  const excerpt = page.getByRole("region", { name: "What a day looks like" });
-  // The day's first three stops, each named, in its list.
-  await expect(excerpt.getByRole("list").getByRole("heading")).toHaveCount(3);
-  const whole = excerpt.getByRole("link", { name: /^The whole day, \d+ stops$/ });
-  await expect(whole).toHaveAttribute("href", /^\/day\//);
+  // No day is drawn until a press: the page, its data included, names none of a day's places.
+  const words = wordsOf(await (await page.request.get("/")).text());
+  expect(WRITTEN_PLACE_NAMES.filter((name) => words.includes(name))).toEqual([]);
 
   // A line of the index opens its day where the question was.
   await index.getByRole("button").first().click();

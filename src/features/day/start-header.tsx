@@ -25,8 +25,7 @@ import { unplacedLineOf } from "./start";
 import { LINK_CLASSES } from "./link-classes";
 import { AskedSentence } from "./asked-sentence";
 import { Masthead } from "./masthead";
-import type { StartExcerpt } from "./start-excerpt";
-import { StartExcerptView, StartIndex } from "./start-index";
+import { StartIndex } from "./start-index";
 import { YourDaysList, type YourDaysListProps } from "./your-days-list";
 import type { StartOffer } from "./start-offers";
 
@@ -100,14 +99,12 @@ export interface StartHeaderProps {
   yourDays?: YourDaysListProps;
   /** Shown again by Back from a day: its headline takes the focus the day had. */
   isReturnedTo?: boolean;
-  /** A written day's first stops, still, under the ways in. */
-  excerpt?: StartExcerpt | null;
 }
 
 /**
  * The start screen: what Lantern is in one line, one question, and the index of the days Lantern
- * has written, with the first stops of one of them under it, still. No day plays until the
- * visitor asks for one; a day pressed in the index is written where the question was.
+ * has written. No day is drawn until the visitor asks for one; a day pressed in the index is
+ * written where the question was.
  */
 export function StartHeader({
   starts,
@@ -121,7 +118,6 @@ export function StartHeader({
   onChooseReading,
   yourDays,
   isReturnedTo = false,
-  excerpt = null,
 }: StartHeaderProps) {
   const promise = useRef<HTMLHeadingElement>(null);
   const startsList = useRef<HTMLUListElement>(null);
@@ -182,10 +178,7 @@ export function StartHeader({
       )}
       {yourDays && areStartsDrawn && <YourDaysList {...yourDays} onForget={forget} />}
       {areStartsDrawn && (
-        <>
-          <StartIndex starts={starts} onChoose={onChooseWritten} listRef={startsList} />
-          {excerpt && <StartExcerptView excerpt={excerpt} />}
-        </>
+        <StartIndex starts={starts} onChoose={onChooseWritten} listRef={startsList} />
       )}
     </header>
   );

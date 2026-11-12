@@ -5,8 +5,8 @@ const DAY_TIMEOUT_MS = waitMs(30_000);
 const PHONE = { width: 390, height: 844 };
 const LAPTOP = { width: 1440, height: 900 };
 /**
- * The short pages, each on a screen taller than it. With its index and a day's first stops the
- * start screen is taller than a laptop's, so the page for no day is the short one.
+ * The short pages, each on a screen taller than it. With its index the start screen is taller than
+ * a laptop's, so the page for no day is the short one.
  */
 const SHORT_PAGES = [
   { address: "/nope", screen: PHONE },
