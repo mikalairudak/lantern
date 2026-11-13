@@ -51,6 +51,12 @@ const DESCENDER_PX = 2.5;
  */
 const CITIES = ["kanazawa", "utrecht", "nafplio"];
 const PHONE = { width: 390, height: 844 };
+/**
+ * Each city's phone for the curve's clause: a width near 390 px where "livelier at breakfast"
+ * takes the sentence onto a line of its own in Literata. At 390 px Utrecht's clause fits the
+ * sentence's last line and Nafplio's moves only the line's lead.
+ */
+const CLAUSE_PHONE_WIDTHS: Record<string, number> = { kanazawa: 390, utrecht: 375, nafplio: 400 };
 /** A phone where every energy word sets Porto's sentence on the same lines. */
 const RE_PICK_PHONE = { width: 340, height: 844 };
 const LAPTOP = { width: 1440, height: 900 };
@@ -1117,17 +1123,17 @@ async function writeAndUnwriteClause(
   throw new Error("No stop of the day has a livelier version to step to");
 }
 
-// On a 390 px phone and a 1440 px laptop, where the design is judged: the sentence wraps
-// there as it does not at the projects' own widths. The rows' speed is checked above, at those
+// On a phone near 390 px and a 1440 px laptop, where the design is judged: the sentence wraps
+// there as it does not at the projects' own widths, and each city's phone is the one where its
+// clause opens a line (`CLAUSE_PHONE_WIDTHS`). The rows' speed is checked above, at those
 // widths; on a 390 px phone a refit of the time scale already sits at its limit on main.
 for (const reducedMotion of ["no-preference", "reduce"] as const) {
   const isMoving = reducedMotion === "no-preference";
   test.describe(
-    isMoving ? "at 390 and 1440 px, with motion" : "at 390 and 1440 px, reduced",
+    isMoving ? "near 390 and at 1440 px, with motion" : "near 390 and at 1440 px, reduced",
     { tag: "@frame" },
     () => {
-      test.beforeEach(async ({ page, isMobile }) => {
-        await page.setViewportSize(isMobile ? PHONE : LAPTOP);
+      test.beforeEach(async ({ page }) => {
         await page.emulateMedia({ reducedMotion });
         await sampleEveryFrame(page);
       });
@@ -1137,6 +1143,9 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
           page,
           isMobile,
         }) => {
+          await page.setViewportSize(
+            isMobile ? { ...PHONE, width: CLAUSE_PHONE_WIDTHS[city] ?? PHONE.width } : LAPTOP,
+          );
           await page.goto(`/day/${city}`);
           const chart = page.getByRole("group", { name: /The day's energy/ });
           await expect(chart).toHaveAttribute("aria-busy", "false", { timeout: DAY_TIMEOUT_MS });
