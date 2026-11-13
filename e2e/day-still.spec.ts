@@ -51,6 +51,8 @@ const DESCENDER_PX = 2.5;
  */
 const CITIES = ["kanazawa", "utrecht", "nafplio"];
 const PHONE = { width: 390, height: 844 };
+/** A phone where every energy word sets Porto's sentence on the same lines. */
+const RE_PICK_PHONE = { width: 340, height: 844 };
 const LAPTOP = { width: 1440, height: 900 };
 
 test.describe.configure({ timeout: TEST_TIMEOUT_MS });
@@ -573,10 +575,11 @@ test("a re-picked energy never moves a laptop's chart, and a phone's only by the
   isMobile,
 }) => {
   // At these widths every energy word sets Porto's sentence on the same lines, so only the
-  // room held for the curve's clauses could move the chart; a wider phone wraps "balanced". On
-  // a laptop "balanced" and "social" take Porto's longest clause a line further than "calm", so
-  // the room held must be every energy word's.
-  if (isMobile) await page.setViewportSize(PHONE);
+  // room held for the curve's clauses could move the chart: in Literata a phone from 360 to
+  // 395 px wraps "balanced" a line further, and one from 400 px fits the line's lead without a
+  // line more, so the phone is 340 px. On a laptop "balanced" and "social" take Porto's longest
+  // clause a line further than "calm", so the room held must be every energy word's.
+  if (isMobile) await page.setViewportSize(RE_PICK_PHONE);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/day/porto");
   const chart = page.getByRole("group", { name: /The day's energy/ });

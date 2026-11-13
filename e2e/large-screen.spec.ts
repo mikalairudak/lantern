@@ -48,12 +48,12 @@ interface Geometry {
  * Kanazawa as written (2026-11-04): its chart's column, three shown beads, its second stop's
  * sheet. The chart's column and the sheet's run are where Kyoto's stood at 78798b2; its
  * height and its beads are its own day's, its rows a bead's target over their wires since
- * 2026-11-05.
+ * 2026-11-05, and its words set in Literata, whose wider lines make a phone's rows taller.
  */
 const BEFORE = {
   phone: {
-    chart: { x: 16, width: 358, height: 986.5 },
-    beads: { first: { x: 80, y: 115 }, second: { x: 145.5, y: 223 }, last: { x: 145.5, y: 929 } },
+    chart: { x: 16, width: 358, height: 1029.5 },
+    beads: { first: { x: 80, y: 134 }, second: { x: 145.5, y: 266 }, last: { x: 145.5, y: 972 } },
     sheet: { x: 76, width: 298 },
   },
   laptop: {
@@ -311,7 +311,8 @@ test("a phone in large text keeps the chart's drawing as written, and the words 
   expect(layout.root).toBe(LARGE_TEXT_PX);
   expect(layout.lanesFrom).toBe(LANES_FROM);
   expect(layout.isCurveNamed).toBe(true);
-  expect(layout.museumLines).toBe(3);
+  // The museum's long name in Literata at the large root, two lines at the browser's own size.
+  expect(layout.museumLines).toBe(4);
   // How full and how loud the market is, on one line, in the room a row's second line has.
   expect(layout.marketNoteLines).toBe(1);
 });
