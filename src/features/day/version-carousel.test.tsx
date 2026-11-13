@@ -173,7 +173,7 @@ describe("the carousel", () => {
     // Layout alone decides one line or two: the two share a wrapping row, the left one first.
     const line = quieter.parentElement!;
     expect(livelier.parentElement).toBe(line);
-    expect(line).toHaveClass("flex", "flex-wrap", "gap-x-3", "gap-y-1");
+    expect(line).toHaveClass("flex", "flex-wrap", "gap-x-3", "gap-y-2");
     expect([...line.children]).toEqual([quieter, livelier]);
     // The right one keeps to the right edge on a line of its own too.
     expect(livelier).toHaveClass("ml-auto", "text-right");

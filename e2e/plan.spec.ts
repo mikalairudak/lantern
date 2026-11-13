@@ -144,7 +144,7 @@ async function versionLinesOf(page: Page) {
           top: box.top,
           bottom: box.bottom,
           width: box.width,
-          lines: Math.round(box.height / lineHeight),
+          lines: Math.round(arrow.firstElementChild!.getBoundingClientRect().height / lineHeight),
         };
       });
       return { column: column.width, arrows };
@@ -195,9 +195,104 @@ test("versions share a line when both fit, and otherwise take a line each, each 
       const longest = page.getByRole("button", { name: /Cocktails along Carrer dels Assaonadors/ });
       const lines = await longest.evaluate(
         (arrow) =>
-          arrow.getBoundingClientRect().height / parseFloat(getComputedStyle(arrow).lineHeight),
+          arrow.firstElementChild!.getBoundingClientRect().height /
+          parseFloat(getComputedStyle(arrow).lineHeight),
       );
       expect(Math.round(lines)).toBe(1);
+    }
+  }
+});
+
+/** Two arrows' press targets: how tall each is, and where a press passes from one to the other. */
+interface TargetPair {
+  isStacked: boolean;
+  left: number;
+  right: number;
+  handOverFromMiddle: number;
+  isOverlapping: boolean;
+}
+
+/** The least a version's arrow may be pressed over, down through it, in px. */
+const ARROW_TARGET_PX = 31;
+
+test("versions' arrows each keep a press target of their own, stacked or side by side", async ({
+  page,
+}) => {
+  for (const width of [320, 360, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/day/barcelona");
+    await expect(page.locator('[aria-label^="The day\'s energy"]')).toHaveAttribute(
+      "aria-busy",
+      "false",
+      { timeout: DAY_TIMEOUT_MS },
+    );
+    const pairs = await page
+      .getByRole("list", { name: "The day, to read" })
+      .locator('[role="group"]')
+      .evaluateAll((stops): TargetPair[] =>
+        stops.flatMap((stop): TargetPair[] => {
+          const [left, right] = [...stop.parentElement!.parentElement!.querySelectorAll("button")];
+          if (!left || !right) return [];
+          left.scrollIntoView({ block: "center" });
+          const a = left.getBoundingClientRect();
+          const b = right.getBoundingClientRect();
+          const hit = (x: number, y: number) => {
+            const button = document.elementFromPoint(x, y)?.closest("button");
+            return button === left ? "left" : button === right ? "right" : null;
+          };
+          /** How far down through `x` each arrow takes a press, sampled every quarter pixel. */
+          const down = (x: number) => {
+            const reach = { left: 0, right: 0, handOver: Number.NaN };
+            for (let y = a.top - 16; y <= b.bottom + 16; y += 0.25) {
+              const side = hit(x, y);
+              if (side) reach[side] += 0.25;
+              if (side === "right" && Number.isNaN(reach.handOver)) reach.handOver = y;
+            }
+            return reach;
+          };
+          const isStacked = b.top >= a.bottom - 1;
+          if (isStacked) {
+            // Down the stretch where one stands over the other, or through each alone.
+            const from = Math.max(a.left, b.left);
+            const to = Math.min(a.right, b.right);
+            const shared = to - from > 8 ? down(from + 4) : null;
+            return [
+              {
+                isStacked,
+                left: shared?.left ?? down(a.left + a.width / 2).left,
+                right: shared?.right ?? down(b.left + b.width / 2).right,
+                handOverFromMiddle: shared ? shared.handOver - (a.bottom + b.top) / 2 : 0,
+                isOverlapping: false,
+              },
+            ];
+          }
+          // Side by side, across the gap at the line's middle: never both at one point.
+          let lastLeft = Number.NEGATIVE_INFINITY;
+          let firstRight = Number.POSITIVE_INFINITY;
+          const y = a.top + a.height / 2;
+          for (let x = a.right - 8; x <= b.left + 8; x += 0.25) {
+            const side = hit(x, y);
+            if (side === "left") lastLeft = x;
+            if (side === "right") firstRight = Math.min(firstRight, x);
+          }
+          return [
+            {
+              isStacked,
+              left: down(a.left + a.width / 2).left,
+              right: down(b.left + b.width / 2).right,
+              handOverFromMiddle: 0,
+              isOverlapping: firstRight <= lastLeft,
+            },
+          ];
+        }),
+      );
+    expect(pairs.some(({ isStacked }) => isStacked)).toBe(true);
+    for (const pair of pairs) {
+      expect(pair.left).toBeGreaterThanOrEqual(ARROW_TARGET_PX);
+      expect(pair.right).toBeGreaterThanOrEqual(ARROW_TARGET_PX);
+      // Stacked, the press passes from one to the other at the middle of the gap between them.
+      expect(Math.abs(pair.handOverFromMiddle)).toBeLessThanOrEqual(1);
+      expect(pair.isOverlapping).toBe(false);
     }
   }
 });

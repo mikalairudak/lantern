@@ -16,7 +16,6 @@ import { cn } from "@/components/ui/cn";
 import { beadOrderOf, candidatesOf, energyOf } from "@/features/abacus/curve";
 import { hasEnergy, type StopDraft } from "@/features/abacus/day-draft";
 import { SPRINGS } from "@/lib/tokens/motion";
-import { TARGET_CLASSES } from "./link-classes";
 
 /**
  * A stop on the day's plan as a carousel of its versions (`docs/decisions.md`, "A stop on the
@@ -79,19 +78,19 @@ export function neighboursOf(
 
 /**
  * A version's arrow: as wide as its words, and no wider than the column, where a longer name
- * wraps on its own side.
+ * wraps on its own side. Its press target reaches 4 px round its box, and its box 2 px over and
+ * under its line, so the target stands 32 px tall; stacked, two arrows' targets meet at the
+ * middle of the 8 px between them, and side by side they stay 4 px apart across `gap-3`.
  */
-const ARROW_CLASSES = cn(
-  TARGET_CLASSES,
-  "group/pointed flex max-w-full min-w-0 items-baseline rounded-sm text-left type-note text-swap focus-ring aria-disabled:cursor-default",
-);
+const ARROW_CLASSES =
+  "group/pointed relative flex max-w-full min-w-0 items-baseline rounded-sm py-0.5 text-left type-note text-swap focus-ring after:absolute after:-inset-x-1 after:-inset-y-1 aria-disabled:cursor-default";
 
 /**
  * The arrows' line: the two share it when both fit with `gap-3` between them, and otherwise wrap
  * to a line each, the left one first, so layout alone decides it in the first paint. The right
  * one keeps to the right edge on either line, and alone.
  */
-const ARROWS_CLASSES = "flex flex-wrap gap-x-3 gap-y-1";
+const ARROWS_CLASSES = "flex flex-wrap gap-x-3 gap-y-2";
 
 /** The version's name in its arrow, ruled under a pointer or the keyboard's focus. */
 const ARROW_NAME_CLASSES = "decoration-1 underline-offset-4 pointed-group:underline";
