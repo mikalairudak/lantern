@@ -142,3 +142,141 @@ describe("the theme restored where the head script did not run", () => {
     unsubscribe();
   });
 });
+
+describe("a theme chosen on the page", () => {
+  /** The crossings the page began, each waiting for the browser to set its theme. */
+  let crossings: (() => void)[] = [];
+
+  /** A browser with view transitions, a device in `scheme` and motion as `motion` sets it. */
+  function stubBrowser({
+    scheme = "light",
+    motion = "no-preference",
+    hasViewTransitions = true,
+  }: {
+    scheme?: "light" | "dark";
+    motion?: "reduce" | "no-preference";
+    hasViewTransitions?: boolean;
+  }): void {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches:
+        query === `(prefers-color-scheme: ${scheme})` ||
+        query === `(prefers-reduced-motion: ${motion})`,
+    }));
+    if (!hasViewTransitions) return;
+    Object.defineProperty(document, "startViewTransition", {
+      configurable: true,
+      value: vi.fn((update: () => void) => {
+        crossings.push(update);
+      }),
+    });
+  }
+
+  /** The browser takes its old picture and calls each crossing's update, in order. */
+  function runCrossings(): void {
+    for (const update of crossings.splice(0)) update();
+  }
+
+  afterEach(() => {
+    crossings = [];
+    Reflect.deleteProperty(document, "startViewTransition");
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ["light", "dark", "light"],
+    ["dark", "light", "light"],
+    ["light", "system", "dark"],
+    ["dark", "system", "light"],
+  ] as const)(
+    "crosses from %s to %s on a %s device, setting the theme only in the crossing",
+    (from, to, scheme) => {
+      stubBrowser({ scheme });
+      root.setAttribute("data-theme", from);
+      applyThemeChoice(to);
+
+      expect(document.startViewTransition).toHaveBeenCalledTimes(1);
+      // Kept at once; the page keeps its look until the browser has its old picture.
+      expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe(to === "system" ? null : to);
+      expect(root.getAttribute("data-theme")).toBe(from);
+      runCrossings();
+      expect(readThemeChoice()).toBe(to);
+      expect(root.getAttribute(THEME_CHOICE_ATTRIBUTE)).toBe(to);
+    },
+  );
+
+  it.each([
+    ["system", "light", "light"],
+    ["light", "system", "light"],
+    ["system", "dark", "dark"],
+    ["dark", "dark", "light"],
+  ] as const)(
+    "sets %s to %s at once on a %s device, where no colour changes",
+    (from, to, scheme) => {
+      stubBrowser({ scheme });
+      if (from !== "system") root.setAttribute("data-theme", from);
+      applyThemeChoice(to);
+      expect(document.startViewTransition).not.toHaveBeenCalled();
+      expect(readThemeChoice()).toBe(to);
+      expect(root.getAttribute(THEME_CHOICE_ATTRIBUTE)).toBe(to);
+    },
+  );
+
+  it("sets a theme at once under reduced motion", () => {
+    stubBrowser({ motion: "reduce" });
+    applyThemeChoice("dark");
+    expect(document.startViewTransition).not.toHaveBeenCalled();
+    expect(root.getAttribute("data-theme")).toBe("dark");
+  });
+
+  it("sets a theme at once where the browser has no view transitions", () => {
+    stubBrowser({ hasViewTransitions: false });
+    applyThemeChoice("dark");
+    expect(root.getAttribute("data-theme")).toBe("dark");
+  });
+
+  it("tells every word once the crossing sets the theme, not before", () => {
+    stubBrowser({});
+    const onChange = vi.fn();
+    const unsubscribe = subscribeThemeChoice(onChange);
+    applyThemeChoice("dark");
+    expect(onChange).not.toHaveBeenCalled();
+    runCrossings();
+    expect(onChange).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it("leaves the last of two quick choices standing, whatever order the browser sets them in", () => {
+    stubBrowser({});
+    root.setAttribute("data-theme", "light");
+    applyThemeChoice("dark");
+    // The second comes before the first has set its theme, and changes nothing seen: at once.
+    applyThemeChoice("light");
+    expect(root.getAttribute("data-theme")).toBe("light");
+    runCrossings();
+    expect(root.getAttribute("data-theme")).toBe("light");
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("light");
+  });
+
+  it("takes another tab's choice at once", () => {
+    stubBrowser({});
+    const unsubscribe = subscribeThemeChoice(() => undefined);
+    window.dispatchEvent(new StorageEvent("storage", { key: THEME_STORAGE_KEY, newValue: "dark" }));
+    expect(document.startViewTransition).not.toHaveBeenCalled();
+    expect(root.getAttribute("data-theme")).toBe("dark");
+    unsubscribe();
+  });
+
+  it("holds every colour still while the page's style takes the new theme", () => {
+    stubBrowser({ hasViewTransitions: false });
+    const heldAtLayout: boolean[] = [];
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(() => {
+      heldAtLayout.push(
+        root.hasAttribute("data-theme-still") && root.getAttribute("data-theme") === "dark",
+      );
+      return 0;
+    });
+    applyThemeChoice("dark");
+    expect(heldAtLayout).toEqual([true]);
+    expect(root.hasAttribute("data-theme-still")).toBe(false);
+  });
+});

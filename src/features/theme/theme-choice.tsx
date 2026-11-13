@@ -188,7 +188,10 @@ export function ThemeWord({
   );
 }
 
-/** The theme's icon, set to the page's theme, which a choice changes at once and keeps. */
+/**
+ * The theme's icon, set to the page's theme, which a choice changes and keeps: the list closes
+ * at once, before the page crosses to the new theme (`applyThemeChoice`).
+ */
 export function ThemeChoice() {
   const choice = useSyncExternalStore(subscribeThemeChoice, readThemeChoice, serverThemeChoice);
   return <ThemeWord choice={choice} onChoose={applyThemeChoice} />;

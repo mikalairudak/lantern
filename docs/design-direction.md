@@ -92,6 +92,10 @@ Anything that moves uses one of three springs from `SPRINGS` (`src/lib/tokens/mo
 
 Colour and opacity changes on hover and focus are CSS transitions, timed by tokens too.
 
+### The theme changing
+
+A theme chosen in the theme's list crosses as one cross-fade of the whole page, the old theme's last frame into the live page in the new, in 200 ms on a linear curve (`--duration-theme`): short, because text passes through no contrast halfway, and no shorter than a pointer's colour change, under which it reads as a blink. Nothing eases on its own while the theme is set, so the new picture is whole from its first frame. The first paint, reduced motion, a browser without view transitions, a choice that changes no colour, another tab's choice and the device's own change are set at once (`docs/decisions.md`, "The theme crosses as one cross-fade of the whole page").
+
 ### Pointed at
 
 What can be pressed answers a pointer, and the keyboard's focus shows the same, in the page's ink, never an accent. A word with no underline takes the ink hairline; a word already underlined, a link, takes its rule twice as heavy; a box shows its frame or its ground. An index cell pointed at stands forward, its city ruled and its engraving up to full ink from the 90% they all rest at where a pointer can hover, while a touch screen draws them all full; a version's arrow on the plan leans its stop 12 px toward the version it names. A touch screen shows none of it, since a finger cannot hover (`docs/decisions.md`, "What can be pressed takes a rule in ink under a pointer, and the keyboard's focus shows the same").

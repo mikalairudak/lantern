@@ -45,6 +45,11 @@ interface Unfolding {
   /** 0 folded, 1 open, on the layout spring. */
   openness: MotionValue<number>;
   opacity: MotionValue<number>;
+  /**
+   * Told to go at once and leaving: unseen from the render that closes it, before its effect
+   * removes it, so no frame drawn in between shows it, nor the old picture of a theme's crossing.
+   */
+  isGoneAtOnce: boolean;
 }
 
 /**
@@ -134,7 +139,7 @@ function useUnfolding(
     };
   }, [isPresent, isInstant, isReducedMotion, openness, isLeaving, spring, reachPx, reachHeight]);
 
-  return { openness, opacity };
+  return { openness, opacity, isGoneAtOnce: !isPresent && isInstant };
 }
 
 interface FoldProps {
@@ -168,7 +173,7 @@ export function Fold({
   children,
 }: FoldProps) {
   const contentHeight = useMotionValue(0);
-  const { openness, opacity } = useUnfolding(
+  const { openness, opacity, isGoneAtOnce } = useUnfolding(
     isAppearing,
     spring,
     reachPx === undefined ? undefined : { px: reachPx, height: contentHeight },
@@ -206,7 +211,7 @@ export function Fold({
     return (
       <motion.span
         style={{ height, opacity, maskImage }}
-        className={cn("block overflow-hidden", className)}
+        className={cn("block overflow-hidden", className, isGoneAtOnce && "invisible")}
       >
         <span ref={setContent} className="block">
           {children}
@@ -215,7 +220,10 @@ export function Fold({
     );
   }
   return (
-    <motion.div style={{ height, opacity, maskImage }} className={cn("overflow-hidden", className)}>
+    <motion.div
+      style={{ height, opacity, maskImage }}
+      className={cn("overflow-hidden", className, isGoneAtOnce && "invisible")}
+    >
       <div ref={setContent}>{children}</div>
     </motion.div>
   );

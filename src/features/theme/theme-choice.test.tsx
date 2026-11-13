@@ -21,6 +21,7 @@ beforeAll(() => {
 afterAll(() => vi.unstubAllGlobals());
 
 afterEach(() => {
+  Reflect.deleteProperty(document, "startViewTransition");
   root.removeAttribute("data-theme");
   root.removeAttribute(THEME_CHOICE_ATTRIBUTE);
   localStorage.clear();
@@ -112,6 +113,28 @@ describe("the theme's icon", () => {
     await waitFor(() => expect(themeButton()).toHaveAttribute("aria-expanded", "false"));
     expect(themeButton()).toHaveFocus();
     expect(root.hasAttribute("data-theme")).toBe(false);
+  });
+
+  it("closes its list and gives the focus back before the page crosses to the theme chosen", async () => {
+    let update: (() => void) | undefined;
+    Object.defineProperty(document, "startViewTransition", {
+      configurable: true,
+      value: vi.fn((callback: () => void) => {
+        update = callback;
+      }),
+    });
+    render(<ThemeChoice />);
+    await userEvent.click(themeButton());
+    await userEvent.click(screen.getByRole("option", { name: /Dark/ }));
+
+    // The browser takes its old picture once the list is gone, and only then sets the theme.
+    await waitFor(() => expect(screen.queryByRole("listbox", { name: "Theme" })).toBeNull());
+    expect(themeButton()).toHaveFocus();
+    expect(root.hasAttribute("data-theme")).toBe(false);
+    act(() => update?.());
+    expect(root.getAttribute("data-theme")).toBe("dark");
+    expect(themeButton()).toHaveAccessibleName("Theme: Dark");
+    expect(themeButton()).toHaveFocus();
   });
 
   it("pressed again, closes its list and keeps it closed", async () => {
