@@ -43,5 +43,6 @@ Powered by Geoapify".
 Fonts
 -----
 
-assets/fonts/ holds Fira Sans, regular and italic, cut to Latin for the link card. It is
-licensed under the SIL Open Font License 1.1, in assets/fonts/OFL.txt beside the fonts.
+assets/fonts/ holds Literata, Copyright 2017 The Literata Project Authors: regular and
+italic, cut to one weight for the pages and to Latin for the link card. It is licensed under
+the SIL Open Font License 1.1, in assets/fonts/OFL.txt beside the fonts.
