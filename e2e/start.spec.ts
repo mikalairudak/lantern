@@ -46,17 +46,15 @@ test("the start screen offers the question and an index of written days, and hol
   await expect(page).toHaveURL(/\/day\//);
 });
 
-test("a cell pointed at comes up to full ink, for a pointer and the keyboard alike, and a touch screen draws every cell full", async ({
+test("a cell pointed at is lit whole, for a pointer and the keyboard alike, and its city ruled where a pointer can hover", async ({
   page,
 }) => {
   await page.goto("/");
   const index = page.getByRole("list", { name: "No city in mind? Start from one of these" });
   const cells = index.getByRole("button");
-  const pictures = () =>
+  const lights = () =>
     index.evaluate((list) =>
-      [...list.querySelectorAll("button > span:first-child")].map(
-        (picture) => getComputedStyle(picture).opacity,
-      ),
+      [...list.querySelectorAll("svg[data-picture]")].map((svg) => svg.getAttribute("data-light")),
     );
   const ruled = () =>
     index.evaluate((list) =>
@@ -65,24 +63,23 @@ test("a cell pointed at comes up to full ink, for a pointer and the keyboard ali
           getComputedStyle(cell.querySelector("span > span:first-child")!).textDecorationLine,
       ),
     );
-  // Where a pointer can hover, every engraving rests a little under full ink and the one pointed
-  // at comes up to it; a phone's finger cannot hover, so a phone draws every one full.
+  const litAt = (at: number | null) =>
+    INDEX_REQUESTS.map((_, cell) => (cell === at ? "lit" : "rest"));
+  // Every plate rests, its lamps low; the one pointed at is lit whole.
+  await expect.poll(lights).toEqual(litAt(null));
   const canHover = await page.evaluate(() => window.matchMedia("(hover: hover)").matches);
-  const full = INDEX_REQUESTS.map(() => "1");
-  const pointedAt = (at: number) =>
-    canHover ? INDEX_REQUESTS.map((_, cell) => (cell === at ? "1" : "0.9")) : full;
-  await expect.poll(pictures).toEqual(canHover ? INDEX_REQUESTS.map(() => "0.9") : full);
 
   await cells.nth(1).hover();
-  await expect.poll(pictures).toEqual(pointedAt(1));
+  await expect.poll(lights).toEqual(litAt(1));
   expect((await ruled())[1]).toBe(canHover ? "underline" : "none");
 
   // The keyboard shows the same, wherever the pointer is.
   await page.mouse.move(0, 0);
+  await expect.poll(lights).toEqual(litAt(null));
   await cells.nth(1).focus();
   await page.keyboard.press("Tab");
   await expect(cells.nth(2)).toBeFocused();
-  await expect.poll(pictures).toEqual(pointedAt(2));
+  await expect.poll(lights).toEqual(litAt(2));
   expect((await ruled())[2]).toBe("underline");
 });
 

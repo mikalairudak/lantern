@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IndexPictureView, IndexPlate } from "./index-picture";
 import { INDEX_PICTURES } from "./index-picture-files";
 import { MISSING_FILES_PICTURE, NO_LAMPS_PICTURE } from "./index-picture-examples";
+import { lightCirclesOf } from "./plate-light";
 
 /** The observer the picture made, so a test can bring its cell near the screen. */
 let near: ((isNear: boolean) => void) | null = null;
@@ -123,7 +124,7 @@ describe("a city's plate in the index", () => {
       expect(circlesIn(container, step)).toHaveLength(lamps);
     }
     // Under forced colours no light is drawn.
-    expect(pools).toHaveClass("forced-colors:hidden");
+    expect(pools.parentElement).toHaveClass("forced-colors:hidden");
   });
 
   it("draws no pool on a plate with no lamps", () => {
@@ -142,5 +143,63 @@ describe("a city's plate in the index", () => {
       "fill-plate-lit-wide",
     ]);
     expect(light.querySelector("g")?.getAttribute("filter")).toMatch(/bounds-grain\)$/);
+  });
+
+  it("grows its light from each lamp, and lays the lit fill under forced colours' hiding", () => {
+    const { container } = render(<IndexPictureView slug="amsterdam" />);
+    const fill = container.querySelector("[data-lit-fill]")!;
+    expect(fill).toHaveClass("fill-plate-lit");
+    expect(fill.parentElement).toHaveClass("forced-colors:hidden");
+    const lamps = INDEX_PICTURES.amsterdam!.lamps.length;
+    expect(circlesIn(container, "whole")).toHaveLength(lamps);
+  });
+
+  it("is at rest with its light out, and lit whole at once under reduced motion", async () => {
+    const picture = INDEX_PICTURES.rome!;
+    const [{ reaches } = { reaches: { lit: 0 } }] = lightCirclesOf(picture);
+    const { container, rerender } = render(
+      <MotionConfig reducedMotion="always">
+        <IndexPlate picture={picture} />
+      </MotionConfig>,
+    );
+    const svg = container.querySelector("svg")!;
+    expect(svg).toHaveAttribute("data-light", "rest");
+    expect(circlesIn(container, "whole")[0]).toHaveAttribute("r", "0");
+    rerender(
+      <MotionConfig reducedMotion="always">
+        <IndexPlate picture={picture} isLit />
+      </MotionConfig>,
+    );
+    expect(svg).toHaveAttribute("data-light", "lit");
+    // Motion writes a radius in its next frame.
+    await vi.waitFor(() =>
+      expect(circlesIn(container, "whole")[0]).toHaveAttribute("r", String(reaches.lit)),
+    );
+    rerender(
+      <MotionConfig reducedMotion="always">
+        <IndexPlate picture={picture} />
+      </MotionConfig>,
+    );
+    await vi.waitFor(() => expect(circlesIn(container, "whole")[0]).toHaveAttribute("r", "0"));
+  });
+
+  it("holds its light where a lab cell holds it", () => {
+    const picture = INDEX_PICTURES.tokyo!;
+    const covering = lightCirclesOf(picture).map(({ reaches }) => String(reaches.covering));
+    const { container } = render(
+      <IndexPlate picture={picture} still={{ reach: "covering", share: 1 }} />,
+    );
+    expect(circlesIn(container, "whole").map((circle) => circle.getAttribute("r"))).toEqual(
+      covering,
+    );
+  });
+
+  it("lights a plate with no lamps from one circle at its middle", () => {
+    const { container } = render(<IndexPlate picture={NO_LAMPS_PICTURE} />);
+    const [left, top, width, height] = NO_LAMPS_PICTURE.scene.box;
+    const [circle, ...others] = circlesIn(container, "whole");
+    expect(others).toEqual([]);
+    expect(Number(circle!.getAttribute("cx"))).toBeCloseTo(left + width / 2);
+    expect(Number(circle!.getAttribute("cy"))).toBeCloseTo(top + height / 2);
   });
 });

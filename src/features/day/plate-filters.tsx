@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import {
   BOUNDS_SOFTENING,
   FOOTPRINT_SPREAD,
+  LIT_SOLID_SHARE,
   rectOf,
   SHEET_SPREAD,
   type FieldBox,
@@ -142,6 +143,17 @@ export function Falloff({ id }: { id: string }) {
       <stop offset="0" stopOpacity="1" />
       <stop offset="0.3" stopOpacity="0.82" />
       <stop offset="0.62" stopOpacity="0.36" />
+      <stop offset="1" stopOpacity="0" />
+    </radialGradient>
+  );
+}
+
+/** A lit circle's falloff: solid over most of its reach, so a grown circle covers what it holds. */
+export function SolidFalloff({ id }: { id: string }) {
+  return (
+    <radialGradient id={id}>
+      <stop offset="0" stopOpacity="1" />
+      <stop offset={LIT_SOLID_SHARE} stopOpacity="1" />
       <stop offset="1" stopOpacity="0" />
     </radialGradient>
   );

@@ -1,7 +1,13 @@
 "use client";
 
-import { motion, useReducedMotionConfig } from "motion/react";
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  animate,
+  motion,
+  useMotionValue,
+  useReducedMotionConfig,
+  useTransform,
+} from "motion/react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { SPRINGS } from "@/lib/tokens/motion";
 import {
   densityFor,
@@ -14,18 +20,26 @@ import {
   BOUNDS,
   BoundsGrain,
   Falloff,
+  FRONT_GRAIN_SLOPE,
   LightGrain,
   PlateBounds,
   POOL_GRAIN_SLOPE,
+  SolidFalloff,
   type BoundsName,
 } from "./plate-filters";
 import {
   lampPointsOf,
   lightBoxOf,
+  lightCirclesOf,
+  lightTurnOf,
   POOL_STEPS,
   poolRadiiOf,
   poolsBoxOf,
   rectOf,
+  stillRadiusOf,
+  type FieldPoint,
+  type LightReaches,
+  type PlateStill,
   type PoolStep,
 } from "./plate-light";
 
@@ -47,13 +61,64 @@ const PLATE_PARTS: readonly PlatePart[] = ["lines", ...BOUNDS.map(({ name }) => 
 type PlateState = "unasked" | "loading" | "drawn" | "failed";
 
 /**
+ * One circle of a plate's lit fill. Lit, it grows from where it stands to its lit reach on the
+ * gentle spring. Left, it is set to its covering reach before the frame is painted, if it stands
+ * wider, so the light starts to go with the pointer, then goes to nothing on the brisk spring
+ * (`lightTurnOf`). The set is a jump and carries no speed, and each turn starts at rest. Under
+ * reduced motion each state stands at once, and a lab cell holds it part-way (`still`). No radius
+ * is drawn under nothing.
+ */
+function LitCircle({
+  point,
+  reaches,
+  isLit,
+  still,
+  isReduced,
+  fill,
+}: {
+  point: FieldPoint;
+  reaches: LightReaches;
+  isLit: boolean;
+  still: PlateStill | undefined;
+  isReduced: boolean;
+  fill: string;
+}) {
+  const { lit, covering } = reaches;
+  const stillReach = still?.reach;
+  const stillShare = still?.share;
+  const radius = useMotionValue(
+    still !== undefined ? stillRadiusOf(still, reaches) : isLit ? lit : 0,
+  );
+  const drawn = useTransform(radius, (value) => Math.max(0, value));
+  useLayoutEffect(() => {
+    const ends = { lit, covering };
+    if (stillReach !== undefined && stillShare !== undefined) {
+      radius.jump(stillRadiusOf({ reach: stillReach, share: stillShare }, ends));
+      return undefined;
+    }
+    const turn = lightTurnOf(isLit, radius.get(), ends);
+    if (isReduced) {
+      radius.jump(turn.to);
+      return undefined;
+    }
+    if (turn.from !== radius.get()) radius.jump(turn.from);
+    const animation = animate(radius, turn.to, SPRINGS[turn.spring]);
+    return () => animation.stop();
+  }, [radius, isLit, lit, covering, stillReach, stillShare, isReduced]);
+  return <motion.circle cx={point.x} cy={point.y} r={drawn} fill={fill} />;
+}
+
+/**
  * A city's engraving as a plate (`docs/decisions.md`, "The index's pictures are engravings of a
  * city's everyday thing"), drawn in the theme it stands in with no script: every difference
  * between the themes is a colour. Its lines are drawn over all of it, the page's ink by day and
  * the ground's colour by night. Under them lies the plate's light, bounded by theme: by night the
  * scene's footprint holds the plate's tone, by day the wider sheet holds its light, each cut to a
- * grained edge (`light`). At rest each lamp burns low in a pool of three steps. Under forced
- * colours no light is drawn; the tone and the lines are.
+ * grained edge (`light`). At rest each lamp burns low in a pool of three steps. Lit, as when its
+ * cell is pointed at, focused or touched, the light grows from its lamps until the plate is lit
+ * whole, and left, it withdraws to them in half the time (`LitCircle`); a plate with no lamps is
+ * lit from its middle. The pools stay where they are under the lit fill. Under forced colours no
+ * light is drawn; the tone and the lines are.
  *
  * It asks for its file only when its cell comes near the screen, at the pixels the cell needs, and
  * is drawn once every part has come in, fading in softly, or at once under reduced motion. Before
@@ -63,10 +128,16 @@ type PlateState = "unasked" | "loading" | "drawn" | "failed";
  */
 export function IndexPlate({
   picture,
+  isLit = false,
+  still,
   slug,
   shouldAskFiles = true,
 }: {
   picture: IndexPicture;
+  /** Whether the plate is lit whole, as its cell is pointed at, focused or touched. */
+  isLit?: boolean;
+  /** The light held part-way, as a lab cell shows it. */
+  still?: PlateStill;
   /** The city's slug, named on the drawing for what finds a city's plate. */
   slug?: string;
   /** Whether it asks for its files once near the screen; a lab cell holds them back. */
@@ -124,6 +195,7 @@ export function IndexPlate({
   const lamps = lampPointsOf(picture);
   const radii = poolRadiiOf(picture);
   const poolsBox = poolsBoxOf(picture);
+  const circles = lightCirclesOf(picture);
   const ref = (name: string) => `url(#${id}-${name})`;
 
   return (
@@ -133,6 +205,7 @@ export function IndexPlate({
       focusable="false"
       viewBox={viewBoxOf(picture)}
       data-picture={slug}
+      data-light={isLit ? "lit" : "rest"}
       className="block w-full overflow-visible"
     >
       <defs>
@@ -193,6 +266,23 @@ export function IndexPlate({
             ))}
           </>
         )}
+        <SolidFalloff id={`${id}-solid`} />
+        <LightGrain id={`${id}-front-grain`} box={box} slope={FRONT_GRAIN_SLOPE} />
+        <mask id={`${id}-whole`} maskUnits="userSpaceOnUse" {...rectOf(box)} mask-type="alpha">
+          <g filter={ref("front-grain")}>
+            {circles.map(({ reaches, ...point }, index) => (
+              <LitCircle
+                key={index}
+                point={point}
+                reaches={reaches}
+                isLit={isLit}
+                still={still}
+                isReduced={isReduced}
+                fill={ref("solid")}
+              />
+            ))}
+          </g>
+        </mask>
       </defs>
       <motion.g
         initial={false}
@@ -202,18 +292,21 @@ export function IndexPlate({
       >
         <g mask={ref("light")}>
           <rect {...rectOf(box)} className="fill-plate-tone" />
-          {poolsBox !== null && (
-            <g data-pools className="forced-colors:hidden">
-              {POOL_STEPS.map((step) => (
-                <rect
-                  key={step}
-                  {...rectOf(poolsBox)}
-                  className={POOL_CLASSES[step]}
-                  mask={ref(`pool-${step}`)}
-                />
-              ))}
-            </g>
-          )}
+          <g className="forced-colors:hidden">
+            {poolsBox !== null && (
+              <g data-pools>
+                {POOL_STEPS.map((step) => (
+                  <rect
+                    key={step}
+                    {...rectOf(poolsBox)}
+                    className={POOL_CLASSES[step]}
+                    mask={ref(`pool-${step}`)}
+                  />
+                ))}
+              </g>
+            )}
+            <rect data-lit-fill {...rectOf(box)} className="fill-plate-lit" mask={ref("whole")} />
+          </g>
         </g>
         <rect
           data-layer="scene"
@@ -230,12 +323,14 @@ export function IndexPlate({
 /** A city's plate in the index's cell, by its day's slug, or nothing where its city has none. */
 export function IndexPictureView({
   slug,
+  isLit,
   shouldAskFiles,
 }: {
   slug: string;
+  isLit?: boolean;
   shouldAskFiles?: boolean;
 }) {
   const picture = indexPictureOf(slug);
   if (picture === null) return null;
-  return <IndexPlate picture={picture} slug={slug} shouldAskFiles={shouldAskFiles} />;
+  return <IndexPlate picture={picture} slug={slug} isLit={isLit} shouldAskFiles={shouldAskFiles} />;
 }
