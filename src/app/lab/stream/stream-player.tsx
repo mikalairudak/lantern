@@ -129,7 +129,7 @@ export function StreamPlayer({ streamDay, at }: StreamPlayerProps) {
             : "Play the day to watch it arrive."}
       </p>
       {stream.partial && (
-        <div className="rounded-md border border-line" data-testid="played-day">
+        <div className="rounded-sm border border-line" data-testid="played-day">
           <PartialDayView partial={stream.partial} />
         </div>
       )}

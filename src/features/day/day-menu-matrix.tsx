@@ -22,11 +22,15 @@ export const DAY_MENU_MATRIX: LabMatrix = labMatrix<DayMenuCellProps>({
       values: DAY_MENU_STATES.map(({ label, ...props }) => ({ label, props })),
     },
   ],
-  render: ({ page, items, isOpen }) => (
+  render: ({ page, items, isOpen, pointedKey }) => (
     <div className="flex flex-col">
       <Masthead
         isHome={page === "start"}
-        menu={page === "day" ? <DayMenu items={items} isOpenAtFirst={isOpen} /> : undefined}
+        menu={
+          page === "day" ? (
+            <DayMenu items={items} isOpenAtFirst={isOpen} pointedKey={pointedKey} />
+          ) : undefined
+        }
       />
       {/* Room under an open menu, which hangs over the page below the masthead. */}
       {isOpen && page === "day" && <div aria-hidden className="h-day" />}

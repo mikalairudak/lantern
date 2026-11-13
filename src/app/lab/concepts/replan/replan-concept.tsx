@@ -210,7 +210,7 @@ export function ReplanConcept({ lisbon }: { lisbon: BenchDay }) {
         // One strip, as the day bench's: the re-plan's choices open on demand, so the controls
         // never sit over the chart on a phone. The panel comes after its toggle, so Tab goes on
         // into it, and is drawn above the strip.
-        className="fixed right-4 bottom-4 z-20 flex max-w-intro flex-col gap-2 rounded-md border border-line bg-surface p-1"
+        className="fixed right-4 bottom-4 z-20 flex max-w-intro flex-col gap-2 rounded-sm border border-line bg-surface p-1"
       >
         <div className="flex items-center gap-2">
           <div role="group" aria-label="Theme" className="flex">

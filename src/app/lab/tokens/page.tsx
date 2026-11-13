@@ -116,7 +116,7 @@ const SPACING_CLASSES: Record<SpacingToken, string> = {
   "phone-height": "w-phone-height max-w-full",
 };
 
-const RADIUS_CLASSES: Record<RadiusToken, string> = { sm: "rounded-sm", md: "rounded-md" };
+const RADIUS_CLASSES: Record<RadiusToken, string> = { sm: "rounded-sm" };
 
 const FOCUS_RING_CLASSES: Record<FocusRingToken, string> = {
   "focus-ring": "focus-ring",
@@ -195,14 +195,14 @@ function ColorSection() {
           <div
             key={theme}
             data-theme={theme}
-            className="flex flex-col gap-4 rounded-md border border-line bg-ground p-6 text-ink"
+            className="flex flex-col gap-4 rounded-sm border border-line bg-ground p-6 text-ink"
           >
             <p className="text-caption tracking-caps text-muted uppercase">{theme}</p>
             <ul className="flex flex-col gap-3">
               {COLOR_TOKENS.map(({ name, role }) => (
                 <li key={name} className="flex items-center gap-4">
                   <span
-                    className={`size-10 shrink-0 rounded-md border border-line ${SWATCH_CLASSES[name]}`}
+                    className={`size-10 shrink-0 rounded-sm border border-line ${SWATCH_CLASSES[name]}`}
                   />
                   <span className="flex flex-col">
                     <span className="text-meta">{name}</span>
@@ -264,7 +264,7 @@ function ShapeSection() {
   return (
     <Section
       title="Shape"
-      note={`Hairline rules, barely rounded corners, ${ICON_STROKE_WIDTH}px icons`}
+      note={`Hairline rules, 2 px corners or a circle, ${ICON_STROKE_WIDTH}px icons`}
     >
       <div className="flex flex-wrap gap-10">
         {RADIUS_TOKENS.map((token) => (
