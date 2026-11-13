@@ -17,6 +17,13 @@ function color(name: string, theme: Theme): string {
   return themeColor(COLORS, name, theme);
 }
 
+/** A token's two values as globals.css declares them, a colour or `transparent` each. */
+function declared(name: string): Record<Theme, string> {
+  const [, light = "", dark = ""] =
+    new RegExp(`--color-${name}:\\s*light-dark\\(([^,]+),\\s*([^)]+)\\)`).exec(stylesheet) ?? [];
+  return { light: light.trim(), dark: dark.trim() };
+}
+
 type Rgb = [number, number, number];
 
 function linearRgb(hex: string): Rgb {
@@ -276,16 +283,76 @@ describe("the palette", () => {
   });
 
   it("draws each of the index's engravings in the page's ink, in its one theme only", () => {
-    const declared = (name: string) => {
-      const [, light = "", dark = ""] =
-        new RegExp(`--color-${name}:\\s*light-dark\\(([^,]+),\\s*([^)]+)\\)`).exec(stylesheet) ??
-        [];
-      return { light: light.trim(), dark: dark.trim() };
-    };
     expect(declared("engraving")).toEqual({ light: color("ink", "light"), dark: "transparent" });
     expect(declared("engraving-night")).toEqual({
       light: "transparent",
       dark: color("ink", "dark"),
+    });
+  });
+
+  describe("the index's plates", () => {
+    /**
+     * By day a plate's light is the whitest paper on the page: far enough over the page to read as
+     * lit, a sheet's step over a raised sheet so a list never reads as light, and its half-light a
+     * step between the page and it. Every text and drawn mark holds on it.
+     */
+    const LIT_OVER_PAGE = 1.13;
+    const HALF_LIGHT_STEP = 1.05;
+
+    describe("by day", () => {
+      const page = color("ground", "light");
+      const litPaper = color("plate-lit", "light");
+      const halfLight = color("plate-half", "light");
+
+      it.each(TEXT)("sets %s at 5:1 or more on a plate's lit paper", (name) => {
+        expect(contrast(color(name, "light"), litPaper)).toBeGreaterThanOrEqual(TEXT_CONTRAST);
+      });
+
+      it.each(DRAWN)("draws the %s at 3:1 or more on a plate's lit paper", (name) => {
+        expect(contrast(color(name, "light"), litPaper)).toBeGreaterThanOrEqual(GRAPHIC_CONTRAST);
+      });
+
+      it("lights paper 1.13:1 or more over the page, and a sheet's step over a raised sheet", () => {
+        expect(lighterBy(litPaper, page)).toBeGreaterThanOrEqual(LIT_OVER_PAGE);
+        expect(lighterBy(litPaper, color("surface", "light"))).toBeGreaterThanOrEqual(SHEET_STEP);
+      });
+
+      it("sets half-light a step over the page and a step under lit paper", () => {
+        expect(lighterBy(halfLight, page)).toBeGreaterThanOrEqual(HALF_LIGHT_STEP);
+        expect(lighterBy(litPaper, halfLight)).toBeGreaterThanOrEqual(HALF_LIGHT_STEP);
+      });
+    });
+
+    /** By night a plate's tone stands out of the ground, and its light out of the tone. */
+    const NIGHT_PLATE_CONTRAST = 3;
+    /** A pool's edge by night: a step over the tone, and well under the pool's own light. */
+    const NIGHT_HALF_OVER_TONE = 1.4;
+    const NIGHT_LIT_OVER_HALF = 2;
+
+    it("stands the tone 3:1 or more on the ground by night, and the light as far on the tone", () => {
+      const tone = declared("plate-tone").dark;
+      expect(contrast(tone, color("ground", "dark"))).toBeGreaterThanOrEqual(NIGHT_PLATE_CONTRAST);
+      expect(contrast(color("plate-lit", "dark"), tone)).toBeGreaterThanOrEqual(
+        NIGHT_PLATE_CONTRAST,
+      );
+    });
+
+    it("sets a pool's edge by night a step over the tone and well under the light", () => {
+      const half = color("plate-half", "dark");
+      expect(lighterBy(half, declared("plate-tone").dark)).toBeGreaterThanOrEqual(
+        NIGHT_HALF_OVER_TONE,
+      );
+      expect(lighterBy(color("plate-lit", "dark"), half)).toBeGreaterThanOrEqual(
+        NIGHT_LIT_OVER_HALF,
+      );
+    });
+
+    it("lays a plate's wider sheet by day in its own light and by night not at all, and no tone by day", () => {
+      expect(declared("plate-lit-wide")).toEqual({
+        light: color("plate-lit", "light"),
+        dark: "transparent",
+      });
+      expect(declared("plate-tone").light).toBe("transparent");
     });
   });
 

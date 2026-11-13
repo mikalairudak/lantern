@@ -18,6 +18,16 @@ export const COLOR_TOKENS = [
     name: "engraving-night",
     role: "The index's engraved subject alone: ink by night, nothing by day",
   },
+  { name: "plate-tone", role: "An unlit plate of the index by night; nothing by day" },
+  {
+    name: "plate-lit",
+    role: "A plate's light: its pool at rest and the plate lit whole; lit paper by day, lamplight by night",
+  },
+  {
+    name: "plate-lit-wide",
+    role: "Never painted: by day a plate's light takes the wider sheet, by night not; only its alpha counts",
+  },
+  { name: "plate-half", role: "The edge of a plate's pool at rest" },
   { name: "line", role: "Hairline rules and empty meter segments" },
   { name: "wire", role: "Abacus wires: the chart's structure, between a rule and text" },
   {
@@ -40,10 +50,16 @@ export const COLOR_TOKENS = [
 ] as const;
 
 /**
- * The colours drawn in one theme only, transparent in the other, so a layer of the index's
- * engraving shows in its theme alone. Each is the page's ink where it shows (palette.test.ts).
+ * The colours drawn in one theme only, transparent in the other: a layer of the index's engraving
+ * that shows in its theme alone, and the plate's two fills that pick its bounds by theme
+ * (palette.test.ts).
  */
-export const ONE_THEME_COLOR_TOKENS: readonly ColorToken[] = ["engraving", "engraving-night"];
+export const ONE_THEME_COLOR_TOKENS: readonly ColorToken[] = [
+  "engraving",
+  "engraving-night",
+  "plate-tone",
+  "plate-lit-wide",
+];
 
 export const TEXT_TOKENS = [
   "display",
