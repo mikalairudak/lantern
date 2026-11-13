@@ -133,9 +133,10 @@ const HANG_CLASSES = {
   masthead: "top-full right-0 mt-1 type-voice text-body",
 } as const;
 /**
- * A list's rows by where it hangs. The theme's list alone has the tall rows at every pointer,
- * so it is one height on every device and its foot stands on one line over the start screen's
- * field (`docs/decisions.md`, "A corner is 2 px or a circle").
+ * A list's rows by where it hangs. The theme's list alone has the tall rows at every pointer:
+ * at one height on every device it covers whole what stands under it on the start screen, the
+ * field's button included, rather than ending inside it (`docs/decisions.md`, "A corner is 2 px
+ * or a circle").
  */
 const HANG_ROW_CLASSES = {
   word: LIST_ROW_CLASSES,
