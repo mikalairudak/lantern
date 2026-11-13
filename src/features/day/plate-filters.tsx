@@ -1,12 +1,4 @@
-import { Fragment } from "react";
-import {
-  BOUNDS_SOFTENING,
-  FOOTPRINT_SPREAD,
-  LIT_SOLID_SHARE,
-  rectOf,
-  SHEET_SPREAD,
-  type FieldBox,
-} from "./plate-light";
+import { LIT_SOLID_SHARE, rectOf, type FieldBox } from "./plate-light";
 
 /**
  * The SVG filters and gradients a plate is drawn with. Light is printed as a tone: a falloff is
@@ -85,54 +77,42 @@ export function BoundsGrain({ id, box }: { id: string; box: FieldBox }) {
   );
 }
 
-/** The plate's two bounds by name, and how far each spreads the scene's ink. */
-export const BOUNDS = [
-  { name: "footprint", spread: FOOTPRINT_SPREAD },
-  { name: "sheet", spread: SHEET_SPREAD },
-] as const;
+/** A plate's two bounds: the footprint, which holds the tone and the night's light, and the wider sheet, which holds the day's. */
+export const BOUNDS_NAMES = ["footprint", "sheet"] as const;
 
-export type BoundsName = (typeof BOUNDS)[number]["name"];
+export type BoundsName = (typeof BOUNDS_NAMES)[number];
 
 /**
- * A plate's two bounds as alpha masks over its light's box, `<id>-footprint` and `<id>-sheet`:
- * the scene's ink, spread until it closes and softened, read from the scene's own file. Each says
- * when its file has come in, or failed.
+ * A plate's two bounds as masks over its light's box, `<id>-footprint` and `<id>-sheet`: each a
+ * grey file the size of that box, light where the bounds are, read by its luminance as it was
+ * written, its edge already faded to nothing at the box's border. Each says when its file has
+ * come in, or failed.
  */
 export function PlateBounds({
   id,
-  src,
-  scene,
+  srcs,
   box,
   onLoad,
   onError,
 }: {
   id: string;
-  src: string | null;
-  scene: FieldBox;
+  srcs: Readonly<Record<BoundsName, string>> | null;
   box: FieldBox;
   onLoad: (name: BoundsName) => void;
   onError: () => void;
 }) {
-  return BOUNDS.map(({ name, spread }) => (
-    <Fragment key={name}>
-      <filter id={`${id}-${name}-shape`} filterUnits="userSpaceOnUse" {...rectOf(box)}>
-        <feColorMatrix type="luminanceToAlpha" />
-        <feMorphology operator="dilate" radius={spread} />
-        <feGaussianBlur stdDeviation={BOUNDS_SOFTENING} />
-      </filter>
-      <mask id={`${id}-${name}`} maskUnits="userSpaceOnUse" {...rectOf(box)} mask-type="alpha">
-        {src !== null && (
-          <image
-            href={src}
-            {...rectOf(scene)}
-            preserveAspectRatio="none"
-            filter={`url(#${id}-${name}-shape)`}
-            onLoad={() => onLoad(name)}
-            onError={onError}
-          />
-        )}
-      </mask>
-    </Fragment>
+  return BOUNDS_NAMES.map((name) => (
+    <mask key={name} id={`${id}-${name}`} maskUnits="userSpaceOnUse" {...rectOf(box)}>
+      {srcs !== null && (
+        <image
+          href={srcs[name]}
+          {...rectOf(box)}
+          preserveAspectRatio="none"
+          onLoad={() => onLoad(name)}
+          onError={onError}
+        />
+      )}
+    </mask>
   ));
 }
 

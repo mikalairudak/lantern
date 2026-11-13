@@ -1,4 +1,11 @@
-import type { IndexPicture } from "./index-pictures";
+import {
+  FIELD_CENTRE,
+  FIELD_GROUND,
+  FOOT,
+  PICTURE_FIELD_WIDTH,
+  SKY,
+  type IndexPicture,
+} from "./index-pictures";
 
 /**
  * Where a plate's light stands, as numbers on the field: its lamps, their pools at rest, and the
@@ -25,20 +32,16 @@ export type PoolStep = keyof typeof POOL_SHARES;
 /** The pool's steps, bottom first. */
 export const POOL_STEPS: readonly PoolStep[] = ["edge", "pool", "heart"];
 
-/**
- * How far the scene's ink is spread to bound a plate's light: the footprint, which bounds the
- * tone and the night's light, and the sheet, which bounds the day's and lies wider.
- */
-export const FOOTPRINT_SPREAD = 7;
+/** How far the sheet, the day's bounds, spreads the scene's ink: the wider of a plate's two. */
 export const SHEET_SPREAD = 14;
-/** How far either bound is softened past its spread. */
-export const BOUNDS_SOFTENING = 10;
 
 /**
- * The room round a scene its light and tone are drawn in. The sheet's spread and the most of its
- * softening that shows fall inside it; its faintest tail, past 40 units, does not.
+ * How far a plate's light may stand past its scene at a side, and past its picture's box: the
+ * second keeps it inside its cell at the largest cell, so two lit neighbours never touch and the
+ * keyboard's ring never stands on light.
  */
-export const LIGHT_ROOM = 40;
+export const LIGHT_SIDE = 26;
+export const LIGHT_PAST = 8;
 
 /** A length to the hundredth, so the page's first HTML and a running page draw the same radius. */
 export function roundToHundredth(value: number): number {
@@ -79,8 +82,26 @@ export function poolsBoxOf(picture: IndexPicture): FieldBox | null {
 
 /** The box a plate's light and tone are drawn in, each filter's region and each mask's. */
 export function lightBoxOf(picture: IndexPicture): FieldBox {
-  const [left, top, width, height] = picture.scene.box;
-  return [left - LIGHT_ROOM, top - LIGHT_ROOM, width + 2 * LIGHT_ROOM, height + 2 * LIGHT_ROOM];
+  return picture.light;
+}
+
+/**
+ * The light's box a scene is given: its picture's own top and foot, and at each side the nearer of
+ * the scene's side less `LIGHT_SIDE` and the field's side less `LIGHT_PAST`. The pictures' recipe
+ * writes it with each plate, and bakes its bounds on it.
+ */
+export function lightBoxFor([left, top, width]: FieldBox): FieldBox {
+  const fieldLeft = FIELD_CENTRE - PICTURE_FIELD_WIDTH / 2;
+  const fieldRight = FIELD_CENTRE + PICTURE_FIELD_WIDTH / 2;
+  const lightLeft = Math.max(left - LIGHT_SIDE, fieldLeft - LIGHT_PAST);
+  const lightRight = Math.min(left + width + LIGHT_SIDE, fieldRight + LIGHT_PAST);
+  const lightTop = top - SKY;
+  return [
+    roundToHundredth(lightLeft),
+    roundToHundredth(lightTop),
+    roundToHundredth(lightRight - lightLeft),
+    roundToHundredth(FIELD_GROUND + FOOT - lightTop),
+  ];
 }
 
 /** A box as an SVG element's position and size. */
@@ -95,11 +116,6 @@ export function rectOf([x, y, width, height]: FieldBox): {
 
 /** How far a lit circle's falloff stays solid, as a share of its radius. */
 export const LIT_SOLID_SHARE = 0.8;
-/**
- * How far past the farthest corner of the scene's box a settled circle reaches, so the plate is
- * lit to its bounds' grained edge.
- */
-export const LIT_REACH_PAST = 1.08;
 /** Where the lit fill's grained front stands on its circle, as a share of its radius. */
 const FRONT_SHARE = 0.94;
 /** Steps across each side of the scene's box the covering reach walks, its border included. */
@@ -125,11 +141,11 @@ function farthestCornerOf(point: FieldPoint, [left, top, width, height]: FieldBo
 }
 
 /**
- * A circle's lit reach: settled, its solid share covers every corner of the box, and a little
- * more, so the plate is lit whole.
+ * A circle's lit reach: settled, its solid share covers every corner of the light's box, so the
+ * plate is lit whole to its bounds' edge and no speck is left unlit.
  */
 export function litReachOf(point: FieldPoint, box: FieldBox): number {
-  return roundToHundredth((farthestCornerOf(point, box) / LIT_SOLID_SHARE) * LIT_REACH_PAST);
+  return roundToHundredth(farthestCornerOf(point, box) / LIT_SOLID_SHARE);
 }
 
 /**
@@ -170,7 +186,7 @@ export function lightCirclesOf(
   const covering = coveringReachesOf(sources, picture.scene.box);
   return sources.map((point, index) => ({
     ...point,
-    reaches: { lit: litReachOf(point, picture.scene.box), covering: covering[index] ?? 0 },
+    reaches: { lit: litReachOf(point, lightBoxOf(picture)), covering: covering[index] ?? 0 },
   }));
 }
 

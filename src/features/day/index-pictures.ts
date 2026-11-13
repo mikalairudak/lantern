@@ -21,6 +21,15 @@ export type Lamp = readonly [number, number];
 export interface IndexPicture {
   /** The whole scene, its setting and its subject, drawn in both themes. */
   scene: PictureLayer;
+  /**
+   * The box the plate's light and tone may stand in, left, top, width and height: from its
+   * picture's top to its foot, and at the sides a little past its scene, never past its cell.
+   */
+  light: readonly [number, number, number, number];
+  /** The bounds of the tone and the night's light: a grey file over the light's box. */
+  footprint: string;
+  /** The bounds of the day's light, a little wider: a grey file over the light's box. */
+  sheet: string;
   /** Each source of light drawn in the scene, taken from where it is drawn. */
   lamps: readonly Lamp[];
 }
@@ -28,13 +37,17 @@ export interface IndexPicture {
 export type PictureDensity = "narrow" | "wide";
 
 /** The field's centre and its ground, in field units: every picture stands on that ground. */
-const FIELD_CENTRE = 240;
-const FIELD_GROUND = 316;
-/** A little sky over a picture's highest point, and room under its ground, in field units. */
-const SKY = 8;
-const FOOT = 2;
+export const FIELD_CENTRE = 240;
+export const FIELD_GROUND = 316;
+/**
+ * Room inside a picture's box, in field units, over its scene and under its ground, where its
+ * light fades out before the words under it and the row over it: light that scales with the cell
+ * needs room that scales with it, which a padding in pixels is not.
+ */
+export const SKY = 16;
+export const FOOT = 12;
 /** Room each side of the widest scene, in field units: the field's width does not grow with the foot. */
-const SIDE = 2;
+export const SIDE = 2;
 /** The pixels a field unit each file holds, `narrow` and `wide`. */
 const UNIT_PIXELS: Readonly<Record<PictureDensity, number>> = { narrow: 1.4, wide: 2 };
 
@@ -71,5 +84,10 @@ export function densityFor(cellWidth: number, pixelRatio: number): PictureDensit
 
 /** A scene's file as the page asks for it. */
 export function pictureSrcOf(layer: PictureLayer, density: PictureDensity): string {
-  return `${PICTURES_PATH}/${layer.files[density]}`;
+  return picturePathOf(layer.files[density]);
+}
+
+/** A picture's file, a scene's or a bound's, as the page asks for it. */
+export function picturePathOf(file: string): string {
+  return `${PICTURES_PATH}/${file}`;
 }

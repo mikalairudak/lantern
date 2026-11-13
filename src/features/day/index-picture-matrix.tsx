@@ -9,12 +9,13 @@ interface PlateCellState {
   label: string;
   isLit?: boolean;
   still?: PlateStill;
-  files?: "held" | "failed";
+  files?: "held" | "scene" | "failed";
   isReduced?: boolean;
 }
 
 type PlateState =
   | "before"
+  | "scene"
   | "failed"
   | "rest"
   | "coming"
@@ -27,6 +28,7 @@ type PlateState =
 /** A plate's states, as its files arrive, as it rests, as its light comes on and leaves. */
 const STATES: Readonly<Record<PlateState, PlateCellState>> = {
   before: { label: "before its files: the box, empty", files: "held" },
+  scene: { label: "the scene in, the bounds not: the box, still empty", files: "scene" },
   failed: { label: "a file failed: the box, empty for good", files: "failed" },
   rest: { label: "at rest: the lines, each lamp's pool and, by night, the tone" },
   coming: {
@@ -63,7 +65,6 @@ export const INDEX_PICTURE_MATRIX: LabMatrix = labMatrix<PlateCellProps>({
   note: "Each city's engraving as a plate, its lamps low at rest, at each state and on the plates at its edges",
   base: { state: "rest", plate: "new-york" },
   wide: "page",
-  baseline: [],
   axes: [
     {
       name: "state",
@@ -92,7 +93,7 @@ export const INDEX_PICTURE_MATRIX: LabMatrix = labMatrix<PlateCellProps>({
                 picture={files === "failed" ? withMissingFilesOf(picture) : picture}
                 isLit={isLit}
                 still={still}
-                shouldAskFiles={files !== "held"}
+                files={files === "held" ? "none" : files === "scene" ? "scene" : "all"}
               />
             </div>
           </div>

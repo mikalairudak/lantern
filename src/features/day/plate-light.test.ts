@@ -2,11 +2,14 @@
 import { describe, expect, it } from "vitest";
 import { INDEX_PICTURES } from "./index-picture-files";
 import { NO_LAMPS_PICTURE } from "./index-picture-examples";
+import { FIELD_CENTRE, PICTURE_FIELD_WIDTH, viewBoxOf } from "./index-pictures";
 import {
   coveringReachesOf,
   lampPointsOf,
   lightCirclesOf,
-  LIGHT_ROOM,
+  LIGHT_PAST,
+  LIGHT_SIDE,
+  lightBoxFor,
   lightBoxOf,
   lightSourcesOf,
   lightTurnOf,
@@ -66,14 +69,28 @@ describe("a lamp's pool at rest", () => {
 });
 
 describe("a plate's light's box", () => {
-  it.each(PICTURES)("holds %s's scene with room all round", (_, picture) => {
-    const [left, top, width, height] = picture.scene.box;
-    expect(lightBoxOf(picture)).toEqual([
-      left - LIGHT_ROOM,
-      top - LIGHT_ROOM,
-      width + 2 * LIGHT_ROOM,
-      height + 2 * LIGHT_ROOM,
-    ]);
+  const fieldLeft = FIELD_CENTRE - PICTURE_FIELD_WIDTH / 2;
+  const fieldRight = FIELD_CENTRE + PICTURE_FIELD_WIDTH / 2;
+
+  it.each(PICTURES)(
+    "stands %s's light from its picture's top to its foot, and at the sides no further than the scene less 26 or the field less 8",
+    (_, picture) => {
+      const [left, top, width, height] = lightBoxOf(picture);
+      const [, viewTop, , viewHeight] = viewBoxOf(picture).split(" ").map(Number);
+      const [sceneLeft, , sceneWidth] = picture.scene.box;
+      expect(top).toBeCloseTo(viewTop!, 2);
+      expect(top + height).toBeCloseTo(viewTop! + viewHeight!, 2);
+      expect(left).toBeGreaterThanOrEqual(sceneLeft - LIGHT_SIDE - 0.005);
+      expect(left).toBeGreaterThanOrEqual(fieldLeft - LIGHT_PAST - 0.005);
+      expect(left + width).toBeLessThanOrEqual(sceneLeft + sceneWidth + LIGHT_SIDE + 0.005);
+      expect(left + width).toBeLessThanOrEqual(fieldRight + LIGHT_PAST + 0.005);
+      expect(lightBoxFor(picture.scene.box)).toEqual(picture.light);
+    },
+  );
+
+  it("gives Seoul, the widest scene, a short side, and New York light past its picture", () => {
+    expect(INDEX_PICTURES.seoul!.light).toEqual([107.05, 143.8, 265.9, 184.2]);
+    expect(INDEX_PICTURES["new-york"]!.light).toEqual([108.4, 118.2, 263.3, 209.8]);
   });
 });
 
@@ -96,6 +113,36 @@ describe("a plate's light", () => {
     );
   });
 
+  /** Each lamp's lit reach: its solid share covers every corner of the light's box. */
+  const LIT_REACHES: Readonly<Record<string, readonly number[]>> = {
+    paris: [282.48, 272.75],
+    madrid: [326.25],
+    tokyo: [260.79, 275.79],
+    rome: [288.48],
+    "new-york": [319.45],
+    amsterdam: [221.6, 259.06],
+    barcelona: [242.14],
+    seoul: [232.89, 278.85],
+  };
+
+  it.each(PICTURES)("lights %s whole from each lamp's lit reach", (slug, picture) => {
+    const circles = lightCirclesOf(picture);
+    expect(circles.map(({ reaches }) => reaches.lit)).toEqual(LIT_REACHES[slug]);
+    const [left, top, width, height] = picture.light;
+    for (const { x, y, reaches } of circles) {
+      for (const [cornerX, cornerY] of [
+        [left, top],
+        [left + width, top],
+        [left, top + height],
+        [left + width, top + height],
+      ] as const) {
+        expect(Math.hypot(cornerX - x, cornerY - y)).toBeLessThanOrEqual(
+          reaches.lit * LIT_SOLID_SHARE + 0.01,
+        );
+      }
+    }
+  });
+
   it.each(PICTURES)("settles each of %s's circles wider than it leaves from", (_, picture) => {
     for (const { reaches } of lightCirclesOf(picture)) {
       expect(reaches.covering).toBeLessThan(reaches.lit);
@@ -105,8 +152,9 @@ describe("a plate's light", () => {
   it("lights a plate whole: each settled circle's solid share reaches every corner of the box", () => {
     const box = [100, 50, 200, 160] as const;
     const point = { x: 120, y: 70 };
+    // A reach is kept to the hundredth, which may round it down by under a hundredth of a unit.
     expect(litReachOf(point, box) * LIT_SOLID_SHARE).toBeGreaterThanOrEqual(
-      Math.hypot(300 - 120, 210 - 70),
+      Math.hypot(300 - 120, 210 - 70) - 0.01,
     );
   });
 

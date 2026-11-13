@@ -61,19 +61,21 @@ describe("a city's plate in the index", () => {
     expect(svg).toHaveAttribute("data-picture", "rome");
   });
 
-  it("asks for nothing until its cell comes near the screen, then for its scene alone", () => {
+  it("asks for nothing until its cell comes near the screen, then for its scene and its bounds", () => {
     const { container } = render(<IndexPictureView slug="rome" />);
     expect(hrefsOf(container)).toEqual([]);
     act(() => near?.(false));
     expect(hrefsOf(container)).toEqual([]);
     act(() => near?.(true));
-    const scene = `/pictures/${INDEX_PICTURES.rome!.scene.files.narrow}`;
-    // The lines, and both bounds, which are read from the scene's own file.
-    expect(hrefsOf(container)).toEqual([scene, scene, scene]);
+    const rome = INDEX_PICTURES.rome!;
+    // The lines at the cell's density, and both bounds at their one.
+    expect(hrefsOf(container)).toEqual(
+      [rome.scene.files.narrow, rome.footprint, rome.sheet].map((file) => `/pictures/${file}`),
+    );
   });
 
   it("asks for nothing while a lab holds its files back", () => {
-    const { container } = render(<IndexPictureView slug="rome" shouldAskFiles={false} />);
+    const { container } = render(<IndexPictureView slug="rome" files="none" />);
     act(() => near?.(true));
     expect(hrefsOf(container)).toEqual([]);
     expect(linesOf(container)).toHaveAttribute("data-state", "held");
@@ -201,5 +203,70 @@ describe("a city's plate in the index", () => {
     expect(others).toEqual([]);
     expect(Number(circle!.getAttribute("cx"))).toBeCloseTo(left + width / 2);
     expect(Number(circle!.getAttribute("cy"))).toBeCloseTo(top + height / 2);
+  });
+
+  it("cuts its bounds' grain with one filter over the light's box, and leaves nothing where they are empty", () => {
+    const picture = INDEX_PICTURES.seoul!;
+    const { container } = render(<IndexPlate picture={picture} />);
+    const filter = [...container.querySelectorAll("filter")].find((each) =>
+      each.id.endsWith("-bounds-grain"),
+    )!;
+    const [left, top, width, height] = picture.light;
+    expect(["x", "y", "width", "height"].map((name) => Number(filter.getAttribute(name)))).toEqual([
+      left,
+      top,
+      width,
+      height,
+    ]);
+    const steps = [...filter.children].map((step) => {
+      const transfer = step.querySelector("feFuncA");
+      return [
+        step.tagName,
+        step.getAttribute("in"),
+        step.getAttribute("operator"),
+        step.getAttribute("values") ??
+          (["k2", "k3", "k4"].every((name) => step.hasAttribute(name))
+            ? ["k2", "k3", "k4"].map((name) => step.getAttribute(name)).join(" ")
+            : null),
+        transfer && `${transfer.getAttribute("slope")} ${transfer.getAttribute("intercept")}`,
+      ];
+    });
+    expect(steps).toEqual([
+      ["feTurbulence", null, null, null, null],
+      ["feColorMatrix", null, null, "0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  3.2 0 0 0 -1.1", null],
+      ["feComposite", "SourceAlpha", "arithmetic", "1 0.3 -0.15", null],
+      ["feComponentTransfer", null, null, null, "2.2 -0.3"],
+      ["feComponentTransfer", "SourceAlpha", null, null, "51 -1"],
+      ["feComposite", "grained", "in", null, null],
+    ]);
+    const noise = filter.querySelector("feTurbulence")!;
+    expect(
+      ["type", "baseFrequency", "numOctaves", "seed"].map((name) => noise.getAttribute(name)),
+    ).toEqual(["fractalNoise", "0.85", "2", "3"]);
+  });
+
+  it("reads each bound from its own file over the light's box, by luminance", () => {
+    const picture = INDEX_PICTURES.rome!;
+    const { container } = render(<IndexPlate picture={picture} />);
+    act(() => near?.(true));
+    for (const name of ["footprint", "sheet"] as const) {
+      const mask = [...container.querySelectorAll("mask")].find((each) =>
+        each.id.endsWith(`-${name}`),
+      )!;
+      expect(mask).not.toHaveAttribute("mask-type");
+      const image = mask.querySelector("image")!;
+      expect(image).toHaveAttribute("href", `/pictures/${picture[name]}`);
+      expect(
+        ["x", "y", "width", "height"].map((attribute) => Number(image.getAttribute(attribute))),
+      ).toEqual([...picture.light]);
+    }
+  });
+
+  it("asks for its scene alone while a lab cell holds its bounds back, and is never drawn", () => {
+    const { container } = render(<IndexPictureView slug="tokyo" files="scene" />);
+    act(() => near?.(true));
+    expect(hrefsOf(container)).toEqual([`/pictures/${INDEX_PICTURES.tokyo!.scene.files.narrow}`]);
+    fireEvent.load(container.querySelector("image")!);
+    expect(linesOf(container)).toHaveAttribute("data-state", "loading");
   });
 });

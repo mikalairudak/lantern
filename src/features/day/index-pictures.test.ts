@@ -1,12 +1,18 @@
 // @vitest-environment node
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { daySlugOf } from "@/lib/days/address";
 import { INDEX_PICTURES } from "./index-picture-files";
+import { LIGHT_PAST } from "./plate-light";
 import {
   densityFor,
+  FIELD_CENTRE,
+  FIELD_GROUND,
+  FOOT,
   indexPictureOf,
   PICTURE_FIELD_WIDTH,
+  SIDE,
+  SKY,
   pictureSrcOf,
   viewBoxOf,
 } from "./index-pictures";
@@ -15,6 +21,10 @@ const PICTURES_DIR = new URL("../../../public/pictures/", import.meta.url);
 const CITIES = ["Paris", "Tokyo", "Rome", "New York", "Amsterdam", "Barcelona", "Seoul", "Madrid"];
 /** Every picture's files together, the start screen's eight at a phone's twice its pixels. */
 const NARROW_BUDGET = 150 * 1024;
+/** A bounds file, and the sixteen together. */
+const BOUNDS_FILE_BUDGET = 1200;
+const BOUNDS_BUDGET = 14 * 1024;
+const stylesheet = readFileSync(new URL("../../app/globals.css", import.meta.url), "utf8");
 
 describe("the index's pictures", () => {
   it("draws the eight cities, each by its day's slug", () => {
@@ -30,41 +40,82 @@ describe("the index's pictures", () => {
     }
   });
 
-  it("names every file it serves, each under its city's scene, and serves no other", () => {
-    const named = Object.entries(INDEX_PICTURES).flatMap(([slug, picture]) =>
-      Object.values(picture.scene.files).map((file) => {
+  it("names every file it serves, each under its city, and serves no other", () => {
+    const named = Object.entries(INDEX_PICTURES).flatMap(([slug, picture]) => {
+      const files = [...Object.values(picture.scene.files), picture.footprint, picture.sheet];
+      for (const file of Object.values(picture.scene.files)) {
         expect(file.startsWith(`${slug}-scene-`), file).toBe(true);
-        return file;
-      }),
-    );
+      }
+      expect(picture.footprint.startsWith(`${slug}-footprint.`)).toBe(true);
+      expect(picture.sheet.startsWith(`${slug}-sheet.`)).toBe(true);
+      return files;
+    });
     for (const file of named) expect(existsSync(new URL(file, PICTURES_DIR)), file).toBe(true);
     expect(readdirSync(PICTURES_DIR).sort()).toEqual([...named].sort());
   });
 
   it("keeps the start screen's eight light at a phone's twice its pixels, in either theme", () => {
     const bytes = Object.values(INDEX_PICTURES).reduce(
-      (sum, picture) => sum + statSync(new URL(picture.scene.files.narrow, PICTURES_DIR)).size,
+      (sum, picture) =>
+        sum +
+        [picture.scene.files.narrow, picture.footprint, picture.sheet]
+          .map((file) => statSync(new URL(file, PICTURES_DIR)).size)
+          .reduce((all, size) => all + size, 0),
       0,
     );
     expect(bytes).toBeLessThan(NARROW_BUDGET);
   });
 
+  it("keeps each bounds file under 1.2 KB, and the sixteen under 14 KB", () => {
+    const sizes = Object.values(INDEX_PICTURES).flatMap((picture) =>
+      [picture.footprint, picture.sheet].map((file) => statSync(new URL(file, PICTURES_DIR)).size),
+    );
+    for (const size of sizes) expect(size).toBeLessThanOrEqual(BOUNDS_FILE_BUDGET);
+    expect(sizes.reduce((all, size) => all + size, 0)).toBeLessThanOrEqual(BOUNDS_BUDGET);
+  });
+
   it("stands every scene on the field's ground, inside a field the widest fills", () => {
     for (const { scene } of Object.values(INDEX_PICTURES)) {
       const [left, top, width, height] = scene.box;
-      expect(top + height).toBeCloseTo(316, 0);
+      expect(top + height).toBeCloseTo(FIELD_GROUND, 0);
       expect(width).toBeLessThan(PICTURE_FIELD_WIDTH);
-      expect(left + width / 2).toBeCloseTo(240, 0);
+      expect(left + width / 2).toBeCloseTo(FIELD_CENTRE, 0);
     }
   });
 
-  it("views a picture from just over its top to just under the ground, the field's width across", () => {
-    const madrid = INDEX_PICTURES.madrid!;
-    const [x, y, width, height] = viewBoxOf(madrid).split(" ").map(Number);
-    expect(width).toBe(PICTURE_FIELD_WIDTH);
-    expect(x! + width! / 2).toBe(240);
-    expect(y).toBeLessThan(madrid.scene.box[1]);
-    expect(y! + height!).toBe(318);
+  it("sets the field's width by the widest scene and its sides alone, never by the room over or under it", () => {
+    const widest = Math.max(...Object.values(INDEX_PICTURES).map(({ scene }) => scene.box[2]));
+    expect(PICTURE_FIELD_WIDTH).toBeCloseTo(widest + 2 * SIDE, 6);
+    expect(PICTURE_FIELD_WIDTH).toBeCloseTo(249.9, 6);
+  });
+
+  it.each(Object.entries(INDEX_PICTURES))(
+    "views %s from its scene's top less 16 to 12 under the ground, the field's width across",
+    (_, picture) => {
+      const [x, y, width, height] = viewBoxOf(picture).split(" ").map(Number);
+      expect(width).toBe(PICTURE_FIELD_WIDTH);
+      expect(x! + width! / 2).toBeCloseTo(FIELD_CENTRE, 6);
+      expect(y).toBeCloseTo(picture.scene.box[1] - SKY, 6);
+      expect(y! + height!).toBeCloseTo(FIELD_GROUND + FOOT, 6);
+      expect(SKY).toBe(16);
+      expect(FOOT).toBe(12);
+    },
+  );
+
+  it("keeps a plate's light inside its cell at the largest cell the index draws", () => {
+    // The largest picture is a two-across cell just under the width that sets four across: half
+    // the list, which reaches a cell's padding past the column each side, less that padding twice.
+    const remPx = 16;
+    const tokenPx = (name: string) => {
+      const [, rems = "0"] = new RegExp(`--${name}:\\s*([\\d.]+)rem`).exec(stylesheet) ?? [];
+      return Number(rems) * remPx;
+    };
+    const cellPadding = tokenPx("spacing-3");
+    const fourAcross = tokenPx("container-abacus");
+    const largestUnit =
+      ((fourAcross + 2 * cellPadding) / 2 - 2 * cellPadding) / PICTURE_FIELD_WIDTH;
+    expect(largestUnit).toBeCloseTo(1.489, 3);
+    expect(LIGHT_PAST * largestUnit).toBeLessThanOrEqual(cellPadding);
   });
 
   describe("the sources of light drawn in each plate", () => {

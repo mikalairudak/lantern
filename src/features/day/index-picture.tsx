@@ -12,12 +12,13 @@ import { SPRINGS } from "@/lib/tokens/motion";
 import {
   densityFor,
   indexPictureOf,
+  picturePathOf,
   pictureSrcOf,
   viewBoxOf,
   type IndexPicture,
 } from "./index-pictures";
 import {
-  BOUNDS,
+  BOUNDS_NAMES,
   BoundsGrain,
   Falloff,
   FRONT_GRAIN_SLOPE,
@@ -55,7 +56,19 @@ const POOL_CLASSES: Readonly<Record<PoolStep, string>> = {
 
 /** What a plate waits for before it is drawn: the scene's lines, and its two bounds. */
 type PlatePart = "lines" | BoundsName;
-const PLATE_PARTS: readonly PlatePart[] = ["lines", ...BOUNDS.map(({ name }) => name)];
+const PLATE_PARTS: readonly PlatePart[] = ["lines", ...BOUNDS_NAMES];
+
+/**
+ * Which files a plate asks for once near the screen: all three, its scene alone, as a lab cell
+ * shows a plate whose bounds have not come, or none, as before the page's script runs.
+ */
+export type PlateFiles = "all" | "scene" | "none";
+
+/** The files a plate is drawn from, once asked for. */
+interface AskedFiles {
+  scene: string;
+  bounds: Readonly<Record<BoundsName, string>> | null;
+}
 
 /**
  * Where a plate stands: its files unasked, held back by a lab cell, coming in, drawn once faded in
@@ -123,18 +136,20 @@ function LitCircle({
  * lit from its middle. The pools stay where they are under the lit fill. Under forced colours no
  * light is drawn; the tone and the lines are.
  *
- * It asks for its file only when its cell comes near the screen, at the pixels the cell needs, and
- * is drawn once every part has come in, fading in softly, or at once under reduced motion. Before
- * that the cell holds its box: never a tone without its lines, nor a lamp without its plate. If a
- * file fails, nothing of it is drawn. Its state is on its lines for what waits on a picture. The
- * picture says nothing a reader needs: the city's name beside it is the link's text.
+ * It asks for its three files only when its cell comes near the screen, the scene at the pixels
+ * the cell needs and its two bounds at their one density, in either theme, so a theme changed on
+ * the page fetches nothing. It is drawn once every part has come in, fading in softly, or at once
+ * under reduced motion. Before that the cell holds its box: never a tone without its lines, nor a
+ * lamp without its plate. If a file fails, nothing of it is drawn. Its state is on its lines for
+ * what waits on a picture. The picture says nothing a reader needs: the city's name beside it is
+ * the link's text.
  */
 export function IndexPlate({
   picture,
   isLit = false,
   still,
   slug,
-  shouldAskFiles = true,
+  files = "all",
 }: {
   picture: IndexPicture;
   /** Whether the plate is lit whole, as its cell is pointed at, focused or touched. */
@@ -143,27 +158,35 @@ export function IndexPlate({
   still?: PlateStill;
   /** The city's slug, named on the drawing for what finds a city's plate. */
   slug?: string;
-  /** Whether it asks for its files once near the screen; a lab cell holds them back. */
-  shouldAskFiles?: boolean;
+  /** Which files it asks for once near the screen; a lab cell holds some back. */
+  files?: PlateFiles;
 }) {
   const id = useId();
   const svg = useRef<SVGSVGElement>(null);
   const isReduced = useReducedMotionConfig() === true;
-  const [src, setSrc] = useState<string | null>(null);
+  const [asked, setAsked] = useState<AskedFiles | null>(null);
   const [arrived, setArrived] = useState<readonly PlatePart[]>([]);
   const [hasFailed, setHasFailed] = useState(false);
   const [isDrawn, setIsDrawn] = useState(false);
 
   useEffect(() => {
     const element = svg.current;
-    if (!shouldAskFiles || element === null) return;
+    if (files === "none" || element === null) return;
+    // The scene at the pixels the cell needs; the bounds have one density.
     const ask = () =>
-      setSrc(
-        pictureSrcOf(
+      setAsked({
+        scene: pictureSrcOf(
           picture.scene,
           densityFor(element.getBoundingClientRect().width, window.devicePixelRatio),
         ),
-      );
+        bounds:
+          files === "all"
+            ? {
+                footprint: picturePathOf(picture.footprint),
+                sheet: picturePathOf(picture.sheet),
+              }
+            : null,
+      });
     // Where nothing can tell when a cell comes near the screen, its picture is asked for at once.
     if (typeof IntersectionObserver === "undefined") {
       ask();
@@ -179,17 +202,17 @@ export function IndexPlate({
     );
     observer.observe(element);
     return () => observer.disconnect();
-  }, [picture, shouldAskFiles]);
+  }, [picture, files]);
 
   const arrive = (part: PlatePart) =>
     setArrived((parts) => (parts.includes(part) ? parts : [...parts, part]));
   const fail = () => setHasFailed(true);
-  const isIn = !hasFailed && src !== null && PLATE_PARTS.every((part) => arrived.includes(part));
+  const isIn = !hasFailed && asked !== null && PLATE_PARTS.every((part) => arrived.includes(part));
   const state: PlateState = hasFailed
     ? "failed"
-    : !shouldAskFiles
+    : files === "none"
       ? "held"
-      : src === null
+      : asked === null
         ? "unasked"
         : isIn && isDrawn
           ? "drawn"
@@ -215,9 +238,9 @@ export function IndexPlate({
     >
       <defs>
         <mask id={`${id}-ink`} maskUnits="userSpaceOnUse" {...rectOf(scene)}>
-          {src !== null && (
+          {asked !== null && (
             <image
-              href={src}
+              href={asked.scene}
               {...rectOf(scene)}
               preserveAspectRatio="none"
               onLoad={() => arrive("lines")}
@@ -225,7 +248,13 @@ export function IndexPlate({
             />
           )}
         </mask>
-        <PlateBounds id={id} src={src} scene={scene} box={box} onLoad={arrive} onError={fail} />
+        <PlateBounds
+          id={id}
+          srcs={asked?.bounds ?? null}
+          box={box}
+          onLoad={arrive}
+          onError={fail}
+        />
         <BoundsGrain id={`${id}-bounds-grain`} box={box} />
         {/*
          * The bounds of the theme the plate stands in: each fill is nothing in the other. Drawn
@@ -329,13 +358,13 @@ export function IndexPlate({
 export function IndexPictureView({
   slug,
   isLit,
-  shouldAskFiles,
+  files,
 }: {
   slug: string;
   isLit?: boolean;
-  shouldAskFiles?: boolean;
+  files?: PlateFiles;
 }) {
   const picture = indexPictureOf(slug);
   if (picture === null) return null;
-  return <IndexPlate picture={picture} slug={slug} isLit={isLit} shouldAskFiles={shouldAskFiles} />;
+  return <IndexPlate picture={picture} slug={slug} isLit={isLit} files={files} />;
 }

@@ -136,7 +136,7 @@ export function StartIndex({
                   <IndexPictureView
                     slug={daySlugOf(start.request)}
                     isLit={isLit}
-                    shouldAskFiles={!arePicturesHeld}
+                    files={arePicturesHeld ? "none" : "all"}
                   />
                 </span>
                 <span className="flex flex-col items-center pt-1 pb-6">
