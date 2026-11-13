@@ -201,8 +201,8 @@ interface QuestionFormProps {
 
 /**
  * What Lantern is, over the question: a small line in the italic Lantern describes in, the
- * page's heading. Balanced, so its two lines part at the comma at every width and in every
- * engine, where a greedy wrap breaks wherever the measure cuts.
+ * page's heading. Balanced, so where it takes two lines they part at the comma, where a greedy
+ * wrap breaks wherever the measure cuts; at 320 px it takes three.
  */
 const PROMISE_CLASSES =
   "mt-5 max-w-measure type-prose text-quote text-balance text-ink-soft @measure:text-dek";
