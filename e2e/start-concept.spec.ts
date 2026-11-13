@@ -359,13 +359,14 @@ test("a city's cell writes its day where the question was, and the day's city wo
   await expect(place(page, "Cornetti on Via Leonina")).toBeVisible({ timeout: DAY_TIMEOUT_MS });
 });
 
-test("a field written in thickens and darkens its own line, lights its question, and moves nothing", async ({
+test("a field written in thickens and darkens its own line, fills its button, and moves nothing", async ({
   page,
 }) => {
   await openStart(page);
   const ink = await page.evaluate(() => getComputedStyle(document.body).color);
   const field = page.getByRole("textbox", { name: "Where, and anything else" });
-  const question = page.getByText("Where, and anything else", { exact: true });
+  const button = page.getByRole("button", { name: "Plan this day" });
+  const sentence = page.locator("form").getByText("A day in", { exact: true });
   const look = async () => ({
     line: await field.evaluate((input) => {
       const style = getComputedStyle(input);
@@ -373,22 +374,16 @@ test("a field written in thickens and darkens its own line, lights its question,
     }),
     // A ring is a second shape round a line, and a field rings at a mouse's click too.
     ring: await field.evaluate((input) => getComputedStyle(input).outlineColor),
-    question: await question.evaluate((span) => getComputedStyle(span).color),
-    button: (await page.getByRole("button", { name: "Plan this day" }).boundingBox())?.y,
-    example: (await page.getByText(/^For example:/).boundingBox())?.y,
+    fill: await button.evaluate((each) => getComputedStyle(each).backgroundColor),
+    button: await button.boundingBox(),
+    sentence: await sentence.boundingBox(),
+    example: (
+      await page
+        .getByRole("status")
+        .filter({ hasText: /^For example:/ })
+        .boundingBox()
+    )?.y,
   });
-  const rest = await look();
-  expect(rest.line.width).toBe("1px");
-  expect(rest.question).not.toBe(ink);
-
-  // A click, as most visitors come to it, then words.
-  await field.click();
-  await field.pressSequentially("Lisbon, slow morning");
-
-  // The question's colour eases in.
-  await expect.poll(() => question.evaluate((span) => getComputedStyle(span).color)).toBe(ink);
-  const writing = await look();
-  expect(writing.line).toEqual({ width: "2px", color: ink });
   const clear = await page.evaluate(() => {
     const probe = document.createElement("i");
     probe.style.color = "transparent";
@@ -397,9 +392,24 @@ test("a field written in thickens and darkens its own line, lights its question,
     probe.remove();
     return colour;
   });
+  const rest = await look();
+  expect(rest.line.width).toBe("1px");
+  // Hollow while the field is empty.
+  expect(rest.fill).toBe(clear);
+
+  // A click, as most visitors come to it, then words.
+  await field.click();
+  await field.pressSequentially("Lisbon, slow morning");
+
+  const writing = await look();
+  expect(writing.line).toEqual({ width: "2px", color: ink });
   expect(writing.ring).toBe(clear);
-  expect(writing.question).toBe(ink);
-  expect(writing.button).toBe(rest.button);
+  // With words the button is filled in ink, the colour the text is set in.
+  await expect
+    .poll(() => button.evaluate((each) => getComputedStyle(each).backgroundColor))
+    .toBe(ink);
+  expect(writing.button).toEqual(rest.button);
+  expect(writing.sentence).toEqual(rest.sentence);
   expect(writing.example).toBe(rest.example);
 });
 
@@ -418,7 +428,7 @@ interface FieldFrame {
   top: number;
 }
 
-/** Every frame from now until the day takes the field's place: the button's word and the field. */
+/** Every frame from now until the day takes the field's place: the button's name and the field. */
 function readField(page: Page): Promise<FieldFrame[]> {
   return page.evaluate(
     () =>
@@ -432,8 +442,9 @@ function readField(page: Page): Promise<FieldFrame[]> {
           const style = getComputedStyle(field);
           const padding = Number.parseFloat(style.paddingBottom);
           seen.push({
-            // The word it shows: the others share its cell unseen.
-            label: document.querySelector<HTMLElement>("form button[type=submit]")?.innerText ?? "",
+            // What it is named: what a press does, then what Lantern is doing.
+            label:
+              document.querySelector("form button[type=submit]")?.getAttribute("aria-label") ?? "",
             width: box.width,
             height: box.height,
             lines: Math.round((field.clientHeight - padding) / Number.parseFloat(style.lineHeight)),
@@ -448,7 +459,7 @@ function readField(page: Page): Promise<FieldFrame[]> {
 }
 
 test(
-  "the field and its words hold still while the button says what Lantern is doing",
+  "the field and its words hold still while the button is named for what Lantern is doing",
   { tag: "@frame" },
   async ({ page }) => {
     await openStart(page);
@@ -459,7 +470,7 @@ test(
     await field.press("Enter");
     const seen = await frames;
 
-    // The text wraps in the field, and the button said each of its words.
+    // The text wraps in the field, and the button took each of its names.
     const [rest] = seen;
     expect(rest?.lines).toBeGreaterThan(1);
     expect(new Set(seen.map((frame) => frame.label))).toEqual(

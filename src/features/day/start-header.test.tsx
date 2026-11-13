@@ -113,6 +113,52 @@ describe("StartHeader", () => {
     expect(screen.queryByText(/one place at a time/)).not.toBeInTheDocument();
   });
 
+  it("sets the question as one sentence, its button an arrow named for what a press does", () => {
+    renderStart();
+
+    // "A day in" starts the sentence the field ends; the field keeps its own name.
+    expect(screen.getByText("A day in")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Where, and anything else" })).toBeInTheDocument();
+    // The button says nothing in words: its arrow is unheard, and its name says what it does.
+    const button = screen.getByRole("button", { name: "Plan this day" });
+    expect(button).toHaveTextContent(/^$/);
+    expect(button).not.toHaveAttribute("aria-disabled");
+  });
+
+  it.each([
+    [{ kind: "reading" } as const, false, "Reading"],
+    [{ kind: "writing", request: LISBON_REQUEST } as const, true, "Writing"],
+    [{ kind: "writing", request: LISBON_REQUEST } as const, false, "Opening"],
+    [{ kind: "refused" } as const, true, "Plan this day"],
+  ])("names the button for what Lantern is doing: %o, live %s", (line, isLive, name) => {
+    renderStart({ line, isLive });
+
+    expect(screen.getByRole("button", { name })).toBeInTheDocument();
+  });
+
+  it("draws the field and the button still as pointed at, for a lab cell, without the focus", () => {
+    const { rerender, onPlan, onChooseWritten, onChooseReading } = renderStart({
+      drawnAsPointed: "field",
+    });
+    expect(screen.getByRole("textbox")).toHaveClass("border-b-2", "border-ink");
+    expect(screen.getByRole("textbox")).not.toHaveFocus();
+
+    rerender(
+      <HeldStart
+        starts={STARTS}
+        line={null}
+        isLive={false}
+        isCityFocused
+        onPlan={onPlan}
+        onChooseWritten={onChooseWritten}
+        onChooseReading={onChooseReading}
+        drawnAsPointed="button"
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Plan this day" })).toHaveAttribute("data-pointed");
+    expect(screen.getByRole("textbox")).toHaveClass("border-ink-soft");
+  });
+
   it("plans the day from what was typed, and from nothing else", async () => {
     const user = userEvent.setup();
     const { onPlan } = renderStart();
@@ -171,11 +217,12 @@ describe("StartHeader", () => {
     const said = screen.getByRole("status");
     expect(said).toHaveTextContent(/^Reading what you wrote$/);
     expect(said).toHaveClass("text-body");
-    expect(screen.queryByText(/For example/)).not.toBeInTheDocument();
-    // The light passes over the button as over the words, about every second.
-    expect(screen.getByRole("button", { name: "Reading" })).toHaveClass(
-      "motion-safe:animate-pass-steady",
-    );
+    expect(said).not.toHaveTextContent(/For example/);
+    // The light passes over the button as over the words, about every second, and a press
+    // asks nothing more while Lantern works.
+    const button = screen.getByRole("button", { name: "Reading" });
+    expect(button).toHaveClass("motion-safe:animate-pass-steady");
+    expect(button).toHaveAttribute("aria-disabled", "true");
   });
 
   it("asks for the city with the words it read, and says back what it could not place", () => {
@@ -428,6 +475,53 @@ describe("the field's room", () => {
 
     expect(screen.queryByText(/left$/)).not.toBeInTheDocument();
     expect(field()).not.toHaveAccessibleDescription();
+  });
+
+  it("says one thing under the field: the example, or the room left once it is said", async () => {
+    const user = userEvent.setup();
+    renderStart();
+    const example = () =>
+      screen.queryByText("For example: Bologna, with friends", { selector: "p" });
+    expect(example()).toBeInTheDocument();
+
+    await user.click(field());
+    await user.paste(textOf(MAX_INTAKE_TEXT_CHARS - 41));
+    expect(example()).toBeInTheDocument();
+
+    await user.paste(textOf(1));
+    expect(screen.getByText("40 left")).toBeInTheDocument();
+    expect(example()).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [{ kind: "reading" } as const],
+    [{ kind: "writing", request: LISBON_REQUEST } as const],
+  ])("says no room left while Lantern works: %o", (line) => {
+    render(
+      <StartHeader
+        starts={STARTS}
+        line={line}
+        text={textOf(MAX_INTAKE_TEXT_CHARS)}
+        onTextChange={vi.fn()}
+        isLive
+        isCityFocused={false}
+        onPlan={vi.fn()}
+        onChooseWritten={vi.fn()}
+        onChooseReading={vi.fn()}
+      />,
+    );
+
+    expect(field()).toHaveValue(textOf(MAX_INTAKE_TEXT_CHARS));
+    expect(screen.queryByText(/left$/)).not.toBeInTheDocument();
+    expect(field()).not.toHaveAccessibleDescription();
+  });
+
+  it("says the room left beside a line that can write no day", () => {
+    renderStart({ line: { kind: "limited" } });
+    fireEvent.change(field(), { target: { value: textOf(MAX_INTAKE_TEXT_CHARS - 30) } });
+
+    expect(screen.getByRole("status")).toHaveTextContent(/^Lantern has written all the days/);
+    expect(field()).toHaveAccessibleDescription("30 left");
   });
 
   it("says the room left near its end, as the field's description, and none past it", async () => {

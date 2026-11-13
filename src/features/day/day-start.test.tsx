@@ -688,7 +688,7 @@ describe("the line under the day, as the landing reads with live generation off"
 
   it("plays the example under the field with nothing said back", async () => {
     const user = renderWritten();
-    const example = screen.getByText(/^For example: /).textContent?.replace("For example: ", "");
+    const example = screen.getByRole("status").textContent?.replace("For example: ", "");
 
     await user.type(screen.getByRole("textbox"), `${example}{Enter}`);
 

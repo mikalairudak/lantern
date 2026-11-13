@@ -65,7 +65,7 @@ const TYPE_SPECIMENS: Record<TextToken, TypeSpecimen> = {
   },
   dek: {
     className: "max-w-measure type-prose text-dek text-ink-soft",
-    usage: "Prose · the day's line",
+    usage: "Prose · the day's line, the start screen's promise",
     sample:
       "Sunrise from the beach under the castle, the old town before it wakes, rice on the marina, and tapas standing up after nine.",
   },
@@ -100,13 +100,16 @@ const SPACING_CLASSES: Record<SpacingToken, string> = {
   "0": "w-0",
   "0.5": "w-0.5",
   "1": "w-1",
+  "1.5": "w-1.5",
   "2": "w-2",
   "3": "w-3",
   "4": "w-4",
   "5": "w-5",
   "6": "w-6",
   "8": "w-8",
+  "9": "w-9",
   "10": "w-10",
+  "11": "w-11",
   "12": "w-12",
   "14": "w-14",
   "16": "w-16",
@@ -275,9 +278,17 @@ function ShapeSection() {
         ))}
         {ICON_SAMPLES.map(({ icon: Icon, label, className }) => (
           <div key={label} className="flex flex-col gap-2">
-            <span className={`flex size-16 items-center justify-center gap-2 ${className}`}>
+            {/* As tall as the radius's square, and as wide as its icons need, so each is drawn
+                at its own size. */}
+            <span className={`flex h-16 min-w-16 items-center justify-center gap-2 ${className}`}>
               {Object.values(ICON_SIZES).map((size) => (
-                <Icon key={size} size={size} strokeWidth={ICON_STROKE_WIDTH} aria-hidden />
+                <Icon
+                  key={size}
+                  size={size}
+                  strokeWidth={ICON_STROKE_WIDTH}
+                  aria-hidden
+                  className="shrink-0"
+                />
               ))}
             </span>
             <span className="text-meta text-muted">{label}</span>

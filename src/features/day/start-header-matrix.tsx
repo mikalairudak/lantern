@@ -1,11 +1,13 @@
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import { LISBON_DAY } from "@/lib/fixtures/curated/lisbon";
 import { MADRID_START_REQUEST } from "@/lib/days/written/quick-starts";
+import type { DayRequest } from "@/lib/schema/itinerary.schema";
 import { cn } from "@/components/ui/cn";
 import { labMatrix, type LabMatrix } from "@/lib/lab-matrix";
-import type { IntakeWords } from "@/lib/schema/intake.schema";
+import { MAX_INTAKE_TEXT_CHARS, type IntakeWords } from "@/lib/schema/intake.schema";
 import { StartHeader, type CityQuestion, type StartHeaderProps } from "./start-header";
 import { startOffersOf } from "./start-offers";
+import type { YourDay } from "./your-days";
 import { writtenPool } from "./written-pool";
 
 /**
@@ -59,9 +61,46 @@ const READ_LONG =
   "Porto, with my dog, a slow morning with coffee somewhere quiet, a long lunch by the river and a cloister in the afternoon";
 
 /**
+ * A visitor's sentence as long as the field takes, and cut to leave the room the field names
+ * near its end: the first count it says, one, and none.
+ */
+const FULL_TEXT = `${READ_LONG}, then somewhere calm to sit at dusk before an early dinner near the water, home by ten`;
+const textLeaving = (left: number) => FULL_TEXT.slice(0, MAX_INTAKE_TEXT_CHARS - left);
+
+/**
+ * The longest day a request can say back: every one of the five words, a long city and a
+ * weekday, as the schema allows and no written day says.
+ */
+const FIVE_FACTS_REQUEST: DayRequest = {
+  ...LISBON_DAY.request,
+  city: "San Sebastián de los Reyes",
+  energy: "balanced",
+  travel: "transit",
+  start: "slow",
+  dinner: "early",
+  end: "late",
+  company: "partner",
+};
+
+/** Saturday evening in the visitor's own calendar, as the matrix is set. */
+const NOW = new Date(2026, 9, 31, 21, 0);
+
+/** A visitor back on the start screen, with a day of six stops Lantern wrote them an hour ago. */
+const RETURNING_DAY: YourDay = {
+  id: "lab-returning",
+  request: LISBON_DAY.request,
+  startedAt: new Date(NOW.getTime() - 60 * 60 * 1000).toISOString(),
+  energies: ["calm", "balanced", "lively", "lively", "social", "balanced"],
+  ending: "written",
+  seconds: 41,
+};
+
+/**
  * The start screen in every line a reading can give, with live generation off and on, over its
- * index: the day on its way from the visitor's words or from a city
- * pressed with the field left empty, the city asked for, and each ending without a day.
+ * index: the day on its way from the visitor's words or from a city pressed with the field left
+ * empty, the city asked for, and each ending without a day; and the question itself, its field
+ * focused, its button hollow, filled and pointed at, the room left near the field's end, and a
+ * returning visitor's days over the index.
  */
 export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
   key: "start-header",
@@ -144,9 +183,40 @@ export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
             },
           },
         },
+        {
+          // Each line past one the said line runs into the gap moves the index down by itself.
+          label: "five facts and a long city, being written",
+          props: { line: { kind: "writing", request: FIVE_FACTS_REQUEST } },
+        },
         { label: "no day yet", props: { line: { kind: "not-yet" } } },
         { label: "refused", props: { line: { kind: "refused" } } },
         { label: "limited", props: { line: { kind: "limited" } } },
+        // The field as the focus draws it, its button hollow until there are words.
+        { label: "asking, the field focused", props: { line: null, drawnAsPointed: "field" } },
+        // Pointed at with the field empty, the hollow button fills in ink.
+        { label: "asking, the button pointed", props: { line: null, drawnAsPointed: "button" } },
+        // With words the button is filled; pointed at, it steps to `ink-soft`.
+        { label: "a short text", props: { line: null, text: READ } },
+        {
+          label: "a short text, the button pointed",
+          props: { line: null, text: READ, drawnAsPointed: "button" },
+        },
+        // Near the field's end it says the room left, under the button.
+        { label: "40 left", props: { line: null, text: textLeaving(40) } },
+        { label: "1 left", props: { line: null, text: textLeaving(1) } },
+        { label: "the longest text, none left", props: { line: null, text: textLeaving(0) } },
+        {
+          // The longest ending beside the count, narrower by it: three lines on a phone.
+          label: "limited, beside the count",
+          props: { line: { kind: "limited" }, text: textLeaving(30) },
+        },
+        {
+          label: "a returning visitor's days",
+          props: {
+            line: null,
+            yourDays: { days: [RETURNING_DAY], now: NOW, onOpen: ignore, onForget: ignore },
+          },
+        },
       ],
     },
     {
