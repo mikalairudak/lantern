@@ -45,10 +45,10 @@ test("the room left takes the example's place and moves nothing under the field"
 });
 
 /**
- * How far the index's heading may move when an ending lands, with live generation on: as far as
- * the start screen moved it when its question was a labelled field and an ending stood at the
- * page's edge in the quote's size, as it stands now (`docs/decisions.md`, "The start screen asks
- * its question as one line"). Two lines of it on a Pixel 7, one on a laptop; a pixel's play.
+ * How far the index's heading may move when an ending lands, with live generation on: the height
+ * an ending adds at the page's edge in the quote's size, two lines of it on a Pixel 7 and one on a
+ * laptop, with a pixel's play (`docs/decisions.md`, "The start screen asks its question as one
+ * line"). An ending set in a narrower column takes a line more and passes it.
  */
 const ENDING_MOVE_BAR = { phone: 28.3 + 1, laptop: 4.6 + 1 };
 
