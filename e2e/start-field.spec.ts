@@ -16,8 +16,14 @@ test("the start field takes no more than Lantern reads, and says so", async ({ p
   await expect(page.getByText("0 left")).toBeVisible();
 });
 
-/** Where the index's heading stands under the question, from the form's top. */
+/**
+ * Where the index's heading stands under the question, from the form's top. The index is drawn
+ * once the page has hydrated, after the question, so the measure waits for its heading.
+ */
 async function indexHeadingOf(page: Page): Promise<number> {
+  await expect(
+    page.getByRole("heading", { name: "No city in mind? Start from one of these" }),
+  ).toBeVisible();
   return page.evaluate(() => {
     const form = document.querySelector("main form")!.getBoundingClientRect();
     const heading = document.querySelector("main section[aria-labelledby] h2")!;
