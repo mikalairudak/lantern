@@ -2,6 +2,7 @@
 
 import { Check } from "lucide-react";
 import { useEffect, useLayoutEffect, type RefObject } from "react";
+import { cn } from "@/components/ui/cn";
 import { ICON_SIZES, ICON_STROKE_WIDTH } from "@/lib/tokens/icon";
 import { placeShift, shiftToFit } from "./panel-shift";
 
@@ -32,12 +33,12 @@ export const LIST_SHEET_CLASSES = "rounded-sm border border-line bg-surface";
 export const LIST_BOX_CLASSES =
   "absolute z-50 block w-max min-w-label max-w-list text-left whitespace-normal";
 
-/**
- * A row: its words, a second line where it has one, and the check's room at its end. A
- * coarse pointer gets taller rows, so each stays a finger's target.
- */
-export const LIST_ROW_CLASSES =
-  "flex w-full cursor-pointer items-start px-3 py-1 text-left transition-colors pointer-coarse:py-2";
+/** A row's frame: its words, a second line where it has one, and the check's room at its end. */
+export const LIST_ROW_FRAME_CLASSES =
+  "flex w-full cursor-pointer items-start px-3 text-left transition-colors";
+
+/** A row, edge to edge; a coarse pointer gets taller rows, so each stays a finger's target. */
+export const LIST_ROW_CLASSES = cn(LIST_ROW_FRAME_CLASSES, "py-1 pointer-coarse:py-2");
 
 /** A row's second line: what it would change, or what it was written as. */
 export const ROW_NOTE_CLASSES = "block font-sans text-small text-muted";

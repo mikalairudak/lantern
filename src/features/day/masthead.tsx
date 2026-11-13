@@ -28,6 +28,8 @@ interface MastheadProps {
   isHome?: boolean;
   /** On a day, the day's menu, which holds the ways to take it along and "Plan another day". */
   menu?: ReactNode;
+  /** The theme's icon drawn from a choice of its own, as a lab cell draws it; the page's by default. */
+  theme?: ReactNode;
 }
 
 /**
@@ -38,7 +40,7 @@ interface MastheadProps {
  * screen, a day and the page for no day share it, so the wordmark sits at the same place on all
  * three, and away from the start it leads there.
  */
-export function Masthead({ isHome = false, menu }: MastheadProps) {
+export function Masthead({ isHome = false, menu, theme }: MastheadProps) {
   const wordmark = (
     <>
       <LanternMark isSetInEms />
@@ -46,6 +48,7 @@ export function Masthead({ isHome = false, menu }: MastheadProps) {
     </>
   );
   return (
+    // Positioned, so the day menu and the theme's list both hang from the foot of this row.
     <div className="relative flex min-h-12 flex-wrap items-center justify-between gap-x-3 gap-y-1">
       {isHome ? (
         <span className={WORDMARK_CLASSES}>{wordmark}</span>
@@ -67,9 +70,7 @@ export function Masthead({ isHome = false, menu }: MastheadProps) {
             <span aria-hidden className="h-4 w-px bg-line" />
           </span>
         )}
-        <span className={THEME_LINE_CLASSES}>
-          <ThemeChoice />
-        </span>
+        <span className={THEME_LINE_CLASSES}>{theme ?? <ThemeChoice />}</span>
       </span>
     </div>
   );

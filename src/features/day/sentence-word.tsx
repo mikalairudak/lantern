@@ -24,6 +24,7 @@ import {
   HANG_FROM_WORD_CLASSES,
   LIST_BOX_CLASSES,
   LIST_ROW_CLASSES,
+  LIST_ROW_FRAME_CLASSES,
   LIST_SHEET_CLASSES,
   OPEN_WORD_CLASSES,
   ROW_NOTE_CLASSES,
@@ -122,10 +123,23 @@ const LIST_CLASSES =
   "group/list block py-1 focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-line";
 const ACTIVE_OPTION_CLASSES =
   "group-focus-visible/list:bg-ground group-focus-visible/list:outline-2 group-focus-visible/list:-outline-offset-2 group-focus-visible/list:outline-ink";
-/** The headline's words hang their lists at the quote's size, the masthead's icon at the body's. */
+/**
+ * The headline's words hang their lists under the word at the quote's size; the theme's list
+ * hangs from the foot of the masthead's row at the body's size, its right edge on the page's,
+ * as the day menu does (`docs/decisions.md`, "A corner is 2 px or a circle").
+ */
 const HANG_CLASSES = {
   word: cn(HANG_FROM_WORD_CLASSES, "type-voice text-quote"),
-  icon: "top-full right-0 mt-3 type-voice text-body",
+  masthead: "top-full right-0 mt-1 type-voice text-body",
+} as const;
+/**
+ * A list's rows by where it hangs. The theme's list alone has the tall rows at every pointer,
+ * so it is one height on every device and its foot stands on one line over the start screen's
+ * field (`docs/decisions.md`, "A corner is 2 px or a circle").
+ */
+const HANG_ROW_CLASSES = {
+  word: LIST_ROW_CLASSES,
+  masthead: cn(LIST_ROW_FRAME_CLASSES, "py-2"),
 } as const;
 
 interface SentenceWordProps {
@@ -526,8 +540,8 @@ interface WordPickerProps {
   isFocusTaken?: boolean;
   /**
    * What the list hangs from: a word of the headline, its rows at the quote's size starting
-   * on the word's first letter; or the masthead's icon at the page's right edge, its rows at
-   * the body's size and its right edge on the icon's, so it opens towards the page.
+   * on the word's first letter; or the masthead's row, for the theme's icon, its rows at the
+   * body's size and its right edge on the page's, so it opens towards the page.
    */
   hang?: keyof typeof HANG_CLASSES;
   onChoose: (value: string) => void;
@@ -621,6 +635,7 @@ export function WordPicker({
               id={optionId(index)}
               option={option}
               isActive={index === active}
+              rowClasses={HANG_ROW_CLASSES[hang]}
               onChoose={() => onChoose(option.value)}
             />
           ))}
@@ -634,6 +649,8 @@ interface OptionRowProps {
   id: string;
   option: OptionView;
   isActive: boolean;
+  /** The row's frame and height, by where its list hangs. */
+  rowClasses: string;
   onChoose: () => void;
 }
 
@@ -644,7 +661,7 @@ interface OptionRowProps {
  * the active option where the keys put it, as the city word's rows do: the ring says where
  * the keyboard is.
  */
-function OptionRow({ id, option, isActive, onChoose }: OptionRowProps) {
+function OptionRow({ id, option, isActive, rowClasses, onChoose }: OptionRowProps) {
   const { icon: Icon } = option;
   // Named by its answer alone, and described by what it would do, which is read after it.
   const labelId = `${id}-label`;
@@ -658,7 +675,7 @@ function OptionRow({ id, option, isActive, onChoose }: OptionRowProps) {
       aria-describedby={option.consequence ? noteId : undefined}
       onClick={onChoose}
       className={cn(
-        LIST_ROW_CLASSES,
+        rowClasses,
         "hover:bg-ground",
         option.isCurrent
           ? "text-ink"

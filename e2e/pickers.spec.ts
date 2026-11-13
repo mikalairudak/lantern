@@ -214,18 +214,31 @@ for (const opener of OPENERS) {
   );
 }
 
-test("the theme's list hangs under its icon, its right edge on the masthead's", async ({
+/** How far under the masthead's row its lists hang: `mt-1`. */
+const UNDER_THE_MASTHEAD = 4;
+
+test("the theme's list hangs from the foot of the masthead's row, its right edge on the row's", async ({
   page,
 }) => {
   const icon = page.getByRole("button", { name: /^Theme: / });
   await icon.click();
-  const list = page.locator("[data-word-list]");
   await expect(page.getByRole("listbox", { name: "Theme" })).toBeFocused();
-  const drawn = icon.locator("svg:visible");
-  const [iconBox, listBox] = await Promise.all([drawn.boundingBox(), list.boundingBox()]);
-  if (!iconBox || !listBox) throw new Error("The icon or its list did not render");
-  expect(listBox.x + listBox.width).toBeCloseTo(iconBox.x + iconBox.width, 0);
-  expect(listBox.y).toBeGreaterThan(iconBox.y + iconBox.height);
+  // The box the list is placed in, read from the list itself: the masthead's row, which holds
+  // the wordmark, and not the icon's own box.
+  const { row, list, isRowTheMasthead } = await page
+    .locator("[data-word-list]")
+    .evaluate((element: HTMLElement) => {
+      const box = element.offsetParent;
+      if (!box) throw new Error("The list has no box it is placed in");
+      return {
+        row: box.getBoundingClientRect().toJSON() as DOMRect,
+        list: element.getBoundingClientRect().toJSON() as DOMRect,
+        isRowTheMasthead: box.textContent?.includes("Lantern") ?? false,
+      };
+    });
+  expect(isRowTheMasthead).toBe(true);
+  expect(list.top).toBeCloseTo(row.bottom + UNDER_THE_MASTHEAD, 0);
+  expect(list.right).toBeCloseTo(row.right, 0);
 });
 
 test("a stop's sheet reopened just after Escape takes the focus again", async ({ page }) => {

@@ -97,9 +97,10 @@ export interface ThemeWordProps {
 
 /**
  * The theme in the masthead: an icon for the choice, Monitor for the system's, Sun or Moon
- * for light or dark, which opens the headline words' list hung from its end, the choice
- * marked with a check. A hint names the setting and the choice under the pointer or the
- * keyboard's focus.
+ * for light or dark, which opens the headline words' list, the choice marked with a check. A
+ * hint names the setting and the choice under the pointer or the keyboard's focus, hung from
+ * the icon's own box. The list stands beside that box, not in it, so it hangs from the nearest
+ * positioned box around the icon: on a page the masthead's row, as the day menu does.
  */
 export function ThemeWord({
   choice,
@@ -123,45 +124,47 @@ export function ThemeWord({
   }, []);
 
   return (
-    <span className="relative inline-flex">
-      <button
-        ref={button}
-        type="button"
-        aria-label={`${THEME_WORD}: ${LABELS[choice]}`}
-        aria-haspopup="listbox"
-        aria-expanded={isShown}
-        aria-controls={isShown ? listId : undefined}
-        onClick={() => {
-          if (isOpen) close(true);
-          else setIsOpen(true);
-        }}
-        className={BUTTON_CLASSES}
-      >
-        {drawnChoices.map((each) => {
-          const Icon = ICONS[each];
-          return (
-            <Icon
-              key={each}
-              aria-hidden
-              data-theme-icon={each}
-              size={ICON_SIZES.sm}
-              strokeWidth={ICON_STROKE_WIDTH}
-              className={shownClassesOf(each)}
-            />
-          );
-        })}
-      </button>
-      <span
-        aria-hidden
-        data-theme-hint
-        className={cn(HINT_CLASSES, !isHintDrawn && HINT_HIDDEN_CLASSES)}
-      >
-        {THEME_WORD} ·{" "}
-        {drawnChoices.map((each) => (
-          <span key={each} className={shownClassesOf(each)}>
-            {LABELS[each]}
-          </span>
-        ))}
+    <>
+      <span className="relative inline-flex">
+        <button
+          ref={button}
+          type="button"
+          aria-label={`${THEME_WORD}: ${LABELS[choice]}`}
+          aria-haspopup="listbox"
+          aria-expanded={isShown}
+          aria-controls={isShown ? listId : undefined}
+          onClick={() => {
+            if (isOpen) close(true);
+            else setIsOpen(true);
+          }}
+          className={BUTTON_CLASSES}
+        >
+          {drawnChoices.map((each) => {
+            const Icon = ICONS[each];
+            return (
+              <Icon
+                key={each}
+                aria-hidden
+                data-theme-icon={each}
+                size={ICON_SIZES.sm}
+                strokeWidth={ICON_STROKE_WIDTH}
+                className={shownClassesOf(each)}
+              />
+            );
+          })}
+        </button>
+        <span
+          aria-hidden
+          data-theme-hint
+          className={cn(HINT_CLASSES, !isHintDrawn && HINT_HIDDEN_CLASSES)}
+        >
+          {THEME_WORD} ·{" "}
+          {drawnChoices.map((each) => (
+            <span key={each} className={shownClassesOf(each)}>
+              {LABELS[each]}
+            </span>
+          ))}
+        </span>
       </span>
       <AnimatePresence custom={exit}>
         {isShown && (
@@ -172,7 +175,7 @@ export function ThemeWord({
             options={optionsOf(choice)}
             listLabel={THEME_WORD}
             isFocusTaken={!isDrawnOpen}
-            hang="icon"
+            hang="masthead"
             onChoose={(value) => {
               close(true, true);
               if (isChoice(value)) onChoose(value);
@@ -181,7 +184,7 @@ export function ThemeWord({
           />
         )}
       </AnimatePresence>
-    </span>
+    </>
   );
 }
 
