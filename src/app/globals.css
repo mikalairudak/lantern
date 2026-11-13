@@ -114,10 +114,12 @@
   --tracking-caps: 0.08em;
 
   /*
-   * A 4px grid with named steps only: off-scale spacing has no utility at all. Three steps
-   * serve the start screen's button: `1.5`, its foot over the field's rule; `9`, its side
-   * from the abacus's width; `11`, the side of its hit area, and the room its words keep
-   * clear of it under that width.
+   * A 4px grid with named steps only: off-scale spacing has no utility at all. Two half steps
+   * stand off the grid: `0.5`, 2 px, and `1.5`, 6 px, the start screen's button's foot over the
+   * field's rule, which is the keyboard's ring under the button, 4 px, and 2 px to keep it off
+   * the rule. Two steps on the grid serve that button too: `9`, its side from the text column's
+   * width; `11`, the side of its hit area, and the room its words keep clear of it under that
+   * width.
    */
   --spacing-0: 0;
   --spacing-0_5: 0.125rem;
@@ -347,8 +349,9 @@ html {
 }
 
 /*
- * A sentence the model wrote: the day's line, an alternative's reason, a place's summary.
- * In italic, so the day's second voice is the model's, inside the one face.
+ * A sentence in which Lantern describes a thing: the day's line, an alternative's reason, a
+ * place's summary, which the model writes, and the start screen's promise, which says what
+ * Lantern is. In italic, so the page's second voice is the describing one, inside the one face.
  */
 @utility type-prose {
   font-family: --theme(--font-sans);

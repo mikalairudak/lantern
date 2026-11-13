@@ -65,7 +65,7 @@ const TYPE_SPECIMENS: Record<TextToken, TypeSpecimen> = {
   },
   dek: {
     className: "max-w-measure type-prose text-dek text-ink-soft",
-    usage: "Prose · the day's line",
+    usage: "Prose · the day's line, the start screen's promise",
     sample:
       "Sunrise from the beach under the castle, the old town before it wakes, rice on the marina, and tapas standing up after nine.",
   },
