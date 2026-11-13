@@ -8,21 +8,21 @@ Lantern's one face is Literata, regular and italic (`docs/decisions.md`, "One se
 
 ## The pages' face
 
-`src/app/root-document.ts` serves `Literata-Regular.woff2` and `Literata-Italic.woff2` through `next/font/local`, from the site itself. Each is the variable file held at weight 400 with its optical size axis (7 to 72) kept, so the browser picks the cut for each size, and cut to the Latin, Latin Extended and Cyrillic ranges Google Fonts serves, in one file a style: 86.7 and 88.9 KB, against about 530 KB for the two styles with every weight.
+`src/app/root-document.ts` serves `Literata-Regular.woff2` and `Literata-Italic.woff2` through `next/font/local`, from the site itself. Each is the variable file held at weight 400 with its optical size axis (7 to 72) kept, so the browser picks the cut for each size, and cut to the Latin, Latin Extended and Cyrillic ranges Google Fonts serves, with the arrows ← ↑ → ↓ the page draws, in one file a style: 86.7 and 88.8 KB, against about 530 KB for the two styles with every weight.
 
 ```sh
 fonttools varLib.instancer 'Literata[opsz,wght].ttf' wght=400 -o Literata-Regular.opsz.ttf
 pyftsubset Literata-Regular.opsz.ttf \
-  --unicodes="U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD,U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF,U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116" \
-  --layout-features+=tnum,lnum --no-hinting --drop-tables+=DSIG,vhea,vmtx,VVAR \
-  --flavor=woff2 --output-file=Literata-Regular.woff2
+  --unicodes="U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2190-2193,U+2212,U+2215,U+FEFF,U+FFFD,U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF,U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116" \
+  --layout-features+=tnum,lnum --name-IDs='*' --no-hinting \
+  --drop-tables+=DSIG,vhea,vmtx,VVAR --flavor=woff2 --output-file=Literata-Regular.woff2
 ```
 
-The italic is made the same way from `Literata-Italic[opsz,wght].ttf`. The features kept are the subsetter's defaults with tabular figures added, which the plan's times use.
+The italic is made the same way from `Literata-Italic[opsz,wght].ttf`. The features kept are the subsetter's defaults with tabular figures added, which the plan's times use, and every name is kept, the licence's text and address (name IDs 13 and 14) among them, so the licence travels inside each file too.
 
-## The vertical metrics, rewritten
+## The vertical metrics
 
-Every file here, the pages' two and the card's two, has its ascent and descent rewritten from the drawn 1177 and −308 units to 950 and −250, with no line gap, since the scale's leadings are tight and a descender must not hang out of a row that clips. The drawn values set Literata's baseline about a tenth of an em lower in its line box than Fira Sans's, and at the title's leading a descender passed its line by 3.5 to 4 px. At 950 and −250 the line box holds every descender (−230 at most) and the face stands in it where Fira Sans stood. The numbers go in `hhea` and in `OS/2`'s typographic metrics, with `USE_TYPO_METRICS` set, so Safari, which reads `hhea`, and Chromium and Firefox, which read the typographic metrics, place a line alike; `OS/2`'s Windows ascent and descent keep the drawn 1177 and 308, which cover every glyph at every optical size (1137 and −274 at most), so nothing is clipped where Windows reads them. The optical size axis varies no ascent or descent, so one rewrite holds at every size. `next/font` derives the fallback's sizing from these files.
+Every file here, the pages' two and the card's two, carries an ascent of 950 units and a descent of −250, with no line gap, where the font as drawn carries 1177 and −308: the scale's leadings are tight, and a descender must not hang out of a row that clips. With the drawn values the baseline sits about a tenth of an em low in its line box, and at the title's leading a descender passes its line by 3.5 to 4 px. At 950 and −250 the face stands in the middle of its line box, and the box holds the descenders of g, j, p, q and y (−216 to −230 units) and the accented capitals a day's words use most, Á, É and Ś and the Cyrillic Yo and Yi (U+0401, U+0407) among them (913 to 935). A few letters pass it: Å by 17 units and the Cyrillic Short I (U+0419) by 9, the letters with a comma below (ș, ț, ķ, ļ, ņ, ŗ, Ģ) by 12 to 24, and the capitals with two marks over them, such as Ǚ and Ḗ, by up to 179; a box that hides what overflows it gives such a line room of its own, as the start screen's field does. The numbers are in `hhea` and in `OS/2`'s typographic metrics, with `USE_TYPO_METRICS` set, so an engine that reads either table places a line alike; `OS/2`'s Windows ascent and descent keep the drawn 1177 and 308, which cover every glyph at every optical size. The optical size axis varies no ascent or descent, so the one pair holds at every size. `next/font` derives the fallback's sizing from these files.
 
 ```sh
 python -c '
@@ -41,12 +41,12 @@ Each of the four files is rewritten the same way, after it is cut.
 
 ## The link card's face
 
-`src/app/opengraph-image.tsx` draws the card every link to Lantern shows, at build time, with Satori, which reads only TTF, OTF or WOFF, has no optical sizing, and none of the WOFF2 files the pages load. So the card takes Literata's static cuts drawn for its sizes, the 72 pt italic for the name and the 36 pt roman for the line, cut to Latin, from about 300 KB each to about 23 KB, since the card says only the name and the site's line, then their metrics rewritten as above, so the name stands where the card's layout places it:
+`src/app/opengraph-image.tsx` draws the card every link to Lantern shows, at build time, with Satori, which reads only TTF, OTF or WOFF, has no optical sizing, and none of the WOFF2 files the pages load. So the card takes Literata's static cuts drawn for its sizes, the 72 pt italic for the name and the 36 pt roman for the line, cut to Latin, from about 300 KB each to 23.1 and 24.0 KB, since the card says only the name and the site's line, with the same ascent and descent set, so the name stands where the card's layout places it:
 
 ```sh
 pyftsubset Literata36pt-Regular.ttf \
   --unicodes="U+0020-007E,U+00A0,U+00B7,U+2013-2014,U+2018-201D,U+2026" \
-  --layout-features='kern,liga' --no-hinting --drop-tables+=DSIG \
+  --layout-features='kern,liga' --name-IDs='*' --no-hinting --drop-tables+=DSIG \
   --output-file=Literata36pt-Regular.latin.ttf
 ```
 

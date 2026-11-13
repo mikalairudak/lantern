@@ -293,8 +293,6 @@ test.describe("the light on the time axis", () => {
     expect(explanada).toBe(sunset);
   });
 
-  // A 360 px phone's scale is under the arrows' least span (`SCALE_ARROWS_MIN_REMS`, 367 px)
-  // and over the name's (323 px): the arrowless end words with the name between them.
   test("the energy scale names the curve between its two words, on any phone", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 780 });
     await openStill(page);
@@ -306,9 +304,9 @@ test.describe("the light on the time axis", () => {
       if (!box) throw new Error(`"${text}" did not render`);
       return box;
     };
-    const quieter = await boxOf("quieter");
+    const quieter = await boxOf("← quieter");
     const curve = await boxOf(CURVE_NAME);
-    const livelier = await boxOf("livelier");
+    const livelier = await boxOf("livelier →");
 
     expect(curve.x).toBeGreaterThan(quieter.x + quieter.width);
     expect(curve.x + curve.width).toBeLessThan(livelier.x);

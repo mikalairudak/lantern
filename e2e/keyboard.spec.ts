@@ -15,15 +15,15 @@ const CURVE_NAME = "drag the curve";
  */
 const SMALL_PHONE = { width: 320, height: 700 };
 /** Phones narrow enough to test the scale's words, yet wide enough to keep their arrows. */
-const ARROWED_WIDTHS = [370, 390];
+const ARROWED_WIDTHS = [360, 390];
 const PHONE_HEIGHT = 844;
 /**
- * Where the arrows go: a phone's scale spans its width less 128 px, and below a 239 px span
- * the gap beside the arrows falls under one em, too tight to read as a gap, so 367 px keeps
+ * Where the arrows go: a phone's scale spans its width less 128 px, and below a 223 px span
+ * the gap beside the arrows falls under one em, too tight to read as a gap, so 351 px keeps
  * them (`SCALE_ARROWS_MIN_REMS`).
  */
-const LAST_ARROWLESS_WIDTH = 366;
-const FIRST_ARROWED_WIDTH = 367;
+const LAST_ARROWLESS_WIDTH = 350;
+const FIRST_ARROWED_WIDTH = 351;
 /**
  * Where the curve's name first stands between the arrowless end words: a 195 px span, a
  * 323 px phone (`SCALE_NAME_MIN_REMS`). Narrower, the scale keeps its two end words alone.
