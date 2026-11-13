@@ -15,6 +15,9 @@ export const SPRINGS = {
   layout: { type: "spring", visualDuration: 0.4, bounce: 0.12 },
   // Stops arriving while the day streams in.
   gentle: { type: "spring", visualDuration: 0.6, bounce: 0 },
+  // What goes as the visitor moves on, as a plate's light leaving it: in half the gentle
+  // spring's time, so what is left never trails the pointer.
+  brisk: { type: "spring", visualDuration: 0.3, bounce: 0 },
 } as const satisfies Record<string, Transition>;
 
 export type SpringName = keyof typeof SPRINGS;
