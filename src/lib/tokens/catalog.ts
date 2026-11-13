@@ -87,6 +87,17 @@ export const ROOT_TOKENS = [
   { name: "grows-by", role: "How much larger the root is from there on" },
 ] as const;
 
+/**
+ * The lengths of what is timed in CSS rather than on a spring, each named for its one use. The
+ * pointer's colour changes take Tailwind's `--default-transition-duration`.
+ */
+export const DURATION_TOKENS = [
+  {
+    name: "theme",
+    role: "The theme's crossing: the whole page from one theme to the other, linear",
+  },
+] as const;
+
 /** The rings the keyboard's focus draws, each a `@utility` in globals.css. */
 export const FOCUS_RING_TOKENS = [
   { name: "focus-ring", role: "Ink, 2 px outside the box: a link or a button" },

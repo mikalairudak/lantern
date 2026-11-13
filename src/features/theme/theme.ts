@@ -45,12 +45,31 @@ export function serverThemeChoice(): ThemeChoice {
   return "system";
 }
 
+/**
+ * Marks `<html>` while script sets the theme, so that no colour eases to the new theme on its
+ * own (`globals.css`): an element whose colours ease under a pointer would otherwise arrive
+ * 160 ms after the rest of the page, behind the theme's crossing.
+ */
+const STILL_ATTRIBUTE = "data-theme-still";
+
+/**
+ * The choice set or chosen last, which a crossing still waiting to set its theme sets in its
+ * place, so the last choice always stands.
+ */
+let lastChoice: ThemeChoice = "system";
+
 /** Sets a choice on `<html>`: its theme, and the note the theme's icon reads. */
 function setRootTheme(choice: ThemeChoice): void {
+  lastChoice = choice;
   const root = document.documentElement;
+  root.setAttribute(STILL_ATTRIBUTE, "");
   if (choice === "system") root.removeAttribute("data-theme");
   else root.setAttribute("data-theme", choice);
   root.setAttribute(THEME_CHOICE_ATTRIBUTE, choice);
+  // Read once, the page's style is worked out in the new theme while the mark holds every
+  // colour still, so each takes its new value at once and none eases once the mark is gone.
+  void root.offsetWidth;
+  root.removeAttribute(STILL_ATTRIBUTE);
 }
 
 /**
@@ -72,27 +91,64 @@ export function restoreThemeChoice(): void {
   window.dispatchEvent(new Event(THEME_EVENT));
 }
 
-/** Sets the theme on the page at once, keeps it for the next visit, and tells every word. */
+/** The theme a choice shows: the system's is the device's. */
+function shownThemeOf(choice: ThemeChoice): "light" | "dark" {
+  if (choice !== "system") return choice;
+  return matchesMedia("(prefers-color-scheme: dark)") ? "dark" : "light";
+}
+
+function matchesMedia(query: string): boolean {
+  return typeof window.matchMedia === "function" && window.matchMedia(query).matches;
+}
+
+/** Whether the page can cross from one theme to the other: never under reduced motion. */
+function canCross(): boolean {
+  return (
+    typeof document.startViewTransition === "function" &&
+    !matchesMedia("(prefers-reduced-motion: reduce)")
+  );
+}
+
+function showLastChoice(): void {
+  setRootTheme(lastChoice);
+  window.dispatchEvent(new Event(THEME_EVENT));
+}
+
+/**
+ * Sets a choice on the page, keeps it for the next visit, and tells every word. Where the
+ * choice changes what the page looks like, the page crosses to it: the browser's view
+ * transition of the root fades the last frame in the old theme into the live page in the new
+ * (`--duration-theme`, linear, in `globals.css`), and in Chromium the page takes no press
+ * meanwhile. A
+ * choice that changes no colour, reduced motion and a browser without view transitions set it
+ * at once (`docs/decisions.md`, "The theme crosses as one cross-fade of the whole page").
+ */
 export function applyThemeChoice(choice: ThemeChoice): void {
-  setRootTheme(choice);
   try {
     if (choice === "system") localStorage.removeItem(THEME_STORAGE_KEY);
     else localStorage.setItem(THEME_STORAGE_KEY, choice);
   } catch {
     // Without storage the choice holds for this page only.
   }
-  window.dispatchEvent(new Event(THEME_EVENT));
+  const isSeen = shownThemeOf(choice) !== shownThemeOf(readThemeChoice());
+  lastChoice = choice;
+  if (isSeen && canCross()) document.startViewTransition(showLastChoice);
+  else showLastChoice();
 }
 
 /**
  * Calls back when the theme changes: from a word on this page, or from another tab, whose
- * stored choice this page then takes too.
+ * stored choice this page then takes too, at once.
  */
 export function subscribeThemeChoice(onChange: () => void): () => void {
   const fromStorage = (event: StorageEvent) => {
     // A null key is storage cleared whole, which clears the choice too.
     if (event.key !== null && event.key !== THEME_STORAGE_KEY) return;
-    setRootTheme(isChosenTheme(event.newValue) ? event.newValue : "system");
+    const choice = isChosenTheme(event.newValue) ? event.newValue : "system";
+    // Every subscriber hears the one event: the first sets the theme, the rest find it set.
+    if (document.documentElement.getAttribute(THEME_CHOICE_ATTRIBUTE) !== choice) {
+      setRootTheme(choice);
+    }
     onChange();
   };
   window.addEventListener(THEME_EVENT, onChange);

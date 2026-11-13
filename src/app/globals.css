@@ -187,6 +187,13 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --default-transition-duration: 160ms;
   --default-transition-timing-function: var(--ease-out);
+  /*
+   * The theme's crossing: the whole page from one theme to the other, on a linear curve. A
+   * crossing between a light page and a dark one passes through a moment with no contrast, so
+   * it is short, and no shorter than the pointer's 160 ms, under which it reads as a blink
+   * (`docs/decisions.md`, "The theme crosses as one cross-fade of the whole page").
+   */
+  --duration-theme: 200ms;
 
   /*
    * One of two loops, with `pass-steady` below: the waiting line's light, shown while the
@@ -334,6 +341,32 @@ html {
 
 [data-theme="dark"] {
   color-scheme: dark;
+}
+
+/*
+ * The theme's crossing (`applyThemeChoice`): the browser's view transition of the root fades
+ * the page's last frame in the old theme into the live page in the new, as one picture, in the
+ * theme's own time. Nothing else on the site takes a view transition, so the root's is the
+ * theme's alone.
+ */
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: --theme(--duration-theme);
+  animation-timing-function: linear;
+}
+
+/*
+ * While script sets the theme, no colour eases on its own (`setRootTheme`): the new theme is
+ * whole in its first frame, in a crossing or at once. A transition already under way, such as a
+ * row fading in, keeps its own time, since only a change made now takes no time.
+ */
+:root[data-theme-still],
+:root[data-theme-still] *,
+:root[data-theme-still] *::before,
+:root[data-theme-still] *::after {
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
 }
 
 /*

@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { ArrowLeftRight, MapPin, Sun } from "lucide-react";
 import {
   COLOR_TOKENS,
+  DURATION_TOKENS,
   FOCUS_RING_TOKENS,
   RADIUS_TOKENS,
   SPACING_TOKENS,
@@ -165,8 +166,19 @@ export default async function TokensPage() {
       >
         <RootGrowth />
       </Section>
-      <Section title="Motion" note="Springs from src/lib/tokens/motion.ts">
+      <Section
+        title="Motion"
+        note="Springs from src/lib/tokens/motion.ts, and the lengths timed in CSS from globals.css"
+      >
         <MotionDemo />
+        <ul className="flex flex-col gap-4">
+          {DURATION_TOKENS.map(({ name, role }) => (
+            <li key={name} className="flex flex-col gap-1 md:flex-row md:gap-8">
+              <span className="w-label shrink-0 text-meta">--duration-{name}</span>
+              <span className="text-small text-muted">{role}</span>
+            </li>
+          ))}
+        </ul>
       </Section>
     </main>
   );
