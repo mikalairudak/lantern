@@ -9,6 +9,8 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+import { ArrowRight } from "lucide-react";
+import { ICON_SIZES, ICON_STROKE_WIDTH } from "@/lib/tokens/icon";
 import { ASSUMABLE_FACT_KEYS, type DayRequest } from "@/lib/schema/itinerary.schema";
 import { cn } from "@/components/ui/cn";
 import { SITE_DESCRIPTION } from "@/lib/site";
@@ -99,7 +101,15 @@ export interface StartHeaderProps {
   yourDays?: YourDaysListProps;
   /** Shown again by Back from a day: its headline takes the focus the day had. */
   isReturnedTo?: boolean;
+  /**
+   * The field drawn as focused, or the button as pointed at, still, as a lab cell shows it:
+   * one element alone can hold the focus, and a cell that took it would scroll the lab to it.
+   */
+  drawnAsPointed?: DrawnAsPointed;
 }
+
+/** What a lab cell draws as pointed at or focused, still. */
+export type DrawnAsPointed = "field" | "button" | null;
 
 /**
  * The start screen: what Lantern is in one line, one question, and the index of the days Lantern
@@ -118,6 +128,7 @@ export function StartHeader({
   onChooseReading,
   yourDays,
   isReturnedTo = false,
+  drawnAsPointed = null,
 }: StartHeaderProps) {
   const promise = useRef<HTMLHeadingElement>(null);
   const startsList = useRef<HTMLUListElement>(null);
@@ -146,36 +157,27 @@ export function StartHeader({
   return (
     <header className="flex shrink-0 flex-col pt-5 pb-5">
       <Masthead isHome />
-      <h1 ref={promise} tabIndex={-1} className="mt-5 type-voice text-title text-pretty text-ink">
-        {PROMISE}
-      </h1>
-      <QuestionForm
-        // Asked for a city, the field starts again empty, with the focus, for the answer; it
-        // stays the city's while the answer is read and its day sets off.
-        key={questionOf(line) ? "city" : "text"}
-        line={line}
-        text={text}
-        onTextChange={onTextChange}
-        isLive={isLive}
-        isCityFocused={isCityFocused}
-        isFocusedOnMount={isFocusHandedOn}
-        onPlan={onPlan}
-        onChooseReading={onChooseReading}
-      />
-      {/* A line saying no day can be written says it in place of the note, not twice. While
-          Lantern opens a day the note keeps its room unseen, for the line's second line. */}
-      {!isLive && !isNoDay(line) && (
-        <p
-          className={cn(
-            "mt-2 type-note text-muted",
-            (line?.kind === "reading" || line?.kind === "writing") &&
-              !line.answering &&
-              "invisible",
-          )}
-        >
-          {NOT_LIVE_NOTE}
-        </p>
-      )}
+      {/* A container, so the sentence and its button take their larger size from the column's
+          width, as the index under them does, and a phone's cell in the lab reads as a phone. */}
+      <div className="@container">
+        <h1 ref={promise} tabIndex={-1} className={PROMISE_CLASSES}>
+          {PROMISE}
+        </h1>
+        <QuestionForm
+          // Asked for a city, the field starts again empty, with the focus, for the answer; it
+          // stays the city's while the answer is read and its day sets off.
+          key={questionOf(line) ? "city" : "text"}
+          line={line}
+          text={text}
+          onTextChange={onTextChange}
+          isLive={isLive}
+          isCityFocused={isCityFocused}
+          isFocusedOnMount={isFocusHandedOn}
+          onPlan={onPlan}
+          onChooseReading={onChooseReading}
+          drawnAsPointed={drawnAsPointed}
+        />
+      </div>
       {yourDays && areStartsDrawn && <YourDaysList {...yourDays} onForget={forget} />}
       {areStartsDrawn && (
         <StartIndex starts={starts} onChoose={onChooseWritten} listRef={startsList} />
@@ -194,7 +196,22 @@ interface QuestionFormProps {
   isFocusedOnMount: boolean;
   onPlan: (text: string) => void;
   onChooseReading: (reading: CityReading) => void;
+  drawnAsPointed: DrawnAsPointed;
 }
+
+/** What Lantern is, over the question: a small line in the voice's italic, the page's heading. */
+const PROMISE_CLASSES =
+  "mt-5 max-w-measure type-voice text-quote text-pretty text-ink-soft italic @abacus:text-dek";
+
+/**
+ * The question's sentence, "A day in" and the visitor's words on one line, in one size: a
+ * heading's under the abacus's width, where the example's own words, "Bologna, with friends",
+ * still fit the line beside the button at 390 px, and the title's from it.
+ */
+const SENTENCE_CLASSES = "type-voice text-heading @abacus:text-title";
+
+/** The words the field's line starts with, the rest of the line the visitor's. */
+const SENTENCE_START = "A day in";
 
 /**
  * The light through what Lantern is working on while the start screen waits (`docs/decisions.md`,
@@ -217,8 +234,6 @@ const STEADY_WORDS_LIT_CLASSES = (ink: "ink" | "ink-soft") =>
     "via-amber bg-clip-text text-transparent",
     STEADY_PASS_CLASSES,
   );
-/** The button while Lantern works: the same light passing over its ink, its words over it. */
-const STEADY_BUTTON_LIT_CLASSES = cn("via-amber", STEADY_PASS_CLASSES);
 /**
  * The line under the field, a size up from a note: for the seconds the start screen waits, it
  * is what moves and says what Lantern does. The example at rest takes the same size, so
@@ -233,21 +248,38 @@ const LINE_SIZE_CLASSES = "type-voice text-body";
 const ROOM_SAID_FROM = MAX_INTAKE_TEXT_CHARS / 5;
 
 /**
+ * The room the field's words keep clear of the button at the line's right end, on every line
+ * they wrap to, so a word never runs under it: the button's side and a 12 px gap.
+ */
+const CLEAR_OF_BUTTON_CLASSES = "pr-11 @abacus:pr-12";
+
+/**
  * The field is a line to write on, and focus thickens and darkens that line rather than
  * boxing it: a ring is a second shape, and a field shows it at a mouse's click too. The
  * margin keeps the line's extra pixel from moving what follows. The outline stays, clear,
  * for forced colours, which draw it and drop the line's colour. Its words wrap onto lines of
  * their own, so a phone shows the whole sentence rather than its last few words.
  */
-const FIELD_CLASSES =
-  "col-start-1 row-start-1 w-full resize-none overflow-hidden border-b border-ink-soft bg-transparent pb-1 type-voice text-dek focus-visible:-mb-px focus-visible:border-b-2 focus-visible:border-ink focus-visible:outline-2 focus-visible:outline-transparent";
+const FIELD_CLASSES = cn(
+  "col-start-1 row-start-1 w-full resize-none overflow-hidden border-b bg-transparent pb-1 focus-visible:outline-2 focus-visible:outline-transparent",
+  SENTENCE_CLASSES,
+  CLEAR_OF_BUTTON_CLASSES,
+);
+/** The field's line at rest, and in ink at 2 px while it has the focus. */
+const FIELD_LINE_CLASSES =
+  "border-ink-soft focus-visible:-mb-px focus-visible:border-b-2 focus-visible:border-ink";
+/** The field's line as the focus draws it, held still for a lab cell. */
+const FIELD_LINE_FOCUSED_CLASSES = "-mb-px border-b-2 border-ink";
 
 /**
  * The field's words as it wraps them, its type, its padding and its line: unseen in its cell,
  * so the field is as tall as its words, and lit over it while they are read.
  */
-const FIELD_WORDS_CLASSES =
-  "border-b border-transparent pb-1 type-voice text-dek whitespace-pre-wrap wrap-break-word";
+const FIELD_WORDS_CLASSES = cn(
+  "border-b border-transparent pb-1 whitespace-pre-wrap wrap-break-word",
+  SENTENCE_CLASSES,
+  CLEAR_OF_BUTTON_CLASSES,
+);
 
 /** Over the field, its words where the field draws them. */
 const OVER_FIELD_CLASSES = "pointer-events-none absolute inset-0 overflow-hidden";
@@ -261,7 +293,13 @@ const COMPOSING_KEY_CODE = 229;
 /** A pasted text's line breaks, which a sentence for the day has no use for. */
 const LINE_BREAKS = /\s*[\r\n]+\s*/g;
 
-/** The one question: a field for the day in one's own words, or for the city asked for. */
+/**
+ * The one question, as one line at every width: "A day in" and the field on one baseline, the
+ * field taking the rest of the line over its rule, and the button standing at the rule's right
+ * end. Under the field, at its left edge, the example or what Lantern made of the text; the
+ * room left at that row's right end, under the button; and with live generation off, the note
+ * under them (`docs/decisions.md`, "The start screen asks its question as one line").
+ */
 function QuestionForm({
   line,
   text,
@@ -271,6 +309,7 @@ function QuestionForm({
   isFocusedOnMount,
   onPlan,
   onChooseReading,
+  drawnAsPointed,
 }: QuestionFormProps) {
   const field = useRef<HTMLTextAreaElement>(null);
   const roomId = useId();
@@ -308,87 +347,175 @@ function QuestionForm({
   };
 
   return (
-    <form onSubmit={submit} className="mt-6 flex flex-col gap-2">
-      <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-        <label className="group flex min-w-0 flex-1 flex-col gap-1">
-          <span className="flex justify-between gap-3 type-note">
-            <span className="text-muted transition-colors group-focus-within:text-ink">
-              {isAskingCity ? "Which city?" : "Where, and anything else"}
-            </span>
-            {/* Near its end, the room left: Lantern reads no more than this, so the field
-                takes no more, and says so before a pasted text is cut short. Out of the
-                field's name, and heard as its description. */}
-            {left <= ROOM_SAID_FROM && (
-              <span id={roomId} aria-hidden className={left === 0 ? "text-ink" : "text-muted"}>
-                {left} left
-              </span>
-            )}
+    <form onSubmit={submit} className="mt-6 flex items-baseline">
+      {/* The sentence's start, read before the field as it is seen; the field keeps its own
+          name, what to write in it. */}
+      <span className={cn("mr-2 shrink-0 whitespace-nowrap text-ink", SENTENCE_CLASSES)}>
+        {SENTENCE_START}
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="relative grid">
+          {/* As tall as its words: an unseen copy of them shares the field's cell, and gives the
+              line the baseline "A day in" stands on. */}
+          <span
+            aria-hidden
+            className={cn("invisible col-start-1 row-start-1", FIELD_WORDS_CLASSES)}
+          >
+            {`${text} `}
           </span>
-          <span className="relative grid">
-            {/* As tall as its words: an unseen copy of them shares the field's cell. */}
-            <span
-              aria-hidden
-              className={cn("invisible col-start-1 row-start-1", FIELD_WORDS_CLASSES)}
-            >
-              {`${text} `}
-            </span>
-            <textarea
-              ref={field}
-              name="text"
-              rows={1}
-              value={text}
-              onChange={(event) => onTextChange(event.target.value.replace(LINE_BREAKS, " "))}
-              onKeyDown={askOnEnter}
-              enterKeyHint="go"
-              readOnly={isReading}
-              autoComplete="off"
-              // The visitor's own words, a city's name among them: a phone's keyboard corrects a
-              // name it does not know, "Nafplio" among them, into a word it does.
-              autoCorrect="off"
-              autoCapitalize="sentences"
-              spellCheck={false}
-              maxLength={MAX_INTAKE_TEXT_CHARS}
-              aria-describedby={left <= ROOM_SAID_FROM ? roomId : undefined}
-              className={cn(FIELD_CLASSES, isFieldLit ? "text-transparent" : "text-ink")}
-            />
-            {isFieldLit && (
-              // A field paints no light through its own text, so the light passes through a
-              // copy of the words laid over it, wrapped as the field wraps them.
-              <span aria-hidden className={OVER_FIELD_CLASSES}>
-                <span className={cn("block", FIELD_WORDS_CLASSES)}>
-                  <span className={STEADY_WORDS_LIT_CLASSES("ink")}>{text}</span>
-                </span>
-              </span>
+          <textarea
+            ref={field}
+            name="text"
+            rows={1}
+            value={text}
+            aria-label={isAskingCity ? "Which city?" : "Where, and anything else"}
+            onChange={(event) => onTextChange(event.target.value.replace(LINE_BREAKS, " "))}
+            onKeyDown={askOnEnter}
+            enterKeyHint="go"
+            readOnly={isReading}
+            autoComplete="off"
+            // The visitor's own words, a city's name among them: a phone's keyboard corrects a
+            // name it does not know, "Nafplio" among them, into a word it does.
+            autoCorrect="off"
+            autoCapitalize="sentences"
+            spellCheck={false}
+            maxLength={MAX_INTAKE_TEXT_CHARS}
+            aria-describedby={left <= ROOM_SAID_FROM ? roomId : undefined}
+            className={cn(
+              FIELD_CLASSES,
+              drawnAsPointed === "field" ? FIELD_LINE_FOCUSED_CLASSES : FIELD_LINE_CLASSES,
+              isFieldLit ? "text-transparent" : "text-ink",
             )}
-          </span>
-        </label>
-        <button
-          type="submit"
-          aria-disabled={isReading || undefined}
-          // Its words share one cell, the others unseen, so it is as wide as its longest and
-          // the field beside it never moves as it says what Lantern is doing. While Lantern
-          // works the light passes over it too, so its new word is seen to be working.
-          className={cn(
-            "grid shrink-0 rounded-sm bg-ink px-4 py-3 type-voice text-body text-ground focus-ring transition-colors pointed:bg-ink-soft",
-            isReading && STEADY_BUTTON_LIT_CLASSES,
+          />
+          {isFieldLit && (
+            // A field paints no light through its own text, so the light passes through a
+            // copy of the words laid over it, wrapped as the field wraps them.
+            <span aria-hidden className={OVER_FIELD_CLASSES}>
+              <span className={cn("block", FIELD_WORDS_CLASSES)}>
+                <span className={STEADY_WORDS_LIT_CLASSES("ink")}>{text}</span>
+              </span>
+            </span>
           )}
-        >
-          {BUTTON_LABELS.map((label) => {
-            const isSaid = label === buttonLabelOf(line, isLive);
-            return (
-              <span
-                key={label}
-                aria-hidden={!isSaid || undefined}
-                className={cn("col-start-1 row-start-1 text-center", !isSaid && "invisible")}
-              >
-                {label}
-              </span>
-            );
-          })}
-        </button>
+          <PlanButton
+            line={line}
+            isLive={isLive}
+            hasWords={text.trim() !== ""}
+            isDrawnAsPointed={drawnAsPointed === "button"}
+          />
+        </div>
+        <div className="mt-2 flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <QuestionLine
+              line={line}
+              text={text}
+              isLive={isLive}
+              onChooseReading={onChooseReading}
+            />
+          </div>
+          {/* Near its end, the room left: Lantern reads no more than this, so the field takes no
+              more, and says so before a pasted text is cut short. Out of the field's name, and
+              heard as its description. */}
+          {left <= ROOM_SAID_FROM && (
+            <span
+              id={roomId}
+              aria-hidden
+              className={cn("type-note whitespace-nowrap", left === 0 ? "text-ink" : "text-muted")}
+            >
+              {left} left
+            </span>
+          )}
+        </div>
+        {/* A line saying no day can be written says it in place of the note, not twice. While
+            Lantern opens a day the note keeps its room unseen, for the line's second line. */}
+        {!isLive && !isNoDay(line) && (
+          <p
+            className={cn(
+              "mt-1 type-note text-muted",
+              (line?.kind === "reading" || line?.kind === "writing") &&
+                !line.answering &&
+                "invisible",
+            )}
+          >
+            {NOT_LIVE_NOTE}
+          </p>
+        )}
       </div>
-      <QuestionLine line={line} text={text} isLive={isLive} onChooseReading={onChooseReading} />
     </form>
+  );
+}
+
+/**
+ * The button: a square at the field's rule's right end, its foot 6 px over the rule's top pixel
+ * and the rule running on under it, 32 px under the abacus's width and 36 px from it, framed in
+ * ink, with a hit area 44 px square round its centre. A square, since a disc at a line's end
+ * reads as a slider's handle and a disc round an arrow as a chat's send.
+ */
+const PLAN_BUTTON_CLASSES =
+  "absolute right-0 bottom-px mb-1.5 grid size-8 place-items-center rounded-sm border focus-ring transition-colors before:absolute before:top-1/2 before:left-1/2 before:size-11 before:-translate-1/2 @abacus:size-9";
+/**
+ * With the field empty: hollow, its arrow in ink, and filled in ink when pointed at, reached
+ * by the keyboard or pressed. A touch screen, which cannot hover, shows the press alone.
+ */
+const PLAN_HOLLOW_CLASSES =
+  "border-ink text-ink pointed:bg-ink pointed:text-ground active:bg-ink active:text-ground";
+/** With words in the field: filled in ink, and in `ink-soft` when pointed at or pressed. */
+const PLAN_FILLED_CLASSES =
+  "border-ink bg-ink text-ground pointed:border-ink-soft pointed:bg-ink-soft active:border-ink-soft active:bg-ink-soft";
+/**
+ * While Lantern reads, writes or opens: filled, and the steady light passes over it in place
+ * of a changed glyph, so it is seen to be working; with reduced motion it stands in `ink-soft`.
+ */
+const PLAN_WORKING_CLASSES = cn(
+  "border-ink bg-ink text-ground via-amber motion-reduce:border-ink-soft motion-reduce:bg-ink-soft",
+  STEADY_PASS_CLASSES,
+);
+
+/** What the button is named by, by what Lantern is doing with the text. */
+const BUTTON_WORDS = {
+  plan: "Plan this day",
+  reading: "Reading",
+  writing: "Writing",
+  opening: "Opening",
+} as const;
+
+type ButtonLabel = (typeof BUTTON_WORDS)[keyof typeof BUTTON_WORDS];
+
+/** What the button is named: what Lantern is doing with the text, or what it will. */
+function buttonLabelOf(line: StartLine, isLive: boolean): ButtonLabel {
+  if (line?.kind === "reading") return BUTTON_WORDS.reading;
+  if (line?.kind === "writing") return isLive ? BUTTON_WORDS.writing : BUTTON_WORDS.opening;
+  return BUTTON_WORDS.plan;
+}
+
+interface PlanButtonProps {
+  line: StartLine;
+  isLive: boolean;
+  /** The field holds words a press would ask with. */
+  hasWords: boolean;
+  /** Drawn as pointed at, still, as a lab cell shows it. */
+  isDrawnAsPointed: boolean;
+}
+
+/**
+ * The field's button, an arrow to the right: "go on", the way the sentence reads, rather than
+ * an arrow up or a paper plane, which say "send". Its name says what a press does, then what
+ * Lantern is doing while it works; Enter in the field does the same.
+ */
+function PlanButton({ line, isLive, hasWords, isDrawnAsPointed }: PlanButtonProps) {
+  const isWorking = line?.kind === "reading" || line?.kind === "writing";
+  return (
+    <button
+      type="submit"
+      aria-label={buttonLabelOf(line, isLive)}
+      aria-disabled={isWorking || undefined}
+      data-pointed={isDrawnAsPointed || undefined}
+      className={cn(
+        PLAN_BUTTON_CLASSES,
+        isWorking ? PLAN_WORKING_CLASSES : hasWords ? PLAN_FILLED_CLASSES : PLAN_HOLLOW_CLASSES,
+      )}
+    >
+      <ArrowRight aria-hidden size={ICON_SIZES.lg} strokeWidth={ICON_STROKE_WIDTH} />
+    </button>
   );
 }
 
@@ -400,37 +527,19 @@ interface QuestionLineProps {
   onChooseReading: (reading: CityReading) => void;
 }
 
-/** Everything the field's button says, by what Lantern is doing with the text. */
-const BUTTON_WORDS = {
-  plan: "Plan this day",
-  reading: "Reading",
-  writing: "Writing",
-  opening: "Opening",
-} as const;
-
-type ButtonLabel = (typeof BUTTON_WORDS)[keyof typeof BUTTON_WORDS];
-
-const BUTTON_LABELS: readonly ButtonLabel[] = Object.values(BUTTON_WORDS);
-
-/** What the field's button says: what Lantern is doing with the text, or what it will. */
-function buttonLabelOf(line: StartLine, isLive: boolean): ButtonLabel {
-  if (line?.kind === "reading") return BUTTON_WORDS.reading;
-  if (line?.kind === "writing") return isLive ? BUTTON_WORDS.writing : BUTTON_WORDS.opening;
-  return BUTTON_WORDS.plan;
-}
-
 /**
- * The line under the field, holding one line's room whatever it says: a day said back at the
- * body's size takes two lines on a phone, "Opening a lively Sunday in Madrid, out late, with
- * friends" at 360 and 390 px, and its second runs on into the room under it, the gap over the
- * starts or the note's held room, where it pushed the starts down 23 px from under the finger
- * that pressed one.
+ * The line under the field, holding the example's room whatever it says: one line, or two
+ * where the field's column is narrower than the example, as on a 320 px phone, so the note
+ * under it never lies under its second line. A day said back at the body's size takes more on
+ * a phone, "Opening a lively Sunday in Madrid, out late, with friends" at 390 px, and its
+ * last line runs on into the room under it, the gap over the starts or the note's held room,
+ * where it pushed the starts down 23 px from under the finger that pressed one.
  */
 function SaidLine({ className, children }: { className: string; children: ReactNode }) {
   return (
     <div className="relative">
       <span aria-hidden className={cn(LINE_SIZE_CLASSES, "invisible block")}>
-        {" "}
+        {EXAMPLE}
       </span>
       <p role="status" className={cn(LINE_SIZE_CLASSES, "absolute inset-x-0 top-0", className)}>
         {children}

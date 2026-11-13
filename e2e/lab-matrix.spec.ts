@@ -166,20 +166,25 @@ test("draws the city word's open lists inside their phone cells, and leaves the 
   }
 });
 
-// --text-title's floor, 1.75rem at the browser's 16 px rem.
-const PHONE_TITLE_SIZE = "28px";
+// --text-heading, 1.375rem at the browser's 16 px rem: the start screen's sentence under the
+// abacus's width, which it reads off its own container.
+const PHONE_SENTENCE_SIZE = "22px";
 
-test("sets a phone cell's title as a phone does, and an abacus cell's as the screen does", async ({
+test("sets a phone cell's sentence as a phone does, and a wide cell's as the screen does", async ({
   page,
   isMobile,
 }) => {
   test.skip(
     isMobile,
-    "A phone's screen sets a phone's title too, so only a laptop tells them apart",
+    "A phone's screen sets a phone's sentence too, so only a laptop tells them apart",
   );
   await page.goto("/lab/matrix/start-header");
-  const title = page.getByTestId("matrix-grid").locator('[data-theme="light"] h1').first();
-  await expect(title).toHaveCSS("font-size", PHONE_TITLE_SIZE);
+  const sentence = page
+    .getByTestId("matrix-grid")
+    .locator('[data-theme="light"] form')
+    .first()
+    .getByText("A day in", { exact: true });
+  await expect(sentence).toHaveCSS("font-size", PHONE_SENTENCE_SIZE);
 
   await page.getByRole("combobox", { name: "Width" }).selectOption({ label: "Wide screen" });
   const screenTitleSize = await page.evaluate(() => {
@@ -190,8 +195,8 @@ test("sets a phone cell's title as a phone does, and an abacus cell's as the scr
     probe.remove();
     return fontSize;
   });
-  expect(screenTitleSize).not.toBe(PHONE_TITLE_SIZE);
-  await expect(title).toHaveCSS("font-size", screenTitleSize);
+  expect(screenTitleSize).not.toBe(PHONE_SENTENCE_SIZE);
+  await expect(sentence).toHaveCSS("font-size", screenTitleSize);
 });
 
 test("swaps the axes and holds the one left out", async ({ page }) => {

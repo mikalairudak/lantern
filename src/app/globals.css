@@ -113,17 +113,25 @@
   /* For uppercase metadata only. */
   --tracking-caps: 0.08em;
 
-  /* A 4px grid with named steps only: off-scale spacing has no utility at all. */
+  /*
+   * A 4px grid with named steps only: off-scale spacing has no utility at all. Three steps
+   * serve the start screen's button: `1.5`, its foot over the field's rule; `9`, its side
+   * from the abacus's width; `11`, the side of its hit area, and the room its words keep
+   * clear of it under that width.
+   */
   --spacing-0: 0;
   --spacing-0_5: 0.125rem;
   --spacing-1: 0.25rem;
+  --spacing-1_5: 0.375rem;
   --spacing-2: 0.5rem;
   --spacing-3: 0.75rem;
   --spacing-4: 1rem;
   --spacing-5: 1.25rem;
   --spacing-6: 1.5rem;
   --spacing-8: 2rem;
+  --spacing-9: 2.25rem;
   --spacing-10: 2.5rem;
+  --spacing-11: 2.75rem;
   --spacing-12: 3rem;
   --spacing-14: 3.5rem;
   --spacing-16: 4rem;

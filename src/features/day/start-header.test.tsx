@@ -113,6 +113,67 @@ describe("StartHeader", () => {
     expect(screen.queryByText(/one place at a time/)).not.toBeInTheDocument();
   });
 
+  it("sets the question as one sentence, its button an arrow named for what a press does", () => {
+    renderStart();
+
+    // "A day in" starts the sentence the field ends; the field keeps its own name.
+    const form = screen.getByRole("textbox").closest("form")!;
+    expect(form.firstElementChild).toHaveTextContent(/^A day in$/);
+    const button = screen.getByRole("button", { name: "Plan this day" });
+    expect(button).toHaveTextContent(/^$/);
+    expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(button).not.toHaveAttribute("aria-disabled");
+  });
+
+  it("draws the button hollow until the field has words, and filled once it has", async () => {
+    const user = userEvent.setup();
+    renderStart();
+    const button = () => screen.getByRole("button", { name: "Plan this day" });
+    expect(button()).not.toHaveClass("bg-ink");
+    expect(button()).toHaveClass("border-ink", "text-ink", "pointed:bg-ink");
+
+    // Spaces ask for nothing, so the button stays hollow.
+    await user.type(screen.getByRole("textbox"), "   ");
+    expect(button()).not.toHaveClass("bg-ink");
+
+    await user.type(screen.getByRole("textbox"), "Lisbon");
+    expect(button()).toHaveClass("bg-ink", "text-ground", "pointed:bg-ink-soft");
+  });
+
+  it.each([
+    [{ kind: "reading" } as const, false, "Reading"],
+    [{ kind: "writing", request: LISBON_REQUEST } as const, true, "Writing"],
+    [{ kind: "writing", request: LISBON_REQUEST } as const, false, "Opening"],
+    [{ kind: "refused" } as const, true, "Plan this day"],
+  ])("names the button for what Lantern is doing: %o, live %s", (line, isLive, name) => {
+    renderStart({ line, isLive });
+
+    expect(screen.getByRole("button", { name })).toBeInTheDocument();
+  });
+
+  it("draws the field and the button still as pointed at, for a lab cell, without the focus", () => {
+    const { rerender, onPlan, onChooseWritten, onChooseReading } = renderStart({
+      drawnAsPointed: "field",
+    });
+    expect(screen.getByRole("textbox")).toHaveClass("border-b-2", "border-ink");
+    expect(screen.getByRole("textbox")).not.toHaveFocus();
+
+    rerender(
+      <HeldStart
+        starts={STARTS}
+        line={null}
+        isLive={false}
+        isCityFocused
+        onPlan={onPlan}
+        onChooseWritten={onChooseWritten}
+        onChooseReading={onChooseReading}
+        drawnAsPointed="button"
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Plan this day" })).toHaveAttribute("data-pointed");
+    expect(screen.getByRole("textbox")).toHaveClass("border-ink-soft");
+  });
+
   it("plans the day from what was typed, and from nothing else", async () => {
     const user = userEvent.setup();
     const { onPlan } = renderStart();
@@ -171,11 +232,12 @@ describe("StartHeader", () => {
     const said = screen.getByRole("status");
     expect(said).toHaveTextContent(/^Reading what you wrote$/);
     expect(said).toHaveClass("text-body");
-    expect(screen.queryByText(/For example/)).not.toBeInTheDocument();
-    // The light passes over the button as over the words, about every second.
-    expect(screen.getByRole("button", { name: "Reading" })).toHaveClass(
-      "motion-safe:animate-pass-steady",
-    );
+    expect(said).not.toHaveTextContent(/For example/);
+    // The light passes over the button as over the words, about every second, and a press
+    // asks nothing more while Lantern works.
+    const button = screen.getByRole("button", { name: "Reading" });
+    expect(button).toHaveClass("motion-safe:animate-pass-steady", "bg-ink");
+    expect(button).toHaveAttribute("aria-disabled", "true");
   });
 
   it("asks for the city with the words it read, and says back what it could not place", () => {

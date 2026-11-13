@@ -22,7 +22,7 @@ describe("START_HEADER_MATRIX", () => {
       expect(document.activeElement).toBe(document.body);
       cleanup();
     }
-    expect(choices).toHaveLength(14 * 2);
+    expect(choices).toHaveLength(22 * 2);
     // A cell asking for the city does not take the focus, or the matrix would scroll to it.
     expect(document.activeElement).toBe(document.body);
   });
