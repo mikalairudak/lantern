@@ -57,8 +57,11 @@ const POOL_CLASSES: Readonly<Record<PoolStep, string>> = {
 type PlatePart = "lines" | BoundsName;
 const PLATE_PARTS: readonly PlatePart[] = ["lines", ...BOUNDS.map(({ name }) => name)];
 
-/** Where a plate stands: its files unasked, coming in, drawn once faded in whole, or failed. */
-type PlateState = "unasked" | "loading" | "drawn" | "failed";
+/**
+ * Where a plate stands: its files unasked, held back by a lab cell, coming in, drawn once faded in
+ * whole, or failed.
+ */
+type PlateState = "unasked" | "held" | "loading" | "drawn" | "failed";
 
 /**
  * One circle of a plate's lit fill. Lit, it grows from where it stands to its lit reach on the
@@ -184,11 +187,13 @@ export function IndexPlate({
   const isIn = !hasFailed && src !== null && PLATE_PARTS.every((part) => arrived.includes(part));
   const state: PlateState = hasFailed
     ? "failed"
-    : src === null
-      ? "unasked"
-      : isIn && isDrawn
-        ? "drawn"
-        : "loading";
+    : !shouldAskFiles
+      ? "held"
+      : src === null
+        ? "unasked"
+        : isIn && isDrawn
+          ? "drawn"
+          : "loading";
 
   const scene = picture.scene.box;
   const box = lightBoxOf(picture);

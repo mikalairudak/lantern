@@ -110,7 +110,7 @@ describe("the start screen's index", () => {
   it("holds every plate's files back while the page's script has not run", () => {
     render(<StartIndex starts={DRAWN_STARTS} onChoose={() => undefined} arePicturesHeld />);
     for (const lines of document.querySelectorAll('rect[data-layer="scene"]')) {
-      expect(lines).toHaveAttribute("data-state", "unasked");
+      expect(lines).toHaveAttribute("data-state", "held");
     }
   });
 

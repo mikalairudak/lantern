@@ -76,7 +76,7 @@ describe("a city's plate in the index", () => {
     const { container } = render(<IndexPictureView slug="rome" shouldAskFiles={false} />);
     act(() => near?.(true));
     expect(hrefsOf(container)).toEqual([]);
-    expect(linesOf(container)).toHaveAttribute("data-state", "unasked");
+    expect(linesOf(container)).toHaveAttribute("data-state", "held");
   });
 
   it("asks at once where nothing can tell when it comes near the screen", () => {

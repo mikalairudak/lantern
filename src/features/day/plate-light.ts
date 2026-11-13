@@ -35,8 +35,8 @@ export const SHEET_SPREAD = 14;
 export const BOUNDS_SOFTENING = 10;
 
 /**
- * The room round a scene its light and tone are drawn in: the sheet's spread and its softening
- * fall inside it.
+ * The room round a scene its light and tone are drawn in. The sheet's spread and the most of its
+ * softening that shows fall inside it; its faintest tail, past 40 units, does not.
  */
 export const LIGHT_ROOM = 40;
 
