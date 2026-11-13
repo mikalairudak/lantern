@@ -34,7 +34,7 @@ export interface PlanRowExample {
 
 export const PLAN_ROW_EXAMPLES: readonly PlanRowExample[] = [
   { label: "a stop in daylight: an ink bead", lights: DAYLIGHT, role: "day" },
-  { label: "in golden hour: the rail in the lamp, the time in amber", lights: GOLDEN, role: "day" },
+  { label: "golden hour: lamp rail, amber time", lights: GOLDEN, role: "day" },
   { label: "after dark: the bead lit", lights: AFTER_DARK, role: "day", isLatest: true },
   { label: "before sunrise: lit too, as the rail is dotted", lights: AFTER_DARK, role: "day" },
   {
@@ -44,7 +44,7 @@ export const PLAN_ROW_EXAMPLES: readonly PlanRowExample[] = [
     isLatest: true,
   },
   {
-    label: "a proposal after dark, taken as it is shown: its glow grows",
+    label: "a proposal taken: its glow grows",
     lights: AFTER_DARK,
     role: "taken",
     isLatest: true,

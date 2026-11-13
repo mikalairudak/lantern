@@ -257,8 +257,9 @@
    * sun, lit beads, best-light marks, the time axis through golden hour), energy and curve (the
    * curve and the rings on it), swap and swap-drawn (the hollow beads and the rings that name one).
    * Lamp-glow and lamp-haze are the mark's two steps of light, solid so they stay warm over a
-   * ground of another hue; lamp-glow is also the step round a lit bead on the plan. Every text color keeps at least 5:1 on both the ground and the surface,
-   * what is drawn 3:1 (the bar for graphics); palette.test.ts holds these bars.
+   * ground of another hue; lamp-glow is also the step round a lit bead on the plan. Every text
+   * color keeps at least 5:1 on both the ground and the surface, what is drawn 3:1 (the bar for
+   * graphics); palette.test.ts holds these bars.
    */
   --color-ground: light-dark(#fbf5ea, #011d27);
   --color-surface: light-dark(#fffdf8, #0c272c);

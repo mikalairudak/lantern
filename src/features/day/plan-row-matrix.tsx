@@ -20,5 +20,10 @@ export const PLAN_ROW_MATRIX: LabMatrix = labMatrix<{ example: number }>({
     },
   ],
   wide: "abacus",
-  render: ({ example }) => <PlanRowCell example={example} />,
+  // Positioned, so the arrows' unseen names stay inside their cell.
+  render: ({ example }) => (
+    <div className="relative">
+      <PlanRowCell example={example} />
+    </div>
+  ),
 });
