@@ -4,9 +4,11 @@ import { expect, test, waitMs } from "./fixtures";
 const PHONE_WIDTH = 390;
 const ABACUS_WIDTH = 768;
 const PAGE_WIDTH = 1152;
-// The day stage header on a laptop: the page's column inside its gutter, measured on
-// /day/kyoto at 1280 and 1440 px.
+// The day stage header's masthead on a laptop: the page's column inside its gutter, measured
+// on /day/kyoto at 1280 and 1440 px. The head under it takes the abacus's width from a
+// 1024 px screen, and the page's under it, as a phone's run is.
 const LAPTOP_HEADER_WIDTH = 1024;
+const LAPTOP_SCREEN = 1024;
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/lab/matrix/stream-frames");
@@ -110,8 +112,8 @@ test("sets each wide cell at the width its component takes on a laptop", async (
     expect(await firstCell.evaluate((element) => element.clientWidth)).toBe(ABACUS_WIDTH);
   }
 
-  // The day's header stands across the page's column, in its gutter, as on a laptop; a
-  // phone cell is still a phone's.
+  // The day's masthead stands across the page's column, in its gutter, as on a laptop, the
+  // head under it at the plan's width; a phone cell is still a phone's.
   await page.goto("/lab/matrix/written-header");
   const headline = firstCell.getByRole("heading", { level: 1 });
   await expect(headline).toBeVisible(CELL_READ);
@@ -121,8 +123,13 @@ test("sets each wide cell at the width its component takes on a laptop", async (
   await expect
     .poll(() => firstCell.evaluate((element) => element.clientWidth), CELL_READ)
     .toBe(PAGE_WIDTH);
-  expect(await headline.evaluate((element) => element.getBoundingClientRect().width)).toBe(
+  const masthead = firstCell.locator("header > *").first();
+  expect(await masthead.evaluate((element) => element.getBoundingClientRect().width)).toBe(
     LAPTOP_HEADER_WIDTH,
+  );
+  const isLaptop = (page.viewportSize()?.width ?? 0) >= LAPTOP_SCREEN;
+  expect(await headline.evaluate((element) => element.getBoundingClientRect().width)).toBe(
+    isLaptop ? ABACUS_WIDTH : LAPTOP_HEADER_WIDTH,
   );
 });
 

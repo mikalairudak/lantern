@@ -235,8 +235,8 @@ export interface HeaderNotice {
 const PLANNED_LEAD = "As first planned: ";
 /** The lead is said lighter than the line it leads. */
 const LEAD_CLASSES = "text-muted";
-/** The hint, a step quieter than the date beside it. */
-const HINT_CLASSES = "text-caption text-muted";
+/** The hint, a step quieter than the date beside it; the caption's size is the credits'. */
+const HINT_CLASSES = "text-meta text-muted";
 
 const ignore = () => undefined;
 
@@ -978,9 +978,11 @@ export function DayStageHeader({
       {/*
        * The header's room: what the next day played from this one keeps as its floor. A
        * container, so a phone's lines read true wherever it is set, as in a matrix's phone
-       * cell; its title's size then follows the header's column rather than the screen.
+       * cell; its title's size then follows the header's column rather than the screen. On a
+       * laptop it takes the plan's width in either view, under the masthead's at the page's, so
+       * the head ends where the day under it does and the switch between views re-wraps nothing.
        */}
-      <div ref={roomRef} className="@container mt-5">
+      <div ref={roomRef} className="@container mt-5 lg:max-w-abacus">
         <GlidingHeight
           onGlide={onGlide}
           isInstant={isRoomClosedAtOnce}
@@ -1356,10 +1358,10 @@ function SentenceShape({
 
 /**
  * The energy word the room for a clause is held for: the widest of the five as the headline sets
- * them, 138 px at a laptop's 1440 where "social" takes 87.7 and "calm" 71.8. The visitor re-picks
+ * them, 128 px in a laptop's head where "social" takes 81.5 and "calm" 66.8. The visitor re-picks
  * the energy at once, and a wider word can take the longest clause a line further, so the room
- * is the widest word's. On the six written days at 1024, 1280 and 1440 px it is the tallest any
- * of the five takes.
+ * is the widest word's. On Nafplio's, Madrid's and Barcelona's days at 1024 and 1280 px no
+ * re-picked energy changes the head's room.
  */
 const WIDEST_ENERGY: EnergyLevel = "balanced";
 
