@@ -109,6 +109,29 @@ describe("a city's picture in the index", () => {
     act(() => applyThemeChoice("system"));
   });
 
+  it("asks for the other layer once forced colours turn on and the device's theme stands", () => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((step) => {
+      step(0);
+      return 0;
+    });
+    const listeners = new Map<string, () => void>();
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: false,
+      addEventListener: (_type: string, listener: () => void) => listeners.set(query, listener),
+      removeEventListener: () => listeners.delete(query),
+    }));
+    const { container } = render(<IndexPictureView slug="amsterdam" />);
+    act(() => near?.(true));
+    // A dark contrast theme over a light theme chosen: the drawn colours are the device's.
+    theme = "dark";
+    act(() => listeners.get("(forced-colors: active)")?.());
+    const amsterdam = INDEX_PICTURES.amsterdam!;
+    expect(hrefsOf(container)).toEqual([
+      `/pictures/${amsterdam.scene.files.narrow}`,
+      `/pictures/${amsterdam.subject.files.narrow}`,
+    ]);
+  });
+
   it("says a layer is loading until its file arrives", () => {
     const { container } = render(<IndexPictureView slug="seoul" />);
     const scene = container.querySelector('rect[data-layer="scene"]')!;

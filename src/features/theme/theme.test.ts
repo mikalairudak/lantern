@@ -152,15 +152,19 @@ describe("a theme chosen on the page", () => {
     scheme = "light",
     motion = "no-preference",
     hasViewTransitions = true,
+    isForced = false,
   }: {
     scheme?: "light" | "dark";
     motion?: "reduce" | "no-preference";
     hasViewTransitions?: boolean;
+    /** Forced colours, as a contrast theme sets them. */
+    isForced?: boolean;
   }): void {
     vi.stubGlobal("matchMedia", (query: string) => ({
       matches:
         query === `(prefers-color-scheme: ${scheme})` ||
-        query === `(prefers-reduced-motion: ${motion})`,
+        query === `(prefers-reduced-motion: ${motion})` ||
+        (isForced && query === "(forced-colors: active)"),
     }));
     if (!hasViewTransitions) return;
     Object.defineProperty(document, "startViewTransition", {
@@ -218,6 +222,24 @@ describe("a theme chosen on the page", () => {
       expect(document.startViewTransition).not.toHaveBeenCalled();
       expect(readThemeChoice()).toBe(to);
       expect(root.getAttribute(THEME_CHOICE_ATTRIBUTE)).toBe(to);
+    },
+  );
+
+  it.each([
+    ["light", "dark", "dark"],
+    ["dark", "light", "light"],
+    ["system", "light", "dark"],
+    ["light", "system", "dark"],
+  ] as const)(
+    "sets %s to %s at once under forced colours on a %s device, where the device's colours stand",
+    (from, to, scheme) => {
+      stubBrowser({ scheme, isForced: true });
+      if (from !== "system") root.setAttribute("data-theme", from);
+      applyThemeChoice(to);
+      expect(document.startViewTransition).not.toHaveBeenCalled();
+      // The choice is still set and kept, so it stands again once forced colours end.
+      expect(readThemeChoice()).toBe(to);
+      expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe(to === "system" ? null : to);
     },
   );
 

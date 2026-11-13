@@ -49,7 +49,9 @@ interface LanternMarkProps {
 
 /**
  * Lantern's mark, the lit bead, as it stands before the wordmark: drawn inline, so its ink
- * and lamp come from the tokens and follow `data-theme` as the rest of the page does. It
+ * and lamp come from the tokens and follow `data-theme` as the rest of the page does, and the
+ * device's theme under forced colours, which leave what SVG draws in the page's colours: its
+ * glow and haze then stand on the canvas of their own theme, a step of light as on the page. It
  * sits in the word's line, on its baseline, and carries its own gap; the word beside it says
  * the name, so the mark is unheard.
  */

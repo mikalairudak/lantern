@@ -19,9 +19,12 @@ const WORDMARK_CLASSES = "type-voice text-body whitespace-nowrap text-ink italic
  * The theme's icon set in a line of the page's small type, at its lowercase middle: CSS's
  * `middle` stands the icon's centre at the baseline plus half the type's x-height, so it
  * reads level with the day's menu at every root size, and at the same height on a page
- * with no menu.
+ * with no menu. Under forced colours the theme is not offered, since the device's colours stand
+ * whatever is chosen there; it keeps its room, so the masthead does not move as they turn on or
+ * off, and its list goes with it (`docs/decisions.md`, "Under forced colours the system's theme
+ * stands").
  */
-const THEME_LINE_CLASSES = "type-note *:align-middle";
+const THEME_LINE_CLASSES = "type-note *:align-middle forced-colors:invisible";
 
 interface MastheadProps {
   /** On the start screen itself the wordmark is only the name, not a link to the same page. */

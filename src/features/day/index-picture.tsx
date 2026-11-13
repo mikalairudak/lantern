@@ -29,6 +29,9 @@ const LAYER_CLASSES: Readonly<Record<LayerName, string>> = {
 
 const LAYERS: readonly LayerName[] = ["scene", "subject"];
 
+/** What changes the theme the device sets: its scheme, and forced colours turning on or off. */
+const THEME_QUERIES = ["(prefers-color-scheme: dark)", "(forced-colors: active)"];
+
 /** Whether an element's fill shows in the theme it is drawn in: a transparent one does not. */
 function isFilled(element: Element): boolean {
   const fill = getComputedStyle(element).fill;
@@ -127,14 +130,15 @@ export function IndexPictureView({ slug }: { slug: string }) {
         return next.scene === asked.scene && next.subject === asked.subject ? asked : next;
       });
     };
-    // The theme is read from the drawn colours, so a page or a frame of one theme reads its own.
+    // The theme is read from the drawn colours, so a page or a frame of one theme reads its own,
+    // and under forced colours the device's, whatever the choice.
     const later = () => requestAnimationFrame(ask);
     const unsubscribe = subscribeThemeChoice(later);
-    const scheme =
+    const deviceQueries =
       typeof window.matchMedia === "function"
-        ? window.matchMedia("(prefers-color-scheme: dark)")
-        : null;
-    scheme?.addEventListener("change", later);
+        ? THEME_QUERIES.map((query) => window.matchMedia(query))
+        : [];
+    for (const query of deviceQueries) query.addEventListener("change", later);
     // Where nothing can tell when a cell comes near the screen, its picture is asked for at once.
     const observer =
       typeof IntersectionObserver === "undefined"
@@ -156,7 +160,7 @@ export function IndexPictureView({ slug }: { slug: string }) {
     }
     return () => {
       observer?.disconnect();
-      scheme?.removeEventListener("change", later);
+      for (const query of deviceQueries) query.removeEventListener("change", later);
       unsubscribe();
     };
   }, [picture]);
