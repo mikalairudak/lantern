@@ -118,7 +118,8 @@ function showLastChoice(): void {
  * Sets a choice on the page, keeps it for the next visit, and tells every word. Where the
  * choice changes what the page looks like, the page crosses to it: the browser's view
  * transition of the root fades the last frame in the old theme into the live page in the new
- * (`--duration-theme`, linear, in `globals.css`), and the page takes no press meanwhile. A
+ * (`--duration-theme`, linear, in `globals.css`), and in Chromium the page takes no press
+ * meanwhile. A
  * choice that changes no colour, reduced motion and a browser without view transitions set it
  * at once (`docs/decisions.md`, "The theme crosses as one cross-fade of the whole page").
  */
@@ -143,7 +144,11 @@ export function subscribeThemeChoice(onChange: () => void): () => void {
   const fromStorage = (event: StorageEvent) => {
     // A null key is storage cleared whole, which clears the choice too.
     if (event.key !== null && event.key !== THEME_STORAGE_KEY) return;
-    setRootTheme(isChosenTheme(event.newValue) ? event.newValue : "system");
+    const choice = isChosenTheme(event.newValue) ? event.newValue : "system";
+    // Every subscriber hears the one event: the first sets the theme, the rest find it set.
+    if (document.documentElement.getAttribute(THEME_CHOICE_ATTRIBUTE) !== choice) {
+      setRootTheme(choice);
+    }
     onChange();
   };
   window.addEventListener(THEME_EVENT, onChange);

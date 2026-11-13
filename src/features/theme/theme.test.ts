@@ -266,6 +266,18 @@ describe("a theme chosen on the page", () => {
     unsubscribe();
   });
 
+  it("sets another tab's choice once, however many words listen", () => {
+    stubBrowser({});
+    const layoutReads = vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(0);
+    const onChange = vi.fn();
+    const unsubscribes = [1, 2, 3].map(() => subscribeThemeChoice(onChange));
+    window.dispatchEvent(new StorageEvent("storage", { key: THEME_STORAGE_KEY, newValue: "dark" }));
+    expect(root.getAttribute("data-theme")).toBe("dark");
+    expect(layoutReads).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledTimes(3);
+    for (const unsubscribe of unsubscribes) unsubscribe();
+  });
+
   it("holds every colour still while the page's style takes the new theme", () => {
     stubBrowser({ hasViewTransitions: false });
     const heldAtLayout: boolean[] = [];
