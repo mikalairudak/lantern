@@ -275,7 +275,8 @@
    * The palette is Night market (docs/decisions.md, "Tokens are enforced, not documented"): by day
    * a sunlit wall with petrol-shade ink, by night a petrol sky where whatever a lamp touches is
    * warm. The day ground is an unbleached paper, warm enough that a laptop's margins do not read as
-   * white, with its sheet and rules. Accents have one job each, and are named for it: amber and
+   * white, with its sheet and rules; by night the sheet, the rules and the wires sit on the ground's
+   * own hue, a step up from it. Accents have one job each, and are named for it: amber and
    * lamp are light, energy and curve are energy, swap and swap-drawn are the other versions. Each
    * has two tokens, one says it in words and one draws it: amber and lamp (the mark's bead, the
    * sun, lit beads, best-light marks, the time axis through golden hour), energy and curve (the
@@ -286,7 +287,7 @@
    * graphics); palette.test.ts holds these bars.
    */
   --color-ground: light-dark(#fbf5ea, #011d27);
-  --color-surface: light-dark(#fffdf8, #0c272c);
+  --color-surface: light-dark(#fffdf8, #0a2b38);
   --color-ink: light-dark(#001924, #f7eddf);
   --color-ink-soft: light-dark(#193a47, #d0c3b1);
   --color-muted: light-dark(#405b64, #a39686);
@@ -297,9 +298,9 @@
    */
   --color-engraving: light-dark(#001924, transparent);
   --color-engraving-night: light-dark(transparent, #f7eddf);
-  --color-line: light-dark(#e0d9cc, #1e3338);
+  --color-line: light-dark(#e0d9cc, #173843);
   /* The abacus wires: the chart's structure, 2:1 on the ground, between a rule and text. */
-  --color-wire: light-dark(#9aafb5, #405253);
+  --color-wire: light-dark(#9aafb5, #3a5560);
   --color-amber: light-dark(#8b4800, #edad60);
   --color-lamp: light-dark(#bb660a, #ffba4d);
   --color-lamp-glow: light-dark(#ffe2b3, #543109);

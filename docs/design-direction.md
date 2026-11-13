@@ -19,7 +19,7 @@ The owner made the design calls, mostly by comparing options drawn side by side 
 
 ### Ground and ink: Night market
 
-By day the page is a sunlit wall gone to unbleached paper, `#FBF5EA`, with ink in a petrol shade, `#001924`. By night it is a petrol sky, `#011D27`, where whatever a lamp touches is warm: the ink is paper, `#F7EDDF`. One pair of colours, their roles swapped. An open stop's sheet is `#FFFDF8` by day and `#0C272C` by night.
+By day the page is a sunlit wall gone to unbleached paper, `#FBF5EA`, with ink in a petrol shade, `#001924`. By night it is a petrol sky, `#011D27`, where whatever a lamp touches is warm: the ink is paper, `#F7EDDF`. One pair of colours, their roles swapped. An open stop's sheet is `#FFFDF8` by day and `#0A2B38` by night, a step up from the night's ground on its own hue.
 
 The day ground is the owner's pick of three, tried on the live page through a switch that rewrote its tokens: paper, a warm cream at three quarters of an earlier ground's chroma. The others were an apricot wall, which read as peach across a laptop's empty margins, and a deeper stone, which would have needed energy's green a shade deeper to keep its words at 5:1. The fuller cream before it read as custard across those margins, and a half-chroma one as nearly white. The petrol ink, the night and the accents keep the page apart from the warm neutrals common to AI products.
 

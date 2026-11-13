@@ -37,6 +37,11 @@ function contrast(a: string, b: string): number {
   return ((high ?? 0) + 0.05) / ((low ?? 0) + 0.05);
 }
 
+/** How much lighter the first colour is than the second, as a contrast ratio; under 1 if darker. */
+function lighterBy(lighter: string, darker: string): number {
+  return (luminance(linearRgb(lighter)) + 0.05) / (luminance(linearRgb(darker)) + 0.05);
+}
+
 type Lab = [number, number, number];
 
 function lab([r, g, b]: Rgb): Lab {
@@ -123,6 +128,10 @@ const DRAWN = ["lamp", "curve", "swap-drawn"];
 const GRAPHIC_CONTRAST = 3;
 /** The wires sit between a rule and text: about 2:1. */
 const WIRE_CONTRAST = { least: 1.9, most: 2.3 };
+/** A hairline is a rule, not a mark: seen on the ground, and never as heavy as a wire. */
+const LINE_CONTRAST = { least: 1.25, most: 1.5 };
+/** By night a raised sheet stands a step up from the ground on its own hue. */
+const NIGHT_SHEET_OVER_PAGE = 1.15;
 const ACCENTS = ["amber", "lamp", "energy", "curve", "swap", "swap-drawn"] as const;
 /**
  * Light, energy and swap stay told apart by protan and deutan eyes (about 1 man in 12),
@@ -169,6 +178,12 @@ describe("the palette", () => {
       expect(ratio).toBeLessThanOrEqual(WIRE_CONTRAST.most);
     });
 
+    it("draws a hairline between 1.25:1 and 1.5:1 on the ground", () => {
+      const ratio = contrast(color("line", theme), color("ground", theme));
+      expect(ratio).toBeGreaterThanOrEqual(LINE_CONTRAST.least);
+      expect(ratio).toBeLessThanOrEqual(LINE_CONTRAST.most);
+    });
+
     it.each(
       ACCENT_PAIRS.flatMap(([a, b]) =>
         (Object.keys(DEFICIENCIES) as Deficiency[]).map(
@@ -180,6 +195,12 @@ describe("the palette", () => {
         LEAST_ACCENT_DISTANCE,
       );
     });
+  });
+
+  it("raises a sheet by night 1.15:1 or more over the ground", () => {
+    expect(lighterBy(color("surface", "dark"), color("ground", "dark"))).toBeGreaterThanOrEqual(
+      NIGHT_SHEET_OVER_PAGE,
+    );
   });
 
   it("draws each of the index's engravings in the page's ink, in its one theme only", () => {
