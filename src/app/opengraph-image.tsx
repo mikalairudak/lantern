@@ -13,8 +13,9 @@ import { themeColor, themeColorsOf, type Theme } from "@/lib/tokens/theme-colors
  * the code does"). Drawn at build time; nothing here runs for a visitor.
  *
  * The image is drawn by Satori, which reads no stylesheet and no class, so its colours are
- * the tokens' values read from globals.css and its type is Fira Sans from files of its own
- * (`assets/fonts/`, cut to Latin), and its styles are plain objects.
+ * the tokens' values read from globals.css and its type is Literata from static files of its
+ * own (`assets/fonts/`, cut to Latin): the name in the 72 pt italic, the cut drawn for its size,
+ * and the line in the 36 pt roman. Its styles are plain objects.
  */
 
 export const size = { width: SITE_CARD.width, height: SITE_CARD.height };
@@ -32,11 +33,11 @@ function color(name: string): string {
   return themeColor(COLORS, name, CARD_THEME);
 }
 
-const FONT_FAMILY = "Fira Sans";
+const FONT_FAMILY = "Literata";
 const fontFile = (file: string): Promise<Buffer> =>
   readFile(join(process.cwd(), "assets/fonts", file));
-const REGULAR = await fontFile("FiraSans-Regular.latin.ttf");
-const ITALIC = await fontFile("FiraSans-Italic.latin.ttf");
+const REGULAR = await fontFile("Literata36pt-Regular.latin.ttf");
+const ITALIC = await fontFile("Literata72pt-Italic.latin.ttf");
 
 /** The mark drawn 7.4 times its 24-unit grid, so the bead is about 50 px across. */
 const MARK_SCALE = 7.4;

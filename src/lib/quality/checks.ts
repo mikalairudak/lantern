@@ -213,8 +213,8 @@ const QUIET_ENERGIES: readonly EnergyLevel[] = ["reflective", "calm"];
 export const MIN_SHARE_TIME_WORDS_KEPT = 2 / 3;
 
 /**
- * A run of characters outside the two scripts every face carries (`docs/decisions.md`, "One sans in
- * one weight: Fira Sans"). Unicode's Common and Inherited pass: punctuation, digits and symbols
+ * A run of characters outside the two scripts every face carries (`docs/decisions.md`, "One serif
+ * in one weight: Literata"). Unicode's Common and Inherited pass: punctuation, digits and symbols
  * that every script shares, and accents set on a letter. So a Japanese full stop or an emoji, which
  * are Common too, passes. The check reads scripts rather than the faces' character sets, which
  * would move with every change of face.

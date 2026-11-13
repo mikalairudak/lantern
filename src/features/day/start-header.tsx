@@ -208,13 +208,13 @@ const PROMISE_CLASSES =
   "mt-5 max-w-measure type-prose text-quote text-balance text-ink-soft @measure:text-dek";
 
 /**
- * The question's sentence, "A day in" and the visitor's words on one line, in one size: a
- * heading's under the text column's width, where the example's own words, "Bologna, with
+ * The question's sentence, "A day in" and the visitor's words on one line, in one size: the
+ * sentence's own under the text column's width, where the example's own words, "Bologna, with
  * friends", still fit the line beside the button at 390 px, and the title's from it. The hero
  * reads the text column off its own container, as the index under it reads the abacus's: the
  * sentence needs a column, not four pictures.
  */
-const SENTENCE_CLASSES = "type-voice text-heading @measure:text-title";
+const SENTENCE_CLASSES = "type-voice text-sentence @measure:text-title";
 
 /** The words the field's line starts with, the rest of the line the visitor's. */
 const SENTENCE_START = "A day in";
@@ -264,10 +264,13 @@ const CLEAR_OF_BUTTON_CLASSES = "pr-11 @measure:pr-12";
  * boxing it: a ring is a second shape, and a field shows it at a mouse's click too. The
  * margin keeps the line's extra pixel from moving what follows. The outline stays, clear,
  * for forced colours, which draw it and drop the line's colour. Its words wrap onto lines of
- * their own, so a phone shows the whole sentence rather than its last few words.
+ * their own, so a phone shows the whole sentence rather than its last few words. It is as tall
+ * as its words and clips rather than scrolls: Literata's descent reaches past the title's tight
+ * line, and Chromium would scroll the words up by that much with the caret on the last line,
+ * off the baseline "A day in" stands on.
  */
 const FIELD_CLASSES = cn(
-  "col-start-1 row-start-1 w-full resize-none overflow-hidden border-b bg-transparent pb-1 focus-visible:outline-2 focus-visible:outline-transparent",
+  "col-start-1 row-start-1 w-full resize-none overflow-clip border-b bg-transparent pb-1 focus-visible:outline-2 focus-visible:outline-transparent",
   SENTENCE_CLASSES,
   CLEAR_OF_BUTTON_CLASSES,
 );

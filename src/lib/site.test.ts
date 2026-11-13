@@ -9,7 +9,7 @@ import {
 } from "./site";
 
 /**
- * The code points `assets/fonts/` keeps of Fira Sans, as its README's `pyftsubset` command
+ * The code points the card's cuts of Literata in `assets/fonts/` keep, as its README's `pyftsubset` command
  * lists them: the card draws its words in these fonts alone.
  */
 const CARD_FONT_CUT: readonly (readonly [number, number])[] = [
@@ -53,7 +53,7 @@ describe("SITE_CARD", () => {
       const code = letter.codePointAt(0) ?? 0;
       expect(
         CARD_FONT_CUT.some(([first, last]) => code >= first && code <= last),
-        `"${letter}" is outside the card's cut of Fira Sans; cut the fonts again with it`,
+        `"${letter}" is outside the card's cut of Literata; cut the fonts again with it`,
       ).toBe(true);
     }
   });

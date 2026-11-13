@@ -6,7 +6,7 @@ import { DayViewScript } from "@/features/day/view-switch";
 import { ThemeScript } from "@/features/theme/theme-script";
 import { isCountingPageViews } from "@/lib/analytics/page-views";
 import { SITE_AUTHOR, SITE_DESCRIPTION, SITE_NAME, SITE_OPEN_GRAPH, SITE_URL } from "@/lib/site";
-import { BODY_CLASSES, firaSans } from "./root-document";
+import { BODY_CLASSES, literata } from "./root-document";
 import "./globals.css";
 
 /**
@@ -31,7 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       // The plan's bar is held at the top: focus scrolled to stays clear of it.
-      className={cn(firaSans.variable, "scroll-pt-12")}
+      className={cn(literata.variable, "scroll-pt-12")}
       suppressHydrationWarning
     >
       <head>

@@ -43,6 +43,7 @@ export const TEXT_TOKENS = [
   "display",
   "title",
   "heading",
+  "sentence",
   "dek",
   "quote",
   "body",
