@@ -130,6 +130,18 @@ const GRAPHIC_CONTRAST = 3;
 const WIRE_CONTRAST = { least: 1.9, most: 2.3 };
 /** A hairline is a rule, not a mark: seen on the ground, and never as heavy as a wire. */
 const LINE_CONTRAST = { least: 1.25, most: 1.5 };
+/**
+ * The papers by day, each a step lighter than the last: the page, a raised sheet, half-light and
+ * lit paper. Light stands far enough over the page to read as lit, and a raised sheet far enough
+ * from the page and from the light that a list never reads as either. By day the light is the
+ * paper round a lit bead and round the mark, `lamp-glow`, and its half-light the mark's outer
+ * step, `lamp-haze`.
+ */
+const DAY_LIT_PAPER = "lamp-glow";
+const DAY_HALF_LIGHT = "lamp-haze";
+const LIGHT_OVER_PAGE = 1.13;
+const SHEET_STEP = 1.06;
+const HALF_LIGHT_STEP = 1.05;
 /** By night a raised sheet stands a step up from the ground on its own hue. */
 const NIGHT_SHEET_OVER_PAGE = 1.15;
 const ACCENTS = ["amber", "lamp", "energy", "curve", "swap", "swap-drawn"] as const;
@@ -184,6 +196,14 @@ describe("the palette", () => {
       expect(ratio).toBeLessThanOrEqual(LINE_CONTRAST.most);
     });
 
+    it("draws the lamp at 3:1 or more on its glow and on its haze", () => {
+      for (const light of ["lamp-glow", "lamp-haze"]) {
+        expect(contrast(color("lamp", theme), color(light, theme))).toBeGreaterThanOrEqual(
+          GRAPHIC_CONTRAST,
+        );
+      }
+    });
+
     it.each(
       ACCENT_PAIRS.flatMap(([a, b]) =>
         (Object.keys(DEFICIENCIES) as Deficiency[]).map(
@@ -194,6 +214,36 @@ describe("the palette", () => {
       expect(distanceSeenWith(color(a, theme), color(b, theme), deficiency)).toBeGreaterThanOrEqual(
         LEAST_ACCENT_DISTANCE,
       );
+    });
+  });
+
+  describe("by day", () => {
+    const litPaper = color(DAY_LIT_PAPER, "light");
+
+    it.each(TEXT)("sets %s at 5:1 or more on lit paper", (name) => {
+      expect(contrast(color(name, "light"), litPaper)).toBeGreaterThanOrEqual(TEXT_CONTRAST);
+    });
+
+    it.each(DRAWN)("draws the %s at 3:1 or more on lit paper", (name) => {
+      expect(contrast(color(name, "light"), litPaper)).toBeGreaterThanOrEqual(GRAPHIC_CONTRAST);
+    });
+
+    it("lights paper 1.13:1 or more over the page", () => {
+      expect(lighterBy(litPaper, color("ground", "light"))).toBeGreaterThanOrEqual(LIGHT_OVER_PAGE);
+    });
+
+    it("raises a sheet 1.06:1 or more over the page, and lights paper as far over the sheet", () => {
+      const sheet = color("surface", "light");
+      expect(lighterBy(sheet, color("ground", "light"))).toBeGreaterThanOrEqual(SHEET_STEP);
+      expect(lighterBy(litPaper, sheet)).toBeGreaterThanOrEqual(SHEET_STEP);
+    });
+
+    it("sets half-light a step over the page and a step under lit paper", () => {
+      const halfLight = color(DAY_HALF_LIGHT, "light");
+      expect(lighterBy(halfLight, color("ground", "light"))).toBeGreaterThanOrEqual(
+        HALF_LIGHT_STEP,
+      );
+      expect(lighterBy(litPaper, halfLight)).toBeGreaterThanOrEqual(HALF_LIGHT_STEP);
     });
   });
 

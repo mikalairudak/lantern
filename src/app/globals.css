@@ -67,7 +67,7 @@
 /*
  * Design tokens: every value the interface may use (decisions.md, "Tokens are enforced, not
  * documented"). One face, Literata in one weight ("One serif in one weight: Literata"), and
- * the Night market palette below, its day ground an unbleached paper.
+ * the Night market palette below, its day ground a plate paper.
  * The theme is closed: `--*: initial` drops every Tailwind default, so color, type, spacing,
  * width and radius utilities exist only for the values below, and lint rejects any class
  * Tailwind does not know. Utilities that need no theme (opacity, z-index, border width) stay
@@ -272,22 +272,27 @@
    * element it styles, so a [data-theme] subtree switches palettes with no per-class
    * dark overrides. They must stay inline: a --color-* variable on :root would resolve
    * once there (Lightning CSS compiles light-dark() to variables) and freeze one theme.
-   * The palette is Night market (docs/decisions.md, "Tokens are enforced, not documented"): by day
-   * a sunlit wall with petrol-shade ink, by night a petrol sky where whatever a lamp touches is
-   * warm. The day ground is an unbleached paper, warm enough that a laptop's margins do not read as
-   * white, with its sheet and rules; by night the sheet, the rules and the wires sit on the ground's
-   * own hue, a step up from it. Accents have one job each, and are named for it: amber and
-   * lamp are light, energy and curve are energy, swap and swap-drawn are the other versions. Each
-   * has two tokens, one says it in words and one draws it: amber and lamp (the mark's bead, the
-   * sun, lit beads, best-light marks, the time axis through golden hour), energy and curve (the
-   * curve and the rings on it), swap and swap-drawn (the hollow beads and the rings that name one).
-   * Lamp-glow and lamp-haze are the mark's two steps of light, solid so they stay warm over a
-   * ground of another hue; lamp-glow is also the step round a lit bead on the plan. Every text
-   * color keeps at least 5:1 on both the ground and the surface, what is drawn 3:1 (the bar for
-   * graphics); palette.test.ts holds these bars.
+   * The palette is Night market (docs/decisions.md, "Tokens are enforced, not documented", and
+   * "The day's page is plate paper, and light is the whitest paper on it"). By day the page is the
+   * plate paper an engraving is proved on, with petrol-shade ink; by night a petrol sky, where the
+   * ink is paper. The page is never the lightest thing on it: light is. By day three papers stand
+   * over the page, each lighter than the last: a raised sheet (surface), half-light (lamp-haze) and
+   * lit paper (lamp-glow). Surface is a raised sheet, what was opened over the page (a list, the
+   * day's menu, an open stop's words), and never the light. By night the sheet, the rules and the
+   * wires sit on the ground's own hue, a step up from it. Accents have one job each, and are named
+   * for it: amber and lamp are light, energy and curve are energy, swap and swap-drawn are the other
+   * versions. Each has two tokens, one says it in words and one draws it: amber and lamp (the mark's
+   * bead, the sun, lit beads, best-light marks, the time axis through golden hour), energy and curve
+   * (the curve and the rings on it), swap and swap-drawn (the hollow beads and the rings that name
+   * one). Lamp-glow and lamp-haze are the light round a bead that stands on the page, the mark's two
+   * steps and the step round a lit bead on the plan: by day lit paper and its half-light, by night
+   * an ember and its haze, since a light beside running text on the night's page must stay low.
+   * They are solid, since an alpha step over a ground of another hue mixes towards grey. Every text
+   * color keeps at least 5:1 on the ground, on the surface and, by day, on lit paper, what is drawn
+   * 3:1 (the bar for graphics); palette.test.ts holds these bars and each paper's step.
    */
-  --color-ground: light-dark(#fbf5ea, #011d27);
-  --color-surface: light-dark(#fffdf8, #0a2b38);
+  --color-ground: light-dark(#f8ebd7, #011d27);
+  --color-surface: light-dark(#fff4e3, #0a2b38);
   --color-ink: light-dark(#001924, #f7eddf);
   --color-ink-soft: light-dark(#193a47, #d0c3b1);
   --color-muted: light-dark(#405b64, #a39686);
@@ -298,19 +303,19 @@
    */
   --color-engraving: light-dark(#001924, transparent);
   --color-engraving-night: light-dark(transparent, #f7eddf);
-  --color-line: light-dark(#e0d9cc, #173843);
+  --color-line: light-dark(#d8d0c1, #173843);
   /* The abacus wires: the chart's structure, 2:1 on the ground, between a rule and text. */
-  --color-wire: light-dark(#9aafb5, #3a5560);
+  --color-wire: light-dark(#a3a39b, #3a5560);
   --color-amber: light-dark(#8b4800, #edad60);
   --color-lamp: light-dark(#bb660a, #ffba4d);
-  --color-lamp-glow: light-dark(#ffe2b3, #543109);
-  --color-lamp-haze: light-dark(#fff1d0, #3b220e);
-  --color-energy: light-dark(#07775c, #34b7b1);
+  --color-lamp-glow: light-dark(#fffdf8, #543109);
+  --color-lamp-haze: light-dark(#fcf4e7, #3b220e);
+  --color-energy: light-dark(#006e54, #34b7b1);
   /*
    * Energy drawn: the curve and the rings on it, 3:1 as the lamp; by night it is the words'.
    * By day it is the energy words' own green, drawn brighter, so "calm" and its line are one.
    */
-  --color-curve: light-dark(#209c7b, #34b7b1);
+  --color-curve: light-dark(#119574, #34b7b1);
   --color-swap: light-dark(#005d8e, #8dccf8);
   /* The versions drawn: 3:1 as the lamp, so the rings stand back from the ink beads chosen. */
   --color-swap-drawn: light-dark(#4086bd, #4381aa);
