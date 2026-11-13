@@ -278,9 +278,17 @@ function ShapeSection() {
         ))}
         {ICON_SAMPLES.map(({ icon: Icon, label, className }) => (
           <div key={label} className="flex flex-col gap-2">
-            <span className={`flex size-16 items-center justify-center gap-2 ${className}`}>
+            {/* As tall as the radius's square, and as wide as its icons need, so each is drawn
+                at its own size. */}
+            <span className={`flex h-16 min-w-16 items-center justify-center gap-2 ${className}`}>
               {Object.values(ICON_SIZES).map((size) => (
-                <Icon key={size} size={size} strokeWidth={ICON_STROKE_WIDTH} aria-hidden />
+                <Icon
+                  key={size}
+                  size={size}
+                  strokeWidth={ICON_STROKE_WIDTH}
+                  aria-hidden
+                  className="shrink-0"
+                />
               ))}
             </span>
             <span className="text-meta text-muted">{label}</span>
