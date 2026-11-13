@@ -1,7 +1,11 @@
 import { writeFileSync } from "node:fs";
+import { INDEX_PICTURES } from "../src/features/day/index-picture-files";
+import { lightCirclesOf } from "../src/features/day/plate-light";
 import { expect, test } from "./fixtures";
+import { E2E_STUDIO_AUTHORIZATION } from "./studio-login";
 import {
   awaitPlates,
+  DIFFERS_BY,
   differenceOf,
   hideWords,
   lineBoxesOf,
@@ -203,5 +207,123 @@ for (const theme of THEMES) {
     expect(found.dark, "the lines").toBeGreaterThan(0);
     if (theme === "dark") expect(found.toned, "the night's tone").toBeGreaterThan(0);
     await decoder.close();
+  });
+}
+
+/**
+ * At the jump a plate reads whole without being whole: what the circles at their covering reach
+ * leave unlit lies in the stipple of the front's far edge, at a scene's far corner.
+ */
+const JUMP_INNER_SHARE = 0.8;
+const JUMP_MOST_SHARE = 0.005;
+const JUMP_MOST_LEVELS = 64;
+
+for (const theme of THEMES) {
+  test(`${theme === "light" ? "by day" : "by night"}, each plate held at the jump reads whole: unlit only at its far edge, in a few pixels, never strongly`, async ({
+    browser,
+  }) => {
+    test.setTimeout(240_000);
+    const context = await browser.newContext({
+      deviceScaleFactor: 1,
+      colorScheme: theme,
+      reducedMotion: "reduce",
+      extraHTTPHeaders: { Authorization: E2E_STUDIO_AUTHORIZATION },
+    });
+    const page = await context.newPage();
+    await page.goto("/");
+    await showWholePage(page, WIDTHS[0]);
+    await awaitPlates(page);
+    await hideWords(page);
+    await page.mouse.move(1, 1);
+    const decoder = await context.newPage();
+    const rest = await shotOf(page);
+    const rows = [];
+    for (const [slug, picture] of Object.entries(INDEX_PICTURES)) {
+      const svg = page.locator(`svg[data-picture="${slug}"]`);
+      await svg.hover();
+      await expect(svg).toHaveAttribute("data-light", "lit");
+      await page.waitForTimeout(PAINT_MS);
+      const circles = lightCirclesOf(picture);
+      const setRadii = (radii: number[]) =>
+        svg.evaluate((element, each) => {
+          element
+            .querySelectorAll('mask[id$="-whole"] circle')
+            .forEach((circle, index) => circle.setAttribute("r", String(each[index])));
+        }, radii);
+      const lit = await shotOf(page);
+      await setRadii(circles.map(({ reaches }) => reaches.covering));
+      await page.waitForTimeout(PAINT_MS);
+      const jump = await shotOf(page);
+      await setRadii(circles.map(() => OPEN_RADIUS));
+      await page.waitForTimeout(PAINT_MS);
+      const opened = await shotOf(page);
+      // Each lamp on the screen, with the share of its covering reach no unlit pixel may stand in.
+      const inner = await svg.evaluate(
+        (element, { points, share }) => {
+          const matrix = (element as SVGSVGElement).getScreenCTM()!;
+          return points.map(({ x, y, covering }) => ({
+            x: matrix.a * x + matrix.e,
+            y: matrix.d * y + matrix.f,
+            radius: matrix.a * covering * share,
+          }));
+        },
+        {
+          points: circles.map(({ x, y, reaches }) => ({ x, y, covering: reaches.covering })),
+          share: JUMP_INNER_SHARE,
+        },
+      );
+      const changed = await differenceOf(decoder, rest, lit, 1, {});
+      const unlit = await decoder.evaluate(
+        async ({ first, second, inner, differsBy }) => {
+          const pixelsOf = async (png: string) => {
+            const image = new Image();
+            image.src = `data:image/png;base64,${png}`;
+            await image.decode();
+            const canvas = new OffscreenCanvas(image.width, image.height);
+            const context2d = canvas.getContext("2d")!;
+            context2d.drawImage(image, 0, 0);
+            return {
+              data: context2d.getImageData(0, 0, image.width, image.height).data,
+              width: image.width,
+            };
+          };
+          const [a, b] = [await pixelsOf(first), await pixelsOf(second)];
+          let differing = 0;
+          let most = 0;
+          let within = 0;
+          for (let i = 0; i < a.data.length; i += 4) {
+            const step = Math.max(
+              Math.abs(a.data[i]! - b.data[i]!),
+              Math.abs(a.data[i + 1]! - b.data[i + 1]!),
+              Math.abs(a.data[i + 2]! - b.data[i + 2]!),
+            );
+            if (step <= differsBy) continue;
+            differing += 1;
+            most = Math.max(most, step);
+            const x = (i / 4) % a.width;
+            const y = Math.floor(i / 4 / a.width);
+            if (
+              inner.some((lamp) => Math.hypot(x + 0.5 - lamp.x, y + 0.5 - lamp.y) < lamp.radius)
+            ) {
+              within += 1;
+            }
+          }
+          return { differing, most, within };
+        },
+        { first: jump, second: opened, inner, differsBy: DIFFERS_BY },
+      );
+      rows.push({ slug, changed: changed.differing, ...unlit });
+      await page.mouse.move(1, 1);
+      await expect(svg).toHaveAttribute("data-light", "rest");
+    }
+    writeFileSync(test.info().outputPath("jump.json"), JSON.stringify({ theme, rows }, null, 1));
+    for (const row of rows) {
+      expect(row.within, `${row.slug}: unlit within 0.8 of a covering reach`).toBe(0);
+      expect(row.differing, `${row.slug}: unlit at the jump`).toBeLessThanOrEqual(
+        row.changed * JUMP_MOST_SHARE,
+      );
+      expect(row.most, `${row.slug}: the strongest unlit`).toBeLessThanOrEqual(JUMP_MOST_LEVELS);
+    }
+    await context.close();
   });
 }
