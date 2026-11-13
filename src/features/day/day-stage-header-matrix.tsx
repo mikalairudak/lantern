@@ -4,8 +4,9 @@ import { DayStageHeaderCell, type DayStageHeaderCellProps } from "./day-stage-he
 import { HEADER_DAYS, HEADER_MOMENTS, isListOpenAt } from "./day-stage-header-examples";
 
 /**
- * The page's gutter on a laptop, whose page column (`max-w-page`) holds the header 1024 px
- * wide inside it. A phone cell holds the phone's own gutters (`matrix-view.tsx`).
+ * The page's gutter on a laptop, whose page column (`max-w-page`) holds the masthead 1024 px
+ * wide inside it, and the head under it at the plan's width. A phone cell holds the phone's own
+ * gutters (`matrix-view.tsx`).
  */
 const LAPTOP_GUTTER_CLASSES = "px-16";
 
@@ -18,7 +19,7 @@ export const DAY_STAGE_HEADER_MATRIX: LabMatrix = labMatrix<DayStageHeaderCellPr
   // The header's first name: the baseline's file names are built from the key, so it stays.
   key: "written-header",
   title: "Day stage header",
-  note: "The day's header from the visitor's words to every ending, and through a word's re-plan and after. It has one density, so no density axis. The wide screen is a laptop's page column in its gutter, so the header is 1024 px wide, as on a laptop; its type follows the screen, so a laptop's lines are read on a laptop's screen",
+  note: "The day's header from the visitor's words to every ending, and through a word's re-plan and after. It has one density, so no density axis. The wide screen is a laptop's page column in its gutter, so the masthead is 1024 px wide and the head under it 768, as on a 1280 px laptop; its type follows the screen, so a laptop's lines are read on a laptop's screen. The day head matrix sets it at 1024, 1280 and 1440 px",
   base: { moment: "asked", day: 0 },
   axes: [
     {

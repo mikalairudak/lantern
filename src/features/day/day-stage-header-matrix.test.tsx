@@ -255,6 +255,29 @@ describe("the day stage header's matrix", () => {
     expect(screen.getAllByText("click a word to change it")[0]).toBeInTheDocument();
   });
 
+  it("sets the hint a step under the date, in the meta size, by pointer and by touch", async () => {
+    await renderCell("written", LISBON);
+
+    for (const hint of ["click a word to change it", "tap a word to change it"]) {
+      for (const shown of screen.getAllByText(hint)) {
+        expect(shown).toHaveClass("text-meta");
+        expect(shown).not.toHaveClass("text-caption");
+      }
+    }
+  });
+
+  it("holds the head under the masthead to the plan's width from a laptop's, the masthead at the page's", async () => {
+    await renderCell("written", LISBON);
+
+    const room = headline().closest(".\\@container");
+    expect(room).toHaveClass("lg:max-w-abacus");
+    // Every line of the head, the reserves holding its room among them, stands in it.
+    expect(room?.querySelectorAll("h1, p").length).toBeGreaterThan(3);
+    const masthead = screen.getByRole("banner").firstElementChild;
+    expect(masthead?.contains(room ?? null)).toBe(false);
+    expect(masthead?.className ?? "").not.toContain("max-w-abacus");
+  });
+
   it("says no sun on a day it never rises", async () => {
     await renderCell("written", TROMSO);
 
