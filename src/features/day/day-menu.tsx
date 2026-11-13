@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { cn } from "@/components/ui/cn";
 import { ICON_SIZES, ICON_STROKE_WIDTH } from "@/lib/tokens/icon";
+import { LIST_ROW_CLASSES, LIST_SHEET_CLASSES, ROW_NOTE_CLASSES } from "./word-list";
 
 /** What the day menu's button says. */
 export const TAKE_THIS_DAY = "Take this day";
@@ -34,11 +35,20 @@ export interface DayMenuItem {
 }
 
 /**
- * An item pointed at sits on the page's ground and its name takes the ink rule, as any word that
- * can be pressed does; a disabled or locked one shows neither.
+ * An item is a list's row, edge to edge on the list's sheet (`docs/decisions.md`, "A corner is
+ * 2 px or a circle"). Pointed at, it sits on the page's ground and its name takes the ink rule,
+ * as any word that can be pressed does; a disabled or locked one shows neither.
  */
-const ITEM_CLASSES =
-  "group/pointed flex w-full flex-col gap-0.5 rounded-sm px-3 py-2 text-left transition-colors focus-ring-inset not-aria-disabled:pointed:bg-ground aria-disabled:cursor-default";
+const ITEM_CLASSES = cn(
+  LIST_ROW_CLASSES,
+  "group/pointed focus-ring-inset not-aria-disabled:pointed:bg-ground aria-disabled:cursor-default",
+);
+
+/** The menu: the lists' sheet, hung from the foot of the masthead's row. */
+const MENU_CLASSES = cn(
+  "absolute top-full right-0 z-30 mt-1 flex w-full max-w-intro flex-col py-1 text-left whitespace-normal",
+  LIST_SHEET_CLASSES,
+);
 
 /** The item's name under the pointer or the keyboard's focus: the ink hairline under it. */
 const ITEM_NAME_POINTED_CLASSES =
@@ -58,10 +68,13 @@ const ITEM_NAME_POINTED_CLASSES =
 export function DayMenu({
   items,
   isOpenAtFirst = false,
+  pointedKey = null,
 }: {
   items: readonly DayMenuItem[];
   /** Drawn open from the first frame, as a lab cell draws it, taking no focus. */
   isOpenAtFirst?: boolean;
+  /** The item drawn pointed at with no pointer, as a lab cell draws it. */
+  pointedKey?: string | null;
 }) {
   const [isOpen, setIsOpen] = useState(isOpenAtFirst);
   const menuId = useId();
@@ -184,7 +197,7 @@ export function DayMenu({
           role="menu"
           aria-labelledby={buttonId}
           onKeyDown={onMenuKey}
-          className="absolute top-full right-0 z-30 mt-1 flex w-full max-w-intro flex-col rounded-md border border-line bg-surface p-1 text-left whitespace-normal"
+          className={MENU_CLASSES}
         >
           {items.map((item) => (
             <div key={item.key} className={cn(item.isApart && "mt-1 border-t border-line pt-1")}>
@@ -196,6 +209,7 @@ export function DayMenu({
                   target="_blank"
                   rel="noreferrer"
                   onClick={() => choose(item)}
+                  data-pointed={item.key === pointedKey || undefined}
                   className={ITEM_CLASSES}
                 >
                   <ItemWords item={item} />
@@ -207,6 +221,7 @@ export function DayMenu({
                   tabIndex={-1}
                   aria-disabled={item.isDisabled || item.isLocked || undefined}
                   onClick={() => choose(item)}
+                  data-pointed={item.key === pointedKey || undefined}
                   className={ITEM_CLASSES}
                 >
                   <ItemWords item={item} />
@@ -220,12 +235,13 @@ export function DayMenu({
   );
 }
 
+/** An item's name and, under it with no gap, its note, as a list's row sets them. */
 function ItemWords({ item }: { item: DayMenuItem }) {
   return (
-    <>
+    <span className="block min-w-0 flex-1">
       <span
         className={cn(
-          "text-body",
+          "block text-body",
           item.isDisabled || item.isLocked
             ? "text-muted"
             : cn("text-ink", ITEM_NAME_POINTED_CLASSES),
@@ -233,8 +249,8 @@ function ItemWords({ item }: { item: DayMenuItem }) {
       >
         {item.label}
       </span>
-      <span className="text-small text-muted">{item.note}</span>
-    </>
+      <span className={ROW_NOTE_CLASSES}>{item.note}</span>
+    </span>
   );
 }
 

@@ -49,7 +49,7 @@ export function AbacusControls({
   return (
     <aside
       aria-label="Lab controls"
-      className="mr-4 mb-4 ml-auto flex w-fit flex-col items-end gap-1 rounded-md border border-line bg-surface p-1 md:fixed md:right-4 md:bottom-4 md:z-20 md:m-0"
+      className="mr-4 mb-4 ml-auto flex w-fit flex-col items-end gap-1 rounded-sm border border-line bg-surface p-1 md:fixed md:right-4 md:bottom-4 md:z-20 md:m-0"
     >
       <div className={ROW_CLASSES}>
         <Choice label="Stream" choices={STREAM_CHOICES} value={stream} onChange={onStreamChange} />

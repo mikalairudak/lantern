@@ -71,7 +71,7 @@ export const SPACING_TOKENS = [
   "phone-height",
 ] as const;
 
-export const RADIUS_TOKENS = ["sm", "md"] as const;
+export const RADIUS_TOKENS = ["sm"] as const;
 
 /**
  * How the page grows on a large screen: the root's size, and every rem with it, from the

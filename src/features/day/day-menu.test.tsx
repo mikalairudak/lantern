@@ -297,3 +297,18 @@ describe("the day header's menu", () => {
     expect(onCityOpenChange).toHaveBeenCalledWith("elsewhere");
   });
 });
+
+describe("the day menu drawn still", () => {
+  it("draws the item it is given as pointed at, the link's item too, and no other", () => {
+    const { rerender } = render(<DayMenu items={ITEMS} isOpenAtFirst pointedKey="calendar" />);
+    const pointed = () =>
+      screen.getAllByRole("menuitem").filter((item) => item.hasAttribute("data-pointed"));
+    expect(pointed().map((item) => item.textContent)).toEqual(["Add to your calendar8 events"]);
+
+    rerender(<DayMenu items={ITEMS} isOpenAtFirst pointedKey="route" />);
+    expect(pointed().map((item) => item.tagName)).toEqual(["A"]);
+
+    rerender(<DayMenu items={ITEMS} isOpenAtFirst />);
+    expect(pointed()).toEqual([]);
+  });
+});

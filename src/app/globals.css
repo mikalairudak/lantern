@@ -169,9 +169,9 @@
   --root-grows-to: 160;
   --root-grows-by: 1.25;
 
-  /* Paper corners: tags and insets are barely rounded. */
+  /* A corner is 2 px or a circle (`rounded-full`), so every sheet, field and control has one
+     edge (docs/decisions.md, "A corner is 2 px or a circle"). */
   --radius-sm: 2px;
-  --radius-md: 4px;
 
   /* CSS transitions (hover, focus). Anything that moves uses the Motion springs. */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);

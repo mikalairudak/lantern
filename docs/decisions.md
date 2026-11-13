@@ -128,6 +128,7 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 - [2026-10-21 — Tokens are enforced, not documented](#2026-10-21--tokens-are-enforced-not-documented)
 - [2026-10-23 — One sans in one weight: Fira Sans](#2026-10-23--one-sans-in-one-weight-fira-sans)
 - [2026-11-12 — What can be pressed takes a rule in ink under a pointer, and the keyboard's focus shows the same](#2026-11-12--what-can-be-pressed-takes-a-rule-in-ink-under-a-pointer-and-the-keyboards-focus-shows-the-same)
+- [2026-11-13 — A corner is 2 px or a circle](#2026-11-13--a-corner-is-2-px-or-a-circle)
 
 **The harness, the checks and the eval**
 
@@ -713,3 +714,11 @@ A fourth round wrote the same five again, and Madrid's start, under the undated 
 **Why.** On a phone the excerpt began about 1,400 px down, past eight pictures, and showed still what one press on any city plays for real. It took about 520 px of a phone's page, and gave a screen whose job is one question a second headline, a second line in italics and a second time axis. Without it the index meets the foot, and the start screen asks one thing.
 
 **Cost.** A visitor who never presses sees no day: what Lantern makes is shown only by a press. The start screen links to no day's page, since its index's cells are buttons; the sitemap still lists every written day.
+
+## 2026-11-13 — A corner is 2 px or a circle
+
+**Decision.** Every box with an edge and every control has a 2 px corner (`rounded-sm`), or is a circle (`rounded-full`); the theme holds no other radius. Every list is drawn on one sheet: every word's list, the city's, the theme's, the day's menu and an open stop's words on the chart take `rounded-sm border border-line bg-surface`, with no shadow and no side padding of their own; the words sheet alone keeps its 16 px padding, since it holds running text. A list and the menu share one row: edge to edge, `px-3 py-1`, `py-2` under a coarse pointer, no corners of its own, a name and its note with no gap between them, and the list `py-1` around its rows (`LIST_ROW_CLASSES` in `word-list.tsx`). Pointed at, a row lies on the page's ground from edge to edge; the keyboard's focus adds the inset ink ring; a touch screen shows no pointed state and gets the taller rows. A list's row turns from muted to ink; a menu item's name is ink already, so it takes the ink hairline under it as its second sign. The menu's item apart keeps its hairline rule across the sheet. A ground laid under words with no edge of its own, such as a lit row's words on the chart, stays square.
+
+**Why.** Two radii and two row constructions drew one kind of surface two ways: lists stood on 4 px sheets with rows edge to edge, while the menu stood on the same sheet with rows inset 4 px as pills with corners of their own, 10 px taller. One radius gives the page one edge, a paper's, near square as the rules and the engravings are, and a circle stays for what is round, a bead or a dot. One row makes every list, the menu among them, read and answer alike, and takes the menu from 262 to 222 px under a mouse, and to 254 px under a finger.
+
+**Cost.** A sheet's 2 px corner is close to square, so a sheet tells itself from a field or a button by its colour and where it hangs, not by its shape.

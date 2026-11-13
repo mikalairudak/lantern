@@ -35,7 +35,7 @@ const LABEL_CLASSES = "flex flex-col gap-1 text-small text-muted";
 // The border sits outside the width, so a phone cell holds a phone's 390 px and a wide cell
 // its whole column: inside it, a 388 px cell broke lines a phone does not.
 const CELL_CLASSES =
-  "box-content shrink-0 overflow-hidden rounded-md border border-line bg-ground text-ink";
+  "box-content shrink-0 overflow-hidden rounded-sm border border-line bg-ground text-ink";
 
 interface MatrixViewProps {
   matrixKey: string;

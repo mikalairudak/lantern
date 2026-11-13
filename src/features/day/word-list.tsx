@@ -23,7 +23,7 @@ export const OPEN_WORD_CLASSES =
 export const HANG_FROM_WORD_CLASSES = "top-full mt-2 -left-3 -ml-px";
 
 /** What every list is drawn on. It unfolds with the list, so nothing shows before the rows. */
-export const LIST_SHEET_CLASSES = "rounded-md border border-line bg-surface";
+export const LIST_SHEET_CLASSES = "rounded-sm border border-line bg-surface";
 
 /**
  * The box a list is laid out in: as wide as its longest row, never wider than the intro's

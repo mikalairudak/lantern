@@ -68,7 +68,7 @@ export function detailsIdOf(stopId: string): string {
 }
 
 /** A sheet's box: its edge, and its padding but on the side its stop's words are on. */
-const SHEET_BOX_CLASSES = "rounded-md border border-line px-4";
+const SHEET_BOX_CLASSES = "rounded-sm border border-line px-4";
 
 interface SheetCopiesProps {
   stopId: string;

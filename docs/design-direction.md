@@ -50,6 +50,8 @@ Display and title sizes grow with the width they are set in (`cqi`), so a phone-
 
 The Tailwind theme in `src/app/globals.css` is closed: colours, the type scale, spacing, widths and radii. Motion springs and icon sizes live in `src/lib/tokens/`. Colours carry both themes through `light-dark()`, so `data-theme` on any element switches its subtree. Lint rejects every value outside the tokens, and a new value is a new token, listed in the catalog and shown in `/lab/tokens`. The keyboard's focus ring is `focus-ring`, or `focus-ring-inset` where what stands around an element would cut it.
 
+A corner is 2 px or a circle: one sheet, one edge. Every list, the theme's, a word's and the city's, the day's menu and an open stop's words on the chart stand on one sheet, the surface's colour edged with a hairline, with no shadow and no side padding of its own; the words sheet alone is padded, since it holds running text. A list's rows and the menu's are one row, edge to edge, taller under a finger, and a row pointed at lies on the page's ground from edge to edge (`docs/decisions.md`, "A corner is 2 px or a circle").
+
 ### The abacus
 
 A day is drawn on one chart, one press from its plan, which a day opens on: time runs down, energy runs across, from reflective to social in five lanes. Each stop is a wire. The model writes, for each stop, a quieter and a livelier version, or one toward the middle at an end of the scale, and each version is a hollow bead on the stop's wire at its energy. The place shown is a filled ink bead. An energy curve runs through the day; drag it at any point and each stop shows the version nearest it. The model writes the options, the code picks, and both are on screen.

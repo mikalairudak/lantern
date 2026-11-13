@@ -369,7 +369,7 @@ function QuestionForm({
           // the field beside it never moves as it says what Lantern is doing. While Lantern
           // works the light passes over it too, so its new word is seen to be working.
           className={cn(
-            "grid shrink-0 rounded-md bg-ink px-4 py-3 type-voice text-body text-ground focus-ring transition-colors pointed:bg-ink-soft",
+            "grid shrink-0 rounded-sm bg-ink px-4 py-3 type-voice text-body text-ground focus-ring transition-colors pointed:bg-ink-soft",
             isReading && STEADY_BUTTON_LIT_CLASSES,
           )}
         >

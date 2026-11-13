@@ -114,7 +114,7 @@ export function StreamScrubber() {
             {ended ? `${ended.label} → ${ended.line}` : "End the stream to see its outcome."}
           </p>
 
-          <div className="rounded-md border border-line">
+          <div className="rounded-sm border border-line">
             <PartialDayView partial={frame.partial} />
           </div>
 

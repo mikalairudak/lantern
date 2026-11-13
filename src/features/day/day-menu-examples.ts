@@ -52,11 +52,27 @@ export interface DayMenuState {
   page: MastheadPage;
   items: DayMenuItem[];
   isOpen: boolean;
+  /** The item drawn pointed at, as a pointer or the keyboard leaves it. */
+  pointedKey?: string;
 }
 
 /** The masthead and its menu in each state worth a look, on Kanazawa's written day. */
 export const DAY_MENU_STATES: readonly DayMenuState[] = [
   { label: "a day, its menu open", page: "day", items: itemsOf({}), isOpen: true },
+  {
+    label: "a row pointed at: the ground's band, its name ruled",
+    page: "day",
+    items: itemsOf({}),
+    isOpen: true,
+    pointedKey: "calendar",
+  },
+  {
+    label: "the item apart pointed at",
+    page: "day",
+    items: itemsOf({}),
+    isOpen: true,
+    pointedKey: PLAN_ANOTHER.key,
+  },
   { label: "a day, its menu closed", page: "day", items: itemsOf({}), isOpen: false },
   {
     label: "while the day is written",
@@ -106,6 +122,13 @@ export const DAY_MENU_STATES: readonly DayMenuState[] = [
     page: "day",
     items: [...itemsOf({}).slice(0, -1), { ...PLAN_ANOTHER, isLocked: true }],
     isOpen: true,
+  },
+  {
+    label: "the locked item pointed at: no band, no rule",
+    page: "day",
+    items: [...itemsOf({}).slice(0, -1), { ...PLAN_ANOTHER, isLocked: true }],
+    isOpen: true,
+    pointedKey: PLAN_ANOTHER.key,
   },
   {
     label: "a stream that ended without a day",
