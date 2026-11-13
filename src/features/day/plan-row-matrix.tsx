@@ -6,12 +6,13 @@ import { PlanRowCell } from "./plan-row-cell";
  * One row of the day's plan (`docs/decisions.md`, "A day opens on its plan, lit by the day's
  * light"): its bead in each light, ink by day and in golden hour, lit after dark where the rail
  * beside it is dotted, never on a proposal's stop, and lit with its glow growing once a proposal
- * after dark is taken.
+ * after dark is taken; and its versions (`docs/decisions.md`, "A stop on the plan swipes along its
+ * versions"), on one line when both fit, else a line each, every one on its own side.
  */
 export const PLAN_ROW_MATRIX: LabMatrix = labMatrix<{ example: number }>({
   key: "plan-row",
   title: "A row of the plan",
-  note: "One stop on the plan in each light: its bead in ink by day, lit after dark beside the dotted rail, never on a proposal's stop, its glow growing once one is taken",
+  note: "One stop on the plan in each light: its bead in ink by day, lit after dark beside the dotted rail, never on a proposal's stop, its glow growing once one is taken; its versions on one line when both fit, else a line each, each on its own side",
   base: { example: 0 },
   axes: [
     {
