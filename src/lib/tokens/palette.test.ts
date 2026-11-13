@@ -282,14 +282,6 @@ describe("the palette", () => {
     );
   });
 
-  it("draws each of the index's engravings in the page's ink, in its one theme only", () => {
-    expect(declared("engraving")).toEqual({ light: color("ink", "light"), dark: "transparent" });
-    expect(declared("engraving-night")).toEqual({
-      light: "transparent",
-      dark: color("ink", "dark"),
-    });
-  });
-
   describe("the index's plates", () => {
     /**
      * By day a plate's light is the whitest paper on the page: far enough over the page to read as
@@ -353,6 +345,20 @@ describe("the palette", () => {
         dark: "transparent",
       });
       expect(declared("plate-tone").light).toBe("transparent");
+    });
+
+    it("draws a plate's lines in the page's ink by day and the ground's colour by night, 3:1 on what lies under them", () => {
+      expect(color("engraving", "light")).toBe(color("ink", "light"));
+      expect(color("engraving", "dark")).toBe(color("ground", "dark"));
+      expect(
+        contrast(color("engraving", "dark"), declared("plate-tone").dark),
+      ).toBeGreaterThanOrEqual(NIGHT_PLATE_CONTRAST);
+      for (const theme of THEMES) {
+        expect(
+          contrast(color("engraving", theme), color("plate-lit", theme)),
+          theme,
+        ).toBeGreaterThanOrEqual(GRAPHIC_CONTRAST);
+      }
     });
   });
 

@@ -13,10 +13,9 @@ export const COLOR_TOKENS = [
   { name: "ink", role: "Primary text and filled meter segments" },
   { name: "ink-soft", role: "Secondary text" },
   { name: "muted", role: "Metadata and collapsed notes" },
-  { name: "engraving", role: "The index's engraved scene: ink by day, nothing by night" },
   {
-    name: "engraving-night",
-    role: "The index's engraved subject alone: ink by night, nothing by day",
+    name: "engraving",
+    role: "The index's engraved lines: the page's ink by day, the ground's colour by night",
   },
   { name: "plate-tone", role: "An unlit plate of the index by night; nothing by day" },
   {
@@ -50,16 +49,10 @@ export const COLOR_TOKENS = [
 ] as const;
 
 /**
- * The colours drawn in one theme only, transparent in the other: a layer of the index's engraving
- * that shows in its theme alone, and the plate's two fills that pick its bounds by theme
- * (palette.test.ts).
+ * The colours drawn in one theme only, transparent in the other: the plate's two fills that pick
+ * its bounds by theme (palette.test.ts).
  */
-export const ONE_THEME_COLOR_TOKENS: readonly ColorToken[] = [
-  "engraving",
-  "engraving-night",
-  "plate-tone",
-  "plate-lit-wide",
-];
+export const ONE_THEME_COLOR_TOKENS: readonly ColorToken[] = ["plate-tone", "plate-lit-wide"];
 
 export const TEXT_TOKENS = [
   "display",

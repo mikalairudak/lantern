@@ -1,8 +1,9 @@
 import { act, fireEvent, render } from "@testing-library/react";
+import { MotionConfig } from "motion/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyThemeChoice } from "@/features/theme/theme";
-import { IndexPictureView } from "./index-picture";
+import { IndexPictureView, IndexPlate } from "./index-picture";
 import { INDEX_PICTURES } from "./index-picture-files";
+import { MISSING_FILES_PICTURE, NO_LAMPS_PICTURE } from "./index-picture-examples";
 
 /** The observer the picture made, so a test can bring its cell near the screen. */
 let near: ((isNear: boolean) => void) | null = null;
@@ -20,30 +21,9 @@ class TestObserver {
   disconnect(): void {}
 }
 
-/** A fill as a browser computes it: the page's ink, and the transparent of the other theme. */
-// eslint-disable-next-line no-restricted-syntax -- a computed colour, as getComputedStyle reads it
-const INK_FILL = "rgb(0, 25, 36)";
-// eslint-disable-next-line no-restricted-syntax -- a computed colour, as getComputedStyle reads it
-const NO_FILL = "rgba(0, 0, 0, 0)";
-
-/** The theme the test draws in: the layer of the other theme is transparent, as the page's is. */
-let theme: "light" | "dark" = "light";
-const realComputedStyle = window.getComputedStyle;
-
 beforeEach(() => {
   near = null;
-  theme = "light";
   vi.stubGlobal("IntersectionObserver", TestObserver);
-  vi.spyOn(window, "getComputedStyle").mockImplementation((element, pseudo) => {
-    const style = realComputedStyle(element, pseudo);
-    const layer = element.getAttribute("data-layer");
-    if (layer === null) return style;
-    const isShown = (layer === "scene") === (theme === "light");
-    return {
-      ...style,
-      fill: isShown ? INK_FILL : NO_FILL,
-    } as CSSStyleDeclaration;
-  });
 });
 
 afterEach(() => {
@@ -51,15 +31,22 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/** Every file the plate has asked for, once each image that holds one. */
 function hrefsOf(container: HTMLElement): (string | null)[] {
-  return [...container.querySelectorAll("rect[data-layer]")].map((rect) => {
-    // `url(#id)`: the mask by its id, which React makes and a selector would have to escape.
-    const mask = document.getElementById(rect.getAttribute("mask")!.slice("url(#".length, -1));
-    return mask?.querySelector("image")?.getAttribute("href") ?? null;
-  });
+  return [...container.querySelectorAll("image")].map((image) => image.getAttribute("href"));
 }
 
-describe("a city's picture in the index", () => {
+function linesOf(container: HTMLElement): Element {
+  return container.querySelector('rect[data-layer="scene"]')!;
+}
+
+/** A mask's circles, by the mask's name within the plate. */
+function circlesIn(container: HTMLElement, name: string): Element[] {
+  const mask = [...container.querySelectorAll("mask")].find((each) => each.id.endsWith(`-${name}`));
+  return [...(mask?.querySelectorAll("circle") ?? [])];
+}
+
+describe("a city's plate in the index", () => {
   it("draws nothing for a city with no picture", () => {
     const { container } = render(<IndexPictureView slug="lisbon" />);
     expect(container).toBeEmptyDOMElement();
@@ -70,82 +57,90 @@ describe("a city's picture in the index", () => {
     const svg = container.querySelector("svg")!;
     expect(svg).toHaveAttribute("aria-hidden", "true");
     expect(svg).toHaveAttribute("focusable", "false");
+    expect(svg).toHaveAttribute("data-picture", "rome");
   });
 
-  it("asks for nothing until its cell comes near the screen, then only for its theme's layer", () => {
+  it("asks for nothing until its cell comes near the screen, then for its scene alone", () => {
     const { container } = render(<IndexPictureView slug="rome" />);
-    expect(hrefsOf(container)).toEqual([null, null]);
+    expect(hrefsOf(container)).toEqual([]);
     act(() => near?.(false));
-    expect(hrefsOf(container)).toEqual([null, null]);
+    expect(hrefsOf(container)).toEqual([]);
     act(() => near?.(true));
-    const rome = INDEX_PICTURES.rome!;
-    expect(hrefsOf(container)).toEqual([`/pictures/${rome.scene.files.narrow}`, null]);
+    const scene = `/pictures/${INDEX_PICTURES.rome!.scene.files.narrow}`;
+    // The lines, and both bounds, which are read from the scene's own file.
+    expect(hrefsOf(container)).toEqual([scene, scene, scene]);
   });
 
-  it("asks for the dark theme's subject alone in the dark", () => {
-    theme = "dark";
-    const { container } = render(<IndexPictureView slug="madrid" />);
+  it("asks for nothing while a lab holds its files back", () => {
+    const { container } = render(<IndexPictureView slug="rome" shouldAskFiles={false} />);
     act(() => near?.(true));
-    expect(hrefsOf(container)).toEqual([
-      null,
-      `/pictures/${INDEX_PICTURES.madrid!.subject.files.narrow}`,
-    ]);
-  });
-
-  it("asks for the other layer once the theme changes, and keeps the one it has", async () => {
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((step) => {
-      step(0);
-      return 0;
-    });
-    const { container } = render(<IndexPictureView slug="tokyo" />);
-    act(() => near?.(true));
-    theme = "dark";
-    act(() => applyThemeChoice("dark"));
-    const tokyo = INDEX_PICTURES.tokyo!;
-    expect(hrefsOf(container)).toEqual([
-      `/pictures/${tokyo.scene.files.narrow}`,
-      `/pictures/${tokyo.subject.files.narrow}`,
-    ]);
-    act(() => applyThemeChoice("system"));
-  });
-
-  it("asks for the other layer once forced colours turn on and the device's theme stands", () => {
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((step) => {
-      step(0);
-      return 0;
-    });
-    const listeners = new Map<string, () => void>();
-    vi.stubGlobal("matchMedia", (query: string) => ({
-      matches: false,
-      addEventListener: (_type: string, listener: () => void) => listeners.set(query, listener),
-      removeEventListener: () => listeners.delete(query),
-    }));
-    const { container } = render(<IndexPictureView slug="amsterdam" />);
-    act(() => near?.(true));
-    // A dark contrast theme over a light theme chosen: the drawn colours are the device's.
-    theme = "dark";
-    act(() => listeners.get("(forced-colors: active)")?.());
-    const amsterdam = INDEX_PICTURES.amsterdam!;
-    expect(hrefsOf(container)).toEqual([
-      `/pictures/${amsterdam.scene.files.narrow}`,
-      `/pictures/${amsterdam.subject.files.narrow}`,
-    ]);
-  });
-
-  it("says a layer is loading until its file arrives", () => {
-    const { container } = render(<IndexPictureView slug="seoul" />);
-    const scene = container.querySelector('rect[data-layer="scene"]')!;
-    expect(scene).toHaveAttribute("data-state", "unasked");
-    act(() => near?.(true));
-    expect(scene).toHaveAttribute("data-state", "loading");
-    fireEvent.load(container.querySelector("image")!);
-    // It is drawn once it has faded in whole, which the browser's frames carry.
-    expect(scene).not.toHaveAttribute("data-state", "unasked");
+    expect(hrefsOf(container)).toEqual([]);
+    expect(linesOf(container)).toHaveAttribute("data-state", "unasked");
   });
 
   it("asks at once where nothing can tell when it comes near the screen", () => {
     vi.stubGlobal("IntersectionObserver", undefined);
     const { container } = render(<IndexPictureView slug="paris" />);
     expect(hrefsOf(container)[0]).toBe(`/pictures/${INDEX_PICTURES.paris!.scene.files.narrow}`);
+  });
+
+  it("is loading until every part has come in, then drawn once faded in", async () => {
+    const { container } = render(
+      <MotionConfig reducedMotion="always">
+        <IndexPictureView slug="seoul" />
+      </MotionConfig>,
+    );
+    const lines = linesOf(container);
+    expect(lines).toHaveAttribute("data-state", "unasked");
+    act(() => near?.(true));
+    expect(lines).toHaveAttribute("data-state", "loading");
+    const [first, ...rest] = container.querySelectorAll("image");
+    fireEvent.load(first!);
+    expect(lines).toHaveAttribute("data-state", "loading");
+    for (const image of rest) fireEvent.load(image);
+    await vi.waitFor(() => expect(lines).toHaveAttribute("data-state", "drawn"));
+  });
+
+  it("is never drawn once a file fails", () => {
+    const { container } = render(<IndexPlate picture={MISSING_FILES_PICTURE} />);
+    act(() => near?.(true));
+    const [first, ...rest] = container.querySelectorAll("image");
+    fireEvent.error(first!);
+    for (const image of rest) fireEvent.load(image);
+    expect(linesOf(container)).toHaveAttribute("data-state", "failed");
+  });
+
+  it("burns each lamp low in three steps: half-light at the edge, the light in the pool and its heart", () => {
+    const { container } = render(<IndexPictureView slug="tokyo" />);
+    const pools = container.querySelector("[data-pools]")!;
+    expect([...pools.querySelectorAll("rect")].map((rect) => rect.getAttribute("class"))).toEqual([
+      "fill-plate-half",
+      "fill-plate-lit",
+      "fill-plate-lit",
+    ]);
+    const lamps = INDEX_PICTURES.tokyo!.lamps.length;
+    for (const step of ["pool-edge", "pool-pool", "pool-heart"]) {
+      expect(circlesIn(container, step)).toHaveLength(lamps);
+    }
+    // Under forced colours no light is drawn.
+    expect(pools).toHaveClass("forced-colors:hidden");
+  });
+
+  it("draws no pool on a plate with no lamps", () => {
+    const { container } = render(<IndexPlate picture={NO_LAMPS_PICTURE} />);
+    expect(container.querySelector("[data-pools]")).toBeNull();
+    expect(circlesIn(container, "pool-edge")).toEqual([]);
+  });
+
+  it("bounds its light by theme through one mask, from two fills each nothing in one theme", () => {
+    const { container } = render(<IndexPictureView slug="madrid" />);
+    const light = [...container.querySelectorAll("mask")].find((mask) =>
+      mask.id.endsWith("-light"),
+    )!;
+    expect([...light.querySelectorAll("rect")].map((rect) => rect.getAttribute("class"))).toEqual([
+      "fill-plate-tone",
+      "fill-plate-lit-wide",
+    ]);
+    expect(light.querySelector("g")?.getAttribute("filter")).toMatch(/bounds-grain\)$/);
   });
 });

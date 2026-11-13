@@ -86,7 +86,7 @@ test("a cell pointed at comes up to full ink, for a pointer and the keyboard ali
   expect((await ruled())[2]).toBe("underline");
 });
 
-test("a city's cell draws its engraving from one file, its theme's, kept forever", async ({
+test("a city's cell draws its plate from one file in either theme, kept forever", async ({
   page,
 }) => {
   const asked: { url: string; status: number; cache: string | null }[] = [];
@@ -104,10 +104,6 @@ test("a city's cell draws its engraving from one file, its theme's, kept forever
   // The picture is out of what is read: the cell is named by its city and its day.
   await expect(madrid).toHaveAccessibleName(/^Madrid Lively Sunday/);
   await expect(madrid.locator('rect[data-layer="scene"]')).toHaveAttribute("data-state", "drawn");
-  await expect(madrid.locator('rect[data-layer="subject"]')).toHaveAttribute(
-    "data-state",
-    "unasked",
-  );
   // Every city the index offers is drawn: one file a cell, its scene, each kept forever.
   await expect.poll(() => asked.length).toBe(INDEX_REQUESTS.length);
   const slugs = asked.map(

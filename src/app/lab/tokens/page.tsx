@@ -32,7 +32,6 @@ const SWATCH_CLASSES: Record<ColorToken, string> = {
   "ink-soft": "bg-ink-soft",
   muted: "bg-muted",
   engraving: "bg-engraving",
-  "engraving-night": "bg-engraving-night",
   "plate-tone": "bg-plate-tone",
   "plate-lit": "bg-plate-lit",
   "plate-lit-wide": "bg-plate-lit-wide",

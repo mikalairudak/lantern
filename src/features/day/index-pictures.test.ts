@@ -14,7 +14,7 @@ import {
 const PICTURES_DIR = new URL("../../../public/pictures/", import.meta.url);
 const CITIES = ["Paris", "Tokyo", "Rome", "New York", "Amsterdam", "Barcelona", "Seoul", "Madrid"];
 /** Every picture's files together, the start screen's eight at a phone's twice its pixels. */
-const NARROW_THEME_BUDGET = 150 * 1024;
+const NARROW_BUDGET = 150 * 1024;
 
 describe("the index's pictures", () => {
   it("draws the eight cities, each by its day's slug", () => {
@@ -30,38 +30,31 @@ describe("the index's pictures", () => {
     }
   });
 
-  it("names every file it serves, each under its city and layer, and serves no other", () => {
+  it("names every file it serves, each under its city's scene, and serves no other", () => {
     const named = Object.entries(INDEX_PICTURES).flatMap(([slug, picture]) =>
-      (["scene", "subject"] as const).flatMap((layer) =>
-        Object.values(picture[layer].files).map((file) => {
-          expect(file.startsWith(`${slug}-${layer}-`), file).toBe(true);
-          return file;
-        }),
-      ),
+      Object.values(picture.scene.files).map((file) => {
+        expect(file.startsWith(`${slug}-scene-`), file).toBe(true);
+        return file;
+      }),
     );
     for (const file of named) expect(existsSync(new URL(file, PICTURES_DIR)), file).toBe(true);
     expect(readdirSync(PICTURES_DIR).sort()).toEqual([...named].sort());
   });
 
   it("keeps the start screen's eight light at a phone's twice its pixels, in either theme", () => {
-    for (const layer of ["scene", "subject"] as const) {
-      const bytes = Object.values(INDEX_PICTURES).reduce(
-        (sum, picture) => sum + statSync(new URL(picture[layer].files.narrow, PICTURES_DIR)).size,
-        0,
-      );
-      expect(bytes, layer).toBeLessThan(NARROW_THEME_BUDGET);
-    }
+    const bytes = Object.values(INDEX_PICTURES).reduce(
+      (sum, picture) => sum + statSync(new URL(picture.scene.files.narrow, PICTURES_DIR)).size,
+      0,
+    );
+    expect(bytes).toBeLessThan(NARROW_BUDGET);
   });
 
-  it("stands every layer on the field's ground, inside a field the widest fills", () => {
-    for (const picture of Object.values(INDEX_PICTURES)) {
-      for (const [left, top, width, height] of [picture.scene.box, picture.subject.box]) {
-        expect(top + height).toBeCloseTo(316, 0);
-        expect(width).toBeLessThan(PICTURE_FIELD_WIDTH);
-        expect(left + width / 2).toBeCloseTo(240, 0);
-      }
-      // The subject alone never stands taller than its whole scene.
-      expect(picture.subject.box[3]).toBeLessThanOrEqual(picture.scene.box[3] + 0.1);
+  it("stands every scene on the field's ground, inside a field the widest fills", () => {
+    for (const { scene } of Object.values(INDEX_PICTURES)) {
+      const [left, top, width, height] = scene.box;
+      expect(top + height).toBeCloseTo(316, 0);
+      expect(width).toBeLessThan(PICTURE_FIELD_WIDTH);
+      expect(left + width / 2).toBeCloseTo(240, 0);
     }
   });
 
@@ -70,8 +63,42 @@ describe("the index's pictures", () => {
     const [x, y, width, height] = viewBoxOf(madrid).split(" ").map(Number);
     expect(width).toBe(PICTURE_FIELD_WIDTH);
     expect(x! + width! / 2).toBe(240);
-    expect(y).toBeLessThan(Math.min(madrid.scene.box[1], madrid.subject.box[1]));
+    expect(y).toBeLessThan(madrid.scene.box[1]);
     expect(y! + height!).toBe(318);
+  });
+
+  describe("the sources of light drawn in each plate", () => {
+    /** How far inside its scene's box a lamp stands, and two lamps apart, as shares of its longer side. */
+    const LEAST_INSIDE = 0.08;
+    const LEAST_APART = 0.2;
+
+    it.each(Object.entries(INDEX_PICTURES))("gives %s one or two lamps", (_, picture) => {
+      expect(picture.lamps.length).toBeGreaterThanOrEqual(1);
+      expect(picture.lamps.length).toBeLessThanOrEqual(2);
+    });
+
+    it.each(Object.entries(INDEX_PICTURES))(
+      "stands each of %s's lamps well inside its scene, and two well apart",
+      (_, picture) => {
+        const [, , width, height] = picture.scene.box;
+        const longer = Math.max(width, height);
+        const points = picture.lamps.map(([across, down]) => ({
+          x: across * width,
+          y: down * height,
+        }));
+        for (const { x, y } of points) {
+          expect(Math.min(x, width - x, y, height - y) / longer).toBeGreaterThanOrEqual(
+            LEAST_INSIDE,
+          );
+        }
+        const [first, second] = points;
+        if (first !== undefined && second !== undefined) {
+          expect(
+            Math.hypot(first.x - second.x, first.y - second.y) / longer,
+          ).toBeGreaterThanOrEqual(LEAST_APART);
+        }
+      },
+    );
   });
 
   it("asks for the narrow file a phone's cell needs, and the wide one for a laptop's at 2x or a 3x phone", () => {

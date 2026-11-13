@@ -21,14 +21,13 @@ const CELL_CLASSES =
 
 /**
  * A cell pointed at, by a pointer or the keyboard, stands forward: its city takes the ink rule
- * every word that can be pressed takes, and its engraving comes up to full ink from the 90% every
- * engraving rests at where a pointer can hover. A touch screen draws them all at full ink
- * (`docs/decisions.md`, "What can be pressed takes a rule in ink under a pointer").
+ * every word that can be pressed takes (`docs/decisions.md`, "What can be pressed takes a rule in
+ * ink under a pointer"). Its plate is drawn whole at every rest, so its tone and lamps are never
+ * greyed.
  */
 const CITY_CLASSES =
   "type-voice text-quote text-pretty text-ink decoration-ink decoration-1 underline-offset-4 pointed-group:underline";
-const PICTURE_CLASSES =
-  "self-end transition-opacity can-hover:opacity-90 pointed-group:opacity-100";
+const PICTURE_CLASSES = "self-end";
 
 /**
  * The start screen's index (`docs/decisions.md`, "The start screen is

@@ -24,10 +24,9 @@ const ignore = () => undefined;
 /**
  * The start screen's second way in (`docs/decisions.md`, "The start screen is an index, with a
  * day's first stops under it"): the index under its label, at the eight cities it offers, each with
- * its engraving, at a city with none among them and the longest caption, and at one cell. Each
- * cell's picture is the theme's own: the whole scene by day, the subject alone by night. A cell
- * pointed at stands forward, its city ruled and its picture up to full ink from the 90% the others
- * rest at.
+ * its plate, at a city with none among them and the longest caption, and at one cell. Each plate
+ * draws its whole scene in both themes, its lamps low at rest. A cell pointed at stands forward,
+ * its city ruled.
  */
 export const START_INDEX_MATRIX: LabMatrix = labMatrix<StartIndexCellProps>({
   key: "start-index",

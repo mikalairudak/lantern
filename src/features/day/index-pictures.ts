@@ -2,24 +2,27 @@ import { INDEX_PICTURES } from "./index-picture-files";
 
 /**
  * The index's pictures (`docs/decisions.md`, "The index's pictures are engravings of a city's
- * everyday thing"): each city one engraved scene, kept as two masks of its own tones, white where
- * the ink is. The light theme draws the whole scene; the dark theme draws the subject alone, its
- * faintest hatching left out, at its own size. Both stand on one field, 480 by 320 units with its
- * ground at 316, at one optical size, so a city's picture weighs what the others do.
+ * everyday thing"): each city one engraved scene, kept as a mask of its own tones, white where the
+ * ink is, and drawn whole in both themes. Each stands on one field, 480 by 320 units with its
+ * ground at 316, at one optical size, so a city's picture weighs what the others do. Each holds
+ * one or two lamps, sources of light drawn in the scene, where its plate's light stands.
  */
 
-/** One layer of a picture: its box on the field, left, top, width and height, and its files. */
+/** A picture's scene: its box on the field, left, top, width and height, and its files. */
 export interface PictureLayer {
   box: readonly [number, number, number, number];
   /** At 1.4 field units a pixel, for a phone's cell at twice its pixels, and at 2. */
   files: Readonly<Record<PictureDensity, string>>;
 }
 
+/** Where a lamp stands, as a share of its scene's box: across, then down. */
+export type Lamp = readonly [number, number];
+
 export interface IndexPicture {
-  /** The whole scene, its setting and its subject, drawn in the light theme. */
+  /** The whole scene, its setting and its subject, drawn in both themes. */
   scene: PictureLayer;
-  /** The subject alone, drawn in the dark theme. */
-  subject: PictureLayer;
+  /** Each source of light drawn in the scene, taken from where it is drawn. */
+  lamps: readonly Lamp[];
 }
 
 export type PictureDensity = "narrow" | "wide";
@@ -27,9 +30,11 @@ export type PictureDensity = "narrow" | "wide";
 /** The field's centre and its ground, in field units: every picture stands on that ground. */
 const FIELD_CENTRE = 240;
 const FIELD_GROUND = 316;
-/** A little sky over a picture's highest point, and room under its ground. */
+/** A little sky over a picture's highest point, and room under its ground, in field units. */
 const SKY = 8;
 const FOOT = 2;
+/** Room each side of the widest scene, in field units: the field's width does not grow with the foot. */
+const SIDE = 2;
 /** The pixels a field unit each file holds, `narrow` and `wide`. */
 const UNIT_PIXELS: Readonly<Record<PictureDensity, number>> = { narrow: 1.4, wide: 2 };
 
@@ -42,24 +47,15 @@ export function indexPictureOf(slug: string): IndexPicture | null {
 }
 
 /**
- * The width of the field every picture is centred on: the widest layer of any city's, with a
- * little room, so the widest fills its cell and each keeps its one optical size.
+ * The width of the field every picture is centred on: the widest scene of any city's, with a
+ * little room each side, so the widest fills its cell and each keeps its one optical size.
  */
 export const PICTURE_FIELD_WIDTH =
-  Math.max(
-    ...Object.values(INDEX_PICTURES).flatMap(({ scene, subject }) => [
-      scene.box[2],
-      subject.box[2],
-    ]),
-  ) +
-  2 * FOOT;
+  Math.max(...Object.values(INDEX_PICTURES).map(({ scene }) => scene.box[2])) + 2 * SIDE;
 
-/**
- * A picture's view of the field: as wide as the field, from just over its scene's top, which is
- * never lower than its subject's, to just under the ground.
- */
+/** A picture's view of the field: as wide as the field, from just over its scene's top to just under the ground. */
 export function viewBoxOf(picture: IndexPicture): string {
-  const top = Math.max(0, Math.min(picture.scene.box[1], picture.subject.box[1]) - SKY);
+  const top = Math.max(0, picture.scene.box[1] - SKY);
   const left = FIELD_CENTRE - PICTURE_FIELD_WIDTH / 2;
   return `${left} ${top} ${PICTURE_FIELD_WIDTH} ${FIELD_GROUND + FOOT - top}`;
 }
@@ -73,7 +69,7 @@ export function densityFor(cellWidth: number, pixelRatio: number): PictureDensit
   return needed <= UNIT_PIXELS.narrow ? "narrow" : "wide";
 }
 
-/** A layer's file as the page asks for it. */
+/** A scene's file as the page asks for it. */
 export function pictureSrcOf(layer: PictureLayer, density: PictureDensity): string {
   return `${PICTURES_PATH}/${layer.files[density]}`;
 }
