@@ -347,24 +347,26 @@ export const CURVE_NAME = "drag the curve";
 
 /**
  * The scale's least span, from the quietest lane to the liveliest, in rems, for its end
- * words to keep their arrows. Centred between them, "drag the curve" (84.4 px in
- * `type-note` at the default size) leaves 12 px, about one em, to "← quieter" (59.5 px, the
- * wider end word) at 2 × (59.5 + 12) + 84.4 = 227.4 px: 14.25 rems, 228 px. Closer than
+ * words to keep their arrows. Centred between them, "drag the curve" (89.0 px in
+ * `type-note` at the default size) leaves 12 px, about one em, to "← quieter" (62.7 px, the
+ * wider end word) at 2 × (62.7 + 12) + 89.0 = 238.4 px: 14.9375 rems, 239 px. Closer than
  * that, the three read as one phrase. On a phone the span is the viewport less the page's
  * gutters, a rem either side, and the chart's 96 px beside its lanes, which grow only on a
- * large screen: 128 px at the default size, so the arrows go below 356 px; with the
- * browser's text at 125 %, 136 px, and they go below 421 px.
+ * large screen: 128 px at the default size, so the arrows go below 367 px; with the
+ * browser's text at 125 %, 136 px, and they go below 435 px.
  */
-export const SCALE_ARROWS_MIN_REMS = 14.25;
+export const SCALE_ARROWS_MIN_REMS = 14.9375;
 
 /**
- * The least span, in rems, for the curve's name to stand between the arrowless end words:
- * 11.625 rems, 186 px at the default size, under a 320 px phone's 192, so nothing changes
- * there. Under it, as with the browser's text at 125 % on a phone under 369 px, a 360 px one
- * among them, the scale keeps only "quieter" and "livelier", and the opening pull's ring
+ * The least span, in rems, for the curve's name to stand between the arrowless end words,
+ * 8 px clear of each: centred, "drag the curve" (89.0 px in `type-note` at the default size)
+ * and "quieter" (44.7 px, the wider end word) need 2 × (44.7 + 8) + 89.0 = 194.4 px, 12.1875
+ * rems, 195 px, over a 320 px phone's 192, so the name first stands on a 323 px phone. Under
+ * it, as on a 320 px phone and with the browser's text at 125 % on a phone under 380 px, the
+ * scale keeps only "quieter" and "livelier", each on its end lane, and the opening pull's ring
  * still shows what to drag.
  */
-export const SCALE_NAME_MIN_REMS = 11.625;
+export const SCALE_NAME_MIN_REMS = 12.1875;
 
 /**
  * The energy scale: a short tick over each lane, and only its direction in words, quieter
