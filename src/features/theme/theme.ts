@@ -5,6 +5,9 @@
  * the attribute removed, so `color-scheme: light dark` answers to the device again. The
  * choice itself, the system's too, is noted beside it as `data-theme-choice`, which the
  * theme's icon reads, so it shows System on a dark device rather than the theme it resolves to.
+ * Under forced colours the device's theme stands whatever the choice, and the choice is kept,
+ * untouched, for when they end (`docs/decisions.md`, "Under forced colours the system's theme
+ * stands").
  */
 
 import { BROWSER_STORAGE } from "@/lib/browser-storage";
@@ -91,9 +94,12 @@ export function restoreThemeChoice(): void {
   window.dispatchEvent(new Event(THEME_EVENT));
 }
 
-/** The theme a choice shows: the system's is the device's. */
+/**
+ * The theme a choice shows: the system's is the device's, and under forced colours every choice
+ * shows the device's, since the system's palette stands there (`globals.css`).
+ */
 function shownThemeOf(choice: ThemeChoice): "light" | "dark" {
-  if (choice !== "system") return choice;
+  if (choice !== "system" && !matchesMedia("(forced-colors: active)")) return choice;
   return matchesMedia("(prefers-color-scheme: dark)") ? "dark" : "light";
 }
 
@@ -119,9 +125,9 @@ function showLastChoice(): void {
  * choice changes what the page looks like, the page crosses to it: the browser's view
  * transition of the root fades the last frame in the old theme into the live page in the new
  * (`--duration-theme`, linear, in `globals.css`), and in Chromium the page takes no press
- * meanwhile. A
- * choice that changes no colour, reduced motion and a browser without view transitions set it
- * at once (`docs/decisions.md`, "The theme crosses as one cross-fade of the whole page").
+ * meanwhile. A choice that changes no colour, as every choice under forced colours, reduced
+ * motion and a browser without view transitions set it at once (`docs/decisions.md`, "The theme
+ * crosses as one cross-fade of the whole page").
  */
 export function applyThemeChoice(choice: ThemeChoice): void {
   try {

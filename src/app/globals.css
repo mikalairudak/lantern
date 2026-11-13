@@ -344,6 +344,19 @@ html {
 }
 
 /*
+ * Under forced colours the system's palette stands, and the theme chosen in Lantern gives way to
+ * it: every subtree answers to the device again, so each light-dark() pair resolves for the canvas
+ * it is drawn on. The browser forces text, backgrounds and borders but not what SVG draws, which
+ * would otherwise keep the chosen theme's colours on the system's canvas (`docs/decisions.md`,
+ * "Under forced colours the system's theme stands").
+ */
+@media (forced-colors: active) {
+  [data-theme] {
+    color-scheme: light dark;
+  }
+}
+
+/*
  * The theme's crossing (`applyThemeChoice`): the browser's view transition of the root fades
  * the page's last frame in the old theme into the live page in the new, as one picture, in the
  * theme's own time. Nothing else on the site takes a view transition, so the root's is the
