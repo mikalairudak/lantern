@@ -304,7 +304,8 @@
    * and over the whole plate when it is lit, with plate-half at a pool's edge. By day the lit
    * sheet lies a little wider than the drawing; by night it does not. plate-lit-wide says which:
    * it is never painted, and with plate-tone, each nothing in one theme, it fills the mask through
-   * which a plate's light takes its bounds by theme. palette.test.ts holds their steps.
+   * which a plate's light takes its bounds by theme (docs/decisions.md, "A plate is lit whole,
+   * from sources drawn in it"). palette.test.ts holds their steps.
    */
   --color-engraving: light-dark(#001924, #011d27);
   --color-plate-tone: light-dark(transparent, #4c7887);
