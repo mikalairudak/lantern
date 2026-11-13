@@ -35,6 +35,41 @@ test("a written day opens on its plan, lit, and its energy moves it", async ({ p
   await expect(page.getByText(/(click|tap) a word to change it/)).toBeHidden();
 });
 
+test("after dark the plan's beads are lit, in the first HTML, and every bead shows under forced colours", async ({
+  page,
+}) => {
+  // Lit by the styles alone, in the HTML a page read without its script shows.
+  const html = await (await page.request.get("/day/kanazawa")).text();
+  expect(html).toContain('data-bead="lit"');
+
+  await page.goto("/day/kanazawa");
+  await dayIsWhole(page);
+  const plan = page.getByRole("list", { name: "The day, to read" });
+  const beads = await plan.locator("[data-bead]").evaluateAll((all) =>
+    all.map((bead) => ({
+      isLit: bead.getAttribute("data-bead") === "lit",
+      isDotted: bead.parentElement?.querySelector("svg line")?.hasAttribute("stroke-dasharray"),
+    })),
+  );
+  expect(beads.some(({ isLit }) => isLit)).toBe(true);
+  for (const bead of beads) expect(bead.isLit).toBe(bead.isDotted);
+
+  await page.emulateMedia({ forcedColors: "active" });
+  const drawn = await plan.locator("[data-bead]").evaluateAll((all) =>
+    all.map((bead) => {
+      const dot = getComputedStyle(bead.lastElementChild!);
+      const glow = bead.querySelector(".bg-lamp-glow");
+      return {
+        border: dot.borderTopWidth,
+        isText: dot.borderTopColor === getComputedStyle(document.body).color,
+        isGlowDrawn: glow !== null && getComputedStyle(glow).display !== "none",
+      };
+    }),
+  );
+  for (const bead of drawn)
+    expect(bead).toEqual({ border: "4px", isText: true, isGlowDrawn: false });
+});
+
 test("the masthead's menu holds the ways along, and the chart is kept once chosen", async ({
   page,
 }) => {
