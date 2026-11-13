@@ -242,3 +242,152 @@ export async function differenceOf(
     { first, second, scale, lines, allowed, edges, differsBy: DIFFERS_BY },
   );
 }
+
+/** One frame Chromium painted, its time on the page's clock (ms since the epoch), as a PNG. */
+export interface PaintedFrame {
+  at: number;
+  png: string;
+}
+
+/**
+ * The radii of a plate's lit circles as each frame painted them, each dated as its frame's
+ * callbacks ran, and when its cell was entered and left.
+ */
+export interface PlateLog {
+  samples: { at: number; radii: number[] }[];
+  /** Each time a pointer came onto the cell or left it, and the radii standing then. */
+  entered: { at: number; radii: number[] }[];
+  left: { at: number; radii: number[] }[];
+}
+
+/**
+ * Starts logging one plate: after each frame is painted, the radius of each of its lit circles,
+ * and each time a pointer comes onto its cell or leaves it, with the radii standing then, all on
+ * the page's clock.
+ */
+export async function logPlate(page: Page, slug: string): Promise<void> {
+  await page.evaluate((plate) => {
+    const svg = document.querySelector(`svg[data-picture="${plate}"]`)!;
+    const cell = svg.closest("button")!;
+    const circles = [...svg.querySelectorAll('mask[id$="-whole"] circle')];
+    const now = () => performance.timeOrigin + performance.now();
+    const radii = () => circles.map((circle) => Number(circle.getAttribute("r")));
+    type Moment = { at: number; radii: number[] };
+    const log = { samples: [] as Moment[], entered: [] as Moment[], left: [] as Moment[] };
+    (window as unknown as { plateLog: typeof log }).plateLog = log;
+    // On the window, capturing, so the radii are read before the page's own handlers turn them.
+    // Over: the pointer comes onto the target from the related target; out: it leaves the target
+    // for the related target. Either crosses the cell's edge when only its target is in the cell.
+    const isIn = (node: EventTarget | null) => node instanceof Node && cell.contains(node);
+    const crossing = (event: PointerEvent) => {
+      if (!isIn(event.target) || isIn(event.relatedTarget)) return;
+      (event.type === "pointerover" ? log.entered : log.left).push({ at: now(), radii: radii() });
+    };
+    window.addEventListener("pointerover", crossing, true);
+    window.addEventListener("pointerout", crossing, true);
+    // Each frame is dated as its callbacks run, after the input it answers, and read once it
+    // has been painted: a message posted in a frame's callbacks arrives after its paint.
+    const channel = new MessageChannel();
+    channel.port1.onmessage = (event: MessageEvent<number>) =>
+      log.samples.push({ at: event.data, radii: radii() });
+    const sample = () => {
+      channel.port2.postMessage(now());
+      requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  }, slug);
+}
+
+export async function plateLogOf(page: Page): Promise<PlateLog> {
+  return page.evaluate(() => (window as unknown as { plateLog: PlateLog }).plateLog);
+}
+
+/** Films the page through Chromium's screencast while `act` runs, every frame it paints. */
+export async function filmOf(page: Page, act: () => Promise<void>): Promise<PaintedFrame[]> {
+  const session = await page.context().newCDPSession(page);
+  const frames: PaintedFrame[] = [];
+  session.on("Page.screencastFrame", (frame) => {
+    frames.push({ at: (frame.metadata.timestamp ?? 0) * 1000, png: frame.data });
+    session.send("Page.screencastFrameAck", { sessionId: frame.sessionId }).catch(() => undefined);
+  });
+  await session.send("Page.startScreencast", { format: "png", everyNthFrame: 1 });
+  await act();
+  await session.send("Page.stopScreencast");
+  await session.detach();
+  return frames;
+}
+
+/** For each frame, how much of a plate's light is there, measured on the pixels the light changes. */
+export interface LightShare {
+  at: number;
+  /** Changed pixels that differ from the plate lit whole. */
+  offWhole: number;
+  /** Changed pixels back at rest, within a level or three. */
+  atRest: number;
+  /** The largest step from rest among the changed pixels. */
+  mostFromRest: number;
+}
+
+/**
+ * Measures each frame against the plate at rest and lit whole, inside `box` (CSS px at one device
+ * pixel), on the pixels that differ between those two: how many there are, and per frame how many
+ * still differ from the plate whole and how many are back at rest.
+ */
+export async function lightSharesOf(
+  decoder: Page,
+  rest: string,
+  whole: string,
+  frames: PaintedFrame[],
+  box: Box,
+): Promise<{ changed: number; shares: LightShare[] }> {
+  return decoder.evaluate(
+    async ({ rest, whole, frames, box, differsBy }) => {
+      const pixelsOf = async (png: string) => {
+        const image = new Image();
+        image.src = `data:image/png;base64,${png}`;
+        await image.decode();
+        const canvas = new OffscreenCanvas(box.width, box.height);
+        const context = canvas.getContext("2d")!;
+        context.drawImage(image, -box.x, -box.y);
+        return context.getImageData(0, 0, box.width, box.height).data;
+      };
+      const [atRest, atWhole] = [await pixelsOf(rest), await pixelsOf(whole)];
+      const step = (a: Uint8ClampedArray, b: Uint8ClampedArray, i: number) =>
+        Math.max(
+          Math.abs(a[i]! - b[i]!),
+          Math.abs(a[i + 1]! - b[i + 1]!),
+          Math.abs(a[i + 2]! - b[i + 2]!),
+        );
+      const changed: number[] = [];
+      for (let i = 0; i < atRest.length; i += 4)
+        if (step(atRest, atWhole, i) > differsBy) changed.push(i);
+      const shares = [];
+      for (const frame of frames) {
+        const pixels = await pixelsOf(frame.png);
+        let offWhole = 0;
+        let backAtRest = 0;
+        let mostFromRest = 0;
+        for (const i of changed) {
+          if (step(pixels, atWhole, i) > differsBy) offWhole += 1;
+          const fromRest = step(pixels, atRest, i);
+          if (fromRest <= differsBy) backAtRest += 1;
+          mostFromRest = Math.max(mostFromRest, fromRest);
+        }
+        shares.push({ at: frame.at, offWhole, atRest: backAtRest, mostFromRest });
+      }
+      return { changed: changed.length, shares };
+    },
+    {
+      rest,
+      whole,
+      frames,
+      box: {
+        x: Math.floor(box.x),
+        y: Math.floor(box.y),
+        width: Math.ceil(box.width),
+        height: Math.ceil(box.height),
+      },
+      differsBy: DIFFERS_BY,
+    },
+  );
+}
