@@ -1,3 +1,5 @@
+import { daySlugOf } from "../src/lib/days/slug";
+import { WRITTEN_REQUESTS } from "../src/lib/days/written/requests";
 import { expect, test, type Locator, type Page, waitMs, chooseTheChart } from "./fixtures";
 
 // These tests drive the chart: each page opens as for a visitor who chose it, since a day
@@ -630,58 +632,85 @@ const HAND_STEP_MS = 40;
 /** What the page may scroll less than the hand and the header's growth: rounding, no more. */
 const HAND_LOST_PX = 2;
 
+/** The written days' cities, each once, in the order the site lists them. */
+const WRITTEN_CITIES = [...new Set(WRITTEN_REQUESTS.map(daySlugOf))];
+/** How long after a swap the header may take to start growing, when the swap grows it. */
+const HEADER_GROWS_MS = 2000;
+
+/**
+ * Whether a swap grows the header, which on a phone holds no room for the line's lead, depends
+ * on how much room its lines have spare, which differs between a system that sets glyphs on
+ * whole pixels and one that places them between pixels. So the test takes the first written day whose
+ * header grows when a swap brings the lead, on the system it runs on, and holds the rule there.
+ */
 test("a swap made with the header above the screen never takes back the hand's scroll", async ({
   page,
   isMobile,
 }) => {
   test.skip(!isMobile, "A laptop's header holds room for the clause and the lead");
+  test.setTimeout(WRITTEN_CITIES.length * DAY_TIMEOUT_MS);
   await page.setViewportSize(PHONE);
   await page.emulateMedia({ reducedMotion: "no-preference" });
-  await page.goto("/day/nafplio");
-  const chart = page.getByRole("group", { name: /The day's energy/ });
-  await expect(chart).toHaveAttribute("aria-busy", "false", { timeout: DAY_TIMEOUT_MS });
-  await chart.evaluate((element) =>
-    window.scrollTo(0, element.getBoundingClientRect().top + scrollY),
-  );
   const header = page.locator("main header");
   const headerHeight = async () => (await header.boundingBox())?.height ?? 0;
   const scrolled = () => page.evaluate(() => scrollY);
 
-  for (const slider of await page.getByRole("slider", { name: /^Energy at / }).all()) {
-    const energy = await slider.getAttribute("aria-valuenow");
-    await slider.evaluate((element) => element.focus({ preventScroll: true }));
-    const from = { header: await headerHeight(), scroll: await scrolled() };
-    await page.keyboard.press("ArrowRight");
-    // The hand scrolls down through the header's glide, a step at a time.
-    await page.evaluate(
-      ({ steps, px, ms }) =>
-        new Promise<void>((resolve) => {
-          let done = 0;
-          const timer = window.setInterval(() => {
-            window.scrollBy(0, px);
-            done += 1;
-            if (done < steps) return;
-            window.clearInterval(timer);
-            resolve();
-          }, ms);
-        }),
-      { steps: HAND_STEPS, px: HAND_STEP_PX, ms: HAND_STEP_MS },
+  for (const city of WRITTEN_CITIES) {
+    await page.goto(`/day/${city}`);
+    const chart = page.getByRole("group", { name: /The day's energy/ });
+    await expect(chart).toHaveAttribute("aria-busy", "false", { timeout: DAY_TIMEOUT_MS });
+    await chart.evaluate((element) =>
+      window.scrollTo(0, element.getBoundingClientRect().top + scrollY),
     );
-    if (!(await isStepped(slider, energy))) {
-      await page.evaluate((y) => window.scrollTo(0, y), from.scroll);
-      continue;
+
+    for (const slider of await page.getByRole("slider", { name: /^Energy at / }).all()) {
+      const energy = await slider.getAttribute("aria-valuenow");
+      await slider.evaluate((element) => element.focus({ preventScroll: true }));
+      const from = { header: await headerHeight(), scroll: await scrolled() };
+      await page.keyboard.press("ArrowRight");
+      // The hand scrolls down through the header's glide, a step at a time.
+      await page.evaluate(
+        ({ steps, px, ms }) =>
+          new Promise<void>((resolve) => {
+            let done = 0;
+            const timer = window.setInterval(() => {
+              window.scrollBy(0, px);
+              done += 1;
+              if (done < steps) return;
+              window.clearInterval(timer);
+              resolve();
+            }, ms);
+          }),
+        { steps: HAND_STEPS, px: HAND_STEP_PX, ms: HAND_STEP_MS },
+      );
+      if (!(await isStepped(slider, energy))) {
+        await page.evaluate((y) => window.scrollTo(0, y), from.scroll);
+        continue;
+      }
+      const isGrown = await expect
+        .poll(headerHeight, { timeout: HEADER_GROWS_MS })
+        .toBeGreaterThan(from.header)
+        .then(
+          () => true,
+          () => false,
+        );
+      // The lead fits this day's lines: any other stop's swap brings the same lead.
+      if (!isGrown) break;
+      // The report names the day the rule was held on.
+      test.info().annotations.push({ type: "day", description: city });
+      // Once the header rests, the page has scrolled by the hand's steps and the header's growth.
+      await expect
+        .poll(async () => {
+          const grown = (await headerHeight()) - from.header;
+          return grown + HAND_STEPS * HAND_STEP_PX - ((await scrolled()) - from.scroll);
+        })
+        .toBeLessThanOrEqual(HAND_LOST_PX);
+      return;
     }
-    await expect.poll(headerHeight).toBeGreaterThan(from.header);
-    // Once the header rests, the page has scrolled by the hand's steps and the header's growth.
-    await expect
-      .poll(async () => {
-        const grown = (await headerHeight()) - from.header;
-        return grown + HAND_STEPS * HAND_STEP_PX - ((await scrolled()) - from.scroll);
-      })
-      .toBeLessThanOrEqual(HAND_LOST_PX);
-    return;
   }
-  throw new Error("No stop of the day has a livelier version to step to");
+  throw new Error(
+    "No written day's header grows when a swap brings the lead, so none holds the rule",
+  );
 });
 
 test(
