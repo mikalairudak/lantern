@@ -60,6 +60,12 @@ describe("sending a product event", () => {
     sendProductEvent({ ...DAY_OPENED, city: "" });
     sendProductEvent({ ...DAY_OPENED, city: "東京" });
     sendProductEvent({ ...DAY_OPENED, via: "shared" } as unknown as ProductEvent);
+    sendProductEvent({
+      kind: "word-changed",
+      city: "kyoto",
+      word: "energy",
+      control: "slider",
+    } as unknown as ProductEvent);
 
     expect(fetchEvent).not.toHaveBeenCalled();
   });

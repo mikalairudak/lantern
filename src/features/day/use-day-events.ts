@@ -38,9 +38,10 @@ export interface DayEvents {
   send: (event: ProductEvent) => void;
   /**
    * Tells what the visitor did with the day on screen, with the day as it was opened and the
-   * view it is read in, the first time on that day alone: whether the visitor dragged, swapped,
-   * took the day along or read it to its end is the question, and a held arrow key, one pull a
-   * step, or a link copied again and again would otherwise spend a visitor's events for the day.
+   * view it is read in, the first time on that day alone: whether the visitor opened the day's
+   * menu, dragged, swapped, took the day along or read it to its end is the question, and a held
+   * arrow key, one pull a step, or a menu or a link pressed again and again would otherwise spend
+   * a visitor's events for the day.
    * Nothing is told before a day is opened.
    */
   act: (act: DayAct) => void;

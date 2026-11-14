@@ -32,12 +32,12 @@ async function seed(
   event: ProductEvent,
   { day = "2026-10-30", environment = "production" } = {},
 ): Promise<void> {
-  const { city, via, written, outcome, stage, word, view, answer } = columnsOf(event);
+  const { city, via, written, outcome, stage, word, view, answer, control } = columnsOf(event);
   await database.session.query(
     `INSERT INTO product_events
       (id, environment, utc_day, visitor_key, kind, city, via, written, outcome, stage, word, view,
-       answer)
-     VALUES ($1::uuid, $2, $3::date, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+       answer, control)
+     VALUES ($1::uuid, $2, $3::date, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
     [
       crypto.randomUUID(),
       environment,
@@ -52,16 +52,24 @@ async function seed(
       word,
       view,
       answer,
+      control,
     ],
   );
 }
 
-/** An event kept before its kind told the way in and the view: the city alone. */
-async function seedUntold(visitor: string, kind: string): Promise<void> {
+/**
+ * An event kept before its kind told the way in and the view, or a word changed before it told
+ * the control: the city alone, and the word if it has one.
+ */
+async function seedUntold(
+  visitor: string,
+  kind: string,
+  { word = null }: { word?: string | null } = {},
+): Promise<void> {
   await database.session.query(
-    `INSERT INTO product_events (id, environment, utc_day, visitor_key, kind, city)
-     VALUES ($1::uuid, 'production', '2026-10-30', $2, $3, 'kyoto')`,
-    [crypto.randomUUID(), visitor, kind],
+    `INSERT INTO product_events (id, environment, utc_day, visitor_key, kind, city, word)
+     VALUES ($1::uuid, 'production', '2026-10-30', $2, $3, 'kyoto', $4)`,
+    [crypto.randomUUID(), visitor, kind, word],
   );
 }
 
@@ -151,8 +159,13 @@ describe("pnpm events:report", () => {
     await seed(A, { kind: "intake-ended", outcome: "request" });
     await seed(B, { kind: "intake-ended", outcome: "unavailable" });
     await seed(A, { kind: "curve-dragged", ...onChart });
-    await seed(A, { kind: "word-changed", city: "kyoto", word: "energy" });
-    await seed(A, { kind: "word-changed", city: "kyoto", word: "energy" });
+    await seed(A, { kind: "menu-opened", ...onChart });
+    await seed(A, { kind: "word-changed", city: "kyoto", word: "energy", control: "headline" });
+    await seed(A, { kind: "word-changed", city: "kyoto", word: "energy", control: "headline" });
+    await seed(B, { kind: "word-changed", city: "kyoto", word: "energy", control: "bar" });
+    await seed(B, { kind: "word-changed", city: "kyoto", word: "city", control: "headline" });
+    await seed(B, { kind: "word-changed", city: "kyoto", word: "city", control: "new-day" });
+    await seedUntold(C, "word-changed", { word: "energy" });
     await seed(A, { kind: "day-read-to-end", ...onChart });
     await seed(A, { kind: "route-opened", ...onChart });
     await seed(A, { kind: "calendar-saved", ...onChart });
@@ -229,10 +242,16 @@ describe("pnpm events:report", () => {
       "  model    left before-first-stop  1",
       "  written  stayed to the end       2",
       "",
+      // A word changed before the control was told is counted apart from the two.
       "Gestures",
-      "  gesture        word    times",
-      "  word-changed   energy  2",
-      "  curve-dragged          1",
+      "  gesture        word    control   times",
+      "  word-changed   energy  headline  2",
+      "  curve-dragged                    1",
+      "  menu-opened                      1",
+      "  word-changed   city    headline  1",
+      "  word-changed   city    new-day   1",
+      "  word-changed   energy  bar       1",
+      "  word-changed   energy  not told  1",
       "",
       "Days taken along (each way counts once a day opened)",
       "  way             days",
@@ -257,7 +276,7 @@ describe("pnpm events:report", () => {
 
     expect(out[1]).toBe("production, 2026-10-30 to 2026-10-30, in UTC");
     expect(out).toContain("  none");
-    expect(out).not.toContain("  curve-dragged          1");
+    expect(out.filter((line) => line.trimStart().startsWith("curve-dragged"))).toEqual([]);
   });
 
   it(`gives a share only to a group of at least ${SHARE_MIN_VISITORS} visitors, and counts below it`, async () => {

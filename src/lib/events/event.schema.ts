@@ -35,10 +35,11 @@ export const DAY_VIEWS = ["read", "chart"] as const;
 
 /**
  * What the visitor does with the day on screen, each counted once a day opened and told with
- * the day and the view it is read in: the curve dragged, a stop swapped, the day taken along
- * by one of the three ways under it, and the day read to its end.
+ * the day and the view it is read in: the day's menu opened, the curve dragged, a stop swapped,
+ * the day taken along by one of the three ways under it, and the day read to its end.
  */
 export const DAY_ACTS = [
+  "menu-opened",
   "curve-dragged",
   "stop-swapped",
   "link-shared",
@@ -57,6 +58,13 @@ export type DayAnswer = (typeof DAY_ANSWERS)[number];
 
 /** The header's words a visitor can change: the city, and each word of the request. */
 export const HEADER_WORDS = ["city", ...FACT_KEYS] as const;
+
+/**
+ * The control a word was changed at: the headline's own word; the energy word on the plan's
+ * bar; or the new day, the masthead's button or the menu's row, which opens the city's list at
+ * its field, for a city chosen or asked for there.
+ */
+export const WORD_CONTROLS = ["headline", "bar", "new-day"] as const;
 
 /** Every way a day's stream ends, as the client's reader reads it (`DayOutcome`). */
 export const DAY_OUTCOMES = [
@@ -116,6 +124,11 @@ export const ProductEventSchema = z.discriminatedUnion("kind", [
   }),
   /** The visitor left a day before its stream ended. */
   z.strictObject({ kind: z.literal("day-left"), ...DAY_FIELDS, stage: z.enum(LEFT_STAGES) }),
+  /**
+   * The day's menu, "Take this day", was opened: once a day opened, however often it is opened
+   * again.
+   */
+  z.strictObject({ kind: z.literal("menu-opened"), ...DAY_IN_VIEW_FIELDS }),
   /** The energy curve was dragged and let go. */
   z.strictObject({ kind: z.literal("curve-dragged"), ...DAY_IN_VIEW_FIELDS }),
   /** A stop was swapped for one of its alternatives. */
@@ -138,11 +151,12 @@ export const ProductEventSchema = z.discriminatedUnion("kind", [
     ...DAY_IN_VIEW_FIELDS,
     answer: z.enum(DAY_ANSWERS),
   }),
-  /** A word of the header was changed. */
+  /** A word of the header was changed, at the control it was changed at. */
   z.strictObject({
     kind: z.literal("word-changed"),
     city: CitySchema,
     word: z.enum(HEADER_WORDS),
+    control: z.enum(WORD_CONTROLS),
   }),
   /** The intake answered the visitor's text. */
   z.strictObject({ kind: z.literal("intake-ended"), outcome: z.enum(INTAKE_OUTCOMES) }),
@@ -154,3 +168,4 @@ export type DayVia = (typeof DAY_VIAS)[number];
 export type DayAct = (typeof DAY_ACTS)[number];
 export type LeftStage = (typeof LEFT_STAGES)[number];
 export type HeaderWord = (typeof HEADER_WORDS)[number];
+export type WordControl = (typeof WORD_CONTROLS)[number];

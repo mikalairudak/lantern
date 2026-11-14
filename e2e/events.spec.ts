@@ -25,6 +25,11 @@ function withoutReadToEnd(events: readonly unknown[]): unknown[] {
   return events.filter((event) => (event as { kind?: string }).kind !== "day-read-to-end");
 }
 
+/** Whether a posted event is of this kind. */
+function isKind(kind: string): (event: unknown) => boolean {
+  return (event) => (event as { kind?: string }).kind === kind;
+}
+
 async function waitForTheDay(page: Page): Promise<void> {
   await expect(page.locator('[aria-label^="The day\'s energy"]')).toHaveAttribute(
     "aria-busy",
@@ -37,7 +42,7 @@ test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
 });
 
-test("a day's address counts its opening, its ending and each word changed", async ({
+test("a day's address counts its opening, its ending, each word changed and its menu opened", async ({
   page,
   productEvents,
 }) => {
@@ -56,7 +61,44 @@ test("a day's address counts its opening, its ending and each word changed", asy
 
   await expect
     .poll(() => withoutReadToEnd(productEvents).at(-1))
-    .toEqual({ kind: "word-changed", city: "kanazawa", word: "energy" });
+    .toEqual({ kind: "word-changed", city: "kanazawa", word: "energy", control: "headline" });
+
+  // The same word on the plan's bar: one event, told as changed at the bar.
+  await page
+    .getByRole("group", { name: "How lively the day is" })
+    .getByRole("button", { name: "balanced" })
+    .click();
+  await expect
+    .poll(() => withoutReadToEnd(productEvents).filter(isKind("word-changed")))
+    .toEqual([
+      { kind: "word-changed", city: "kanazawa", word: "energy", control: "headline" },
+      { kind: "word-changed", city: "kanazawa", word: "energy", control: "bar" },
+    ]);
+
+  // The day's menu, opened twice, is told once.
+  const menu = page.getByRole("button", { name: "Take this day" });
+  await menu.click();
+  await menu.click();
+  await menu.click();
+  await expect
+    .poll(() => productEvents.filter(isKind("menu-opened")))
+    .toEqual([{ kind: "menu-opened", ...KANAZAWA_LINK, ...ON_PLAN }]);
+});
+
+test("a city chosen from the new day is counted as changed there, and opens no menu", async ({
+  page,
+  productEvents,
+}) => {
+  await page.goto("/day/kanazawa");
+  await waitForTheDay(page);
+
+  await page.getByRole("button", { name: "New day" }).click();
+  await page.getByRole("button", { name: /^Bologna/ }).click();
+
+  await expect
+    .poll(() => productEvents.filter(isKind("word-changed")))
+    .toEqual([{ kind: "word-changed", city: "kanazawa", word: "city", control: "new-day" }]);
+  expect(productEvents.filter(isKind("menu-opened"))).toEqual([]);
 });
 
 test("a day is counted read to its end once the line under it has stood on screen", async ({

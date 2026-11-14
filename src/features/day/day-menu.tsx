@@ -92,6 +92,7 @@ export function DayMenu({
   items,
   isOpenAtFirst = false,
   pointedKey = null,
+  onOpen,
   onFocusLost,
   triggerRef,
 }: {
@@ -100,6 +101,8 @@ export function DayMenu({
   isOpenAtFirst?: boolean;
   /** The item drawn pointed at with no pointer, as a lab cell draws it. */
   pointedKey?: string | null;
+  /** Told each time the visitor opens the menu; not for a menu drawn open from the first frame. */
+  onOpen?: () => void;
   /** Told when the menu leaves the page with the focus in it, so the focus can land elsewhere. */
   onFocusLost?: () => void;
   /** The menu's button, for a control beside it that hands the focus to it. */
@@ -145,6 +148,7 @@ export function DayMenu({
   const open = (focus: "first" | "last" | null) => {
     firstFocus.current = focus;
     setIsOpen(true);
+    onOpen?.();
   };
 
   const close = () => {
