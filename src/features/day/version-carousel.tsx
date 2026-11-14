@@ -296,8 +296,6 @@ export function VersionCarousel({
     };
   }, [isNudged, isReduced, canSwipe, isEnabled, hasBefore, hasAfter, x]);
 
-  if (!canSwipe) return <>{children}</>;
-
   /**
    * Leans the stop toward the version an arrow names, or brings it home once the arrow is left.
    * The version on the left comes in from a drag to the right, so its arrow leans the stop right.
@@ -342,6 +340,32 @@ export function VersionCarousel({
     else animate(x, 0, SPRINGS.layout);
   };
 
+  /**
+   * Ends a press. A drag let go takes the version it carried past a third, and otherwise goes
+   * home; a drag cancelled or lost goes home with nothing taken.
+   */
+  const endHold = (held: Hold, clientX: number | null) => {
+    hold.current = null;
+    if (held.axis !== "x") return;
+    setIsDragging(false);
+    if (clientX === null) {
+      goHome();
+      return;
+    }
+    isClickDragged.current = true;
+    const travel = clientX - held.fromX;
+    const side = sideTaken(travel, width, { hasBefore, hasAfter });
+    if (side) take(side);
+    else goHome();
+  };
+
+  /** The pointer let go or taken by the page, wherever it was then. */
+  const release = (event: globalThis.PointerEvent) => {
+    const held = hold.current;
+    if (!held || held.pointerId !== event.pointerId) return;
+    endHold(held, event.type === "pointerup" ? event.clientX : null);
+  };
+
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     isClickDragged.current = false;
     if (!isEnabled || hold.current !== null) return;
@@ -358,6 +382,11 @@ export function VersionCarousel({
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const held = hold.current;
     if (!held || held.pointerId !== event.pointerId) return;
+    // A mouse or a pen moving with no button down was let go where nothing told the stop.
+    if (event.pointerType !== "touch" && event.buttons === 0) {
+      endHold(held, null);
+      return;
+    }
     const travel = event.clientX - held.fromX;
     if (held.axis === null) {
       held.axis = lockOf(travel, event.clientY - held.fromY);
@@ -380,35 +409,16 @@ export function VersionCarousel({
     );
   };
 
-  const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    const held = hold.current;
-    if (!held || held.pointerId !== event.pointerId) return;
-    hold.current = null;
-    if (held.axis !== "x") return;
-    setIsDragging(false);
-    isClickDragged.current = true;
-    const side = sideTaken(event.clientX - held.fromX, width, { hasBefore, hasAfter });
-    if (side) take(side);
-    else goHome();
-  };
-
-  /** A pointer the page took for its own, or lost, lets the stop go home with nothing taken. */
-  const onPointerLost = (event: PointerEvent<HTMLDivElement>) => {
-    const held = hold.current;
-    if (!held || held.pointerId !== event.pointerId) return;
-    hold.current = null;
-    if (held.axis !== "x") return;
-    setIsDragging(false);
-    goHome();
-  };
-
   /**
-   * The stop's own hold on the pointer lost sends the stop home. A finger's word or line holds
-   * its pointer from the press and loses it as the stop takes it at the lock; that loss bubbles
-   * here and is the drag's start, not its end.
+   * The stop's own hold on the pointer lost, as when the page takes it, sends the stop home. A
+   * finger's word or line holds its pointer from the press and loses it as the stop takes it at
+   * the lock; that loss bubbles here and is the drag's start, not its end.
    */
   const onLostPointerCapture = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.target === event.currentTarget) onPointerLost(event);
+    if (event.target !== event.currentTarget) return;
+    const held = hold.current;
+    if (!held || held.pointerId !== event.pointerId) return;
+    endHold(held, null);
   };
 
   const onClickCapture = (event: MouseEvent<HTMLDivElement>) => {
@@ -425,6 +435,24 @@ export function VersionCarousel({
     else return;
     event.preventDefault();
   };
+
+  // The release is heard on the window, where it cannot be missed: a press let go off the stop
+  // before it is a drag never reaches the stop.
+  const releaseNow = useRef(release);
+  useLayoutEffect(() => {
+    releaseNow.current = release;
+  });
+  useEffect(() => {
+    const onRelease = (event: globalThis.PointerEvent) => releaseNow.current(event);
+    window.addEventListener("pointerup", onRelease);
+    window.addEventListener("pointercancel", onRelease);
+    return () => {
+      window.removeEventListener("pointerup", onRelease);
+      window.removeEventListener("pointercancel", onRelease);
+    };
+  }, []);
+
+  if (!canSwipe) return <>{children}</>;
 
   const keys = [
     before && `left arrow for ${before.name}`,
@@ -444,8 +472,6 @@ export function VersionCarousel({
           onKeyDown={onKeyDown}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerLost}
           onLostPointerCapture={onLostPointerCapture}
           onClickCapture={onClickCapture}
           style={{ x }}

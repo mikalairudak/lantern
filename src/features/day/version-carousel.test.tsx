@@ -399,4 +399,61 @@ describe("the drag", () => {
       timeout: 2000,
     });
   });
+
+  it("forgets a press let go off the stop before it was a drag", async () => {
+    const { onPick, stop } = renderPicking();
+    dragOn(stop, { x: 150, y: 100 }, [{ x: 150, y: 105 }], "none");
+    // Let go below the stop, where the stop hears nothing; the window does.
+    fireEvent.pointerUp(document.body, {
+      pointerId: 7,
+      pointerType: "mouse",
+      clientX: 150,
+      clientY: 105,
+    });
+    for (const x of [170, 250, 300]) {
+      fireEvent.pointerMove(stop, {
+        pointerId: 7,
+        pointerType: "mouse",
+        buttons: 0,
+        clientX: x,
+        clientY: 99,
+      });
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(stop.style.transform).not.toMatch(/translateX\((?!0px)/);
+    // The next press and release, far from where the first began, takes nothing.
+    fireEvent.pointerDown(stop, {
+      pointerId: 8,
+      pointerType: "mouse",
+      button: 0,
+      buttons: 1,
+      clientX: 300,
+      clientY: 99,
+    });
+    fireEvent.pointerUp(stop, { pointerId: 8, pointerType: "mouse", clientX: 300, clientY: 99 });
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
+  it("drops a press whose mouse moves with no button down, however it was let go", async () => {
+    const { onPick, stop } = renderPicking();
+    dragOn(stop, { x: 150, y: 100 }, [{ x: 151, y: 101 }], "none");
+    fireEvent.pointerMove(stop, {
+      pointerId: 7,
+      pointerType: "mouse",
+      buttons: 0,
+      clientX: 300,
+      clientY: 101,
+    });
+    fireEvent.pointerMove(stop, {
+      pointerId: 7,
+      pointerType: "mouse",
+      buttons: 0,
+      clientX: 320,
+      clientY: 101,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(stop.style.transform).not.toMatch(/translateX\((?!0px)/);
+    fireEvent.pointerUp(stop, { pointerId: 7, pointerType: "mouse", clientX: 320, clientY: 101 });
+    expect(onPick).not.toHaveBeenCalled();
+  });
 });
