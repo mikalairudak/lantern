@@ -449,6 +449,17 @@ describe("the gestures on a day, as the product counts them", () => {
     expect(sent().slice(2)).toEqual([{ kind: "word-changed", city: "kanazawa", word: "company" }]);
   });
 
+  it("counts a press on the plan's energy word once", async () => {
+    const user = await landOnKanazawa();
+
+    const planEnergy = screen.getByRole("group", { name: "How lively the day is" });
+    await user.click(within(planEnergy).getByRole("button", { name: "lively" }));
+
+    expect(sentOf("word-changed")).toEqual([
+      { kind: "word-changed", city: "kanazawa", word: "energy" },
+    ]);
+  });
+
   it("opens a kept day by its own address, and ends it as it was kept", async () => {
     render(<Day kept={keptLanding("complete")} isLive={false} isAddressed isCounted />);
     await waitFor(() => expect(sent()).toHaveLength(2), DAY_TIMEOUT);

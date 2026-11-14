@@ -42,7 +42,7 @@ export const NOT_LIVE_NOTE = "Lantern isn't writing new days right now.";
 /** After a line that can write no day: the way on, the index of days below the question. */
 const TO_THE_INDEX = "Start from one of the days below.";
 /** Under the field: a text that plays a written day just as it says, with nothing said back. */
-const EXAMPLE = "For example: Bologna, with friends";
+const EXAMPLE = "For example: London, with friends";
 /** Under the field from the visitor's Enter, while Lantern reads their words. */
 const READING_SAID = "Reading what you wrote";
 
@@ -209,8 +209,8 @@ const PROMISE_CLASSES =
 
 /**
  * The question's sentence, "A day in" and the visitor's words on one line, in one size: the
- * sentence's own under the text column's width, where the example's own words, "Bologna, with
- * friends", still fit the line beside the button at 390 px, and the title's from it. The hero
+ * sentence's own under the text column's width, where the example's own words, "London, with
+ * friends", fit the line beside the button at 390 px, and the title's from it. The hero
  * reads the text column off its own container, as the index under it reads the abacus's: the
  * sentence needs a column, not four pictures.
  */
@@ -603,7 +603,7 @@ function SaidLine({ className, children }: { className: string; children: ReactN
 
 /**
  * The example's wrap, balanced where it takes two lines, as at 320 px: "For example: /
- * Bologna, with friends", the text to type whole on its line.
+ * London, with friends", the text to type whole on its line.
  */
 const EXAMPLE_CLASSES = "text-balance";
 

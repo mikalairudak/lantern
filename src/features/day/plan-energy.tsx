@@ -43,7 +43,9 @@ export function PlanEnergy({
             onClick={() => isEnabled && !isOn && onChoose(level)}
             className={cn(
               TARGET_CLASSES,
-              "rounded-sm focus-ring transition-colors",
+              // Six past the words sideways, where a link reaches eight: neighbours 12 px apart
+              // meet between them and never cross, so each word keeps its own target.
+              "rounded-sm focus-ring transition-colors after:-inset-x-1.5",
               // As the view's switch has it: the one on show in its colour, the others underlined.
               isOn
                 ? "text-energy"
@@ -61,7 +63,8 @@ export function PlanEnergy({
 /**
  * The bar over the plan: the day's energy and the view's switch, held at the screen's top while
  * the plan scrolls. On the chart the chart's own scale is held, so the bar stands still there and
- * the energy's words leave it, room and all.
+ * the energy's words leave it, room and all. Where the bar breaks in two, on a narrow phone, its
+ * rows stand 16 px apart, twice a target's reach, so the two rows' targets meet and never cross.
  */
 export function PlanBar({
   energy,
@@ -80,7 +83,7 @@ export function PlanBar({
     <div
       ref={ref}
       className={cn(
-        "z-10 mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-ground view-read:sticky view-read:top-0 view-read:border-b view-read:border-line view-read:py-1",
+        "z-10 mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-4 bg-ground view-read:sticky view-read:top-0 view-read:border-b view-read:border-line view-read:py-1",
         className,
       )}
     >
