@@ -71,8 +71,8 @@ interface AskedFiles {
 }
 
 /**
- * Where a plate stands: its files unasked, held back by a lab cell, coming in, drawn once faded in
- * whole, or failed.
+ * Where a plate stands: its files unasked, held back by a lab cell, all of them or its bounds
+ * alone, coming in, drawn once faded in whole, or failed.
  */
 type PlateState = "unasked" | "held" | "loading" | "drawn" | "failed";
 
@@ -210,7 +210,7 @@ export function IndexPlate({
   const isIn = !hasFailed && asked !== null && PLATE_PARTS.every((part) => arrived.includes(part));
   const state: PlateState = hasFailed
     ? "failed"
-    : files === "none"
+    : files !== "all"
       ? "held"
       : asked === null
         ? "unasked"

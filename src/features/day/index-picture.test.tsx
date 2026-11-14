@@ -262,11 +262,11 @@ describe("a city's plate in the index", () => {
     }
   });
 
-  it("asks for its scene alone while a lab cell holds its bounds back, and is never drawn", () => {
+  it("asks for its scene alone while a lab cell holds its bounds back, and stands as held", () => {
     const { container } = render(<IndexPictureView slug="tokyo" files="scene" />);
     act(() => near?.(true));
     expect(hrefsOf(container)).toEqual([`/pictures/${INDEX_PICTURES.tokyo!.scene.files.narrow}`]);
     fireEvent.load(container.querySelector("image")!);
-    expect(linesOf(container)).toHaveAttribute("data-state", "loading");
+    expect(linesOf(container)).toHaveAttribute("data-state", "held");
   });
 });
