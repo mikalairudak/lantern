@@ -542,6 +542,32 @@ describe("the drag", () => {
     fireEvent.click(stop);
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+
+  it("forgets a mouse's press let go off the stop, so a finger pressed next drags", async () => {
+    const { onPick, stop } = renderPicking();
+    const { before } = neighboursOf(BOTH, 0);
+    fireEvent.pointerDown(stop, {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      buttons: 1,
+      clientX: 150,
+      clientY: 100,
+    });
+    // Let go below the stop, with no move over the stop after.
+    fireEvent.pointerUp(document.body, {
+      pointerId: 1,
+      pointerType: "mouse",
+      clientX: 150,
+      clientY: 140,
+    });
+    dragOn(stop, { x: 10, y: 100 }, across(10, WIDTH_PX / 2), "up", { pointerType: "touch" });
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onPick).toHaveBeenCalledWith(before?.index);
+    await waitFor(() => expect(stop.style.transform).toMatch(/^(none|translateX\(0px\))$/), {
+      timeout: 2000,
+    });
+  });
 });
 
 describe("a drag let go once the stop can no longer swap", () => {
