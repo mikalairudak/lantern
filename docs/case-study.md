@@ -1,6 +1,6 @@
 # Lantern: a case study
 
-Lantern plans a day in a city. A visitor types a sentence, "a slow Sunday in Lisbon with my partner", and a model writes the day as typed JSON. Deterministic components draw it as it streams in, and the visitor reshapes it on the client: dragging an energy curve swaps stops for quieter or livelier versions, a stop's version can be picked by hand, and the time axis shows when the light turns golden, then blue. It runs at [lanternday.com](https://www.lanternday.com). The [README](../README.md#architecture) describes how the pieces connect. This page covers why they are built that way, what each choice cost, and what the numbers say.
+Lantern plans a day in a city. A visitor types a sentence, "a slow Sunday in Lisbon with my partner", and a model writes the day as typed JSON. Deterministic components draw it as it streams in, and the visitor reshapes it on the client: dragging an energy curve swaps stops for quieter or livelier versions, a stop's version can be picked by hand, and the time axis shows when the light turns golden, then dark. It runs at [lanternday.com](https://www.lanternday.com). The [README](../README.md#architecture) describes how the pieces connect. This page covers why they are built that way, what each choice cost, and what the numbers say.
 
 ## The brief
 

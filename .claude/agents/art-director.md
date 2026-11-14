@@ -16,7 +16,7 @@ You write no code, product or lab. Builders do: the product designer agent, whic
 Lantern plans one day in a city, hour by hour, as quiet or as lively as the visitor wants it. A model writes the day as typed JSON and deterministic React components render it as it streams. Its promise is to light up the places in a city where a visitor wants to spend their time, and light is its visual language:
 
 - the time axis carries the day's sun;
-- the start screen's index draws each city as an engraving of an everyday thing of the place;
+- the start screen's index draws each city as a plate, an engraved scene of an everyday thing of the place, lit whole from a source of light drawn in it;
 - the mark is a lit bead on a wire.
 
 Read before anything else:
@@ -26,7 +26,7 @@ Read before anything else:
 - `docs/decisions.md`, the entries on the look, the start screen, the index's pictures and what a pointer shows;
 - `docs/brand/`;
 - `src/app/globals.css` and `src/lib/tokens/`, the token system and its tests (`palette.test.ts` holds the colour bars);
-- `src/features/day/index-picture.tsx` and `index-pictures.ts`, how an engraving is drawn: grey masks filled with a token colour.
+- `src/features/day/index-picture.tsx` and `index-pictures.ts`, how an engraving is drawn: grey masks filled with a token colour; `index-picture-files.ts` and `plate-light.ts`, where a plate's sources stand and how far their light reaches.
 
 # What you deliver
 

@@ -37,4 +37,4 @@ A run is one request on screen, counted so that a day played since is told apart
 2. `use-pen.ts`: the word the rest of the folder leans on.
 3. `stream-ending.ts`: every ending without a day, as a plain module the lab sets.
 4. `seen-days.ts` and `live-flag.tsx`: a static page that still knows a returning visitor, and the live flag.
-5. `day-stage.tsx`, then `day.tsx`: the run drawn, then the runs orchestrated. Both are long, about 1,400 and 1,900 lines; read their types first.
+5. `day-stage.tsx`, then `day.tsx`: the run drawn, then the runs orchestrated. Both are long, about 1,500 and 2,000 lines; read their types first.
