@@ -1384,10 +1384,8 @@ export function DayStage({
                 ref={planBar}
                 energy={(facts.energy?.value as EnergyLevel | undefined) ?? request.energy}
                 isEnabled={isInteractive}
-                onChoose={(level) => {
-                  answer({ key: "energy", value: level });
-                  countWord("energy");
-                }}
+                // The headline's own answer, which counts the changed word itself.
+                onChoose={(level) => answer({ key: "energy", value: level })}
                 className={wholeClasses}
               />
             )}
