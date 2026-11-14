@@ -165,10 +165,6 @@ const OPENERS = [
     name: "the city word",
     find: (page: Page) => headline(page).getByRole("button", { name: "Kanazawa", exact: true }),
   },
-  {
-    name: "the theme's icon",
-    find: (page: Page) => page.getByRole("button", { name: /^Theme: / }),
-  },
 ];
 
 for (const opener of OPENERS) {
@@ -213,33 +209,6 @@ for (const opener of OPENERS) {
     },
   );
 }
-
-/** How far under the masthead's row its lists hang: `mt-1`. */
-const UNDER_THE_MASTHEAD = 4;
-
-test("the theme's list hangs from the foot of the masthead's row, its right edge on the row's", async ({
-  page,
-}) => {
-  const icon = page.getByRole("button", { name: /^Theme: / });
-  await icon.click();
-  await expect(page.getByRole("listbox", { name: "Theme" })).toBeFocused();
-  // The box the list is placed in, read from the list itself: the masthead's row, which holds
-  // the wordmark, and not the icon's own box.
-  const { row, list, isRowTheMasthead } = await page
-    .locator("[data-word-list]")
-    .evaluate((element: HTMLElement) => {
-      const box = element.offsetParent;
-      if (!box) throw new Error("The list has no box it is placed in");
-      return {
-        row: box.getBoundingClientRect().toJSON() as DOMRect,
-        list: element.getBoundingClientRect().toJSON() as DOMRect,
-        isRowTheMasthead: box.textContent?.includes("Lantern") ?? false,
-      };
-    });
-  expect(isRowTheMasthead).toBe(true);
-  expect(list.top).toBeCloseTo(row.bottom + UNDER_THE_MASTHEAD, 0);
-  expect(list.right).toBeCloseTo(row.right, 0);
-});
 
 test("a stop's sheet reopened just after Escape takes the focus again", async ({ page }) => {
   // The day's first stop, by its name: the button that opens its sheet.

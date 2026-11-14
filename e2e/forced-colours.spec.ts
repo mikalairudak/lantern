@@ -134,7 +134,7 @@ test("a plate keeps its files as forced colours turn on and end, and stands clea
   expect(asked.slice(askedBefore)).toEqual([]);
 });
 
-/** Where each thing in the masthead's row stands: the row holds the theme's icon. */
+/** Where each thing in the masthead's row stands: the row holds the theme's button. */
 async function mastheadOf(page: Page): Promise<number[][]> {
   return page
     .locator("[data-theme-icon]")
@@ -154,7 +154,8 @@ for (const path of ["/", "/day/rome"]) {
     await keepTheme(page, "dark");
     await page.emulateMedia({ colorScheme: "light" });
     await page.goto(path);
-    const icon = page.getByRole("button", { name: "Theme: Dark" });
+    // Dark kept on a light device: the page is dark, and the button offers light.
+    const icon = page.getByRole("button", { name: "Switch to light theme" });
     await expect(icon).toBeVisible();
     if (path === "/")
       await expect(page.getByRole("heading", { name: INDEX_HEADING })).toBeVisible();
@@ -163,15 +164,15 @@ for (const path of ["/", "/day/rome"]) {
 
     await page.emulateMedia({ forcedColors: "active", colorScheme: "light" });
     await expect(icon).toBeHidden();
-    await expect(page.getByRole("button", { name: /^Theme: / })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Switch to / })).toHaveCount(0);
     expect(await mastheadOf(page)).toEqual(before);
     // Out of the keyboard's way too: on the start screen the icon is otherwise its first stop.
     if (path === "/") {
       await page.keyboard.press("Tab");
       await expect(page.locator(":focus")).toBeVisible();
-      expect(
-        await page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? ""),
-      ).not.toMatch(/^Theme/);
+      expect(await page.evaluate(() => document.activeElement?.textContent ?? "")).not.toMatch(
+        /^Switch to /,
+      );
     }
     expect(await page.evaluate(() => localStorage.getItem("lantern-theme"))).toBe("dark");
 
@@ -181,14 +182,17 @@ for (const path of ["/", "/day/rome"]) {
   });
 }
 
-test("the theme's list, open as forced colours turn on, goes with its icon", async ({ page }) => {
+test("the theme's helper, shown as forced colours turn on, goes with its button", async ({
+  page,
+}) => {
   await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/");
-  await page.getByRole("button", { name: "Theme: System" }).click();
-  const list = page.getByRole("listbox", { name: "Theme" });
-  await expect(list).toBeVisible();
+  // On the start screen the button is the keyboard's first stop, and its focus shows the helper.
+  await page.keyboard.press("Tab");
+  const helper = page.locator("[data-theme-helper]");
+  await expect(helper).toHaveCSS("opacity", "1");
+  await expect(helper).toBeVisible();
 
   await page.emulateMedia({ forcedColors: "active", colorScheme: "light" });
-  await expect(list).toBeHidden();
-  await expect(page.getByRole("option")).toHaveCount(0);
+  await expect(helper).toBeHidden();
 });

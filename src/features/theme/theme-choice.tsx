@@ -1,198 +1,255 @@
 "use client";
 
-import { AnimatePresence } from "motion/react";
-import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
-import { useCallback, useId, useRef, useState, useSyncExternalStore } from "react";
+import { Moon, Sun, type LucideIcon } from "lucide-react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/components/ui/cn";
-import type { FoldExit } from "@/components/ui/fold";
-import { WordPicker, type OptionView } from "@/features/day/sentence-word";
+import { LIST_SHEET_CLASSES } from "@/features/day/word-list";
 import { ICON_SIZES, ICON_STROKE_WIDTH } from "@/lib/tokens/icon";
 import {
-  THEME_CHOICES,
   applyThemeChoice,
+  isThemeCrossing,
+  nextThemeChoice,
+  readShownLook,
   readThemeChoice,
-  serverThemeChoice,
-  subscribeThemeChoice,
-  type ThemeChoice as Choice,
+  serverShownLook,
+  shownLookOf,
+  subscribeShownLook,
+  type ThemeLook,
 } from "./theme";
 
-/** What the setting is called, before the choice, in the button's name and in its hint. */
-export const THEME_WORD = "Theme";
-
-const LABELS: Readonly<Record<Choice, string>> = {
-  system: "System",
-  light: "Light",
-  dark: "Dark",
-};
-
-/** What a choice changes, where its name alone does not say it. */
-const CONSEQUENCES: Readonly<Record<Choice, string | null>> = {
-  system: "as this device is set",
-  light: null,
-  dark: null,
-};
-
-const ICONS: Readonly<Record<Choice, LucideIcon>> = {
-  system: Monitor,
-  light: Sun,
-  dark: Moon,
-};
-
 /**
- * Each choice's icon and name, shown only while `<html>` notes that choice (`globals.css`).
- * The server cannot know the choice, so its page carries all three, and the head script's
- * note picks one before the first paint: the server's page and the first frame agree.
+ * What the button offers on a page in each look: the other one. Its icon, its helper's one word
+ * and its name all say what a press gives, so a day page shows a moon and "Dark" (`docs/
+ * decisions.md`, "The theme is one button that turns the page to the other look").
  */
-const CHOSEN_CLASSES: Readonly<Record<Choice, string>> = {
-  system: "hidden chose-system:inline",
-  light: "hidden chose-light:inline",
-  dark: "hidden chose-dark:inline",
+const OFFERS: Readonly<
+  Record<ThemeLook, { icon: LucideIcon; iconName: string; word: string; name: string }>
+> = {
+  light: { icon: Moon, iconName: "moon", word: "Dark", name: "Switch to dark theme" },
+  dark: { icon: Sun, iconName: "sun", word: "Light", name: "Switch to light theme" },
+};
+
+const LOOKS: readonly ThemeLook[] = ["light", "dark"];
+
+/** What the status says once a press has set a look, read from the look the page then shows. */
+export const LOOK_STATUS: Readonly<Record<ThemeLook, string>> = {
+  light: "The page is light",
+  dark: "The page is dark",
 };
 
 /**
- * The icon as a button of its own kind, not a word: no underline, soft ink that turns ink
- * under the pointer and while its list is open. Its box is a 32 px target, pulled out by
- * its margins so the icon's edge is the masthead's and the line keeps its height.
+ * Each look's icon, word and name, shown only while the page stands in that look
+ * (`page-day`, `page-night` in `globals.css`). The server cannot know the look, so its page
+ * carries both, and the head script's note on `<html>`, with the device's scheme, picks one
+ * before the first paint: the server's page and the first frame agree.
+ */
+const SHOWN_ON_CLASSES: Readonly<Record<ThemeLook, string>> = {
+  light: "hidden page-day:inline",
+  dark: "hidden page-night:inline",
+};
+
+/**
+ * The box round the button and its helper: the button's 32 px box, pulled out by its margins
+ * so the icon's edge is the masthead's and the line keeps its height. The helper hangs from it.
+ */
+const BOX_CLASSES = "relative -my-2 -mr-2 inline-flex";
+
+/**
+ * An icon as a button of its own kind, not a word: no underline, soft ink that turns ink under
+ * the pointer. Under a finger its reach is 6 px past its box on every side, 44 px in all.
  */
 const BUTTON_CLASSES =
-  "peer -my-2 -mr-2 flex size-8 items-center justify-center rounded-sm text-ink-soft transition-colors pointed:text-ink aria-expanded:text-ink focus-ring-inset";
+  "peer relative flex size-8 items-center justify-center rounded-sm text-ink-soft transition-colors pointed:text-ink focus-ring-inset pointer-coarse:after:absolute pointer-coarse:after:-inset-1.5";
+
+/** The keyboard's ring drawn still, as a lab cell shows the focus: `focus-ring-inset`'s. */
+const FOCUS_DRAWN_CLASSES = "outline-2 -outline-offset-2 outline-ink";
 
 /**
- * The hint under the icon, "Theme · System": the masthead's small type, no bubble, laid
- * over the page so it moves nothing, and gone while the list hangs where it would be.
+ * The helper: the icon's one word on a small raised sheet, 4 px under the button's box. Centred
+ * on the box where the page's gutter has room for it; on a phone's gutter its right edge stands
+ * on the box's, 8 px inside the window's. A strip over it bridges the 4 px, so the pointer can
+ * move onto it and it stays.
  */
-const HINT_CLASSES =
-  "pointer-events-none absolute top-full right-0 mt-1 whitespace-nowrap type-note text-muted peer-aria-expanded:invisible";
-/** Shown under the pointer and on the keyboard's focus, as a reader reaches the icon. */
-const HINT_HIDDEN_CLASSES = "invisible peer-hover:visible peer-focus-visible:visible";
+const HELPER_CLASSES = cn(
+  LIST_SHEET_CLASSES,
+  "pointer-events-none absolute top-full right-0 z-30 mt-1 px-2 py-1 type-note whitespace-nowrap text-ink-soft opacity-0 helper-fade",
+  "before:absolute before:inset-x-0 before:bottom-full before:h-1",
+);
+/**
+ * Shown after the helper's wait under a pointer that can hover, at once by the keyboard's
+ * focus, and kept while the pointer is on it. Hidden, it waits for nothing.
+ */
+const HELPER_SHOWN_CLASSES =
+  "peer-hover:pointer-events-auto peer-hover:opacity-100 peer-hover:helper-wait hover:pointer-events-auto hover:opacity-100 peer-focus-visible:pointer-events-auto peer-focus-visible:opacity-100";
+/** Centred under the button from a 768 px window (`md`), where the page's gutter has room for it. */
+const HELPER_CENTRED_CLASSES = "md:right-auto md:left-1/2 md:-translate-x-1/2";
+/** The helper drawn shown, as a lab cell draws it. */
+const HELPER_DRAWN_CLASSES = "pointer-events-auto opacity-100";
 
-function optionsOf(choice: Choice): OptionView[] {
-  return THEME_CHOICES.map((value) => ({
-    value,
-    label: LABELS[value],
-    consequence: CONSEQUENCES[value],
-    isCurrent: value === choice,
-    icon: ICONS[value],
-  }));
+/**
+ * What put the helper away: a pointer's press, or Escape with the pointer on the button, until
+ * the pointer leaves the button's box; or the keys, a press or Escape with the focus on the
+ * button, until the focus leaves it. Moved, not left, since the browser also says a pointer left
+ * when what is under it changes, as when the theme's crossing lays its pictures over the page.
+ */
+type HelperAway = "pointer" | "keys" | null;
+
+/** Whether a pointer stands outside a box. */
+function isOutside({ clientX, clientY }: PointerEvent, box: Element): boolean {
+  const { left, right, top, bottom } = box.getBoundingClientRect();
+  return clientX < left || clientX >= right || clientY < top || clientY >= bottom;
 }
 
-function isChoice(value: string): value is Choice {
-  return (THEME_CHOICES as readonly string[]).includes(value);
-}
-
-export interface ThemeWordProps {
-  /** The theme the page is set in. */
-  choice: Choice;
-  onChoose: (choice: Choice) => void;
-  /** Drawn open, as a lab cell shows it, without taking the page's focus. */
-  isDrawnOpen?: boolean;
+export interface ThemeButtonProps {
+  /** Called on a press: the look the page will show once it has set it, or null if not taken. */
+  onPress: () => ThemeLook | null;
   /**
-   * The icon and the hint drawn from `choice` rather than from what `<html>` notes, as a lab
-   * cell draws each of the three choices on one page. The page itself draws from `<html>`.
+   * The look drawn from the prop rather than from what `<html>` notes, as a lab cell draws the
+   * look of its own theme. The page itself draws from `<html>`.
    */
-  isChoiceDrawn?: boolean;
-  /** The hint drawn as the pointer or the keyboard's focus shows it, as a lab cell does. */
-  isHintDrawn?: boolean;
+  drawnLook?: ThemeLook;
+  /** The helper drawn as a pointer or the keyboard's focus shows it, as a lab cell does. */
+  isHelperDrawn?: boolean;
+  /** The keyboard's ring drawn, as a lab cell does. */
+  isFocusDrawn?: boolean;
+  /** Drawn as a pointer points at it, its icon in ink. */
+  isPointedDrawn?: boolean;
+  /** Drawn in a phone's gutter whatever the window's width, as a lab's phone cell is. */
+  isPhoneDrawn?: boolean;
 }
 
 /**
- * The theme in the masthead: an icon for the choice, Monitor for the system's, Sun or Moon
- * for light or dark, which opens the headline words' list, the choice marked with a check. A
- * hint names the setting and the choice under the pointer or the keyboard's focus, hung from
- * the icon's own box. The list stands beside that box, not in it, so it hangs from the nearest
- * positioned box around the icon: on a page the masthead's row, as the day menu does.
+ * The theme in the masthead: one button that turns the page to the other look. A moon on a day
+ * page, a sun on a night page; every press changes the page, and the next press turns it back.
+ * Its helper, under a pointer or the keyboard's focus, says the look a press gives in one word;
+ * a press hides it until the pointer leaves and comes back, or the focus does, and Escape hides
+ * it. No list opens. The button takes no `aria-pressed`, since its name changes with what it
+ * gives, and after a press a status says the look the page then shows.
  */
-export function ThemeWord({
-  choice,
-  onChoose,
-  isDrawnOpen = false,
-  isChoiceDrawn = false,
-  isHintDrawn = false,
-}: ThemeWordProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [exit, setExit] = useState<FoldExit>({ isInstant: false });
+export function ThemeButton({
+  onPress,
+  drawnLook,
+  isHelperDrawn = false,
+  isFocusDrawn = false,
+  isPointedDrawn = false,
+  isPhoneDrawn = false,
+}: ThemeButtonProps) {
+  const [helperAway, setHelperAway] = useState<HelperAway>(null);
+  const box = useRef<HTMLSpanElement>(null);
   const button = useRef<HTMLButtonElement>(null);
-  const listId = useId();
-  const isShown = isOpen || isDrawnOpen;
-  const drawnChoices = isChoiceDrawn ? [choice] : THEME_CHOICES;
-  const shownClassesOf = (each: Choice) => (isChoiceDrawn ? undefined : CHOSEN_CLASSES[each]);
+  // The status speaks only after this page's own press, and only while the page stands in the
+  // look that press gave: another tab's choice or the device's own change empties it.
+  const lookNow = useSyncExternalStore(subscribeShownLook, readShownLook, serverShownLook);
+  const [saidLook, setSaidLook] = useState<ThemeLook | null>(null);
+  const [lastLook, setLastLook] = useState(lookNow);
+  if (lastLook !== lookNow) {
+    setLastLook(lookNow);
+    if (saidLook !== null && lookNow !== saidLook) setSaidLook(null);
+  }
+  const status = saidLook !== null && saidLook === lookNow ? LOOK_STATUS[saidLook] : "";
 
-  const close = useCallback((isFocusReturned: boolean, isInstant = false) => {
-    setExit({ isInstant });
-    setIsOpen(false);
-    if (isFocusReturned) button.current?.focus();
-  }, []);
+  // Escape puts the helper away wherever the focus is, as long as it is shown: under the pointer
+  // or by the button's focus. It takes nothing from Escape: an open list or menu still closes.
+  useEffect(() => {
+    if (helperAway !== null) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      const isFocused = document.activeElement === button.current;
+      if (isFocused) setHelperAway("keys");
+      else if (box.current?.matches(":hover")) setHelperAway("pointer");
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [helperAway]);
+
+  // Put away by a pointer's press, the helper comes back once the pointer has left the box.
+  useEffect(() => {
+    if (helperAway !== "pointer") return;
+    const onMove = (event: PointerEvent) => {
+      if (box.current && isOutside(event, box.current)) setHelperAway(null);
+    };
+    document.addEventListener("pointermove", onMove);
+    return () => document.removeEventListener("pointermove", onMove);
+  }, [helperAway]);
+  const looks = drawnLook ? [drawnLook] : LOOKS;
+  const shownOnClassesOf = (look: ThemeLook) => (drawnLook ? undefined : SHOWN_ON_CLASSES[look]);
 
   return (
-    <>
-      <span className="relative inline-flex">
-        <button
-          ref={button}
-          type="button"
-          aria-label={`${THEME_WORD}: ${LABELS[choice]}`}
-          aria-haspopup="listbox"
-          aria-expanded={isShown}
-          aria-controls={isShown ? listId : undefined}
-          onClick={() => {
-            if (isOpen) close(true);
-            else setIsOpen(true);
-          }}
-          className={BUTTON_CLASSES}
-        >
-          {drawnChoices.map((each) => {
-            const Icon = ICONS[each];
-            return (
-              <Icon
-                key={each}
-                aria-hidden
-                data-theme-icon={each}
-                size={ICON_SIZES.sm}
-                strokeWidth={ICON_STROKE_WIDTH}
-                className={shownClassesOf(each)}
-              />
-            );
-          })}
-        </button>
-        <span
-          aria-hidden
-          data-theme-hint
-          className={cn(HINT_CLASSES, !isHintDrawn && HINT_HIDDEN_CLASSES)}
-        >
-          {THEME_WORD} ·{" "}
-          {drawnChoices.map((each) => (
-            <span key={each} className={shownClassesOf(each)}>
-              {LABELS[each]}
-            </span>
-          ))}
-        </span>
-      </span>
-      <AnimatePresence custom={exit}>
-        {isShown && (
-          <WordPicker
-            key="picker"
-            id={listId}
-            word={button}
-            options={optionsOf(choice)}
-            listLabel={THEME_WORD}
-            isFocusTaken={!isDrawnOpen}
-            hang="masthead"
-            onChoose={(value) => {
-              close(true, true);
-              if (isChoice(value)) onChoose(value);
-            }}
-            onClose={close}
-          />
+    <span ref={box} className={BOX_CLASSES}>
+      <button
+        ref={button}
+        type="button"
+        data-pointed={isPointedDrawn || undefined}
+        onClick={(event) => {
+          // A press from the keys is a click with no count of presses.
+          setHelperAway(event.detail === 0 ? "keys" : "pointer");
+          const look = onPress();
+          if (look !== null) setSaidLook(look);
+        }}
+        onKeyDown={(event) => {
+          // A held Enter repeats its key, and each would press: the page turns once per press.
+          if (event.key === "Enter" && event.repeat) event.preventDefault();
+        }}
+        onBlur={() => setHelperAway(null)}
+        className={cn(BUTTON_CLASSES, isFocusDrawn && FOCUS_DRAWN_CLASSES)}
+      >
+        {looks.map((look) => {
+          const { icon: Icon, iconName } = OFFERS[look];
+          return (
+            <Icon
+              key={look}
+              aria-hidden
+              data-theme-icon={iconName}
+              size={ICON_SIZES.sm}
+              strokeWidth={ICON_STROKE_WIDTH}
+              className={shownOnClassesOf(look)}
+            />
+          );
+        })}
+        {looks.map((look) => (
+          <span key={look} className={cn("sr-only", shownOnClassesOf(look))}>
+            {OFFERS[look].name}
+          </span>
+        ))}
+      </button>
+      <span
+        aria-hidden
+        data-theme-helper
+        className={cn(
+          HELPER_CLASSES,
+          !isPhoneDrawn && HELPER_CENTRED_CLASSES,
+          isHelperDrawn ? HELPER_DRAWN_CLASSES : HELPER_SHOWN_CLASSES,
+          helperAway !== null && "hidden",
         )}
-      </AnimatePresence>
-    </>
+      >
+        {looks.map((look) => (
+          <span key={look} className={shownOnClassesOf(look)}>
+            {OFFERS[look].word}
+          </span>
+        ))}
+      </span>
+      <span role="status" data-theme-status className="sr-only">
+        {status}
+      </span>
+    </span>
   );
 }
 
 /**
- * The theme's icon, set to the page's theme, which a choice changes and keeps: the list closes
- * at once, before the page crosses to the new theme (`applyThemeChoice`).
+ * Turns the page to the other look, and keeps the choice that makes (`nextThemeChoice`). A press
+ * while the page still crosses from the last one is not taken.
+ */
+function turnThePage(): ThemeLook | null {
+  if (isThemeCrossing()) return null;
+  const choice = nextThemeChoice(readThemeChoice());
+  applyThemeChoice(choice);
+  return shownLookOf(choice);
+}
+
+/**
+ * The theme's button on the page, drawn from what `<html>` notes. It listens while it stands
+ * (`subscribeShownLook`), so a choice made in another tab is taken here at once.
  */
 export function ThemeChoice() {
-  const choice = useSyncExternalStore(subscribeThemeChoice, readThemeChoice, serverThemeChoice);
-  return <ThemeWord choice={choice} onChoose={applyThemeChoice} />;
+  return <ThemeButton onPress={turnThePage} />;
 }

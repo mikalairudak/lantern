@@ -16,12 +16,12 @@ const HOME_CLASSES =
 const WORDMARK_CLASSES = "type-voice text-body whitespace-nowrap text-ink italic";
 
 /**
- * The theme's icon set in a line of the page's small type, at its lowercase middle: CSS's
+ * The theme's button set in a line of the page's small type, at its lowercase middle: CSS's
  * `middle` stands the icon's centre at the baseline plus half the type's x-height, so it
  * reads level with the day's menu at every root size, and at the same height on a page
  * with no menu. Under forced colours the theme is not offered, since the device's colours stand
  * whatever is chosen there; it keeps its room, so the masthead does not move as they turn on or
- * off, and its list goes with it (`docs/decisions.md`, "Under forced colours the system's theme
+ * off, and its helper goes with it (`docs/decisions.md`, "Under forced colours the system's theme
  * stands").
  */
 const THEME_LINE_CLASSES = "type-note *:align-middle forced-colors:invisible";
@@ -31,7 +31,7 @@ interface MastheadProps {
   isHome?: boolean;
   /** On a day, the day's menu, which holds the ways to take it along and "Plan another day". */
   menu?: ReactNode;
-  /** The theme's icon drawn from a choice of its own, as a lab cell draws it; the page's by default. */
+  /** The theme's button drawn in a look of its own, as a lab cell draws it; the page's by default. */
   theme?: ReactNode;
 }
 
@@ -51,7 +51,7 @@ export function Masthead({ isHome = false, menu, theme }: MastheadProps) {
     </>
   );
   return (
-    // Positioned, so the day menu and the theme's list both hang from the foot of this row.
+    // Positioned, so the day menu hangs from the foot of this row.
     <div className="relative flex min-h-12 flex-wrap items-center justify-between gap-x-3 gap-y-1">
       {isHome ? (
         <span className={WORDMARK_CLASSES}>{wordmark}</span>

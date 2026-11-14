@@ -4,9 +4,13 @@ import {
   THEME_SCRIPT,
   THEME_STORAGE_KEY,
   applyThemeChoice,
+  nextThemeChoice,
+  isThemeCrossing,
+  readShownLook,
   readThemeChoice,
   restoreThemeChoice,
   serverThemeChoice,
+  shownLookOf,
   subscribeThemeChoice,
 } from "./theme";
 
@@ -171,6 +175,8 @@ describe("a theme chosen on the page", () => {
       configurable: true,
       value: vi.fn((update: () => void) => {
         crossings.push(update);
+        // Its pictures gone at once: no crossing outlives its test.
+        return { finished: Promise.resolve() };
       }),
     });
   }
@@ -312,5 +318,65 @@ describe("a theme chosen on the page", () => {
     applyThemeChoice("dark");
     expect(heldAtLayout).toEqual([true]);
     expect(root.hasAttribute("data-theme-still")).toBe(false);
+  });
+});
+
+describe("a press on the theme's button", () => {
+  function stubDevice(scheme: "light" | "dark", isForced = false): void {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches:
+        query === `(prefers-color-scheme: ${scheme})` ||
+        (isForced && query === "(forced-colors: active)"),
+    }));
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each([
+    // [device, the choice the page stands in, the choice a press makes]
+    ["light", "system", "dark"],
+    ["dark", "system", "light"],
+    ["light", "dark", "system"],
+    ["dark", "light", "system"],
+    // Kept from before, and the device has come to agree: the press still changes the page.
+    ["light", "light", "dark"],
+    ["dark", "dark", "light"],
+  ] as const)("on a %s device turns %s to %s", (device, from, to) => {
+    stubDevice(device);
+    expect(nextThemeChoice(from)).toBe(to);
+    // Every press changes what the page shows.
+    expect(shownLookOf(to)).not.toBe(shownLookOf(from));
+  });
+
+  it("reads the look of a choice as the device shows it, and the device's under forced colours", () => {
+    stubDevice("dark");
+    expect(shownLookOf("system")).toBe("dark");
+    expect(shownLookOf("light")).toBe("light");
+    stubDevice("dark", true);
+    expect(shownLookOf("light")).toBe("dark");
+  });
+
+  it("is crossing from the press until the browser's pictures are gone, not only until the theme is set", async () => {
+    stubDevice("light");
+    let update: () => void = () => undefined;
+    let finish: () => void = () => undefined;
+    Object.defineProperty(document, "startViewTransition", {
+      configurable: true,
+      value: (callback: () => void) => {
+        update = callback;
+        return { finished: new Promise<void>((resolve) => (finish = resolve)) };
+      },
+    });
+    expect(isThemeCrossing()).toBe(false);
+    applyThemeChoice("dark");
+    expect(isThemeCrossing()).toBe(true);
+    update();
+    // The theme is set, and the fade to it still runs.
+    expect(readShownLook()).toBe("dark");
+    expect(isThemeCrossing()).toBe(true);
+    finish();
+    await Promise.resolve();
+    expect(isThemeCrossing()).toBe(false);
+    Reflect.deleteProperty(document, "startViewTransition");
   });
 });

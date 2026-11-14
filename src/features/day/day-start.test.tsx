@@ -31,6 +31,15 @@ import { ENERGY_LEVELS, type DayRequest, type EnergyLevel } from "@/lib/schema/i
 import type { IntakeReader, IntakeResult, IntakeWords } from "@/lib/schema/intake.schema";
 import { TAKE_THIS_DAY } from "./day-menu";
 
+/** The start's own status: the theme's button in the masthead says its look in one too. */
+function startStatus(): HTMLElement {
+  const [line, ...others] = screen
+    .getAllByRole("status")
+    .filter((status) => !status.hasAttribute("data-theme-status"));
+  if (!line || others.length > 0) throw new Error("Not one status of the start's own");
+  return line;
+}
+
 const ORIGIN = "http://lantern.test";
 const DAY_TIMEOUT = { timeout: 5000 };
 /** A test that streams a day and then plays two more. */
@@ -688,7 +697,7 @@ describe("the line under the day, as the landing reads with live generation off"
 
   it("plays the example under the field with nothing said back", async () => {
     const user = renderWritten();
-    const example = screen.getByRole("status").textContent?.replace("For example: ", "");
+    const example = startStatus().textContent?.replace("For example: ", "");
 
     await user.type(screen.getByRole("textbox"), `${example}{Enter}`);
 

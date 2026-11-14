@@ -20,96 +20,225 @@ async function crossingEnded(page: Page): Promise<void> {
   await page.evaluate(() => (document as CrossingDocument).activeViewTransition?.finished);
 }
 
-/** The choice the theme's button shows: the one of its three icons a reader can see. */
-async function shownIconOf(page: Page): Promise<string[]> {
+/** The theme's button, named for the look a press gives. */
+const THEME_NAME = /^Switch to (dark|light) theme$/;
+
+/** What the theme's button shows: the icon a reader can see and the name it carries. */
+async function shownOfferOf(page: Page): Promise<{ icons: string[]; name: string; word: string }> {
   return page
-    .getByRole("button", { name: /^Theme: / })
     .locator("[data-theme-icon]")
-    .evaluateAll((icons) =>
-      icons
-        .filter((icon) => getComputedStyle(icon).display !== "none")
-        .map((icon) => icon.getAttribute("data-theme-icon") ?? ""),
-    );
+    .first()
+    .evaluate((icon) => {
+      const button = icon.closest("button")!;
+      const isShown = (element: Element) => getComputedStyle(element).display !== "none";
+      const helper = button.parentElement!.querySelector("[data-theme-helper]")!;
+      return {
+        icons: [...button.querySelectorAll("[data-theme-icon]")]
+          .filter(isShown)
+          .map((each) => each.getAttribute("data-theme-icon") ?? ""),
+        name: [...button.querySelectorAll(".sr-only")]
+          .filter(isShown)
+          .map((each) => each.textContent)
+          .join(""),
+        word: [...helper.children]
+          .filter(isShown)
+          .map((each) => each.textContent)
+          .join(""),
+      };
+    });
 }
+
+const MOON = { icons: ["moon"], name: "Switch to dark theme", word: "Dark" };
+const SUN = { icons: ["sun"], name: "Switch to light theme", word: "Light" };
 
 /** A theme kept from an earlier visit, in place before the page's first script runs. */
 async function keepTheme(page: Page, theme: "light" | "dark"): Promise<void> {
   await page.addInitScript((kept) => localStorage.setItem("lantern-theme", kept), theme);
 }
 
-test("the server's page holds every choice's icon, for the head script to pick one", async ({
+test("the server's page holds both looks' icons and names, for the head script to pick one", async ({
   request,
 }) => {
   const html = await (await request.get("/")).text();
-  for (const choice of ["system", "light", "dark"]) {
-    expect(html).toContain(`data-theme-icon="${choice}"`);
-  }
-  expect(html).toContain('aria-label="Theme: System"');
+  for (const icon of ["moon", "sun"]) expect(html).toContain(`data-theme-icon="${icon}"`);
+  expect(html).toContain("Switch to dark theme");
+  expect(html).toContain("Switch to light theme");
 });
 
-test("shows a kept theme's icon from the first frame, before the page is live", async ({
+// The first frame, before React hydrates: the server's HTML and the head script alone.
+for (const [scheme, kept, offer] of [
+  ["light", null, MOON],
+  ["dark", null, SUN],
+  ["light", "dark", SUN],
+  ["dark", "light", MOON],
+] as const) {
+  test(`offers ${offer.word} from the first frame on a ${scheme} device with ${kept ?? "nothing"} kept`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: scheme });
+    if (kept) await keepTheme(page, kept);
+    await page.route("**/_next/static/**/*.js", (route) => route.abort());
+    await page.goto("/");
+    expect(await shownOfferOf(page)).toEqual(offer);
+  });
+}
+
+test("a press turns the page to the other look, says so, and keeps it for the next visit", async ({
   page,
 }) => {
-  await keepTheme(page, "dark");
-  // Without its scripts the page is the server's HTML and the head script alone: what the
-  // first frame shows, before React hydrates.
-  await page.route("**/_next/static/**/*.js", (route) => route.abort());
+  await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/");
-  expect(await page.evaluate(() => document.documentElement.dataset.themeChoice)).toBe("dark");
-  expect(await shownIconOf(page)).toEqual(["dark"]);
-});
-
-test("shows the system's icon on a dark device, the choice rather than the theme it resolves to", async ({
-  page,
-}) => {
-  await page.emulateMedia({ colorScheme: "dark" });
-  await page.goto("/");
-  expect(await shownIconOf(page)).toEqual(["system"]);
-  await expect(page.getByRole("button", { name: "Theme: System" })).toBeVisible();
-});
-
-test("a theme chosen changes the icon and its name, and on the next visit", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Theme: System" }).click();
-  await page.getByRole("option", { name: "Dark" }).click();
+  const lightGround = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  await page.getByRole("button", { name: "Switch to dark theme" }).click();
   await crossingEnded(page);
 
-  await expect(page.getByRole("button", { name: "Theme: Dark" })).toBeFocused();
-  expect(await shownIconOf(page)).toEqual(["dark"]);
+  await expect(page.getByRole("button", { name: "Switch to light theme" })).toBeFocused();
+  await expect(page.getByRole("status").filter({ hasText: "The page is dark" })).toHaveCount(1);
+  expect(await shownOfferOf(page)).toEqual(SUN);
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).not.toBe(
+    lightGround,
+  );
   await page.reload();
-  await expect(page.getByRole("button", { name: "Theme: Dark" })).toBeVisible();
-  expect(await shownIconOf(page)).toEqual(["dark"]);
+  expect(await shownOfferOf(page)).toEqual(SUN);
+
+  // The press back is the device's own look: nothing is kept, and the page follows the device.
+  await page.getByRole("button", { name: "Switch to light theme" }).click();
+  await crossingEnded(page);
+  expect(await shownOfferOf(page)).toEqual(MOON);
+  expect(await page.evaluate(() => localStorage.getItem("lantern-theme"))).toBeNull();
+  await expect(page.locator("html")).not.toHaveAttribute("data-theme");
 });
 
-test("names the setting and the choice under the keyboard's focus, and moves nothing", async ({
+test("a kept choice the device has come to agree with still changes the page on a press", async ({
+  page,
+}) => {
+  await keepTheme(page, "light");
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/");
+  expect(await shownOfferOf(page)).toEqual(MOON);
+  await page.getByRole("button", { name: "Switch to dark theme" }).click();
+  await crossingEnded(page);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  expect(await page.evaluate(() => localStorage.getItem("lantern-theme"))).toBe("dark");
+});
+
+test("names the look a press gives under the keyboard's focus, at once, and moves nothing", async ({
   page,
 }) => {
   await keepTheme(page, "light");
   await page.goto("/");
-  const icon = page.getByRole("button", { name: "Theme: Light" });
-  const hint = page.locator("[data-theme-hint]");
+  const button = page.getByRole("button", { name: "Switch to dark theme" });
+  const helper = page.locator("[data-theme-helper]");
   const header = page.locator("header").first();
-  await expect(hint).toBeHidden();
+  await expect(helper).toHaveCSS("opacity", "0");
   // The header holds the index, drawn once the visitor's days are read.
   await expect(
     page.getByRole("list", { name: "No city in mind? Start from one of these" }),
   ).toBeVisible();
   const before = await header.boundingBox();
 
-  // On the start screen the wordmark is only the name, so the icon is the keyboard's first stop.
+  // On the start screen the wordmark is only the name, so the button is the keyboard's first stop.
   await page.keyboard.press("Tab");
 
-  await expect(icon).toBeFocused();
-  await expect(hint).toBeVisible();
-  // Only the choice's own name shows, as only its icon does.
-  expect(await hint.evaluate((element) => (element as HTMLElement).innerText)).toBe(
-    "Theme · Light",
-  );
+  await expect(button).toBeFocused();
+  // At once: the keyboard's focus waits for nothing.
+  await expect(helper).toHaveCSS("transition-delay", "0s");
+  await expect(helper).toHaveCSS("opacity", "1");
+  expect(await helper.evaluate((element) => (element as HTMLElement).innerText)).toBe("Dark");
   expect(await header.boundingBox()).toEqual(before);
-  // Gone while its list hangs where it would be.
-  await page.keyboard.press("Enter");
-  await expect(page.getByRole("listbox", { name: "Theme" })).toBeFocused();
-  await expect(hint).toBeHidden();
+  // Escape puts it away, and the focus stays.
+  await page.keyboard.press("Escape");
+  await expect(helper).toBeHidden();
+  await expect(button).toBeFocused();
+});
+
+test("shows its helper under a pointer after its wait, and a press puts it away until the pointer leaves", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "A finger raises no helper");
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/day/rome");
+  const button = page.getByRole("button", { name: "Switch to dark theme" });
+  const helper = page.locator("[data-theme-helper]");
+  await button.hover();
+  // The wait is the helper's own token, so a pointer crossing the masthead raises nothing.
+  await expect(helper).toHaveCSS("transition-delay", "0.4s");
+  await expect(helper).toHaveCSS("opacity", "1");
+
+  await button.click();
+  await crossingEnded(page);
+  await expect(helper).toBeHidden();
+  await page.mouse.move(10, 400);
+  await page.getByRole("button", { name: "Switch to light theme" }).hover();
+  await expect(helper).toHaveCSS("opacity", "1");
+  expect(await helper.evaluate((element) => (element as HTMLElement).innerText)).toBe("Light");
+});
+
+test("under reduced motion its helper does not fade, and still waits", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "A finger raises no helper");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/day/rome");
+  await page.getByRole("button", { name: THEME_NAME }).hover();
+  const helper = page.locator("[data-theme-helper]");
+  await expect(helper).toHaveCSS("transition-duration", "0s");
+  await expect(helper).toHaveCSS("transition-delay", "0.4s");
+  await expect(helper).toHaveCSS("opacity", "1");
+});
+
+test("its helper stands under its own box, inside the window, and widens no page", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "A finger raises no helper");
+  for (const width of [320, 390, 1280]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto("/day/rome");
+    const button = page.getByRole("button", { name: THEME_NAME });
+    await button.focus();
+    await page.keyboard.press("Shift+Tab");
+    await page.keyboard.press("Tab");
+    const helper = page.locator("[data-theme-helper]");
+    await expect(helper).toHaveCSS("opacity", "1");
+    const helperBox = (await helper.boundingBox())!;
+    const buttonBox = (await button.boundingBox())!;
+    const window = await page.evaluate(() => ({
+      width: document.documentElement.clientWidth,
+      scroll: document.documentElement.scrollWidth,
+    }));
+    expect(window.scroll, `at ${width}`).toBe(window.width);
+    // 4 px under the button's box, and 8 px or more inside the window's edge.
+    expect(helperBox.y).toBeCloseTo(buttonBox.y + buttonBox.height + 4, 0);
+    expect(helperBox.x + helperBox.width, `at ${width}`).toBeLessThanOrEqual(window.width - 8);
+    if (width === 1280) {
+      // With room in the gutter it is centred on the button.
+      expect(helperBox.x + helperBox.width / 2).toBeCloseTo(buttonBox.x + buttonBox.width / 2, 0);
+    }
+  }
+});
+
+test("under a finger the button reaches 44 px, and raises no helper", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "A pointer's box is the button's own");
+  await page.goto("/day/rome");
+  const button = page.getByRole("button", { name: THEME_NAME });
+  const reach = await button.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const after = getComputedStyle(element, "::after");
+    return {
+      width: box.width - 2 * parseFloat(after.left),
+      height: box.height - 2 * parseFloat(after.top),
+    };
+  });
+  expect(reach).toEqual({ width: 44, height: 44 });
+  await button.tap();
+  await crossingEnded(page);
+  await expect(page.locator("[data-theme-helper]")).toBeHidden();
 });
 
 // A city with no day is answered by Lantern's page for no day, which React can draw in the
@@ -126,8 +255,8 @@ for (const visit of ["first", "next"]) {
     const html = page.locator("html");
     await expect(html).toHaveAttribute("data-theme", "dark");
     await expect(html).toHaveAttribute("data-theme-choice", "dark");
-    await expect(page.getByRole("button", { name: "Theme: Dark" })).toBeVisible();
-    expect(await shownIconOf(page)).toEqual(["dark"]);
+    await expect(page.getByRole("button", { name: "Switch to light theme" })).toBeVisible();
+    expect(await shownOfferOf(page)).toEqual(SUN);
   });
 }
 
@@ -141,8 +270,8 @@ interface CrossingFrame {
   progress: number | null;
   /** Colour properties easing on their own in this frame. */
   easing: string[];
-  /** Whether the theme's list is drawn in this frame. */
-  isListShown: boolean;
+  /** Whether the theme's helper is drawn in this frame. */
+  isHelperShown: boolean;
 }
 
 interface CrossingFilm {
@@ -166,12 +295,9 @@ async function filmFromNextKey(page: Page, ms: number): Promise<void> {
   await page.evaluate((filmMs) => {
     (window as FilmingWindow).crossingFilm = new Promise<CrossingFilm>((resolve) => {
       const film: CrossingFilm = { frames: [], finishedMs: null, timings: [] };
-      // The theme's icon eases from its open list's ink to its own at rest, as it does whenever
-      // its list closes, theme or none; a list gone at once is unseen as it leaves.
       const isSeenEasing = (target: Element | null | undefined) =>
         target !== null &&
         target !== undefined &&
-        !target.matches('[aria-label^="Theme: "]') &&
         target.checkVisibility({ visibilityProperty: true });
       const crossingAnimations = () =>
         document
@@ -185,7 +311,7 @@ async function filmFromNextKey(page: Page, ms: number): Promise<void> {
         "keydown",
         () => {
           const press = performance.now();
-          // The list's own handler starts the crossing once this one has run.
+          // The button's own handler starts the crossing once this one has run.
           setTimeout(() => {
             const crossing = (document as CrossingDocument).activeViewTransition;
             void crossing?.finished.then(() => (film.finishedMs = performance.now() - press));
@@ -212,10 +338,10 @@ async function filmFromNextKey(page: Page, ms: number): Promise<void> {
                     isSeenEasing((animation.effect as KeyframeEffect | null)?.target),
                 )
                 .map((animation) => animation.transitionProperty),
-              isListShown:
+              isHelperShown:
                 document
-                  .querySelector('[data-word-list] [role="listbox"]')
-                  ?.checkVisibility({ visibilityProperty: true }) ?? false,
+                  .querySelector("[data-theme-helper]")
+                  ?.checkVisibility({ visibilityProperty: true, opacityProperty: true }) ?? false,
             });
             if (performance.now() - press < filmMs) requestAnimationFrame(sample);
             else resolve(film);
@@ -235,24 +361,17 @@ async function filmTaken(page: Page): Promise<CrossingFilm> {
   return film;
 }
 
-/** Opens the theme's list from the keyboard, its own choice under the focus. */
-async function openThemeList(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /^Theme: / }).focus();
-  await page.keyboard.press("Enter");
-  await expect(page.getByRole("listbox", { name: "Theme" })).toBeFocused();
-}
-
 test(
-  "a theme chosen crosses the whole page once, in the theme's time, the new theme whole at its end",
+  "a press crosses the whole page once, in the theme's time, the new theme whole at its end",
   { tag: "@frame" },
   async ({ page }) => {
     await page.emulateMedia({ colorScheme: "light", reducedMotion: "no-preference" });
     await page.goto("/day/rome");
     const lightGround = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    await openThemeList(page);
-    // System is chosen, so Dark is two rows down.
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("ArrowDown");
+    const button = page.getByRole("button", { name: "Switch to dark theme" });
+    await button.focus();
+    // The focus eases the button's ink and ring in; the film starts once they are at rest.
+    await expect.poll(() => button.evaluate((element) => element.getAnimations().length)).toBe(0);
 
     await filmFromNextKey(page, CROSSING_MS * 3);
     await page.keyboard.press("Enter");
@@ -285,27 +404,103 @@ test(
       (frame) => frame.progress !== null && frame.progress > 0 && frame.progress < 1,
     );
     expect(between.length).toBeGreaterThanOrEqual(Math.floor(CROSSING_MS / FRAME_MS / 2));
-    // The theme's list closes at once, before the browser takes the old picture.
-    expect(frames.filter((frame) => frame.isListShown)).toEqual([]);
+    // The helper the keyboard's focus raised goes at once, before the browser takes the old
+    // picture.
+    expect(frames.filter((frame) => frame.isHelperShown)).toEqual([]);
     // Nothing eases to the new theme on its own, so the new picture is whole from its first frame.
     expect(frames.flatMap((frame) => frame.easing)).toEqual([]);
-    // The focus is back on the theme's icon, named for the new choice.
-    await expect(page.getByRole("button", { name: "Theme: Dark" })).toBeFocused();
+    // The focus stays on the theme's button, named for what its next press gives.
+    await expect(page.getByRole("button", { name: "Switch to light theme" })).toBeFocused();
   },
 );
+
+/** Counts every change of `data-theme` on `<html>` from here on, read by the returned call. */
+async function countThemeChanges(page: Page): Promise<() => Promise<number>> {
+  await page.evaluate(() => {
+    const seen = { changes: 0 };
+    new MutationObserver((records) => (seen.changes += records.length)).observe(
+      document.documentElement,
+      { attributeFilter: ["data-theme"] },
+    );
+    (window as unknown as { themeChanges: typeof seen }).themeChanges = seen;
+  });
+  return () =>
+    page.evaluate(
+      () => (window as unknown as { themeChanges: { changes: number } }).themeChanges.changes,
+    );
+}
+
+for (const motion of ["no-preference", "reduce"] as const) {
+  test(`a held Enter turns the page once, with motion ${motion}`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "light", reducedMotion: motion });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Switch to dark theme" }).focus();
+    const changes = await countThemeChanges(page);
+    // A key held down, as the keyboard repeats it, for about a second and a half.
+    const cdp = await page.context().newCDPSession(page);
+    const enter = { key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 };
+    await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", ...enter, text: "\r" });
+    for (let repeat = 0; repeat < 30; repeat += 1) {
+      await page.waitForTimeout(50);
+      await cdp.send("Input.dispatchKeyEvent", {
+        type: "keyDown",
+        ...enter,
+        text: "\r",
+        autoRepeat: true,
+      });
+    }
+    await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", ...enter });
+    await crossingEnded(page);
+    expect(await changes()).toBe(1);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  });
+}
+
+test("two presses of Enter while the page crosses turn it once, and the crossing runs whole", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "no-preference" });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Switch to dark theme" }).focus();
+  const changes = await countThemeChanges(page);
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(80);
+  await page.keyboard.press("Enter");
+  await crossingEnded(page);
+  expect(await changes()).toBe(1);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  // Once it has crossed, the next press is taken.
+  await page.keyboard.press("Enter");
+  await crossingEnded(page);
+  await expect(page.locator("html")).not.toHaveAttribute("data-theme");
+});
+
+test("Escape puts away the helper a pointer raised, with the focus elsewhere", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "A finger raises no helper");
+  await page.goto("/day/rome");
+  const helper = page.locator("[data-theme-helper]");
+  await page.getByRole("button", { name: THEME_NAME }).hover();
+  await expect(helper).toHaveCSS("opacity", "1");
+  expect(await page.evaluate(() => document.activeElement?.tagName)).toBe("BODY");
+  await page.keyboard.press("Escape");
+  await expect(helper).toBeHidden();
+});
 
 test("the page takes no press while it crosses, and every press once it has", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "no-preference" });
   await page.goto("/");
-  await page.getByRole("button", { name: "Theme: System" }).click();
   const field = page.getByRole("textbox", { name: "Where, and anything else" });
   const fieldBox = await field.boundingBox();
   if (!fieldBox) throw new Error("The field has no box");
   const centre = { x: fieldBox.x + fieldBox.width / 2, y: fieldBox.y + fieldBox.height / 2 };
 
-  const hit = await page.getByRole("option", { name: "Dark" }).evaluate(async (option, point) => {
+  const button = page.getByRole("button", { name: "Switch to dark theme" });
+  const hit = await button.evaluate(async (element, point) => {
     const at = () => document.elementFromPoint(point.x, point.y)?.tagName ?? null;
-    (option as HTMLElement).click();
+    (element as HTMLElement).click();
     const crossing = (document as CrossingDocument).activeViewTransition;
     await crossing?.ready;
     const during = at();
@@ -321,10 +516,10 @@ test("under reduced motion the first frame after the press is the new theme", as
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
   await page.goto("/");
   const lightGround = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  await page.getByRole("button", { name: "Theme: System" }).click();
+  const button = page.getByRole("button", { name: "Switch to dark theme" });
 
-  const first = await page.getByRole("option", { name: "Dark" }).evaluate(async (option) => {
-    (option as HTMLElement).click();
+  const first = await button.evaluate(async (element) => {
+    (element as HTMLElement).click();
     const hasCrossing = Boolean((document as CrossingDocument).activeViewTransition);
     await new Promise((resolve) => requestAnimationFrame(resolve));
     return {
@@ -339,7 +534,7 @@ test("under reduced motion the first frame after the press is the new theme", as
   expect(first.ground).not.toBe(lightGround);
 });
 
-test("where the browser has no view transitions, a theme chosen is set at once", async ({
+test("where the browser has no view transitions, a press sets the theme at once", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -348,14 +543,13 @@ test("where the browser has no view transitions, a theme chosen is set at once",
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "no-preference" });
   await page.goto("/");
   expect(await page.evaluate(() => "startViewTransition" in document)).toBe(false);
-  await page.getByRole("button", { name: "Theme: System" }).click();
-  await page.getByRole("option", { name: "Dark" }).click();
+  await page.getByRole("button", { name: "Switch to dark theme" }).click();
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await expect(page.getByRole("button", { name: "Theme: Dark" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Switch to light theme" })).toBeFocused();
 });
 
-test("the device's own change, with the system's theme chosen, is taken at once", async ({
+test("the device's own change, with nothing chosen, is taken at once, and the button follows it", async ({
   page,
 }) => {
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "no-preference" });
@@ -369,4 +563,5 @@ test("the device's own change, with the system's theme chosen, is taken at once"
   }));
   expect(now.hasCrossing).toBe(false);
   expect(now.ground).not.toBe(lightGround);
+  expect(await shownOfferOf(page)).toEqual(SUN);
 });

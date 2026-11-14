@@ -4,7 +4,8 @@
  * `data-theme` on `<html>`, which the colour tokens read (`globals.css`); the system's is
  * the attribute removed, so `color-scheme: light dark` answers to the device again. The
  * choice itself, the system's too, is noted beside it as `data-theme-choice`, which the
- * theme's icon reads, so it shows System on a dark device rather than the theme it resolves to.
+ * theme's button reads with the device's scheme to show the look a press gives
+ * (`docs/decisions.md`, "The theme is one button that turns the page to the other look").
  * Under forced colours the device's theme stands whatever the choice, and the choice is kept,
  * untouched, for when they end (`docs/decisions.md`, "Under forced colours the system's theme
  * stands").
@@ -13,6 +14,9 @@
 import { BROWSER_STORAGE } from "@/lib/browser-storage";
 
 export type ThemeChoice = "system" | "light" | "dark";
+
+/** A look the page stands in: what a choice resolves to on this device. */
+export type ThemeLook = "light" | "dark";
 
 export const THEME_CHOICES: readonly ThemeChoice[] = ["system", "light", "dark"];
 
@@ -31,8 +35,8 @@ function isChosenTheme(value: unknown): value is "light" | "dark" {
 
 /**
  * Run in `<head>` before the page paints, so a stored theme is on `<html>` from the first
- * frame and the page never flashes the system's, and the theme's icon shows the choice from
- * that frame too. Storage can be unavailable, as in a private window, and the page then
+ * frame and the page never flashes the system's, and the theme's button shows the look a
+ * press gives from that frame too. Storage can be unavailable, as in a private window, and the page then
  * keeps the system's theme.
  */
 export const THEME_SCRIPT = `(function(){var r=document.documentElement,c="system";try{var t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});if(t==="light"||t==="dark"){c=t;r.setAttribute("data-theme",t)}}catch(e){}r.setAttribute(${JSON.stringify(THEME_CHOICE_ATTRIBUTE)},c)})()`;
@@ -60,8 +64,10 @@ const STILL_ATTRIBUTE = "data-theme-still";
  * place, so the last choice always stands.
  */
 let lastChoice: ThemeChoice = "system";
+/** The crossing under way, from the press that starts it until its pictures are gone. */
+let crossing: ViewTransition | null = null;
 
-/** Sets a choice on `<html>`: its theme, and the note the theme's icon reads. */
+/** Sets a choice on `<html>`: its theme, and the note the theme's button reads. */
 function setRootTheme(choice: ThemeChoice): void {
   lastChoice = choice;
   const root = document.documentElement;
@@ -94,13 +100,67 @@ export function restoreThemeChoice(): void {
   window.dispatchEvent(new Event(THEME_EVENT));
 }
 
+/** The look the device is set to, which the page follows while nothing is chosen. */
+function deviceLook(): ThemeLook {
+  return matchesMedia("(prefers-color-scheme: dark)") ? "dark" : "light";
+}
+
 /**
- * The theme a choice shows: the system's is the device's, and under forced colours every choice
+ * The look a choice shows: the system's is the device's, and under forced colours every choice
  * shows the device's, since the system's palette stands there (`globals.css`).
  */
-function shownThemeOf(choice: ThemeChoice): "light" | "dark" {
+export function shownLookOf(choice: ThemeChoice): ThemeLook {
   if (choice !== "system" && !matchesMedia("(forced-colors: active)")) return choice;
-  return matchesMedia("(prefers-color-scheme: dark)") ? "dark" : "light";
+  return deviceLook();
+}
+
+/**
+ * Whether the page is crossing from one theme to the other. The theme's button takes no press
+ * meanwhile, from a pointer or the keys: a second crossing would cut the first short, and the
+ * page would snap to the end of a fade it was halfway through.
+ */
+export function isThemeCrossing(): boolean {
+  return crossing !== null;
+}
+
+/** The look the page stands in now: what `<html>` carries, on this device. */
+export function readShownLook(): ThemeLook {
+  return shownLookOf(readThemeChoice());
+}
+
+/** What the server renders for the look, before the page can know the device. */
+export function serverShownLook(): ThemeLook | null {
+  return null;
+}
+
+/**
+ * Calls back when the look the page stands in may have changed: a choice set on this page or in
+ * another tab, or the device's own scheme changing while nothing is chosen.
+ */
+export function subscribeShownLook(onChange: () => void): () => void {
+  const unsubscribe = subscribeThemeChoice(onChange);
+  const scheme =
+    typeof window.matchMedia === "function"
+      ? window.matchMedia("(prefers-color-scheme: dark)")
+      : null;
+  scheme?.addEventListener?.("change", onChange);
+  return () => {
+    unsubscribe();
+    scheme?.removeEventListener?.("change", onChange);
+  };
+}
+
+/**
+ * The choice a press on the theme's button makes: the look other than the one shown. Where
+ * that is the look the device is set to, nothing is kept and the page follows the device
+ * again, so a press back always leaves the page as it was before the first. Nothing listens
+ * for the device changing while a choice is kept: it stays until the next press, also once
+ * the device comes to agree with it (`docs/decisions.md`, "The theme is one button that turns
+ * the page to the other look").
+ */
+export function nextThemeChoice(choice: ThemeChoice): ThemeChoice {
+  const next: ThemeLook = shownLookOf(choice) === "dark" ? "light" : "dark";
+  return next === deviceLook() ? "system" : next;
 }
 
 function matchesMedia(query: string): boolean {
@@ -124,8 +184,8 @@ function showLastChoice(): void {
  * Sets a choice on the page, keeps it for the next visit, and tells every word. Where the
  * choice changes what the page looks like, the page crosses to it: the browser's view
  * transition of the root fades the last frame in the old theme into the live page in the new
- * (`--duration-theme`, linear, in `globals.css`), and in Chromium the page takes no press
- * meanwhile. A choice that changes no colour, as every choice under forced colours, reduced
+ * (`--duration-theme`, linear, in `globals.css`). Chromium lets no pointer through to the page
+ * meanwhile, and the theme's button takes no press until it has ended (`isThemeCrossing`). A choice that changes no colour, as every choice under forced colours, reduced
  * motion and a browser without view transitions set it at once (`docs/decisions.md`, "The theme
  * crosses as one cross-fade of the whole page").
  */
@@ -136,14 +196,20 @@ export function applyThemeChoice(choice: ThemeChoice): void {
   } catch {
     // Without storage the choice holds for this page only.
   }
-  const isSeen = shownThemeOf(choice) !== shownThemeOf(readThemeChoice());
+  const isSeen = shownLookOf(choice) !== shownLookOf(readThemeChoice());
   lastChoice = choice;
-  if (isSeen && canCross()) document.startViewTransition(showLastChoice);
-  else showLastChoice();
+  if (isSeen && canCross()) {
+    const transition = document.startViewTransition(showLastChoice);
+    crossing = transition;
+    const ended = () => {
+      if (crossing === transition) crossing = null;
+    };
+    void transition.finished.then(ended, ended);
+  } else showLastChoice();
 }
 
 /**
- * Calls back when the theme changes: from a word on this page, or from another tab, whose
+ * Calls back when the theme changes: from a press on this page, or from another tab, whose
  * stored choice this page then takes too, at once.
  */
 export function subscribeThemeChoice(onChange: () => void): () => void {

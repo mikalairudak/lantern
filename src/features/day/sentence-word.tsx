@@ -1,7 +1,6 @@
 "use client";
 
 import { AnimatePresence, useIsPresent, type MotionValue } from "motion/react";
-import type { LucideIcon } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -14,7 +13,6 @@ import {
 } from "react";
 import { Ink } from "@/components/ui/ink";
 import { cn } from "@/components/ui/cn";
-import { ICON_SIZES, ICON_STROKE_WIDTH } from "@/lib/tokens/icon";
 import type { EnergyLevel } from "@/lib/schema/itinerary.schema";
 import { EnergyGlyph } from "./energy-glyph";
 import type { FactKey, FactSource } from "./facts";
@@ -26,7 +24,6 @@ import {
   HANG_FROM_WORD_CLASSES,
   LIST_BOX_CLASSES,
   LIST_ROW_CLASSES,
-  LIST_ROW_FRAME_CLASSES,
   LIST_SHEET_CLASSES,
   OPEN_WORD_CLASSES,
   ROW_NOTE_CLASSES,
@@ -41,8 +38,6 @@ export interface OptionView {
   /** One short line on what choosing it would change; null where it says nothing new. */
   consequence: string | null;
   isCurrent: boolean;
-  /** Drawn before its words, as the theme's answers are; most answers are words alone. */
-  icon?: LucideIcon;
   /** An energy answer's place on the scale of five, drawn at the end of its name's line. */
   energyLevel?: EnergyLevel;
 }
@@ -127,25 +122,8 @@ const LIST_CLASSES =
   "group/list block py-1 focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-line";
 const ACTIVE_OPTION_CLASSES =
   "group-focus-visible/list:bg-ground group-focus-visible/list:outline-2 group-focus-visible/list:-outline-offset-2 group-focus-visible/list:outline-ink";
-/**
- * The headline's words hang their lists under the word at the quote's size; the theme's list
- * hangs from the foot of the masthead's row at the body's size, its right edge on the page's,
- * as the day menu does (`docs/decisions.md`, "A corner is 2 px or a circle").
- */
-const HANG_CLASSES = {
-  word: cn(HANG_FROM_WORD_CLASSES, "type-voice text-quote"),
-  masthead: "top-full right-0 mt-1 type-voice text-body",
-} as const;
-/**
- * A list's rows by where it hangs. The theme's list alone has the tall rows at every pointer:
- * at one height on every device it covers whole what stands under it on the start screen, the
- * field's button included, rather than ending inside it (`docs/decisions.md`, "A corner is 2 px
- * or a circle").
- */
-const HANG_ROW_CLASSES = {
-  word: LIST_ROW_CLASSES,
-  masthead: cn(LIST_ROW_FRAME_CLASSES, "py-2"),
-} as const;
+/** The headline's words hang their lists under the word, at the quote's size. */
+const HANG_CLASSES = cn(HANG_FROM_WORD_CLASSES, "type-voice text-quote");
 
 interface SentenceWordProps {
   view: WordView;
@@ -543,12 +521,6 @@ interface WordPickerProps {
   listLabel: string;
   /** Drawn open rather than opened, as in a lab cell, it leaves the page's focus where it is. */
   isFocusTaken?: boolean;
-  /**
-   * What the list hangs from: a word of the headline, its rows at the quote's size starting
-   * on the word's first letter; or the masthead's row, for the theme's icon, its rows at the
-   * body's size and its right edge on the page's, so it opens towards the page.
-   */
-  hang?: keyof typeof HANG_CLASSES;
   onChoose: (value: string) => void;
   /** Closes the picker; Escape and the word's own press give the focus back to the word. */
   onClose: (isFocusReturned: boolean) => void;
@@ -564,9 +536,9 @@ function nextActive(key: string, active: number, count: number): number | null {
 }
 
 /**
- * A word's list of answers, hung under the word: the headline's words open it, and so does
- * the theme's icon. It takes the focus, moves through its options with the arrows, chooses
- * with Enter or a press, and closes on Escape, Tab or a press elsewhere.
+ * A word's list of answers, hung under the word: the headline's words open it. It takes the
+ * focus, moves through its options with the arrows, chooses with Enter or a press, and closes
+ * on Escape, Tab or a press elsewhere.
  */
 export function WordPicker({
   id,
@@ -574,7 +546,6 @@ export function WordPicker({
   options,
   listLabel,
   isFocusTaken = true,
-  hang = "word",
   onChoose,
   onClose,
 }: WordPickerProps) {
@@ -622,7 +593,7 @@ export function WordPicker({
   };
 
   return (
-    <span ref={panel} data-word-list className={cn(LIST_BOX_CLASSES, HANG_CLASSES[hang])}>
+    <span ref={panel} data-word-list className={cn(LIST_BOX_CLASSES, HANG_CLASSES)}>
       <Fold as="span" spring="snappy" className={LIST_SHEET_CLASSES}>
         <span
           ref={list}
@@ -640,7 +611,6 @@ export function WordPicker({
               id={optionId(index)}
               option={option}
               isActive={index === active}
-              rowClasses={HANG_ROW_CLASSES[hang]}
               onChoose={() => onChoose(option.value)}
             />
           ))}
@@ -654,20 +624,17 @@ interface OptionRowProps {
   id: string;
   option: OptionView;
   isActive: boolean;
-  /** The row's frame and height, by where its list hangs. */
-  rowClasses: string;
   onChoose: () => void;
 }
 
 /**
- * An option: its icon where it has one, its words, what it would change, and the check
+ * An option: its words, what it would change, and the check
  * when it is the current answer. The current one is in ink, the others muted until the
  * pointer or the keys reach them. The pointer marks a row with the ground alone and leaves
  * the active option where the keys put it, as the city word's rows do: the ring says where
  * the keyboard is.
  */
-function OptionRow({ id, option, isActive, rowClasses, onChoose }: OptionRowProps) {
-  const { icon: Icon } = option;
+function OptionRow({ id, option, isActive, onChoose }: OptionRowProps) {
   // Named by its answer alone, and described by what it would do, which is read after it.
   const labelId = `${id}-label`;
   const noteId = `${id}-note`;
@@ -680,7 +647,7 @@ function OptionRow({ id, option, isActive, rowClasses, onChoose }: OptionRowProp
       aria-describedby={option.consequence ? noteId : undefined}
       onClick={onChoose}
       className={cn(
-        rowClasses,
+        LIST_ROW_CLASSES,
         "hover:bg-ground",
         option.isCurrent
           ? "text-ink"
@@ -688,11 +655,6 @@ function OptionRow({ id, option, isActive, rowClasses, onChoose }: OptionRowProp
         isActive && ACTIVE_OPTION_CLASSES,
       )}
     >
-      {Icon && (
-        <span aria-hidden className="mr-2 flex h-lh shrink-0 items-center">
-          <Icon size={ICON_SIZES.sm} strokeWidth={ICON_STROKE_WIDTH} />
-        </span>
-      )}
       <span className="block min-w-0 flex-1">
         {option.energyLevel ? (
           <span className="flex items-baseline justify-between gap-4">
