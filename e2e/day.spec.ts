@@ -965,8 +965,9 @@ test(
 
 /**
  * The most a row's words may move on the screen in a 60 Hz frame's time as their bead is
- * weighed: words that ride their bead in move up to about 19 px a frame; a row whose box widened
- * as its second line came moved its words 77 to 123 px in one.
+ * weighed: words that ride their bead in move up to about 23 px a frame, and over two frames no
+ * faster where one is drawn late; a row whose box widened as its second line came moved its
+ * words 77 to 123 px in one, 38 px a frame or more over two.
  */
 const LANDING_STEP_PX = 30;
 
@@ -990,8 +991,9 @@ for (const city of ["madrid", "bologna"]) {
       await page.addInitScript(() => {
         const rows: LandingFrame[][] = [];
         Object.assign(window, { landingFrames: rows });
-        const sample = (): void => {
-          const t = performance.now();
+        // The frame's own time, which a spring is drawn by: a callback run late on a busy
+        // machine would date its frame later than the place it reads.
+        const sample = (t: number): void => {
           document.querySelectorAll('ol[aria-label="The day"] > li').forEach((item, index) => {
             const button = item.querySelector("button");
             const words = button?.parentElement;
@@ -1017,15 +1019,29 @@ for (const city of ["madrid", "bologna"]) {
       const rows = await page.evaluate(
         () => (window as unknown as { landingFrames: LandingFrame[][] }).landingFrames,
       );
-      // Each row's words, seen in two frames running: how far they moved in a 60 Hz frame's time.
+      // Each row's words, seen in frames running: how far they moved in a 60 Hz frame's time over
+      // two steps, or over the one step a row's first frames give. On a busy machine one frame of
+      // a glide is drawn late and the next makes it up, which a step alone reads as a jump.
       const jumps = rows.flatMap((frames, row) =>
         frames.flatMap((now, at) => {
           const before = frames[at - 1];
           if (!before?.isSeen || !now.isSeen || before.left === null || now.left === null) {
             return [];
           }
-          const frames60 = Math.max(1, (now.t - before.t) / FRAME_MS);
-          const pace = Math.abs(now.left - before.left) / frames60;
+          const earlier = frames[at - 2];
+          const steps = [
+            ...(earlier?.isSeen && earlier.left !== null ? [[earlier, before] as const] : []),
+            [before, now] as const,
+          ];
+          const moved = steps.reduce(
+            (sum, [from, to]) => sum + Math.abs((to.left ?? 0) - (from.left ?? 0)),
+            0,
+          );
+          const frames60 = steps.reduce(
+            (sum, [from, to]) => sum + Math.max(1, (to.t - from.t) / FRAME_MS),
+            0,
+          );
+          const pace = moved / frames60;
           return pace >= LANDING_STEP_PX ? [`row ${row}: ${pace.toFixed(0)} px a frame`] : [];
         }),
       );
