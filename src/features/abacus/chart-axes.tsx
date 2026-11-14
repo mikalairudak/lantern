@@ -345,26 +345,38 @@ function AxisSun({ light, minutes, scale, golden, isLabelled, labelRight }: Axis
 /** What moves along the energy scale, said between its two ends once it can be moved. */
 export const CURVE_NAME = "drag the curve";
 
-/**
- * The scale's least span, from the quietest lane to the liveliest, in rems, for its end
- * words to keep their arrows. Centred between them, "drag the curve" (84.4 px in
- * `type-note` at the default size) leaves 12 px, about one em, to "← quieter" (59.5 px, the
- * wider end word) at 2 × (59.5 + 12) + 84.4 = 227.4 px: 14.25 rems, 228 px. Closer than
- * that, the three read as one phrase. On a phone the span is the viewport less the page's
- * gutters, a rem either side, and the chart's 96 px beside its lanes, which grow only on a
- * large screen: 128 px at the default size, so the arrows go below 356 px; with the
- * browser's text at 125 %, 136 px, and they go below 421 px.
+/*
+ * The scale's words in `type-note` at the default size are set two ways: placed between
+ * pixels, as on a Mac, "quieter" is 44.7 px, "← quieter" 54.8 and "drag the curve" 89.0;
+ * set on whole pixels, as Chromium on Linux sets them at one device pixel, each glyph's
+ * advance rounds and the three are 45, 55 and 90. So each least span below is taken from the
+ * wider setting, with a pixel more on each side.
+ *
+ * On a phone the span is the viewport less the page's gutters, a rem either side, and the
+ * chart's 96 px beside its lanes, which grow only on a large screen: 128 px at the default
+ * size, and 136 px with the browser's text at 125 %.
  */
-export const SCALE_ARROWS_MIN_REMS = 14.25;
 
 /**
- * The least span, in rems, for the curve's name to stand between the arrowless end words:
- * 11.625 rems, 186 px at the default size, under a 320 px phone's 192, so nothing changes
- * there. Under it, as with the browser's text at 125 % on a phone under 369 px, a 360 px one
- * among them, the scale keeps only "quieter" and "livelier", and the opening pull's ring
- * still shows what to drag.
+ * The scale's least span, from the quietest lane to the liveliest, in rems, for its end
+ * words to keep their arrows: centred, "drag the curve" stands 12 px, about one em, and a
+ * pixel clear of "← quieter", the wider end word. Between pixels that takes
+ * 2 × (54.8 + 12) + 89.0 = 222.6 px; on whole pixels 2 × (55 + 12) + 90 = 224 px, and with the
+ * pixel 226 px: 14.125 rems. Closer than 12 px the three read as one phrase. The arrows go
+ * below a 354 px phone, and with the browser's text at 125 % below a 419 px one.
  */
-export const SCALE_NAME_MIN_REMS = 11.625;
+export const SCALE_ARROWS_MIN_REMS = 14.125;
+
+/**
+ * The least span, in rems, for the curve's name to stand between the arrowless end words,
+ * 8 px and a pixel clear of each: centred, "drag the curve" and "quieter", the wider end
+ * word, need 2 × (44.7 + 8) + 89.0 = 194.4 px between pixels and 2 × (45 + 8) + 90 = 196 px
+ * on whole pixels, and with the pixel 198 px: 12.375 rems, over a 320 px phone's 192, so the
+ * name first stands on a 326 px phone, and with the browser's text at 125 % on a 384 px one.
+ * Under it the scale keeps only "quieter" and "livelier", each on its end lane, and the
+ * opening pull's ring still shows what to drag.
+ */
+export const SCALE_NAME_MIN_REMS = 12.375;
 
 /**
  * The energy scale: a short tick over each lane, and only its direction in words, quieter

@@ -40,7 +40,7 @@ The lamp stands 3.9:1 on the day ground (`#fbf5ea`) and 10.3:1 on the night (`#0
 
 ## Beside the wordmark
 
-The wordmark is the word itself, "Lantern", set as the header sets it: Fira Sans italic, regular, `text-heading` (22 px). The mark stands before it at 26 px, 6 px apart, with the bead's centre on the middle of the word's x-height: aligned to the word's baseline, then moved 7 px down. Keep clear space of the bead's width around the pair.
+The wordmark is the word itself, "Lantern", set as the masthead sets it: Literata italic, regular, at the body's size (`text-body`, 15 px). The mark stands before it in ems of the word (`LanternMark`'s `isSetInEms`), 1.75 em tall, about 26 px, with its gap of about 6 px after it, and the bead's centre on the middle of the word's x-height: aligned to the word's baseline, then sunk 0.62 em, about 9 px. Keep clear space of the bead's width around the pair.
 
 ## Don't
 

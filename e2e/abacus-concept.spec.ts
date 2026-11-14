@@ -66,7 +66,7 @@ async function pullLunchQuieter(page: Page): Promise<void> {
   await page.mouse.move(x - laneStep * 1.2, y, { steps: 4 });
 }
 
-test("sets the day in one sans and one weight, and the model's sentences in italic", async ({
+test("sets the day in one serif and one weight, and the model's sentences in italic", async ({
   page,
 }) => {
   await openStill(page);
@@ -80,9 +80,9 @@ test("sets the day in one sans and one weight, and the model's sentences in ital
   const note = page.getByText("walk · Casco Antiguo", { exact: true }).first();
   const line = page.getByText(/^Sunrise from the beach/).first();
 
-  expect(await styleOf(name)).toBe('"Fira Sans" 400 normal none');
-  expect(await styleOf(note)).toBe('"Fira Sans" 400 normal none');
-  expect(await styleOf(line)).toBe('"Fira Sans" 400 italic none');
+  expect(await styleOf(name)).toBe("literata 400 normal none");
+  expect(await styleOf(note)).toBe("literata 400 normal none");
+  expect(await styleOf(line)).toBe("literata 400 italic none");
 });
 
 test("a calm row opens with how the place feels, and a lively one folds to what it is", async ({

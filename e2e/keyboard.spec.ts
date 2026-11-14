@@ -1,3 +1,6 @@
+import { SCALE_ARROWS_MIN_REMS, SCALE_NAME_MIN_REMS } from "../src/features/abacus/chart-axes";
+import { CHART } from "../src/features/abacus/geometry";
+import { DEFAULT_ROOT_PX } from "../src/lib/tokens/root";
 import { expect, test, type Locator, type Page, waitMs, chooseTheChart } from "./fixtures";
 
 // These tests drive the chart: each page opens as for a visitor who chose it, since a day
@@ -18,21 +21,48 @@ const SMALL_PHONE = { width: 320, height: 700 };
 const ARROWED_WIDTHS = [360, 390];
 const PHONE_HEIGHT = 844;
 /**
- * Where the arrows go: a phone's scale spans its width less 128 px, and below a 228 px span
- * the gap beside the arrows falls under one em, too tight to read as a gap, so 356 px keeps
- * them.
+ * What a phone's width gives the scale at the default text size: the page's gutters, a rem
+ * either side, and the chart's room beside its lanes, the time axis on the left and the
+ * beads' reach on the right.
  */
-const LAST_ARROWLESS_WIDTH = 355;
-const FIRST_ARROWED_WIDTH = 356;
+const PHONE_BESIDE_SCALE_PX =
+  2 * DEFAULT_ROOT_PX + CHART.axisWidth + CHART.laneInsetStart + CHART.laneInsetEnd;
+/** The narrowest phone whose scale spans this many rems, in whole pixels. */
+function phoneWidthFor(rems: number): number {
+  return Math.ceil(rems * DEFAULT_ROOT_PX) + PHONE_BESIDE_SCALE_PX;
+}
 /**
- * The least room between two of the scale's words. A space in its 13 px type is about
- * 3.4 px, so words closer than about two of them read as one phrase.
+ * Where the arrows go: narrower than the arrows' least span, the gap beside them falls under
+ * one em, too tight to read as a gap (`SCALE_ARROWS_MIN_REMS`).
+ */
+const FIRST_ARROWED_WIDTH = phoneWidthFor(SCALE_ARROWS_MIN_REMS);
+const LAST_ARROWLESS_WIDTH = FIRST_ARROWED_WIDTH - 1;
+/**
+ * Where the curve's name first stands between the arrowless end words (`SCALE_NAME_MIN_REMS`).
+ * Narrower, the scale keeps its two end words alone.
+ */
+const FIRST_NAMED_WIDTH = phoneWidthFor(SCALE_NAME_MIN_REMS);
+/**
+ * The least room between two of the scale's words, so they are told apart at a glance and
+ * each stands apart under a finger.
  */
 const MIN_CAPTION_GAP_PX = 8;
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
 });
+
+/** How long after the day can be dragged the ring that invites the first drag may take. */
+const INVITATION_TIMEOUT_MS = 10_000;
+
+/** Waits for the day to be written, ready to drag. */
+async function waitForTheDayWritten(page: Page): Promise<void> {
+  await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+    "aria-busy",
+    "false",
+    { timeout: DAY_TIMEOUT_MS },
+  );
+}
 
 /** Waits for the day to be written and its curve named on the scale, ready to drag. */
 async function waitForTheDay(page: Page): Promise<void> {
@@ -79,24 +109,54 @@ for (const [width, quieter, livelier] of [
   });
 }
 
-test("on a 320 px phone the energy scale's words drop their arrows and keep apart", async ({
+test("on a 320 px phone the energy scale keeps its two end words on their lanes, and the ring shows what to drag", async ({
   page,
 }) => {
   await page.setViewportSize(SMALL_PHONE);
   await page.goto("/day/kanazawa");
 
-  // The scale is drawn while the day is still being written, before the curve is named.
   await expect(page.getByText("quieter", { exact: true }).filter({ visible: true })).toBeVisible({
     timeout: DAY_TIMEOUT_MS,
+  });
+  await expect(page.getByText("livelier", { exact: true }).filter({ visible: true })).toBeVisible();
+
+  await waitForTheDayWritten(page);
+
+  // Too narrow for the curve's name 8 px clear of both: the end words stand alone, each on its
+  // end lane, and the ring that invites the first drag says what moves.
+  await expect(page.locator("[data-invitation] circle")).toBeVisible({
+    timeout: INVITATION_TIMEOUT_MS,
   });
   await expect(page.getByText(CURVE_NAME, { exact: true }).filter({ visible: true })).toHaveCount(
     0,
   );
-  await expect(page.getByText("livelier", { exact: true }).filter({ visible: true })).toBeVisible();
+  const ends = await page.evaluate(() => {
+    const ticks = [...document.querySelectorAll('svg[role="group"] line.stroke-line')]
+      .map((tick) => tick.getBoundingClientRect())
+      .filter((tick) => tick.height > 0 && tick.height < 20);
+    const word = (text: string) =>
+      [...document.querySelectorAll("span")]
+        .find((each) => each.textContent?.trim() === text && each.getBoundingClientRect().width > 0)
+        ?.getBoundingClientRect();
+    const lanes = ticks.map((tick) => tick.left + tick.width / 2);
+    return {
+      quietest: Math.min(...lanes),
+      liveliest: Math.max(...lanes),
+      quieter: word("quieter")?.left ?? 0,
+      livelier: word("livelier")?.right ?? 0,
+    };
+  });
+  expect(ends.quieter).toBeCloseTo(ends.quietest, 0);
+  expect(ends.livelier).toBeCloseTo(ends.liveliest, 0);
+});
 
+test(`on a ${FIRST_NAMED_WIDTH} px phone, the narrowest that names the curve, the scale's three words keep apart`, async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: FIRST_NAMED_WIDTH, height: PHONE_HEIGHT });
+  await page.goto("/day/kanazawa");
   await waitForTheDay(page);
 
-  // Naming the curve between them changes neither word: the scale's width alone decides.
   await expect(page.getByText("quieter", { exact: true }).filter({ visible: true })).toBeVisible();
   await expect(page.getByText("livelier", { exact: true }).filter({ visible: true })).toBeVisible();
   for (const gap of await captionGaps(page, "quieter", "livelier")) {

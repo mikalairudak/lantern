@@ -28,6 +28,9 @@ import { ROW_REACH_PX, SPRINGS } from "@/lib/tokens/motion";
 import { VersionCarousel } from "./version-carousel";
 import { isGoldenAt, LightRail, sunLinesOf, sunsOf, SunLine } from "./light-rail";
 
+/** "until" and its time stay on one line: a time alone at a line's start reads as the next stop's. */
+const NO_BREAK = "\u00a0";
+
 /**
  * The day's plan, to read rather than to drag: a timetable of the stops the chart draws, their
  * time in a gutter, the rail of the day's light beside it, each stop's name, what it is and where,
@@ -360,7 +363,7 @@ function ReadingRow({
   const what = [
     kindWordOf(shown.kind, span.from),
     isQuarterSaid ? quarter : null,
-    `until ${formatClock(span.to)}`,
+    `until${NO_BREAK}${formatClock(span.to)}`,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -476,7 +479,7 @@ function VersionWords({ place, span }: { place: PlaceDraft; span: { from: number
   const what = [
     kindWordOf(place.kind, span.from),
     quarter !== "" && !isQuarterNamed(name, quarter) ? quarter : null,
-    `until ${formatClock(span.to)}`,
+    `until${NO_BREAK}${formatClock(span.to)}`,
   ]
     .filter(Boolean)
     .join(" · ");

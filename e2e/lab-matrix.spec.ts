@@ -166,9 +166,9 @@ test("draws the city word's open lists inside their phone cells, and leaves the 
   }
 });
 
-// --text-heading, 1.375rem at the browser's 16 px rem: the start screen's sentence under the
-// abacus's width, which it reads off its own container.
-const PHONE_SENTENCE_SIZE = "22px";
+// --text-sentence, 1.25rem at the browser's 16 px rem: the start screen's sentence under the
+// text column's width, which it reads off its own container.
+const PHONE_SENTENCE_SIZE = "20px";
 
 test("sets a phone cell's sentence as a phone does, and a wide cell's as the screen does", async ({
   page,

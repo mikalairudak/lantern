@@ -121,15 +121,20 @@ export function ProgressLine({ children, className }: ProgressLineProps) {
 
 /**
  * Links joined by a middle dot that screen readers do not hear, standing wide enough apart
- * that each link's press, which reaches past its words, stays its own.
+ * that each link's press, which reaches past its words, stays its own. A line too long for its
+ * column breaks after a dot, so the next link starts the next line whole: at 320 px the sources
+ * in Literata are wider than the foot's column.
  */
 function Joined({ links }: { links: readonly ReactNode[] }) {
   return links.map((link, index) => (
     <Fragment key={index}>
       {index > 0 && (
-        <span aria-hidden className="mx-2">
-          ·
-        </span>
+        <>
+          <span aria-hidden className="mx-2">
+            ·
+          </span>
+          <wbr />
+        </>
       )}
       {link}
     </Fragment>

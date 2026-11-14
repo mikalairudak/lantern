@@ -184,4 +184,4 @@ A live day is written to its end even when the visitor leaves; its answer names 
 
 ## Licence
 
-The code is under the MIT licence, in [`LICENSE`](LICENSE). A few test fixtures keep small extracts of map data, © OpenStreetMap contributors under the ODbL and recorded from Geoapify; [`NOTICE`](NOTICE) names them and their terms. The bundled Fira Sans in `assets/fonts/` keeps its own SIL Open Font License 1.1, in [`assets/fonts/OFL.txt`](assets/fonts/OFL.txt) beside it.
+The code is under the MIT licence, in [`LICENSE`](LICENSE). A few test fixtures keep small extracts of map data, © OpenStreetMap contributors under the ODbL and recorded from Geoapify; [`NOTICE`](NOTICE) names them and their terms. The bundled Literata in `assets/fonts/` keeps its own SIL Open Font License 1.1, in [`assets/fonts/OFL.txt`](assets/fonts/OFL.txt) beside it.

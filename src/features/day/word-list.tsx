@@ -41,7 +41,7 @@ export const LIST_ROW_FRAME_CLASSES =
 export const LIST_ROW_CLASSES = cn(LIST_ROW_FRAME_CLASSES, "py-1 pointer-coarse:py-2");
 
 /** A row's second line: what it would change, or what it was written as. */
-export const ROW_NOTE_CLASSES = "block font-sans text-small text-muted";
+export const ROW_NOTE_CLASSES = "block font-serif text-small text-muted";
 
 /**
  * The quiet ink check at the end of the current answer's row, centred on its first line.

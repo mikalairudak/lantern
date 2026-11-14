@@ -48,7 +48,7 @@ const ROW_CLASSES = cn(
  * phone zooms the page into a field set under 16 px as it takes the focus, and stays zoomed.
  */
 const INPUT_CLASSES =
-  "mt-1 block w-full min-w-0 rounded-sm border border-line bg-ground px-2 py-1 font-sans text-small text-ink placeholder:text-muted focus-ring-inset pointer-coarse:text-quote";
+  "mt-1 block w-full min-w-0 rounded-sm border border-line bg-ground px-2 py-1 font-serif text-small text-ink placeholder:text-muted focus-ring-inset pointer-coarse:text-quote";
 
 /** No readings: a city named whole, or a written day. */
 const NO_READINGS: readonly CityReading[] = [];

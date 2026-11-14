@@ -35,7 +35,7 @@ A direction is a written spec, kept in the gitignored `notes/` folder, for examp
 1. **An audit**, ranked from weakest first, with what works and must not be touched. Name the pages and states you judged and those you did not.
 2. **The palette:** every token you change or add, with today's and the proposed value in both themes, its one meaning, and a contrast table measured against the bars: 5:1 for muted text, 4.5:1 for body text and 3:1 for drawn marks. A value that falls under a bar is a stated exception, with its reason.
 3. **The mark,** with a verdict. If it changes, give its geometry, its sizes and its own 16 px drawing.
-4. **Type and hierarchy:** a verdict on the one sans in one weight, argued against the decision's reasons.
+4. **Type and hierarchy:** a verdict on the one serif in one weight, argued against the decision's reasons.
 5. **Each surface that changes:** sizes in existing tokens or in new ones you name, spacing, every state (at rest, focused, typed, pointed at, touch, reduced motion), motion on a spring from `SPRINGS`, and what each costs against the phone's first-screen bar.
 6. **What a builder puts in `/lab/concepts/`** so the owner can compare: which screens and states, set as today beside proposed, in both themes, at 390 and 1280 px.
 7. **The decisions for the owner,** each one shown, not only described: a still per question, one option beside another.

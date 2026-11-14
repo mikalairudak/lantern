@@ -19,6 +19,8 @@ const DAY_END = 20 * MINUTES_PER_HOUR;
 const LANE_MARGINS = CHART.axisWidth + CHART.laneInsetStart + CHART.laneInsetEnd;
 /** A 320 px phone's chart, with the page's gutters either side. */
 const SMALL_PHONE_CHART_WIDTH = 288;
+/** The narrowest chart whose scale names the curve at the default text size. */
+const NAMED_CHART_WIDTH = Math.ceil(SCALE_NAME_MIN_REMS * DEFAULT_ROOT_PX) + LANE_MARGINS;
 /** A 390 px phone's chart. */
 const PHONE_CHART_WIDTH = 358;
 /** The scale's least span for arrows at the default text size, in whole pixels. */
@@ -80,11 +82,11 @@ describe("the energy scale's words", () => {
     expect(screen.getByText(CURVE_NAME)).toBeInTheDocument();
   });
 
-  it("drop their arrows on a 320 px phone's chart, where the three words would run together", () => {
+  it("drop their arrows and leave the curve unnamed on a 320 px phone's chart, where the three words would run together", () => {
     renderScale(SMALL_PHONE_CHART_WIDTH, true);
 
     expect(endWords()).toEqual(["quieter", "livelier"]);
-    expect(screen.getByText(CURVE_NAME)).toBeInTheDocument();
+    expect(screen.queryByText(CURVE_NAME)).not.toBeInTheDocument();
   });
 
   it("keep their arrows from the scale's least span, and lose them a pixel under it", () => {
@@ -124,7 +126,7 @@ describe("the energy scale's words", () => {
   });
 
   it.each([
-    ["a narrow", SMALL_PHONE_CHART_WIDTH],
+    ["the narrowest named", NAMED_CHART_WIDTH],
     ["a phone's", PHONE_CHART_WIDTH],
   ])("never change on %s chart when the curve's name comes in between them", (_label, width) => {
     const { nameCurve } = renderScale(width, false);

@@ -20,7 +20,7 @@ function componentWithClasses(className: string): string {
 
 describe("token lint", { timeout: LINT_TIMEOUT_MS }, () => {
   it("accepts classes built from tokens", async () => {
-    const className = "mx-auto max-w-page px-6 font-sans text-display text-ink md:p-4";
+    const className = "mx-auto max-w-page px-6 font-serif text-display text-ink md:p-4";
 
     expect(await reportedRules(componentWithClasses(className))).toEqual([]);
   });

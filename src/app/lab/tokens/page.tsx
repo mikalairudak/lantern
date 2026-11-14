@@ -64,6 +64,11 @@ const TYPE_SPECIMENS: Record<TextToken, TypeSpecimen> = {
     usage: "Voice italic · the wordmark",
     sample: "Lantern",
   },
+  sentence: {
+    className: "type-voice text-sentence",
+    usage: "Voice · the start screen's question on a phone",
+    sample: "A day in Bologna, with friends",
+  },
   dek: {
     className: "max-w-measure type-prose text-dek text-ink-soft",
     usage: "Prose · the day's line, the start screen's promise",
@@ -237,7 +242,7 @@ function TypeSection() {
   return (
     <Section
       title="Type"
-      note="One sans in one weight for every role; size and ink tell them apart"
+      note="One serif in one weight for every role; size and ink tell them apart"
     >
       <ul className="flex flex-col">
         {TEXT_TOKENS.map((token) => {
