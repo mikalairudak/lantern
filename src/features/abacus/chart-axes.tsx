@@ -349,7 +349,7 @@ export const CURVE_NAME = "drag the curve";
  * The scale's least span, from the quietest lane to the liveliest, in rems, for its end
  * words to keep their arrows. Centred between them, "drag the curve" (89.0 px in
  * `type-note` at the default size) leaves 12 px, about one em, to "← quieter" (54.8 px, the
- * wider end word) at 2 × (54.8 + 12) + 89.0 = 222.5 px: 13.9375 rems, 223 px. Closer than
+ * wider end word) at 2 × (54.8 + 12) + 89.0 = 222.6 px: 13.9375 rems, 223 px. Closer than
  * that, the three read as one phrase. On a phone the span is the viewport less the page's
  * gutters, a rem either side, and the chart's 96 px beside its lanes, which grow only on a
  * large screen: 128 px at the default size, so the arrows go below 351 px; with the
