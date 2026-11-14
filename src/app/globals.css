@@ -191,6 +191,13 @@
   --container-chart: 28rem;
   /* The day as rows of the abacus, each name at its bead, on a wide screen. */
   --container-abacus: 48rem;
+  /*
+   * The shortest masthead row that holds the day's menu, the new day and the theme side by side:
+   * the widest the built row needs, measured in each browser and in the face that stands in
+   * before Literata lands, plus 6 px for the phones no measure was taken on
+   * (`docs/decisions.md`, "The day's ways along live in one menu, in the masthead").
+   */
+  --container-masthead: 21.375rem;
 
   /*
    * The page grows on a large screen. From a viewport `grows-from` rems wide, 1440 px at the

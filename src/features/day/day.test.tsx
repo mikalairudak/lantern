@@ -439,7 +439,7 @@ describe("the day", () => {
 
     await user.click(within(headline()).getByRole("button", { name: "Kanazawa" }));
     await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
-    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
+    await user.click(screen.getByRole("menuitem", { name: /New day/ }));
     await user.keyboard("Porto{Enter}");
 
     expect(onPlay).toHaveBeenCalledWith(
@@ -555,7 +555,7 @@ describe("the day", () => {
     const user = await renderWritten();
 
     await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
-    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
+    await user.click(screen.getByRole("menuitem", { name: /New day/ }));
     expect(screen.getByRole("textbox", { name: "Somewhere else" })).toHaveFocus();
     await user.keyboard("Lisbon{Enter}");
 
@@ -577,7 +577,7 @@ describe("the day", () => {
     const user = await renderWritten();
 
     await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
-    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
+    await user.click(screen.getByRole("menuitem", { name: /New day/ }));
     await user.keyboard("   {Enter}");
     expect(screen.getByRole("group", { name: "Where" })).toBeInTheDocument();
     await user.keyboard("bologna{Enter}");
@@ -678,7 +678,7 @@ describe("the day", () => {
     await user.click(retry);
     await waitForTheDay();
     await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
-    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
+    await user.click(screen.getByRole("menuitem", { name: /New day/ }));
     await user.keyboard("Lisbon{Enter}");
 
     await expectNotice(NOT_WRITING_YET);

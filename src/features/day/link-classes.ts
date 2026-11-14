@@ -5,8 +5,8 @@
  */
 /**
  * A small link's target reaches 8 px past its words on every side, unseen, so a thumb finds
- * it: "Plan another day" (101 × 20 px as set) and the foot's links (154 × 13 px). The words,
- * the underline and the focus ring stay as they are.
+ * it: the masthead's "New day" (52 × 20 px as set) and the foot's links (154 × 13 px). The
+ * words, the underline and the focus ring stay as they are.
  */
 export const TARGET_CLASSES = "relative after:absolute after:-inset-2";
 

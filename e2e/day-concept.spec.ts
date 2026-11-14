@@ -214,8 +214,7 @@ test("a city Lantern has no day for is said back as asked, with the days that ar
   await openWritten(page);
   const headline = page.getByRole("heading", { level: 1 });
 
-  await page.getByRole("button", { name: "Take this day" }).click();
-  await page.getByRole("menuitem", { name: /^Plan another day/ }).click();
+  await page.getByRole("button", { name: "New day" }).click();
   await expect(page.getByRole("textbox", { name: "Somewhere else" })).toBeFocused();
   await page.keyboard.type("Lisbon");
   await page.keyboard.press("Enter");

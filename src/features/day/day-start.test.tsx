@@ -864,7 +864,7 @@ describe("the address, on a page that asks the day to keep it", () => {
     await waitForTheDay();
 
     await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
-    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
+    await user.click(screen.getByRole("menuitem", { name: /New day/ }));
     await user.keyboard("Lisbon{Enter}");
 
     await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Lisbon/));

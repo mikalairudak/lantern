@@ -70,7 +70,7 @@ test("after dark the plan's beads are lit, in the first HTML, and every bead sho
     expect(bead).toEqual({ border: "4px", isText: true, isGlowDrawn: false });
 });
 
-test("the masthead's menu holds the ways along, and the chart is kept once chosen", async ({
+test("the masthead's menu holds the three ways along, and the chart is kept once chosen", async ({
   page,
 }) => {
   await page.goto("/day/kanazawa");
@@ -81,7 +81,6 @@ test("the masthead's menu holds the ways along, and the chart is kept once chose
     /Copy the link/,
     /Add to your calendar/,
     /Walk it in Google Maps/,
-    /Plan another day/,
   ]);
   const box = await menu.boundingBox();
   const width = page.viewportSize()?.width ?? 0;

@@ -121,8 +121,7 @@ test("a written day's address gives way to the start screen's for a city Lantern
   await waitForTheDay(page);
   const seen = watch(page);
 
-  await page.getByRole("button", { name: "Take this day" }).click();
-  await page.getByRole("menuitem", { name: /^Plan another day/ }).click();
+  await page.getByRole("button", { name: "New day" }).click();
   await expect(page.getByRole("textbox", { name: "Somewhere else" })).toBeFocused();
   await page.keyboard.type("Lisbon");
   await page.keyboard.press("Enter");

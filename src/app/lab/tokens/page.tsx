@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { ArrowLeftRight, MapPin, Sun } from "lucide-react";
 import {
   COLOR_TOKENS,
+  CONTAINER_TOKENS,
   DELAY_TOKENS,
   DURATION_TOKENS,
   FOCUS_RING_TOKENS,
@@ -167,6 +168,7 @@ export default async function TokensPage() {
       <ColorSection />
       <TypeSection />
       <SpacingSection />
+      <WidthSection />
       <ShapeSection />
       <FocusSection />
       <Section
@@ -283,6 +285,21 @@ function SpacingSection() {
           <li key={token} className="flex items-center gap-4">
             <span className="w-10 shrink-0 text-meta text-muted">{token}</span>
             <span className={`h-2 bg-energy ${SPACING_CLASSES[token]}`} />
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
+function WidthSection() {
+  return (
+    <Section title="Widths" note="The columns and the container queries' thresholds">
+      <ul className="flex flex-col gap-4">
+        {CONTAINER_TOKENS.map(({ name, role }) => (
+          <li key={name} className="flex flex-col gap-1 md:flex-row md:gap-8">
+            <span className="w-label shrink-0 text-meta">--container-{name}</span>
+            <span className="text-small text-muted">{role}</span>
           </li>
         ))}
       </ul>

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { DayMenu, TAKE_THIS_DAY } from "./day-menu";
 import { Masthead } from "./masthead";
+import { NEW_DAY, NewDayButton } from "./new-day";
 
 /**
  * The theme's button by its name. jsdom applies no stylesheet, so both looks' names stand in
@@ -10,19 +11,30 @@ import { Masthead } from "./masthead";
  */
 const THEME_NAME = /^Switch to /;
 
-const MENU = <DayMenu items={[{ key: "another", label: "Plan another day", note: "Elsewhere" }]} />;
+const MENU = <DayMenu items={[{ key: "link", label: "Copy the link", note: "Opens this day" }]} />;
 
 describe("the masthead", () => {
-  it("leads home from its wordmark away from the start screen, the day's menu and the theme on its right", () => {
-    const { container } = render(<Masthead menu={MENU} />);
+  it("leads home from its wordmark away from the start screen, this day's menu, a new day and the theme on its right", () => {
+    const { container } = render(
+      <Masthead menu={MENU} newDay={<NewDayButton onPress={() => undefined} />} />,
+    );
     const home = screen.getByRole("link", { name: "Lantern" });
     expect(home).toHaveAttribute("href", "/");
     // The mark is set in ems of the word, so its bead stands on the word's lowercase middle.
     expect(home.querySelector("svg")).toHaveStyle({ height: "1.75em" });
-    expect(screen.getByRole("button", { name: TAKE_THIS_DAY })).toBeInTheDocument();
-    // The theme is an icon, named for the look a press gives, a short rule before it.
-    expect(screen.getByRole("button", { name: THEME_NAME })).toBeInTheDocument();
-    expect(container.querySelector(".w-px")).not.toBeNull();
+    // The three kinds in their order, parted by space alone: no rule between them.
+    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual([
+      TAKE_THIS_DAY,
+      NEW_DAY,
+      expect.stringMatching(THEME_NAME),
+    ]);
+    expect(container.querySelector(".w-px")).toBeNull();
+    // The row is a container, so the new day stands in it from a row of `@masthead`.
+    expect(container.firstElementChild).toHaveClass("@container");
+    expect(screen.getByRole("button", { name: NEW_DAY })).toHaveClass(
+      "hidden",
+      "@masthead:inline-flex",
+    );
   });
 
   it("sets the wordmark as the name alone on the start screen itself, with the theme alone after it", () => {

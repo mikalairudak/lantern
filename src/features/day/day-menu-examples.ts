@@ -3,6 +3,7 @@ import { COPY_LINK, LINK_COPIED, LINK_NOT_COPIED } from "./day-export-words";
 import type { DayExports } from "./day-exports";
 import { DAY_END_EXAMPLES, writtenPicksOf } from "./day-end-examples";
 import type { DayMenuItem } from "./day-menu";
+import { NEW_DAY, NEW_DAY_NOTE } from "./new-day";
 import { takeAlongOf } from "./take-along";
 
 const KANAZAWA = DAY_END_EXAMPLES[0]!;
@@ -21,11 +22,12 @@ function exportsOf(copied: DayExports["copied"]): DayExports {
   return { copied, sendLink: async () => undefined, saveCalendar: ignore };
 }
 
-const PLAN_ANOTHER: DayMenuItem = {
+const NEW_DAY_ROW: DayMenuItem = {
   key: "another",
-  label: "Plan another day",
-  note: "Ask for a day somewhere else",
+  label: NEW_DAY,
+  note: NEW_DAY_NOTE,
   isApart: true,
+  isInRowFromMasthead: true,
 };
 
 function itemsOf(options: Partial<Parameters<typeof takeAlongOf>[0]>): DayMenuItem[] {
@@ -40,7 +42,7 @@ function itemsOf(options: Partial<Parameters<typeof takeAlongOf>[0]>): DayMenuIt
       hasLink: true,
       ...options,
     }),
-    PLAN_ANOTHER,
+    NEW_DAY_ROW,
   ];
 }
 
@@ -54,11 +56,16 @@ export interface DayMenuState {
   isOpen: boolean;
   /** The item drawn pointed at, as a pointer or the keyboard leaves it. */
   pointedKey?: string;
+  /**
+   * The masthead's row set at 320 px, under `@masthead`: the new day is the
+   * menu's last row there, under its rule, where a wider row holds it beside the menu.
+   */
+  isShortRow?: boolean;
 }
 
 /** The masthead and its menu in each state worth a look, on Kanazawa's written day. */
 export const DAY_MENU_STATES: readonly DayMenuState[] = [
-  { label: "a day, its menu open", page: "day", items: itemsOf({}), isOpen: true },
+  { label: "a day, its menu open: the three ways", page: "day", items: itemsOf({}), isOpen: true },
   {
     label: "a row pointed at: the ground's band, its name ruled",
     page: "day",
@@ -67,11 +74,19 @@ export const DAY_MENU_STATES: readonly DayMenuState[] = [
     pointedKey: "calendar",
   },
   {
-    label: "the item apart pointed at",
+    label: "the short row, its menu open: the new day last, under its rule",
     page: "day",
     items: itemsOf({}),
     isOpen: true,
-    pointedKey: PLAN_ANOTHER.key,
+    isShortRow: true,
+  },
+  {
+    label: "the short row: the new day pointed at",
+    page: "day",
+    items: itemsOf({}),
+    isOpen: true,
+    pointedKey: NEW_DAY_ROW.key,
+    isShortRow: true,
   },
   { label: "a day, its menu closed", page: "day", items: itemsOf({}), isOpen: false },
   {
@@ -118,23 +133,19 @@ export const DAY_MENU_STATES: readonly DayMenuState[] = [
     isOpen: true,
   },
   {
-    label: "while a re-plan is written: another day locked",
+    label: "the short row, while a re-plan is written: the new day locked",
     page: "day",
-    items: [...itemsOf({}).slice(0, -1), { ...PLAN_ANOTHER, isLocked: true }],
+    items: [...itemsOf({}).slice(0, -1), { ...NEW_DAY_ROW, isLocked: true }],
     isOpen: true,
+    isShortRow: true,
   },
   {
-    label: "the locked item pointed at: no band, no rule",
+    label: "the locked row pointed at: no band, no rule",
     page: "day",
-    items: [...itemsOf({}).slice(0, -1), { ...PLAN_ANOTHER, isLocked: true }],
+    items: [...itemsOf({}).slice(0, -1), { ...NEW_DAY_ROW, isLocked: true }],
     isOpen: true,
-    pointedKey: PLAN_ANOTHER.key,
-  },
-  {
-    label: "a stream that ended without a day",
-    page: "day",
-    items: [{ ...PLAN_ANOTHER, isApart: false }],
-    isOpen: true,
+    pointedKey: NEW_DAY_ROW.key,
+    isShortRow: true,
   },
   { label: "the start screen", page: "start", items: [], isOpen: false },
 ];
