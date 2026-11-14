@@ -298,12 +298,20 @@
   --color-ink-soft: light-dark(#193a47, #d0c3b1);
   --color-muted: light-dark(#405b64, #a39686);
   /*
-   * The index's engravings, in the page's ink and only in one theme each: the whole scene by day,
-   * the subject alone by night (docs/decisions.md, "The index's pictures are engravings of a
-   * city's everyday thing"). Each is ink where it is drawn; palette.test.ts holds them to it.
+   * The index's plates. By night a plate stands in its tone (plate-tone) with its lines in the
+   * ground's colour (engraving); by day the lines are the page's ink and there is no tone. A
+   * plate's light is plate-lit: lit paper by day, lamplight by night, in the pool at each source
+   * and over the whole plate when it is lit, with plate-half at a pool's edge. By day the lit
+   * sheet lies a little wider than the drawing; by night it does not. plate-lit-wide says which:
+   * it is never painted, and with plate-tone, each nothing in one theme, it fills the mask through
+   * which a plate's light takes its bounds by theme (docs/decisions.md, "A plate is lit whole,
+   * from sources drawn in it"). palette.test.ts holds their steps.
    */
-  --color-engraving: light-dark(#001924, transparent);
-  --color-engraving-night: light-dark(transparent, #f7eddf);
+  --color-engraving: light-dark(#001924, #011d27);
+  --color-plate-tone: light-dark(transparent, #4c7887);
+  --color-plate-lit: light-dark(#fffdf8, #ffe2b3);
+  --color-plate-lit-wide: light-dark(#fffdf8, transparent);
+  --color-plate-half: light-dark(#fcf4e7, #b68d53);
   --color-line: light-dark(#d8d0c1, #173843);
   /* The abacus wires: the chart's structure, 2:1 on the ground, between a rule and text. */
   --color-wire: light-dark(#a3a39b, #3a5560);

@@ -226,6 +226,8 @@ const eslintConfig = defineConfig([
     "playwright-report/**",
     ".playwright-mcp/**",
     "test-results/**",
+    // Working notes, which git ignores: a script kept there is not the repository's.
+    "notes/**",
   ]),
 ]);
 

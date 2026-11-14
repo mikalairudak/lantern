@@ -80,10 +80,10 @@ async function snapToWholePixels(figure: Locator): Promise<void> {
 }
 
 /**
- * Brings a figure into view and waits until every picture its theme draws has come in whole: the
- * index's engravings ask for their files only near the screen, and fade in once they arrive
- * (`src/features/day/index-picture.tsx`). A layer of the other theme is transparent and waits for
- * nothing.
+ * Brings a figure into view and waits until every plate has come in whole: the index's plates ask
+ * for their files only near the screen, and fade in once they arrive
+ * (`src/features/day/index-picture.tsx`). A plate a cell holds back, or whose file failed, waits
+ * for nothing.
  */
 async function awaitPictures(figure: Locator): Promise<void> {
   // Only a figure with pictures is scrolled to: moving the page shifts how others' text is drawn.
@@ -92,11 +92,9 @@ async function awaitPictures(figure: Locator): Promise<void> {
   await expect
     .poll(() =>
       figure.evaluate((element) =>
-        [...element.querySelectorAll("rect[data-layer]")].every((rect) => {
-          const fill = getComputedStyle(rect).fill;
-          const isTransparent = fill === "transparent" || /rgba\(.*,\s*0\)$/.test(fill);
-          return isTransparent || rect.getAttribute("data-state") === "drawn";
-        }),
+        [...element.querySelectorAll("rect[data-layer]")].every((rect) =>
+          ["drawn", "held", "failed"].includes(rect.getAttribute("data-state") ?? ""),
+        ),
       ),
     )
     .toBe(true);
