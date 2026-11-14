@@ -35,10 +35,13 @@ import { SPRINGS } from "@/lib/tokens/motion";
  * allows a row to move (`docs/design-direction.md`): the visitor starts it to replace the stop,
  * and nothing they read reflows under it. Under reduced motion the version is simply there.
  *
- * The drag is the carousel's own, on pointer events, not Motion's: Motion's drag measures the
- * element on every render and plays the frame loop inside the event that caused it, so a swap
- * pressed while the whole day re-renders slid home unseen (`docs/decisions.md`, "A stop on the
- * plan swipes along its versions").
+ * The drag is the carousel's own, on pointer events that set the same value. A library's drag
+ * measures its element on every render and plays the frame loop at once after the commit, inside
+ * the event that caused it; a swap re-renders the whole day each frame its curve springs, so the
+ * slide would be worked out to its end before a frame is painted (`docs/decisions.md`, "A stop on
+ * the plan swipes along its versions"). Under a finger the stop's words are neither selected nor
+ * offered a callout by a long press, so a hesitant press stays a swipe; with a fine pointer they
+ * can be selected.
  */
 
 /** How much of the stop's width a drag must carry to take a version. */
@@ -478,6 +481,7 @@ export function VersionCarousel({
           className={cn(
             "relative flex touch-pan-y flex-col gap-1 rounded-sm focus-ring-inset",
             isEnabled && "cursor-grab active:cursor-grabbing",
+            "pointer-coarse:select-none pointer-coarse:touch-callout-none",
             isDragging && "select-none",
           )}
         >
