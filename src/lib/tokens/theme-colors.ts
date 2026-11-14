@@ -1,4 +1,4 @@
-/** A theme Lantern's colours carry: the sunlit wall by day, the petrol night. */
+/** A theme Lantern's colours carry: the plate paper by day, the petrol night. */
 export type Theme = "light" | "dark";
 
 /** A colour token's value in each theme. */

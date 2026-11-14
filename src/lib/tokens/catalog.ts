@@ -5,8 +5,11 @@
  */
 
 export const COLOR_TOKENS = [
-  { name: "ground", role: "Page background" },
-  { name: "surface", role: "A raised sheet, such as an opened stop" },
+  { name: "ground", role: "The page: plate paper by day, the petrol sky by night" },
+  {
+    name: "surface",
+    role: "A raised sheet over the page: a list, the day's menu, an open stop's words, a lit row's words",
+  },
   { name: "ink", role: "Primary text and filled meter segments" },
   { name: "ink-soft", role: "Secondary text" },
   { name: "muted", role: "Metadata and collapsed notes" },
@@ -24,9 +27,12 @@ export const COLOR_TOKENS = [
   { name: "lamp", role: "Light drawn: the mark's bead, the sun, the time axis in golden hour" },
   {
     name: "lamp-glow",
-    role: "The mark's inner step of light, and the step round a lit bead on the plan",
+    role: "The light round the mark's bead and a lit bead: lamplight by day, an ember by night",
   },
-  { name: "lamp-haze", role: "The mark's outer step of light" },
+  {
+    name: "lamp-haze",
+    role: "The mark's outer step of light: lamplight's haze by day, an ember's by night",
+  },
   { name: "energy", role: 'Energy in words: the energy word and clause, "drag the curve"' },
   { name: "curve", role: "Energy drawn: the curve and the rings on it" },
   { name: "swap", role: 'Versions in words: alternatives, their controls, "instead of …"' },

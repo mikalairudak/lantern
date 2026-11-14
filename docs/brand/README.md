@@ -27,16 +27,16 @@ On the 24 grid, every value a multiple of a quarter unit or set by the wire's cu
 
 ## Colour
 
-Ink and light, all tokens (palette Night market, `docs/decisions.md`, "Tokens are enforced, not documented"): the wire is `ink`; the bead is `lamp`, the token that draws light everywhere in Lantern; its two steps are `lamp-glow` and `lamp-haze`, the lamp's light at two strengths. The steps are solid, not the lamp at 20% and 10%: over a ground of another hue an alpha step mixes towards grey, and the light must stay warm.
+Ink and light, all tokens in the product (palette Night market, `docs/decisions.md`, "Tokens are enforced, not documented"): the wire is `ink`; the bead is `lamp`, the token that draws light everywhere in Lantern; its two steps are `lamp-glow` and `lamp-haze`, the lamp's light at two strengths: lamplight and its haze by day, an ember and its haze by night. The steps are solid, not the lamp at 20% and 10%: over a ground of another hue an alpha step mixes towards grey.
 
-| Token       | Light     | Dark      |
-| ----------- | --------- | --------- |
-| `ink`       | `#001924` | `#f7eddf` |
-| `lamp`      | `#bb660a` | `#ffba4d` |
-| `lamp-glow` | `#ffe2b3` | `#543109` |
-| `lamp-haze` | `#fff1d0` | `#3b220e` |
+| Token       | Light, in the product | Light, in the drawings | Dark      |
+| ----------- | --------------------- | ---------------------- | --------- |
+| `ink`       | `#001924`             | `#001924`              | `#f7eddf` |
+| `lamp`      | `#bb660a`             | `#bb660a`              | `#ffba4d` |
+| `lamp-glow` | `#ffdaa3`             | `#ffe2b3`              | `#543109` |
+| `lamp-haze` | `#ffe5be`             | `#fff1d0`              | `#3b220e` |
 
-The lamp stands 3.9:1 on the day ground (`#fbf5ea`) and 10.3:1 on the night (`#011d27`). The glow sits 12.6 ΔE2000 from the day ground and the haze 7.7: the steps were tuned to 11.0 and 6.1 on an earlier, fuller ground, `#fdf4e5`, and kept as they were when the ground went quieter. Inline, that is `stroke-ink` on the wire, `fill-lamp` on the bead, and `fill-lamp-glow` and `fill-lamp-haze` on the two steps of light.
+The lamp stands 3.6:1 on the day ground (`#f8ebd7`) and 10.3:1 on the night (`#011d27`). In the product the two steps are the tokens: by day lamplight, `#ffdaa3`, and its haze, `#ffe5be`, 1.13:1 and 1.04:1 under the page, with the lamp 3.15:1 on the glow; by night the ember and its haze. The standalone files keep a lighter pair by day, `#ffe2b3` and `#fff1d0`: the same lamplight for a browser's white bar, where it stands 1.25:1 and 1.12:1 from the ground. At 16 px the two pairs are 3 and 5 ΔE2000 apart and read as one mark. Inline, that is `stroke-ink` on the wire, `fill-lamp` on the bead, and `fill-lamp-glow` and `fill-lamp-haze` on the two steps of light.
 
 ## Beside the wordmark
 

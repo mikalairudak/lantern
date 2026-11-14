@@ -41,7 +41,7 @@ Questions worth answering together. This is not a checklist:
 # Where things stand
 
 - The design as it stands is in `docs/design-direction.md`: "Where we are" for the palette, type, tokens, the abacus, density, light and the mark, then "Motion" and "The surfaces today", and "How the look was found" for what was tried and set aside. Read it first. When a round changes what is agreed, bring the section it changes up to date, and add what was set aside to "How the look was found".
-- Night market is the palette (`docs/design-direction.md`, "Ground and ink: Night market"; `docs/decisions.md`, "Tokens are enforced, not documented"): a sunlit wall gone towards paper by day, a petrol night, words at 5:1 and drawn marks at 3:1. The values are in `src/app/globals.css`, and `src/lib/tokens/palette.test.ts` holds the colour bars.
+- Night market is the palette (`docs/design-direction.md`, "Ground and ink: Night market"; `docs/decisions.md`, "Tokens are enforced, not documented"): by day the plate paper an engraving is proved on, by night a petrol sky, words at 5:1 and drawn marks at 3:1. The values are in `src/app/globals.css`, and `src/lib/tokens/palette.test.ts` holds the colour bars.
 
 # Constraints that are not up for debate
 

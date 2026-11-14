@@ -37,6 +37,11 @@ function contrast(a: string, b: string): number {
   return ((high ?? 0) + 0.05) / ((low ?? 0) + 0.05);
 }
 
+/** How much lighter the first colour is than the second, as a contrast ratio; under 1 if darker. */
+function lighterBy(lighter: string, darker: string): number {
+  return (luminance(linearRgb(lighter)) + 0.05) / (luminance(linearRgb(darker)) + 0.05);
+}
+
 type Lab = [number, number, number];
 
 function lab([r, g, b]: Rgb): Lab {
@@ -123,6 +128,21 @@ const DRAWN = ["lamp", "curve", "swap-drawn"];
 const GRAPHIC_CONTRAST = 3;
 /** The wires sit between a rule and text: about 2:1. */
 const WIRE_CONTRAST = { least: 1.9, most: 2.3 };
+/** A hairline is a rule, not a mark: seen on the ground, and never as heavy as a wire. */
+const LINE_CONTRAST = { least: 1.25, most: 1.5 };
+/**
+ * By day a raised sheet stands a step over the page. A bead's glow is lamplight, a tone under the
+ * page: far enough from it to read as light round its bead, and never so deep that the lamp falls
+ * under its bar on it. Its haze stands between the glow and the page.
+ */
+const SHEET_STEP = 1.06;
+const GLOW_UNDER_PAGE = 1.1;
+/** In ΔE2000. */
+const GLOW_FROM_PAGE = 10;
+const HAZE_UNDER_PAGE = 1.02;
+const HAZE_OVER_GLOW = 1.05;
+/** By night a raised sheet stands a step up from the ground on its own hue. */
+const NIGHT_SHEET_OVER_PAGE = 1.15;
 const ACCENTS = ["amber", "lamp", "energy", "curve", "swap", "swap-drawn"] as const;
 /**
  * Light, energy and swap stay told apart by protan and deutan eyes (about 1 man in 12),
@@ -169,6 +189,20 @@ describe("the palette", () => {
       expect(ratio).toBeLessThanOrEqual(WIRE_CONTRAST.most);
     });
 
+    it("draws a hairline between 1.25:1 and 1.5:1 on the ground", () => {
+      const ratio = contrast(color("line", theme), color("ground", theme));
+      expect(ratio).toBeGreaterThanOrEqual(LINE_CONTRAST.least);
+      expect(ratio).toBeLessThanOrEqual(LINE_CONTRAST.most);
+    });
+
+    it("draws the lamp at 3:1 or more on its glow and on its haze", () => {
+      for (const light of ["lamp-glow", "lamp-haze"]) {
+        expect(contrast(color("lamp", theme), color(light, theme))).toBeGreaterThanOrEqual(
+          GRAPHIC_CONTRAST,
+        );
+      }
+    });
+
     it.each(
       ACCENT_PAIRS.flatMap(([a, b]) =>
         (Object.keys(DEFICIENCIES) as Deficiency[]).map(
@@ -180,6 +214,65 @@ describe("the palette", () => {
         LEAST_ACCENT_DISTANCE,
       );
     });
+  });
+
+  describe("by day", () => {
+    const page = color("ground", "light");
+    const glow = color("lamp-glow", "light");
+    const haze = color("lamp-haze", "light");
+
+    /** Whether a glow reads as a bead's light on the page: neither a tint nor a disc. */
+    const isBeadGlow = (candidate: string): boolean =>
+      lighterBy(page, candidate) >= GLOW_UNDER_PAGE &&
+      deltaE2000(lab(linearRgb(candidate)), lab(linearRgb(page))) >= GLOW_FROM_PAGE &&
+      contrast(color("lamp", "light"), candidate) >= GRAPHIC_CONTRAST;
+
+    /** Whether a haze stands between its glow and the page. */
+    const isBeadHaze = (candidate: string): boolean =>
+      lighterBy(page, candidate) >= HAZE_UNDER_PAGE && lighterBy(candidate, glow) >= HAZE_OVER_GLOW;
+
+    it("raises a sheet 1.06:1 or more over the page", () => {
+      expect(lighterBy(color("surface", "light"), page)).toBeGreaterThanOrEqual(SHEET_STEP);
+    });
+
+    it("sets a bead's glow 1.10:1 or more under the page, and 10 ΔE2000 or more from it", () => {
+      expect(lighterBy(page, glow)).toBeGreaterThanOrEqual(GLOW_UNDER_PAGE);
+      expect(deltaE2000(lab(linearRgb(glow)), lab(linearRgb(page)))).toBeGreaterThanOrEqual(
+        GLOW_FROM_PAGE,
+      );
+      expect(isBeadGlow(glow)).toBe(true);
+    });
+
+    it("sets its haze a step under the page and a step over the glow", () => {
+      expect(lighterBy(page, haze)).toBeGreaterThanOrEqual(HAZE_UNDER_PAGE);
+      expect(lighterBy(haze, glow)).toBeGreaterThanOrEqual(HAZE_OVER_GLOW);
+      expect(isBeadHaze(haze)).toBe(true);
+    });
+
+    /* eslint-disable no-restricted-syntax -- the glows and hazes the bars refuse, as values */
+    it.each([
+      ["paper whiter than the page", "#fffdf8"],
+      ["lamplight level with the page", "#ffe9bf"],
+      ["a glow too near the page to read as a light", "#ffe2b3"],
+      ["an amber deep enough to take the lamp under 3:1", "#ffd292"],
+    ])("refuses %s as a bead's glow", (_, candidate) => {
+      expect(isBeadGlow(candidate)).toBe(false);
+    });
+
+    it.each([
+      ["a haze lighter than the page", "#fff1d0"],
+      ["a haze level with the page", page],
+      ["a haze level with its glow", glow],
+    ])("refuses %s", (_, candidate) => {
+      expect(isBeadHaze(candidate)).toBe(false);
+    });
+    /* eslint-enable no-restricted-syntax */
+  });
+
+  it("raises a sheet by night 1.15:1 or more over the ground", () => {
+    expect(lighterBy(color("surface", "dark"), color("ground", "dark"))).toBeGreaterThanOrEqual(
+      NIGHT_SHEET_OVER_PAGE,
+    );
   });
 
   it("draws each of the index's engravings in the page's ink, in its one theme only", () => {
