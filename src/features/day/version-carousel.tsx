@@ -9,6 +9,7 @@ import {
   useState,
   type FocusEvent,
   type KeyboardEvent,
+  type MouseEvent,
   type PointerEvent,
   type ReactNode,
 } from "react";
@@ -33,6 +34,11 @@ import { SPRINGS } from "@/lib/tokens/motion";
  * press runs on from where the first has got to. The slide is quicker than "Three pixels a frame"
  * allows a row to move (`docs/design-direction.md`): the visitor starts it to replace the stop,
  * and nothing they read reflows under it. Under reduced motion the version is simply there.
+ *
+ * The drag is the carousel's own, on pointer events, not Motion's: Motion's drag measures the
+ * element on every render and plays the frame loop inside the event that caused it, so a swap
+ * pressed while the whole day re-renders slid home unseen (`docs/decisions.md`, "A stop on the
+ * plan swipes along its versions").
  */
 
 /** How much of the stop's width a drag must carry to take a version. */
@@ -43,6 +49,67 @@ const GAP_PX = 24;
 const ELASTIC = 0.08;
 const NUDGE_PX = 12;
 const NUDGE_DELAY_MS = 900;
+/**
+ * How far a pointer travels before a press becomes a drag, along the axis it went furthest: a
+ * drag across moves the stop, a drag down or up is left to the page and to a text selection.
+ */
+const LOCK_PX = 6;
+
+type Side = "before" | "after";
+
+/** The axis a drag locks to once the pointer has travelled `LOCK_PX` along it; none before. */
+export function lockOf(dx: number, dy: number): "x" | "y" | null {
+  if (Math.abs(dx) < LOCK_PX && Math.abs(dy) < LOCK_PX) return null;
+  return Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+}
+
+/**
+ * Where a dragged stop stands: where it was caught plus the pointer's travel, as far as a stride
+ * toward each side with a version, and past that a share of the travel (`ELASTIC`).
+ */
+export function draggedTo(
+  from: number,
+  travel: number,
+  reach: { left: number; right: number },
+): number {
+  const to = from + travel;
+  if (to > reach.right) return reach.right + (to - reach.right) * ELASTIC;
+  if (to < reach.left) return reach.left + (to - reach.left) * ELASTIC;
+  return to;
+}
+
+/**
+ * The version a drag let go takes: the one on the side it was pulled from, once the pointer has
+ * carried past a third of the stop's width; dragged right, the one on its left.
+ */
+export function sideTaken(
+  travel: number,
+  width: number,
+  sides: { hasBefore: boolean; hasAfter: boolean },
+): Side | null {
+  if (travel >= width * COMMIT_SHARE && sides.hasBefore) return "before";
+  if (travel <= -width * COMMIT_SHARE && sides.hasAfter) return "after";
+  return null;
+}
+
+/** A press on the stop, from its pointer's first point; `axis` once it is a drag. */
+interface Hold {
+  pointerId: number;
+  fromX: number;
+  fromY: number;
+  axis: "x" | "y" | null;
+  /** Where the stop stood when the drag caught it. */
+  caught: number;
+}
+
+/** Holds the pointer to the stop while it drags; a pointer already gone cannot be held. */
+function holdPointer(element: Element, pointerId: number): void {
+  try {
+    element.setPointerCapture(pointerId);
+  } catch {
+    // The drag goes on while the pointer stays over the stop.
+  }
+}
 
 export interface Neighbour {
   index: number;
@@ -104,8 +171,6 @@ function isKeyboardFocus(element: Element): boolean {
   }
 }
 
-type Side = "before" | "after";
-
 export function VersionCarousel({
   stop,
   pick,
@@ -146,6 +211,10 @@ export function VersionCarousel({
   const stride = width + GAP_PX;
   /** The lean toward an arrow pointed at, while it plays or holds. */
   const pointedLean = useRef<{ stop: () => void } | null>(null);
+  const hold = useRef<Hold | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  /** A drag let go ends in a click on the stop, which is the drag's and nothing else's. */
+  const isClickDragged = useRef(false);
 
   useLayoutEffect(() => {
     const box = boxRef.current;
@@ -268,6 +337,78 @@ export function VersionCarousel({
     if (isPressed) groupRef.current?.focus();
   };
 
+  const goHome = () => {
+    if (isReduced) x.set(0);
+    else animate(x, 0, SPRINGS.layout);
+  };
+
+  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    isClickDragged.current = false;
+    if (!isEnabled || hold.current !== null) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    hold.current = {
+      pointerId: event.pointerId,
+      fromX: event.clientX,
+      fromY: event.clientY,
+      axis: null,
+      caught: 0,
+    };
+  };
+
+  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const held = hold.current;
+    if (!held || held.pointerId !== event.pointerId) return;
+    const travel = event.clientX - held.fromX;
+    if (held.axis === null) {
+      held.axis = lockOf(travel, event.clientY - held.fromY);
+      if (held.axis === null) return;
+      if (held.axis === "y") {
+        hold.current = null;
+        return;
+      }
+      // The drag catches the stop wherever a slide or a lean has got to.
+      x.stop();
+      pointedLean.current = null;
+      hasLeaned.current = true;
+      held.caught = x.get();
+      holdPointer(event.currentTarget, event.pointerId);
+      window.getSelection()?.removeAllRanges();
+      setIsDragging(true);
+    }
+    x.set(
+      draggedTo(held.caught, travel, { left: after ? -stride : 0, right: before ? stride : 0 }),
+    );
+  };
+
+  const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    const held = hold.current;
+    if (!held || held.pointerId !== event.pointerId) return;
+    hold.current = null;
+    if (held.axis !== "x") return;
+    setIsDragging(false);
+    isClickDragged.current = true;
+    const side = sideTaken(event.clientX - held.fromX, width, { hasBefore, hasAfter });
+    if (side) take(side);
+    else goHome();
+  };
+
+  /** A pointer the page took for its own, or lost, lets the stop go home with nothing taken. */
+  const onPointerLost = (event: PointerEvent<HTMLDivElement>) => {
+    const held = hold.current;
+    if (!held || held.pointerId !== event.pointerId) return;
+    hold.current = null;
+    if (held.axis !== "x") return;
+    setIsDragging(false);
+    goHome();
+  };
+
+  const onClickCapture = (event: MouseEvent<HTMLDivElement>) => {
+    if (!isClickDragged.current) return;
+    isClickDragged.current = false;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) return;
     if (event.key === "ArrowLeft" && before) take("before");
@@ -292,21 +433,17 @@ export function VersionCarousel({
           aria-label={name}
           aria-describedby={hintId}
           onKeyDown={onKeyDown}
-          drag={isEnabled ? "x" : false}
-          dragDirectionLock
-          dragMomentum={false}
-          dragConstraints={{ left: after ? -stride : 0, right: before ? stride : 0 }}
-          dragElastic={ELASTIC}
-          onDragEnd={(_, { offset }) => {
-            if (offset.x >= width * COMMIT_SHARE && before) take("before");
-            else if (offset.x <= -width * COMMIT_SHARE && after) take("after");
-            else if (isReduced) x.set(0);
-            else animate(x, 0, SPRINGS.layout);
-          }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerLost}
+          onLostPointerCapture={onPointerLost}
+          onClickCapture={onClickCapture}
           style={{ x }}
           className={cn(
             "relative flex touch-pan-y flex-col gap-1 rounded-sm focus-ring-inset",
             isEnabled && "cursor-grab active:cursor-grabbing",
+            isDragging && "select-none",
           )}
         >
           {children}

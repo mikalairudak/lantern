@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { completeDraftOf } from "@/features/abacus/day-draft";
 import { itineraryOf } from "@/features/abacus/stop-row-examples";
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
-import { neighboursOf, VersionCarousel } from "./version-carousel";
+import { draggedTo, lockOf, neighboursOf, sideTaken, VersionCarousel } from "./version-carousel";
 
 const STOPS = completeDraftOf(itineraryOf(KYOTO_DAY)).stops;
 /** A stop with a version either side of its planned one, and one with none. */
@@ -211,5 +211,163 @@ describe("the carousel", () => {
     );
     expect(screen.queryByRole("group")).toBeNull();
     expect(screen.queryByRole("button")).toBeNull();
+  });
+});
+
+describe("the drag's rules", () => {
+  it("locks to the axis the pointer first travels 6 px along, and to none before", () => {
+    expect(lockOf(5, -5)).toBeNull();
+    expect(lockOf(6, 2)).toBe("x");
+    expect(lockOf(-7, 3)).toBe("x");
+    expect(lockOf(2, -6)).toBe("y");
+  });
+
+  it("follows the pointer from where it caught the stop, and gives 0.08 past its reach", () => {
+    const reach = { left: -324, right: 324 };
+    expect(draggedTo(0, 100, reach)).toBe(100);
+    // Caught halfway through a slide, the stop goes on from there.
+    expect(draggedTo(-300, 50, reach)).toBe(-250);
+    expect(draggedTo(0, 424, reach)).toBeCloseTo(332);
+    // A side with no version barely gives.
+    expect(draggedTo(0, 100, { left: -324, right: 0 })).toBeCloseTo(8);
+    expect(draggedTo(0, -100, { left: 0, right: 324 })).toBeCloseTo(-8);
+  });
+
+  it("takes the version on the side it was pulled from once past a third of the width", () => {
+    const both = { hasBefore: true, hasAfter: true };
+    expect(sideTaken(100, 300, both)).toBe("before");
+    expect(sideTaken(99, 300, both)).toBeNull();
+    expect(sideTaken(-100, 300, both)).toBe("after");
+    expect(sideTaken(-99, 300, both)).toBeNull();
+    expect(sideTaken(150, 300, { hasBefore: false, hasAfter: true })).toBeNull();
+    expect(sideTaken(-150, 300, { hasBefore: true, hasAfter: false })).toBeNull();
+  });
+});
+
+/** The stop's box, 300 px wide where jsdom lays nothing out. */
+const WIDTH_PX = 300;
+
+/** A pointer pressed on `element` at `from`, moved to each point, and let go there or cancelled. */
+function dragOn(
+  element: Element,
+  from: { x: number; y: number },
+  points: readonly { x: number; y: number }[],
+  end: "up" | "cancel" | "none" = "up",
+): void {
+  const pointer = { pointerId: 7, pointerType: "mouse", button: 0 };
+  fireEvent.pointerDown(element, { ...pointer, clientX: from.x, clientY: from.y });
+  for (const point of points) {
+    fireEvent.pointerMove(element, { ...pointer, clientX: point.x, clientY: point.y });
+  }
+  const last = points.at(-1) ?? from;
+  if (end === "up") fireEvent.pointerUp(element, { ...pointer, clientX: last.x, clientY: last.y });
+  if (end === "cancel") fireEvent.pointerCancel(element, pointer);
+}
+
+/** Steps from `x` to `x + by` along one line, as a hand drags. */
+function across(x: number, by: number, y = 100): { x: number; y: number }[] {
+  return [1, 2, 3, 4, 5].map((step) => ({ x: x + (by * step) / 5, y }));
+}
+
+describe("the drag", () => {
+  beforeAll(() => {
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(WIDTH_PX);
+  });
+  afterAll(() => vi.restoreAllMocks());
+
+  function renderPicking(pick = 0, content = <h2>The stop</h2>) {
+    const onPick = vi.fn();
+    const onClick = vi.fn();
+    render(
+      // A click that reaches past the stop, as one on the page around it would.
+      <div onClick={onClick}>
+        <VersionCarousel
+          stop={BOTH}
+          pick={pick}
+          name="The stop"
+          onPick={onPick}
+          renderVersion={(candidate) => <p>{`version ${candidate}`}</p>}
+        >
+          {content}
+        </VersionCarousel>
+      </div>,
+    );
+    return { onPick, onClick, stop: screen.getByRole("group", { name: "The stop" }) };
+  }
+
+  it("takes the version on its left once dragged right past a third, and the click is the drag's", () => {
+    const { onPick, onClick, stop } = renderPicking();
+    const { before } = neighboursOf(BOTH, 0);
+    dragOn(stop, { x: 10, y: 100 }, across(10, WIDTH_PX / 3 + 5));
+    expect(onPick).toHaveBeenCalledWith(before?.index);
+    fireEvent.click(stop);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("takes the version on its right once dragged left past a third", () => {
+    const { onPick, stop } = renderPicking();
+    const { after } = neighboursOf(BOTH, 0);
+    dragOn(stop, { x: 200, y: 100 }, across(200, -(WIDTH_PX / 3 + 5)));
+    expect(onPick).toHaveBeenCalledWith(after?.index);
+  });
+
+  it("follows the pointer while held, and springs home short of a third with nothing taken", async () => {
+    const { onPick, stop } = renderPicking();
+    dragOn(stop, { x: 10, y: 100 }, across(10, 60), "none");
+    await waitFor(() => expect(stop.style.transform).toBe("translateX(60px)"));
+    fireEvent.pointerUp(stop, { pointerId: 7, pointerType: "mouse", clientX: 70, clientY: 100 });
+    expect(onPick).not.toHaveBeenCalled();
+    await waitFor(() => expect(stop.style.transform).toMatch(/^(none|translateX\(0px\))$/), {
+      timeout: 2000,
+    });
+  });
+
+  it("barely gives toward a side with no version", async () => {
+    const order = [0, ...BOTH.alternatives.map((_, index) => index + 1)];
+    const last = order.find((pick) => neighboursOf(BOTH, pick).after === null)!;
+    const { onPick, stop } = renderPicking(last);
+    dragOn(stop, { x: 200, y: 100 }, across(200, -100), "none");
+    await waitFor(() => expect(stop.style.transform).toBe("translateX(-8px)"));
+    fireEvent.pointerUp(stop, { pointerId: 7, pointerType: "mouse", clientX: 100, clientY: 100 });
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
+  it("leaves a drag down or up to the page, and a press that does not travel to what it pressed", async () => {
+    const { onPick, onClick, stop } = renderPicking();
+    dragOn(stop, { x: 10, y: 100 }, [
+      { x: 12, y: 110 },
+      { x: 30, y: 160 },
+    ]);
+    expect(onPick).not.toHaveBeenCalled();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(stop.style.transform).not.toMatch(/translateX\((?!0px)/);
+    dragOn(stop, { x: 10, y: 100 }, [{ x: 12, y: 101 }]);
+    fireEvent.click(stop);
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("goes home with nothing taken when the page takes the pointer mid-drag", async () => {
+    const { onPick, stop } = renderPicking();
+    dragOn(stop, { x: 10, y: 100 }, across(10, WIDTH_PX / 2), "cancel");
+    expect(onPick).not.toHaveBeenCalled();
+    await waitFor(() => expect(stop.style.transform).toMatch(/^(none|translateX\(0px\))$/), {
+      timeout: 2000,
+    });
+  });
+
+  it("leaves a press on a button among the stop's words to the button", () => {
+    const onButton = vi.fn();
+    const { onPick, stop } = renderPicking(
+      0,
+      <button type="button" onClick={onButton}>
+        Open
+      </button>,
+    );
+    const button = screen.getByRole("button", { name: "Open" });
+    dragOn(button, { x: 10, y: 100 }, [{ x: 11, y: 100 }]);
+    fireEvent.click(button);
+    expect(onButton).toHaveBeenCalledTimes(1);
+    expect(onPick).not.toHaveBeenCalled();
+    expect(stop.style.transform).not.toMatch(/translateX\((?!0px)/);
   });
 });
