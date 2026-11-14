@@ -18,8 +18,12 @@ const START_MS = 300;
  * slower CPU takes longer in proportion.
  */
 const LONGEST_FRAME_MS = 200 * CPU_RATE;
-/** How many places between a stride off and home the taken version is painted at, at least. */
-const LEAST_PLACES = 3;
+/**
+ * How many places between a stride off and home the taken version is painted at, at least: about
+ * twenty at the page's own pace; a CPU four times slower holds the press's frame some 400 ms and
+ * then paints a frame in four, three to seven places.
+ */
+const LEAST_PLACES = CPU_RATE > 1 ? 2 : 10;
 /** Within this of home the slide has arrived; within this of a stride off it has not set off. */
 const HOME_PX = 2;
 const OFF_PX = 8;
