@@ -8,17 +8,19 @@ Lantern's one face is Literata, regular and italic (`docs/decisions.md`, "One se
 
 ## The pages' face
 
-`src/app/root-document.ts` serves `Literata-Regular.woff2` and `Literata-Italic.woff2` through `next/font/local`, from the site itself. Each is the variable file held at weight 400 with its optical size axis (7 to 72) kept, so the browser picks the cut for each size, and cut to the Latin, Latin Extended and Cyrillic ranges Google Fonts serves, with the arrows ← ↑ → ↓ the page draws, in one file a style: 86.7 and 88.8 KB, against about 530 KB for the two styles with every weight.
+`src/app/root-document.ts` serves `Literata-Regular.woff2` and `Literata-Italic.woff2` through `next/font/local`, from the site itself. Each is the variable file held at weight 400 with its optical size axis (7 to 72) kept, so the browser picks the cut for each size, and cut to the Latin, Latin Extended and Cyrillic ranges Google Fonts serves, with the arrows ← ↑ → ↓ the page draws, in one file a style: 87.1 and 88.9 KB, against about 530 KB for the two styles with every weight.
 
 ```sh
 fonttools varLib.instancer 'Literata[opsz,wght].ttf' wght=400 -o Literata-Regular.opsz.ttf
 pyftsubset Literata-Regular.opsz.ttf \
   --unicodes="U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2190-2193,U+2212,U+2215,U+FEFF,U+FFFD,U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF,U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116" \
-  --layout-features+=tnum,lnum --name-IDs='*' --no-hinting \
+  --layout-features+=tnum,lnum --name-IDs='*' \
   --drop-tables+=DSIG,vhea,vmtx,VVAR --flavor=woff2 --output-file=Literata-Regular.woff2
 ```
 
 The italic is made the same way from `Literata-Italic[opsz,wght].ttf`. The features kept are the subsetter's defaults with tabular figures added, which the plan's times use, and every name is kept, the licence's text and address (name IDs 13 and 14) among them, so the licence travels inside each file too.
+
+The hinting is kept, and it is one table: the source's glyphs carry no instructions, only a `prep` program that sets the rasteriser's dropout control. That table is what keeps FreeType, the rasteriser of Chromium on Linux and Android, from autohinting the face. Without it, FreeType 2.13 at its default hinting snaps each glyph to the pixel grid and widens it: in the scale's 13 px, "quieter" sets at 48 px and "drag the curve" at 95, where they are 44.7 and 89.0 px unhinted and 45 and 90 with the table kept, each advance only rounded to a whole pixel. A Mac ignores the table and sets the advances as drawn, to a fraction of a pixel.
 
 ## The vertical metrics
 
