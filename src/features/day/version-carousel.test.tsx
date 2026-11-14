@@ -5,7 +5,14 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { completeDraftOf } from "@/features/abacus/day-draft";
 import { itineraryOf } from "@/features/abacus/stop-row-examples";
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
-import { draggedTo, lockOf, neighboursOf, sideTaken, VersionCarousel } from "./version-carousel";
+import {
+  axisAfter,
+  draggedTo,
+  lockOf,
+  neighboursOf,
+  sideTaken,
+  VersionCarousel,
+} from "./version-carousel";
 
 const STOPS = completeDraftOf(itineraryOf(KYOTO_DAY)).stops;
 /** A stop with a version either side of its planned one, and one with none. */
@@ -220,6 +227,20 @@ describe("the drag's rules", () => {
     expect(lockOf(6, 2)).toBe("x");
     expect(lockOf(-7, 3)).toBe("x");
     expect(lockOf(2, -6)).toBe("y");
+  });
+
+  it("keeps a finger's lock down or up open until it travels further across, and a mouse's not", () => {
+    // A finger that drifted 12 px down turns across once it has gone further across than down.
+    expect(axisAfter("y", 12, 12, true)).toBe("y");
+    expect(axisAfter("y", 13, 12, true)).toBe("x");
+    expect(axisAfter("y", -13, -12, true)).toBe("x");
+    // Drifted back to within the lock, it is not yet across.
+    expect(axisAfter("y", 4, 2, true)).toBe("y");
+    // A mouse's or a pen's lock down or up is final, and an "x" lock is final for all.
+    expect(axisAfter("y", 40, 8, false)).toBe("y");
+    expect(axisAfter("x", 0, 60, true)).toBe("x");
+    expect(axisAfter(null, 3, 2, true)).toBeNull();
+    expect(axisAfter(null, 6, 6, true)).toBe("y");
   });
 
   it("follows the pointer from where it caught the stop, and gives 0.08 past its reach", () => {
@@ -454,6 +475,63 @@ describe("the drag", () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(stop.style.transform).not.toMatch(/translateX\((?!0px)/);
     fireEvent.pointerUp(stop, { pointerId: 7, pointerType: "mouse", clientX: 320, clientY: 101 });
+    expect(onPick).not.toHaveBeenCalled();
+  });
+  it("drags for a finger that drifted down before it swiped across, and stays still until it does", async () => {
+    const { onPick, stop } = renderPicking();
+    const { before } = neighboursOf(BOTH, 0);
+    const drift = [
+      { x: 10, y: 104 },
+      { x: 10, y: 108 },
+      { x: 11, y: 112 },
+    ];
+    dragOn(stop, { x: 10, y: 100 }, drift, "none", { pointerType: "touch" });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(stop.style.transform).not.toMatch(/translateX\((?!0px)/);
+    for (const point of across(11, WIDTH_PX / 2, 112)) {
+      fireEvent.pointerMove(stop, {
+        pointerId: 7,
+        pointerType: "touch",
+        buttons: 1,
+        clientX: point.x,
+        clientY: point.y,
+      });
+    }
+    fireEvent.pointerUp(stop, { pointerId: 7, pointerType: "touch", clientX: 161, clientY: 112 });
+    expect(onPick).toHaveBeenCalledWith(before?.index);
+  });
+
+  it("drags for a finger that set off at exactly 45 degrees and went on across", () => {
+    const { onPick, stop } = renderPicking();
+    const { before } = neighboursOf(BOTH, 0);
+    const diagonal = [{ x: 16, y: 106 }, { x: 20, y: 110 }, ...across(20, WIDTH_PX / 2, 110)];
+    dragOn(stop, { x: 10, y: 100 }, diagonal, "up", { pointerType: "touch" });
+    expect(onPick).toHaveBeenCalledWith(before?.index);
+  });
+
+  it("lets a finger's pan go once the page takes it, and moves nothing after", async () => {
+    const { onPick, stop } = renderPicking();
+    dragOn(stop, { x: 10, y: 100 }, [{ x: 10, y: 120 }], "cancel", { pointerType: "touch" });
+    for (const point of across(10, WIDTH_PX / 2, 120)) {
+      fireEvent.pointerMove(stop, {
+        pointerId: 7,
+        pointerType: "touch",
+        buttons: 1,
+        clientX: point.x,
+        clientY: point.y,
+      });
+    }
+    fireEvent.pointerUp(stop, { pointerId: 7, pointerType: "touch", clientX: 160, clientY: 120 });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(stop.style.transform).not.toMatch(/translateX\((?!0px)/);
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
+  it("leaves a mouse's drag down at once, though it turns across after", async () => {
+    const { onPick, stop } = renderPicking();
+    dragOn(stop, { x: 10, y: 100 }, [{ x: 10, y: 108 }, ...across(10, WIDTH_PX / 2, 108)]);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(stop.style.transform).not.toMatch(/translateX\((?!0px)/);
     expect(onPick).not.toHaveBeenCalled();
   });
 });

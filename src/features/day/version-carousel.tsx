@@ -54,7 +54,8 @@ const NUDGE_PX = 12;
 const NUDGE_DELAY_MS = 900;
 /**
  * How far a pointer travels before a press becomes a drag, along the axis it went furthest: a
- * drag across moves the stop, a drag down or up is left to the page and to a text selection.
+ * drag across moves the stop, a drag down or up is left to the page and, with a mouse, to a text
+ * selection.
  */
 const LOCK_PX = 6;
 
@@ -64,6 +65,24 @@ type Side = "before" | "after";
 export function lockOf(dx: number, dy: number): "x" | "y" | null {
   if (Math.abs(dx) < LOCK_PX && Math.abs(dy) < LOCK_PX) return null;
   return Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+}
+
+/**
+ * The axis a press is held along after its pointer has travelled `dx` across and `dy` down from
+ * where it was pressed. An "x" lock is final. Under a finger a "y" lock stays open, since the
+ * page takes a pan down or up only some pixels in, and sends `pointercancel` when it does: until
+ * then a finger that drifted turns into a drag across once it has travelled `LOCK_PX` across and
+ * further across than down. A mouse's or a pen's "y" lock is final at once.
+ */
+export function axisAfter(
+  axis: "x" | "y" | null,
+  dx: number,
+  dy: number,
+  isFinger: boolean,
+): "x" | "y" | null {
+  if (axis === "x") return "x";
+  if (axis === "y" && !isFinger) return "y";
+  return lockOf(dx, dy) ?? axis;
 }
 
 /**
@@ -98,6 +117,8 @@ export function sideTaken(
 /** A press on the stop, from its pointer's first point; `axis` once it is a drag. */
 interface Hold {
   pointerId: number;
+  /** A finger's drag down or up stays held until the page takes it for a pan. */
+  isFinger: boolean;
   fromX: number;
   fromY: number;
   axis: "x" | "y" | null;
@@ -375,6 +396,7 @@ export function VersionCarousel({
     if (event.pointerType === "mouse" && event.button !== 0) return;
     hold.current = {
       pointerId: event.pointerId,
+      isFinger: event.pointerType === "touch",
       fromX: event.clientX,
       fromY: event.clientY,
       axis: null,
@@ -391,14 +413,18 @@ export function VersionCarousel({
       return;
     }
     const travel = event.clientX - held.fromX;
-    if (held.axis === null) {
-      held.axis = lockOf(travel, event.clientY - held.fromY);
+    if (held.axis !== "x") {
+      held.axis = axisAfter(held.axis, travel, event.clientY - held.fromY, held.isFinger);
       if (held.axis === null) return;
+      // A mouse's or a pen's drag down or up is left to a text selection; a finger's stays held
+      // until it turns across, lifts, or the page takes it for a pan.
       if (held.axis === "y") {
-        hold.current = null;
+        if (!held.isFinger) hold.current = null;
         return;
       }
-      // The drag catches the stop wherever a slide or a lean has got to.
+      // The drag catches the stop wherever a slide or a lean has got to. A finger that drifted
+      // down or up locks only once it has gone further across, so at that move the stop steps
+      // once to where the finger has carried it, by a little more than the drift.
       x.stop();
       pointedLean.current = null;
       hasLeaned.current = true;

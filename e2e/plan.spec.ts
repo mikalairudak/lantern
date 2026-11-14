@@ -196,6 +196,76 @@ test("a finger drags a stop by its name or its line, and a scroll that starts on
   expect(await xOf()).toBe(0);
 });
 
+/** A finger pressed at `from`, moved through each point given from there, and lifted. */
+async function touchAlong(
+  cdp: CDPSession,
+  from: { x: number; y: number },
+  path: readonly { x: number; y: number }[],
+): Promise<void> {
+  const at = ({ x, y }: { x: number; y: number }) => [{ id: 1, x: from.x + x, y: from.y + y }];
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: at({ x: 0, y: 0 }),
+  });
+  for (const point of path) {
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: at(point) });
+  }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+}
+
+test("a finger that drifts down or up, or sets off at 45 degrees, before it swipes across still drags", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "a finger needs a touch screen");
+  await page.goto("/day/kanazawa");
+  await dayIsWhole(page);
+  const plan = page.getByRole("list", { name: "The day, to read" });
+  const stop = plan.locator('[role="group"][tabindex="0"]').nth(1);
+  await stop.scrollIntoViewIfNeeded();
+  const cdp = await page.context().newCDPSession(page);
+  const nameOf = () => stop.getAttribute("aria-label");
+  const xOf = () => stop.evaluate((group) => new DOMMatrix(getComputedStyle(group).transform).m41);
+  const width = (await stop.boundingBox())!.width;
+  const SWIPE_STEPS = 12;
+  const DRIFT_STEPS = 4;
+  /** A start on the stop's name, and toward the side with a version: right when one is on the left. */
+  const setOff = async () => {
+    const box = (await stop.locator("h2").boundingBox())!;
+    const arrow = stop.locator("xpath=../..").getByRole("button", { name: /./ }).first();
+    const way = (await arrow.textContent())?.startsWith("←") ? 1 : -1;
+    return { from: { x: box.x + box.width / 2, y: box.y + box.height / 2 }, way };
+  };
+  /** Half the stop's width across, in steps, from where the drift left the finger. */
+  const acrossFrom = (way: number, start: { x: number; y: number }) =>
+    Array.from({ length: SWIPE_STEPS }, (_, step) => ({
+      x: start.x + (way * width * 0.5 * (step + 1)) / SWIPE_STEPS,
+      y: start.y,
+    }));
+
+  for (const drift of [8, -8, 12, -12]) {
+    const before = await nameOf();
+    const { from, way } = await setOff();
+    const down = Array.from({ length: DRIFT_STEPS }, (_, step) => ({
+      x: 0,
+      y: (drift * (step + 1)) / DRIFT_STEPS,
+    }));
+    await touchAlong(cdp, from, [...down, ...acrossFrom(way, { x: 0, y: drift })]);
+    await expect.poll(nameOf, { message: `a drift of ${drift} px` }).not.toBe(before);
+    await expect.poll(xOf).toBe(0);
+  }
+
+  // Exactly as far across as down at first, then on across.
+  const before = await nameOf();
+  const { from, way } = await setOff();
+  const diagonal = Array.from({ length: DRIFT_STEPS }, (_, step) => ({
+    x: way * 3 * (step + 1),
+    y: 3 * (step + 1),
+  }));
+  await touchAlong(cdp, from, [...diagonal, ...acrossFrom(way, { x: way * 12, y: 12 })]);
+  await expect.poll(nameOf).not.toBe(before);
+});
+
 /** Each stop's versions line on the plan: its column's box and its arrows' boxes, by side. */
 async function versionLinesOf(page: Page) {
   const plan = page.getByRole("list", { name: "The day, to read" });
