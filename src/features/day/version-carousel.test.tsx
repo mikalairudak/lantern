@@ -457,3 +457,36 @@ describe("the drag", () => {
     expect(onPick).not.toHaveBeenCalled();
   });
 });
+
+describe("a drag let go once the stop can no longer swap", () => {
+  beforeAll(() => {
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(WIDTH_PX);
+  });
+  afterAll(() => vi.restoreAllMocks());
+
+  it("goes home with nothing taken", async () => {
+    const onPick = vi.fn();
+    const carousel = (canPick: boolean) => (
+      <VersionCarousel
+        stop={BOTH}
+        pick={0}
+        name="The stop"
+        onPick={canPick ? onPick : undefined}
+        renderVersion={(candidate) => <p>{`version ${candidate}`}</p>}
+      >
+        <h2>The stop</h2>
+      </VersionCarousel>
+    );
+    const { rerender } = render(carousel(true));
+    const stop = screen.getByRole("group", { name: "The stop" });
+    dragOn(stop, { x: 10, y: 100 }, across(10, WIDTH_PX / 2), "none");
+    await waitFor(() => expect(stop.style.transform).toBe("translateX(150px)"));
+    // A re-plan starts while the stop is held: the day can no longer be swapped.
+    rerender(carousel(false));
+    fireEvent.pointerUp(stop, { pointerId: 7, pointerType: "mouse", clientX: 160, clientY: 100 });
+    expect(onPick).not.toHaveBeenCalled();
+    await waitFor(() => expect(stop.style.transform).toMatch(/^(none|translateX\(0px\))$/), {
+      timeout: 2000,
+    });
+  });
+});

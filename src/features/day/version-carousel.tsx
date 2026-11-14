@@ -341,8 +341,8 @@ export function VersionCarousel({
   };
 
   /**
-   * Ends a press. A drag let go takes the version it carried past a third, and otherwise goes
-   * home; a drag cancelled or lost goes home with nothing taken.
+   * Ends a press. A drag let go takes the version it carried past a third, while the stop can
+   * still swap, and otherwise goes home; a drag cancelled or lost goes home with nothing taken.
    */
   const endHold = (held: Hold, clientX: number | null) => {
     hold.current = null;
@@ -354,7 +354,7 @@ export function VersionCarousel({
     }
     isClickDragged.current = true;
     const travel = clientX - held.fromX;
-    const side = sideTaken(travel, width, { hasBefore, hasAfter });
+    const side = isEnabled ? sideTaken(travel, width, { hasBefore, hasAfter }) : null;
     if (side) take(side);
     else goHome();
   };
