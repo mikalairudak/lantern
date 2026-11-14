@@ -138,4 +138,15 @@ describe("the start screen's index", () => {
     expect(lisbon).toHaveTextContent("Balanced Saturday");
     expect(list.querySelectorAll("li")).toHaveLength(DRAWN_STARTS.length + 2);
   });
+
+  it("draws a picture a lab cell names for a city the site draws none for", () => {
+    render(
+      <StartIndex
+        starts={[LONG_START]}
+        onChoose={() => undefined}
+        picturesFor={{ [LONG_START.request.city]: "tokyo" }}
+      />,
+    );
+    expect(document.querySelector("svg[data-picture]")).toHaveAttribute("data-picture", "tokyo");
+  });
 });

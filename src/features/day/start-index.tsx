@@ -67,6 +67,7 @@ export function StartIndex({
   listRef,
   stills = {},
   arePicturesHeld = false,
+  picturesFor = {},
 }: {
   starts: readonly StartOffer[];
   onChoose: (request: DayRequest) => void;
@@ -75,6 +76,8 @@ export function StartIndex({
   stills?: Readonly<Record<string, CellStill>>;
   /** Whether the plates hold back their files, as a page does before its script runs. */
   arePicturesHeld?: boolean;
+  /** A picture drawn for a city the site draws none for, by its slug, as a lab cell shows one. */
+  picturesFor?: Readonly<Record<string, string>>;
 }) {
   const label = useId();
   const [pointed, setPointed] = useState<string | null>(null);
@@ -134,7 +137,7 @@ export function StartIndex({
               >
                 <span className={PICTURE_CLASSES}>
                   <IndexPictureView
-                    slug={daySlugOf(start.request)}
+                    slug={picturesFor[city] ?? daySlugOf(start.request)}
                     isLit={isLit}
                     files={arePicturesHeld ? "none" : "all"}
                   />

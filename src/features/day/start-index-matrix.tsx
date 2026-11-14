@@ -1,3 +1,4 @@
+import { daySlugOf } from "@/lib/days/slug";
 import { labMatrix, type LabMatrix } from "@/lib/lab-matrix";
 import { StartIndex, type CellStill } from "./start-index";
 import { DRAWN_STARTS, LONG_START, UNDRAWN_START } from "./start-index-examples";
@@ -6,6 +7,12 @@ import { DRAWN_STARTS, LONG_START, UNDRAWN_START } from "./start-index-examples"
 function startIn(city: string) {
   return DRAWN_STARTS.find((start) => start.request.city === city);
 }
+
+/** The long-named city drawn over a plate, so the light can be seen under a name that wraps. */
+const LONG_NAME_PICTURE: Readonly<Record<string, string>> = {
+  [LONG_START.request.city]: daySlugOf({ city: "Tokyo" }),
+};
+const NO_PICTURES: Readonly<Record<string, string>> = {};
 
 const COUNTS = {
   drawn: { label: "the eight cities it offers", starts: DRAWN_STARTS },
@@ -16,8 +23,13 @@ const COUNTS = {
     ),
   },
   longest: {
-    label: "the longest name, wrapping, beside a name of four letters",
+    label: "the longest name, wrapping over Tokyo's plate, beside a name of four letters",
     starts: [LONG_START, startIn("Rome")].flatMap((start) => (start === undefined ? [] : [start])),
+  },
+  widest: {
+    label:
+      "the eight, in the widest index that sets two across: a cell and its plate at their largest",
+    starts: DRAWN_STARTS,
   },
   one: { label: "one cell, the longest", starts: [LONG_START] },
 } as const;
@@ -106,13 +118,23 @@ export const START_INDEX_MATRIX: LabMatrix = labMatrix<StartIndexCellProps>({
   ],
   render: ({ count, light }) => {
     const { stills, arePicturesHeld } = LIGHTS[light];
-    return (
+    const index = (
       <StartIndex
         starts={COUNTS[count].starts}
         onChoose={ignore}
         stills={stills}
         arePicturesHeld={arePicturesHeld}
+        picturesFor={count === "longest" ? LONG_NAME_PICTURE : NO_PICTURES}
       />
+    );
+    // Two pixels short of the width that sets four across, where a cell and its plate are
+    // largest; wider than a cell of both themes side by side, so it scrolls inside its cell.
+    return count === "widest" ? (
+      <div className="overflow-x-auto">
+        <div className="w-abacus pr-0_5">{index}</div>
+      </div>
+    ) : (
+      index
     );
   },
 });
