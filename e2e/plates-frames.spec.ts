@@ -57,10 +57,11 @@ const GONE_MS = 270;
 const DROP_SHARE = 0.784;
 const DROP_MS = 100;
 /**
- * The CPU rate up to which a leave's first painted frame stands strictly under its covering reach:
- * the busy gate's, `pnpm e2e:busy`.
+ * A leave committed within this long of its crossing's start shows its first painted frame
+ * strictly under each covering reach: two frames, inside the 40 ms after which the library starts
+ * a spring from its first frame, with room for the handler's own start and the first value's set.
  */
-const STRICT_FIRST_FRAME_CPU_RATE = 2;
+const PROMPT_COMMIT_MS = 2 * FRAME_MS - 1;
 /** The page commits a turn within three frames of the crossing's start, slower on a slower CPU. */
 const COMMIT_MS = 50 * CPU_RATE;
 /** The film's own measures, as backstops: each radii bar and the film's trail past the paint. */
@@ -250,6 +251,10 @@ for (const theme of THEMES) {
           ),
           tailLeft: tail === undefined ? changed : changed - tail.atRest,
           tailMost: tail?.mostFromRest ?? 255,
+          leaveCommitMs: wentOff!.commit.at - wentOff!.start.at,
+          firstAtCovering: (firstAfterLeave?.radii ?? []).some(
+            (radius, circle) => radius >= reaches[circle]!.covering,
+          ),
           firstAfterLeave: firstAfterLeave?.radii,
           heldAtLeave: wentOff!.commit.radii,
           covering: reaches.map(({ covering }) => covering),
@@ -262,23 +267,20 @@ for (const theme of THEMES) {
         expect(measures.litRadiiMs, "lit whole").toBeLessThanOrEqual(LIT_MS);
         expect(measures.dropRadiiMs, "the drop").toBeLessThanOrEqual(DROP_MS);
         expect(measures.goneRadiiMs, "gone").toBeLessThanOrEqual(GONE_MS);
-        // F1 on the circles: the first frame painted after the leave's commit is already under
-        // each covering reach and under the radius the page held at the commit, so the turn is
-        // drawn in the leave's own frame. That holds strictly up to the busy gate's rate. On a
-        // slower CPU a commit can come more than a frame late, and the spring's first value, the
-        // covering reach itself, is then painted once: a plate held there is the plate lit within
-        // 0.23% of its light (`e2e/plates.spec.ts`, the jump's still), so it may stand at that
-        // reach, never past it and never past the radius held at the commit.
+        // F1 on the circles. A leave committed within two frames of its crossing's start is drawn
+        // in its own frame: the first frame painted after the commit shows every circle strictly
+        // under its covering reach and under the radius held at the commit, or at 0. The library
+        // starts a spring from its first frame when that frame comes more than 40 ms after the
+        // spring was made (`motion-dom`'s `MAX_START_DELAY`), so a later commit paints the spring's
+        // first value, the covering reach, once: a plate held there is the plate lit within 0.23%
+        // of its light (the jump's still, `e2e/plates.spec.ts`). Then a circle may stand at the
+        // smaller of the two, never over it. F1's drop within 100 ms of the commit stands either way.
+        const isPrompt = measures.leaveCommitMs <= PROMPT_COMMIT_MS;
         firstAfterLeave!.radii.forEach((radius, circle) => {
           if (radius === 0) return;
-          const [covering, held] = [reaches[circle]!.covering, wentOff!.commit.radii[circle]!];
-          if (CPU_RATE <= STRICT_FIRST_FRAME_CPU_RATE) {
-            expect(radius).toBeLessThan(covering);
-            expect(radius).toBeLessThan(held);
-          } else {
-            expect(radius).toBeLessThanOrEqual(covering);
-            expect(radius).toBeLessThanOrEqual(held);
-          }
+          const most = Math.min(reaches[circle]!.covering, wentOff!.commit.radii[circle]!);
+          if (isPrompt) expect(radius, "under the covering reach").toBeLessThan(most);
+          else expect(radius, "never over the covering reach").toBeLessThanOrEqual(most);
         });
         // The film, as a backstop for the pixels, and the tail and the end of a turn.
         expect(measures.litFilmMs, "95% lit, filmed").toBeLessThanOrEqual(FILM_LIT_MS);
