@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import { normalizeDay } from "@/lib/normalizer/normalize";
 import { ENERGY_LEVELS } from "@/lib/schema/itinerary.schema";
-import { replanForEnergy } from "./replan";
+import { modelPicks, shownPlacesOf } from "./curve";
+import { replanForEnergy, stopsRepickedOf } from "./replan";
 
 const normalized = normalizeDay(KYOTO_DAY.request, KYOTO_DAY.day);
 if (!normalized.ok) throw new Error(normalized.reason);
@@ -25,5 +26,39 @@ describe("replanForEnergy", () => {
     moved.forEach((stop) =>
       expect(stop.alternatives.map(({ id }) => id)).toContain(stop.selectedPlaceId),
     );
+  });
+});
+
+describe("stopsRepickedOf", () => {
+  const planned = shownPlacesOf(stops, modelPicks(stops));
+
+  it("counts the stops whose plan moves, against what each shows", () => {
+    const lively = replanForEnergy(stops, CALM, LIVELY);
+    const moved = lively.filter(
+      (stop, index) => stop.selectedPlaceId !== stops[index]?.selectedPlaceId,
+    );
+
+    expect(stopsRepickedOf(planned, lively)).toBe(moved.length);
+    expect(stopsRepickedOf(planned, stops)).toBe(0);
+  });
+
+  it("counts a stop the visitor swapped when the re-pick takes it back to its plan", () => {
+    const [first] = stops;
+    if (!first?.alternatives[0]) throw new Error("Kyoto's first stop has a version");
+    const swapped = { ...planned, [first.id]: first.alternatives[0].id };
+
+    expect(stopsRepickedOf(swapped, stops)).toBe(1);
+  });
+
+  it("leaves out a stop not on screen yet", () => {
+    const lively = replanForEnergy(stops, CALM, LIVELY);
+    const moved = lively.filter(
+      (stop, index) => stop.selectedPlaceId !== stops[index]?.selectedPlaceId,
+    );
+    const [unseen] = moved;
+    if (!unseen) throw new Error("A livelier word moves one of Kyoto's stops");
+    const onScreen = Object.fromEntries(Object.entries(planned).filter(([id]) => id !== unseen.id));
+
+    expect(stopsRepickedOf(onScreen, lively)).toBe(moved.length - 1);
   });
 });

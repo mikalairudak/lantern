@@ -1,4 +1,12 @@
-import { MAX_ENERGY, candidatesOf, energyOf, modelPick, pickCandidate } from "./curve";
+import {
+  MAX_ENERGY,
+  candidatesOf,
+  energyOf,
+  modelPick,
+  pickCandidate,
+  plannedPlace,
+  type ShownPlaces,
+} from "./curve";
 import { hasEnergy, type StopDraft } from "./day-draft";
 
 function shifted(energy: number, shift: number): number {
@@ -25,4 +33,13 @@ export function replanForEnergy(
     const place = candidates[pick];
     return pick === planned || !place ? stop : { ...stop, selectedPlaceId: place.id };
   });
+}
+
+/**
+ * How many stops would show another place once a re-planned day is shown: each takes its new
+ * plan and the visitor's picks go, as a press of the energy word does, against the place each
+ * stop shows now.
+ */
+export function stopsRepickedOf(shown: ShownPlaces, next: readonly StopDraft[]): number {
+  return next.filter((stop) => stop.id in shown && shown[stop.id] !== plannedPlace(stop).id).length;
 }

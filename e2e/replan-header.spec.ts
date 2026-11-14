@@ -185,7 +185,8 @@ test("says under each answer what it would do, from the plan the route runs", as
   await expect(page.getByRole("option", { name: "early dinner" })).toHaveAccessibleDescription("");
   await page.keyboard.press("Escape");
 
-  // Travel changes the word alone, every stop as it was; the energy re-picks at once.
+  // Travel changes the word alone, every stop as it was; an energy answer counts the stops its
+  // re-pick changes on the day on screen.
   await headline.getByRole("button", { name: /on foot/ }).click();
   await expect(page.getByRole("option", { name: "by taxi" })).toHaveAccessibleDescription(
     "keeps every stop · at once",
@@ -193,6 +194,6 @@ test("says under each answer what it would do, from the plan the route runs", as
   await page.keyboard.press("Escape");
   await headline.getByRole("button", { name: /balanced/ }).click();
   await expect(page.getByRole("option", { name: "lively" })).toHaveAccessibleDescription(
-    "re-picks at once",
+    "re-picks three stops · at once",
   );
 });
