@@ -117,7 +117,7 @@ export function sideTaken(
 /** A press on the stop, from its pointer's first point; `axis` once it is a drag. */
 interface Hold {
   pointerId: number;
-  /** A finger's drag down or up stays held until the page takes it for a pan. */
+  /** A finger's drag ends with no click after it; a mouse's or a pen's ends with one. */
   isFinger: boolean;
   fromX: number;
   fromY: number;
@@ -376,7 +376,8 @@ export function VersionCarousel({
       goHome();
       return;
     }
-    isClickDragged.current = true;
+    // Only a mouse or a pen clicks on its release; a finger's drag is followed by no click.
+    if (!held.isFinger) isClickDragged.current = true;
     const travel = clientX - held.fromX;
     const side = isEnabled ? sideTaken(travel, width, { hasBefore, hasAfter }) : null;
     if (side) take(side);

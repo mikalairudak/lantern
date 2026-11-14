@@ -534,6 +534,14 @@ describe("the drag", () => {
     expect(stop.style.transform).not.toMatch(/translateX\((?!0px)/);
     expect(onPick).not.toHaveBeenCalled();
   });
+
+  it("swallows no click after a finger's drag, which the browser follows with none", () => {
+    const { onClick, stop } = renderPicking();
+    dragOn(stop, { x: 10, y: 100 }, across(10, 60), "up", { pointerType: "touch" });
+    // A later activation of the stop, as a keyboard's or an assistive tool's, is its own.
+    fireEvent.click(stop);
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("a drag let go once the stop can no longer swap", () => {
