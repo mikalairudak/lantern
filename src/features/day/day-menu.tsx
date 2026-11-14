@@ -69,12 +69,15 @@ export function DayMenu({
   items,
   isOpenAtFirst = false,
   pointedKey = null,
+  onOpen,
 }: {
   items: readonly DayMenuItem[];
   /** Drawn open from the first frame, as a lab cell draws it, taking no focus. */
   isOpenAtFirst?: boolean;
   /** The item drawn pointed at with no pointer, as a lab cell draws it. */
   pointedKey?: string | null;
+  /** Told each time the visitor opens the menu; not for a menu drawn open from the first frame. */
+  onOpen?: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(isOpenAtFirst);
   const menuId = useId();
@@ -103,6 +106,7 @@ export function DayMenu({
   const open = (focus: "first" | "last" | null) => {
     firstFocus.current = focus;
     setIsOpen(true);
+    onOpen?.();
   };
 
   const close = () => {

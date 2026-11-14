@@ -1,6 +1,12 @@
 // @vitest-environment node
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { emptyDatabase, migratedDatabase, type TestDatabase } from "@/lib/fixtures/db/pglite";
+import { applyMigrations, readMigrations } from "@/lib/db/migrate";
+import {
+  emptyDatabase,
+  migratedDatabase,
+  MIGRATIONS_DIRECTORY,
+  type TestDatabase,
+} from "@/lib/fixtures/db/pglite";
 import { KYOTO_DRAGGED, ONE_EVENT_OF_EACH_KIND } from "@/lib/fixtures/events";
 import { hashVisitor } from "@/lib/live/visitor";
 import {
@@ -126,6 +132,16 @@ describe("POST /api/events", () => {
       "with a city that is not an address's",
       JSON.stringify({ ...KYOTO_DRAGGED, city: "São Paulo" }),
       { reason: "not-an-event", issues: ["city"] },
+    ],
+    [
+      "with a word changed and no control, as a page from before the control was told sends it",
+      JSON.stringify({ kind: "word-changed", city: "kyoto", word: "energy" }),
+      { reason: "not-an-event", issues: ["control"] },
+    ],
+    [
+      "with a control the page has none of",
+      JSON.stringify({ kind: "word-changed", city: "kyoto", word: "energy", control: "slider" }),
+      { reason: "not-an-event", issues: ["control"] },
     ],
   ])("answers a body %s with 204, keeps nothing, and logs why", async (_name, body, why) => {
     const store = inMemory();
@@ -379,6 +395,41 @@ describe("POST /api/events on a database never migrated", () => {
     expect(lines).toEqual([
       notKept({ reason: "store-failed", kind: "curve-dragged", message: expect.any(String) }),
     ]);
+  });
+});
+
+describe("POST /api/events on a database short of its latest migration", () => {
+  let database: TestDatabase;
+
+  beforeAll(async () => {
+    database = await emptyDatabase();
+    const migrations = await readMigrations(MIGRATIONS_DIRECTORY);
+    await applyMigrations(
+      database.session,
+      migrations.filter(({ name }) => name !== "0010_event_control.sql"),
+    );
+  });
+
+  afterAll(async () => {
+    await database.close();
+  });
+
+  // The store names every column in its one insert: this is why production is migrated before
+  // the release that writes a new one (docs/harness.md, "Database").
+  it("keeps no event of any kind, the ones without the new column too", async () => {
+    const { deps, lines } = bench(new PostgresEventStore(database.session, "production"));
+
+    const response = await answerEventRequest(beacon(DRAGGED), deps);
+
+    expect(response.status).toBe(204);
+    expect(lines).toEqual([
+      notKept({
+        reason: "store-failed",
+        kind: "curve-dragged",
+        message: expect.stringContaining("control"),
+      }),
+    ]);
+    expect(await database.session.query("SELECT id FROM product_events")).toEqual([]);
   });
 });
 

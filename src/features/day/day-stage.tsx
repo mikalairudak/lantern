@@ -74,7 +74,13 @@ import { NO_CHECKS, type PlaceChecks } from "@/features/itinerary/use-day-stream
 import { useElementSize, type ElementSize } from "@/components/ui/use-element-size";
 import { GlidingHeight } from "@/components/ui/gliding-height";
 import { useEnergyCurve, type EnergyCurve } from "@/features/abacus/use-energy-curve";
-import type { DayAct, DayAnswer, HeaderWord, ProductEvent } from "@/lib/events/event.schema";
+import type {
+  DayAct,
+  DayAnswer,
+  HeaderWord,
+  ProductEvent,
+  WordControl,
+} from "@/lib/events/event.schema";
 import { useSprung } from "@/components/ui/use-sprung";
 import { SPRINGS, gentleOver } from "@/lib/tokens/motion";
 import { bareStopOf, waitingInBareRow, waitingOver } from "@/features/abacus/waiting";
@@ -1096,10 +1102,12 @@ export function DayStage({
     (index, at, all): index is number => index !== null && all.indexOf(index) === at,
   );
 
-  /** A word of the header changed, the city included: counted each time. */
-  const countWord = (word: HeaderWord) => onEvent?.({ kind: "word-changed", city, word });
+  /** A word of the header changed, the city included: counted each time, with where it was. */
+  const countWord = (word: HeaderWord, control: WordControl) =>
+    onEvent?.({ kind: "word-changed", city, word, control });
 
-  const answer = ({ key, value }: Answer) => {
+  /** A word's answer, from the headline's own word or the plan's bar. */
+  const answer = ({ key, value }: Answer, control: WordControl) => {
     const fact = facts[key];
     if (!fact) return;
     if (value === fact.value) {
@@ -1109,7 +1117,7 @@ export function DayStage({
       else setLocal((words) => ({ ...words, confirmed: [...words.confirmed, key] }));
       return;
     }
-    countWord(key);
+    countWord(key, control);
     setOpenStop(null);
     // A word that changes no stop is the visitor's at once, the day as it was, live or not: the
     // facts line says why (`docs/decisions.md`, "A changed word proposes its part beside the day,
@@ -1171,7 +1179,7 @@ export function DayStage({
   const retry = () => playOnceFaded(onRetry);
   /** A written day from the city word's list. */
   const chooseWritten = (next: DayRequest) => {
-    countWord("city");
+    countWord("city", "headline");
     playDay(next);
   };
   /** A written day the notice offers in place of one that ended without one: no word changed. */
@@ -1182,7 +1190,7 @@ export function DayStage({
    * page reads first when it asks to (`onChooseCity`).
    */
   const chooseCity = (typedCity: string) => {
-    countWord("city");
+    countWord("city", "headline");
     const written = writtenRequestFor(typedCity);
     if (written) return playDay(written);
     const energy = local.energy ?? request.energy;
@@ -1203,7 +1211,7 @@ export function DayStage({
   // so is its date when the day was today, and the city is now the visitor's, so it loses
   // Lantern's dots.
   const chooseReading = (reading: CityReading) => {
-    countWord("city");
+    countWord("city", "headline");
     const energy = local.energy ?? request.energy;
     const energySource = local.energy === null ? request.energySource : "chosen";
     const next: DayRequest = {
@@ -1286,6 +1294,7 @@ export function DayStage({
       // says what it would do, from the plan the route runs.
       replanDay={onReplan && shownOutcome?.kind === "complete" ? shownOutcome.itinerary : null}
       takeAlong={takeAlong}
+      onMenuOpen={onDayAct && (() => onDayAct("menu-opened"))}
       onCityOpenChange={(openAt) => {
         setCityOpenAt(openAt);
         if (openAt === null && typedCity !== null) onTypedCityDropped?.();
@@ -1296,7 +1305,7 @@ export function DayStage({
       readings={readings}
       playedReading={playedReading}
       onChooseReading={chooseReading}
-      onChoose={answer}
+      onChoose={(given) => answer(given, "headline")}
       onLight={setLitFact}
       onRetry={retry}
       unplaced={unplaced}
@@ -1384,8 +1393,8 @@ export function DayStage({
                 ref={planBar}
                 energy={(facts.energy?.value as EnergyLevel | undefined) ?? request.energy}
                 isEnabled={isInteractive}
-                // The headline's own answer, which counts the changed word itself.
-                onChoose={(level) => answer({ key: "energy", value: level })}
+                // The headline's own answer, which counts the changed word itself, as the bar's.
+                onChoose={(level) => answer({ key: "energy", value: level }, "bar")}
                 className={wholeClasses}
               />
             )}

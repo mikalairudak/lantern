@@ -402,7 +402,8 @@ describe("the days played, as the product counts them", () => {
     const atlantis = { city: "atlantis", via: "word", written: false } as const;
     const lisbonDay = { city: "bologna", via: "pressed", written: true } as const;
     expect(sent().slice(2)).toEqual([
-      { kind: "word-changed", city: "kanazawa", word: "city" },
+      { kind: "menu-opened", ...KANAZAWA_LINK, ...ON_CHART },
+      { kind: "word-changed", city: "kanazawa", word: "city", control: "headline" },
       { kind: "day-opened", ...atlantis },
       { kind: "day-ended", ...atlantis, ...ON_CHART, outcome: "unavailable" },
       { kind: "day-opened", ...lisbonDay },
@@ -420,8 +421,8 @@ describe("the gestures on a day, as the product counts them", () => {
     await changeWord(user, "early dinner", "eating late");
 
     expect(sentOf("word-changed")).toEqual([
-      { kind: "word-changed", city: "kanazawa", word: "energy" },
-      { kind: "word-changed", city: "kanazawa", word: "dinner" },
+      { kind: "word-changed", city: "kanazawa", word: "energy", control: "headline" },
+      { kind: "word-changed", city: "kanazawa", word: "dinner", control: "headline" },
     ]);
     // With live generation off a changed word plays no day.
     expect(sentOf("day-opened")).toHaveLength(1);
@@ -435,7 +436,7 @@ describe("the gestures on a day, as the product counts them", () => {
 
     const replanned = { city: "porto", via: "word", written: false } as const;
     expect(sent().slice(2)).toEqual([
-      { kind: "word-changed", city: "porto", word: "start" },
+      { kind: "word-changed", city: "porto", word: "start", control: "headline" },
       { kind: "day-opened", ...replanned },
       { kind: "day-ended", ...replanned, ...ON_CHART, outcome: "complete" },
     ]);
@@ -446,17 +447,45 @@ describe("the gestures on a day, as the product counts them", () => {
 
     await changeWord(user, "with anyone", "with family");
 
-    expect(sent().slice(2)).toEqual([{ kind: "word-changed", city: "kanazawa", word: "company" }]);
+    expect(sent().slice(2)).toEqual([
+      { kind: "word-changed", city: "kanazawa", word: "company", control: "headline" },
+    ]);
   });
 
-  it("counts a press on the plan's energy word once", async () => {
+  it("counts a press on the plan's energy word once, as changed at the bar", async () => {
     const user = await landOnKanazawa();
 
     const planEnergy = screen.getByRole("group", { name: "How lively the day is" });
     await user.click(within(planEnergy).getByRole("button", { name: "lively" }));
 
     expect(sentOf("word-changed")).toEqual([
-      { kind: "word-changed", city: "kanazawa", word: "energy" },
+      { kind: "word-changed", city: "kanazawa", word: "energy", control: "bar" },
+    ]);
+  });
+
+  it("tells each energy word changed by the control it was changed at", async () => {
+    const user = await landOnKanazawa();
+    const planEnergy = () => screen.getByRole("group", { name: "How lively the day is" });
+
+    await changeWord(user, "calm", "lively");
+    await user.click(within(planEnergy()).getByRole("button", { name: "balanced" }));
+    await changeWord(user, "balanced", "calm");
+
+    expect(sentOf("word-changed").map((event) => "control" in event && event.control)).toEqual([
+      "headline",
+      "bar",
+      "headline",
+    ]);
+  });
+
+  it("tells a city chosen at the headline's city word as changed at the headline", async () => {
+    const user = await landOnKanazawa();
+
+    await user.click(within(headline()).getByRole("button", { name: "Kanazawa" }));
+    await user.click(screen.getByRole("button", { name: /^Bologna/ }));
+
+    expect(sentOf("word-changed")).toEqual([
+      { kind: "word-changed", city: "kanazawa", word: "city", control: "headline" },
     ]);
   });
 
@@ -531,7 +560,7 @@ describe("the gestures on a day, as the product counts them", () => {
 
     const replanned = { city: "porto", via: "word", written: false } as const;
     expect(sent().slice(2)).toEqual([
-      { kind: "word-changed", city: "porto", word: "start" },
+      { kind: "word-changed", city: "porto", word: "start", control: "headline" },
       { kind: "day-opened", ...replanned },
       { kind: "day-ended", ...replanned, ...ON_CHART, outcome: "complete" },
     ]);
@@ -631,6 +660,32 @@ describe("the gestures on a day, as the product counts them", () => {
     ]);
     expect(sentOf("calendar-saved")).toEqual([
       { kind: "calendar-saved", ...KANAZAWA_LINK, ...ON_CHART },
+    ]);
+    // Opened six times, the menu is told once a day opened.
+    expect(sentOf("menu-opened")).toEqual([{ kind: "menu-opened", ...KANAZAWA_LINK, ...ON_CHART }]);
+  });
+
+  it("tells the day's menu opened once a day opened, by press or key, and again on the next", async () => {
+    const user = await landOnKanazawa();
+    const menu = () => screen.getByRole("button", { name: TAKE_THIS_DAY });
+
+    await user.click(menu());
+    await user.click(menu());
+    menu().focus();
+    await user.keyboard("{ArrowDown}");
+    await user.keyboard("{Escape}");
+    expect(sentOf("menu-opened")).toEqual([{ kind: "menu-opened", ...KANAZAWA_LINK, ...ON_CHART }]);
+
+    await user.click(within(headline()).getByRole("button", { name: "Kanazawa" }));
+    await user.click(screen.getByRole("button", { name: /^Bologna/ }));
+    await waitFor(() => expect(headline()).toHaveTextContent(/in Bologna/), DAY_TIMEOUT);
+    await waitForTheDay();
+    await user.click(menu());
+    await user.click(menu());
+
+    expect(sentOf("menu-opened")).toEqual([
+      { kind: "menu-opened", ...KANAZAWA_LINK, ...ON_CHART },
+      { kind: "menu-opened", city: "bologna", via: "word", written: true, ...ON_CHART },
     ]);
   });
 

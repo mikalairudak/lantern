@@ -11,6 +11,7 @@ import {
   HEADER_WORDS,
   INTAKE_OUTCOMES,
   LEFT_STAGES,
+  WORD_CONTROLS,
 } from "./event.schema";
 import type { EventEntry } from "./event-store";
 import { columnsOf, PostgresEventStore } from "./postgres-event-store";
@@ -142,10 +143,30 @@ describe("the Postgres event store", () => {
     ).toEqual([{ kind: "day-read-to-end", view: "read", tile: null, answer: null }]);
   });
 
+  it("keeps the control a word was changed at, and none on another kind", async () => {
+    const store = new PostgresEventStore(database.session, "production");
+    await store.saltOn(TODAY);
+
+    await store.record(
+      entry(VISITOR, { kind: "word-changed", city: "kyoto", word: "energy", control: "bar" }),
+    );
+    await store.record(entry(VISITOR, { kind: "menu-opened", ...KYOTO_ON_CHART }));
+
+    expect(
+      await database.session.query(
+        "SELECT kind, word, control, view FROM product_events ORDER BY kind",
+      ),
+    ).toEqual([
+      { kind: "menu-opened", word: null, control: null, view: "chart" },
+      { kind: "word-changed", word: "energy", control: "bar", view: null },
+    ]);
+  });
+
   it.each([
     ["view", "Read on the chart"],
     ["tile", "kyoto calm"],
     ["answer", "not quite"],
+    ["control", "The plan's bar"],
   ])("refuses a %s that is not a word, whatever reaches the database", async (column, value) => {
     await expect(
       database.session.query(
@@ -154,6 +175,18 @@ describe("the Postgres event store", () => {
         [crypto.randomUUID(), TODAY, VISITOR, value],
       ),
     ).rejects.toThrow(/check constraint/);
+  });
+
+  it("takes any word as a control, one the schema does not list among them", async () => {
+    await database.session.query(
+      `INSERT INTO product_events (id, environment, utc_day, visitor_key, kind, control)
+       VALUES ($1::uuid, 'production', $2::date, $3, 'word-changed', 'new-day')`,
+      [crypto.randomUUID(), TODAY, VISITOR],
+    );
+
+    expect(await database.session.query("SELECT control FROM product_events")).toEqual([
+      { control: "new-day" },
+    ]);
   });
 
   it("takes a tile by an id that may hold digits", async () => {
@@ -195,7 +228,12 @@ describe("the Postgres event store", () => {
         (stage) =>
           ({ kind: "day-left", city: "kyoto", via: "word", written: true, stage }) as const,
       ),
-      ...HEADER_WORDS.map((word) => ({ kind: "word-changed", city: "kyoto", word }) as const),
+      ...HEADER_WORDS.map(
+        (word) => ({ kind: "word-changed", city: "kyoto", word, control: "headline" }) as const,
+      ),
+      ...WORD_CONTROLS.map(
+        (control) => ({ kind: "word-changed", city: "kyoto", word: "energy", control }) as const,
+      ),
       ...INTAKE_OUTCOMES.map((outcome) => ({ kind: "intake-ended", outcome }) as const),
       ...DAY_ANSWERS.map((answer) => ({ ...KYOTO_DRAGGED, kind: "day-answered", answer }) as const),
     ];
@@ -203,7 +241,8 @@ describe("the Postgres event store", () => {
     for (const event of everyWord) expect(await store.record(entry(VISITOR, event))).toBe(true);
 
     const rows = await database.session.query<Record<string, unknown>>(
-      "SELECT kind, city, via, written, outcome, stage, word, view, answer FROM product_events",
+      `SELECT kind, city, via, written, outcome, stage, word, view, answer, control
+       FROM product_events`,
     );
     expect(rows).toHaveLength(everyWord.length);
     expect(rows).toEqual(

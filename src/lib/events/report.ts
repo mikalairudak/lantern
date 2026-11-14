@@ -8,8 +8,9 @@ export type { ReportCommand } from "../db/report.ts";
  * `pnpm events:report [--environment production] [--days 30]`: prints the product's counts
  * for one environment over the last days, in UTC: the way from the start screen to a day taken
  * along, the days taken along by way in and by view, the days answered by view, the days opened
- * by city, how they were reached, how attempts ended, whether visitors waited, the gestures, the days taken along,
- * the days opened again and the cities Lantern could not do. It reads the database as
+ * by city, how they were reached, how attempts ended, whether visitors waited, the gestures (the
+ * day's menu opened among them, and each word by the control it was changed at), the days taken
+ * along, the days opened again and the cities Lantern could not do. It reads the database as
  * `pnpm db:migrate` does, and reads only, inside a read-only transaction
  * (`src/lib/db/report.ts`).
  */
@@ -185,12 +186,16 @@ export const EVENT_TABLE_SECTIONS: readonly ReportSection[] = [
       GROUP BY 1, 2 ORDER BY day, wait`,
   },
   {
+    // A word by the control it was changed at, so the energy changed on the plan's bar is told
+    // from the energy changed in the headline.
     title: "Gestures",
-    columns: ["gesture", "word", "times"],
+    columns: ["gesture", "word", "control", "times"],
     text: `
-      SELECT kind AS gesture, coalesce(word, '') AS word, count(*)::integer AS times
-      ${EVENTS_IN_SPAN} AND kind IN ('curve-dragged', 'stop-swapped', 'word-changed')
-      GROUP BY 1, 2 ORDER BY times DESC, gesture, word`,
+      SELECT kind AS gesture, coalesce(word, '') AS word,
+        CASE WHEN kind = 'word-changed' THEN coalesce(control, ${NOT_TOLD}) ELSE '' END AS control,
+        count(*)::integer AS times
+      ${EVENTS_IN_SPAN} AND kind IN ('menu-opened', 'curve-dragged', 'stop-swapped', 'word-changed')
+      GROUP BY 1, 2, 3 ORDER BY times DESC, gesture, word, control`,
   },
   {
     title: "Days taken along (each way counts once a day opened)",

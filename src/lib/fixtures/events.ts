@@ -22,6 +22,7 @@ export const ONE_EVENT_OF_EACH_KIND: readonly ProductEvent[] = [
     outcome: "complete",
   },
   { kind: "day-left", city: "sao-paulo", via: "typed", written: false, stage: "before-end" },
+  { kind: "menu-opened", city: "lisbon", via: "link", written: true, view: "read" },
   KYOTO_DRAGGED,
   { kind: "stop-swapped", city: "lisbon", via: "word", written: false, view: "read" },
   { kind: "link-shared", city: "kanazawa", via: "kept", written: false, view: "chart" },
@@ -29,6 +30,6 @@ export const ONE_EVENT_OF_EACH_KIND: readonly ProductEvent[] = [
   { kind: "route-opened", city: "kanazawa", via: "typed", written: false, view: "read" },
   { kind: "day-read-to-end", ...KYOTO_ON_CHART },
   { kind: "day-answered", ...KYOTO_ON_CHART, answer: "yes" },
-  { kind: "word-changed", city: "lisbon", word: "company" },
+  { kind: "word-changed", city: "lisbon", word: "company", control: "headline" },
   { kind: "intake-ended", outcome: "question" },
 ];

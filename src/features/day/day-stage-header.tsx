@@ -420,6 +420,8 @@ interface DayStageHeaderProps {
    * none for a day that has none, as one that ended without a day.
    */
   takeAlong?: readonly DayMenuItem[];
+  /** Told each time the visitor opens the day menu. */
+  onMenuOpen?: () => void;
   /** A written day chosen from the city word's list. */
   onChooseWritten: (request: DayRequest) => void;
   /** A written day the notice offers, chosen; the city word's `onChooseWritten` if not given. */
@@ -543,6 +545,7 @@ export function DayStageHeader({
   isLockSaid = false,
   onCityOpenChange,
   takeAlong = NO_WAYS_ALONG,
+  onMenuOpen,
   onChooseWritten,
   onOpenWritten = onChooseWritten,
   onChooseCity,
@@ -972,6 +975,7 @@ export function DayStageHeader({
                 isApart: takeAlong.length > 0,
               },
             ]}
+            onOpen={onMenuOpen}
           />
         }
       />
