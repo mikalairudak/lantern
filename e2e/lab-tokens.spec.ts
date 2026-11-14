@@ -1,3 +1,4 @@
+import { SPRINGS } from "../src/lib/tokens/motion";
 import { expect, test } from "./fixtures";
 
 test.beforeEach(async ({ page }) => {
@@ -36,7 +37,7 @@ test(
   { tag: "@frame" },
   async ({ page }) => {
     const markers = page.locator("[data-spring]");
-    await expect(markers).toHaveCount(3);
+    await expect(markers).toHaveCount(Object.keys(SPRINGS).length);
     const startDistances = await markers.evaluateAll(distancesToTrackEnd);
 
     // Sampled every frame inside the page, so a marker that jumps straight to the end fails.

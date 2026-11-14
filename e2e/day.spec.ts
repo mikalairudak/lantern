@@ -597,7 +597,15 @@ test(
     await page.keyboard.press("ArrowRight");
     await expect(page.getByRole("region", { name: "About Hirosaka Street" })).toBeVisible();
     await expect(slider).toBeFocused();
-    expect(await placeOf()).toEqual({ ...opened, edge: expect.any(Number) });
+    // The header's lines are a fraction of a pixel tall and the page scrolls by whole ones, so
+    // the name may stand a fraction of a pixel off, which a rounded figure can show as one.
+    const swapped = await placeOf();
+    expect(swapped).toEqual({
+      ...opened,
+      edge: expect.any(Number),
+      nameOnScreen: expect.any(Number),
+    });
+    expect(Math.abs(swapped.nameOnScreen - opened.nameOnScreen)).toBeLessThanOrEqual(STILL_NAME_PX);
     expect(await pageHeight()).toBe(livelyHeight);
 
     await page.keyboard.press("ArrowLeft");
