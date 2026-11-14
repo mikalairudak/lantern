@@ -4,8 +4,8 @@ import { LONDON_REQUEST } from "./city-days";
 /**
  * London, as claude-sonnet-5-5 wrote it on 2026-11-14 under day-v11 with the undated rule
  * (`EVAL_DAY_RULE`), for its own address (generation abcf1ad8-4874-486e-9627-2455d48c28f2). Kept as
- * written, letters escaped twice read as the reader reads them, so the address opens a day the
- * product really wrote, slips and all; the normalizer repairs what it repairs for any live day.
+ * written, so the address opens a day the product really wrote, slips and all; the normalizer
+ * repairs what it repairs for any live day.
  */
 export const LONDON_DAY: WrittenDay = {
   request: LONDON_REQUEST,

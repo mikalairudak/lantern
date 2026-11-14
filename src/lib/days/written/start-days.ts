@@ -68,10 +68,9 @@ export const START_SEASONS: readonly (readonly WrittenSeason[])[] = [
 
 /**
  * The city days' seasons, in the order of `CITY_DAYS`, each one open-ended from the first date its
- * page showed a day on, held by the same tests as the starts'. Paris's and Seoul's days were
- * written again for the week after, as a request on a date its file answered would not have
- * reached the model, and London's for the Saturday after the one it was written on, so their
- * seasons begin a week before the date each was written for.
+ * page showed a day on, held by the same tests as the starts'. Paris's, Seoul's and London's
+ * requests name the Saturday a week after that first date, so their seasons begin a week before
+ * the date each names.
  */
 export const CITY_SEASONS: readonly (readonly WrittenSeason[])[] = [
   [seasonOf("2026-11-15", PARIS_DAY)],
