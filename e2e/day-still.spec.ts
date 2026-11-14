@@ -60,7 +60,7 @@ const PHONE = { width: 390, height: 844 };
  */
 const CLAUSE_PHONE_WIDTHS: Record<string, number> = { kanazawa: 390, utrecht: 375, nafplio: 400 };
 /** A phone where every energy word sets Porto's sentence on the same lines. */
-const RE_PICK_PHONE = { width: 340, height: 844 };
+const RE_PICK_PHONE = { width: 375, height: 844 };
 const LAPTOP = { width: 1440, height: 900 };
 
 test.describe.configure({ timeout: TEST_TIMEOUT_MS });
@@ -578,16 +578,16 @@ function expectNamesKeepTheirLines(frames: readonly Frame[]): void {
   }
 }
 
-test("a re-picked energy never moves a 1440 px laptop's chart, and a 340 px phone's only by the line's lead", async ({
+test("a re-picked energy never moves a 1440 px laptop's chart, and a 375 px phone's only by the line's lead", async ({
   page,
   isMobile,
 }) => {
-  // On a 340 px phone every energy word sets Porto's sentence on the same lines, so the chart
-  // moves only by what the line's lead adds. From 360 to 395 px "balanced" takes the sentence a
-  // line further and moves the chart by that line as well, and from 400 px the lead fits the
-  // line's last line, so the test holds the phone at 340 px. On a 1440 px laptop "balanced" and
-  // "social" take Porto's longest clause a line further than "calm", so the room held must be
-  // every energy word's, and the chart never moves.
+  // From 370 to 385 px every energy word sets Porto's sentence on the same lines, so the chart
+  // moves only by what the line's lead adds. From 325 to 365 px "balanced" takes the sentence a
+  // line further and moves the chart by that line as well, and at 320 px and from 390 px the
+  // lead fits the line's last line, so the test holds the phone at 375 px. On a 1440 px laptop
+  // "balanced" and "social" take Porto's longest clause a line further than "calm", so the room
+  // held must be every energy word's, and the chart never moves.
   if (isMobile) await page.setViewportSize(RE_PICK_PHONE);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/day/porto");
