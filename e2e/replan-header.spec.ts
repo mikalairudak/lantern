@@ -45,7 +45,8 @@ function cellAt(grid: Locator, moment: RegExp): Locator {
 
 /** The height of the header's room in a moment's cell, or null where the day never reaches it. */
 async function roomAt(grid: Locator, moment: RegExp): Promise<number | null> {
-  const room = cellAt(grid, moment).locator("header .\\@container");
+  // The headline's room, told from the masthead's row, a container too, by its headline.
+  const room = cellAt(grid, moment).locator("header .\\@container:has(h1)");
   if ((await room.count()) === 0) return null;
   return (await room.boundingBox())?.height ?? null;
 }
