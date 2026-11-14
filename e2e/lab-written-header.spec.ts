@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures";
+import { expect, test, waitMs } from "./fixtures";
 
 test.use({ reducedMotion: "reduce" });
 
@@ -12,11 +12,14 @@ const UNREACHED = (20 + 3 + 5 + 4) * 2;
 // The playing's first frame, an unheard copy on every day: its headline is hidden from the
 // reader too.
 const UNHEARD = 6 * 2;
+// How long the grid's cells may take to read their days: at twice the CPU the wide grid's take
+// longer than an assertion's 5 s.
+const CELLS_READ = { timeout: waitMs(20_000) };
 
 test("sets the day stage header in every moment on every day, in both themes", async ({ page }) => {
   await page.goto("/lab/matrix/written-header");
   const grid = page.getByTestId("matrix-grid");
-  await expect(grid.getByText("Reading the day…")).toHaveCount(0);
+  await expect(grid.getByText("Reading the day…")).toHaveCount(0, CELLS_READ);
 
   await expect(grid.locator("[data-theme]")).toHaveCount(CELLS);
   await expect(grid.getByRole("heading", { level: 1 })).toHaveCount(CELLS - UNREACHED - UNHEARD);
@@ -51,7 +54,10 @@ test("says busy over a written day and not yet over any other when nothing came"
 test("scrolls its grid sideways inside itself, never the page", async ({ page }) => {
   await page.goto("/lab/matrix/written-header");
   await page.getByRole("combobox", { name: "Width" }).selectOption({ label: "Wide screen" });
-  await expect(page.getByTestId("matrix-grid").getByText("Reading the day…")).toHaveCount(0);
+  await expect(page.getByTestId("matrix-grid").getByText("Reading the day…")).toHaveCount(
+    0,
+    CELLS_READ,
+  );
 
   // The header's unseen status line is positioned: its cell must hold it, or it stretches
   // the page past the grid that scrolls.

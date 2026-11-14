@@ -54,15 +54,15 @@ export async function awaitPlates(page: Page): Promise<void> {
 }
 
 /**
- * Every word on the page made transparent, and the dev server's badge hidden, so a shot holds
- * only what lies under them. The plates' measures count pixels of plates; text anywhere on the
+ * Every word on the page made transparent at once, with no transition a shot could catch
+ * part-way, and the dev server's badge hidden, so a shot holds only what lies under them. The plates' measures count pixels of plates; text anywhere on the
  * page can be rasterised again with other antialiasing when the page's layers change, as hiding a
  * plate's drawing does under Linux's software compositing, and would be counted with them.
  */
 export async function hideWords(page: Page): Promise<void> {
   await page.addStyleTag({
     content:
-      "* { color: transparent !important; text-decoration-color: transparent !important; caret-color: transparent !important; } nextjs-portal { display: none !important; }",
+      "* { color: transparent !important; text-decoration-color: transparent !important; caret-color: transparent !important; transition: none !important; } nextjs-portal { display: none !important; }",
   });
 }
 

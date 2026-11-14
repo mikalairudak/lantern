@@ -89,6 +89,19 @@ async function awaitPictures(figure: Locator): Promise<void> {
   // Only a figure with pictures is scrolled to: moving the page shifts how others' text is drawn.
   if ((await figure.locator("rect[data-layer]").count()) === 0) return;
   await figure.scrollIntoViewIfNeeded();
+  // A cell wider than its column scrolls inside itself, and a plate out of its sight has asked
+  // for nothing: each is brought near the screen once, and the cell put back where it stood.
+  await figure.evaluate(async (element) => {
+    const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+    for (const plate of element.querySelectorAll('rect[data-layer][data-state="unasked"]')) {
+      plate.scrollIntoView({ block: "nearest", inline: "nearest" });
+      // A frame for the scroll to be laid out, and one for the plate to see it is near.
+      await frame();
+      await frame();
+    }
+    for (const box of element.querySelectorAll("*")) if (box.scrollLeft !== 0) box.scrollLeft = 0;
+  });
+  await figure.scrollIntoViewIfNeeded();
   await expect
     .poll(() =>
       figure.evaluate((element) =>

@@ -117,8 +117,8 @@
   --text-heading--line-height: 1.15;
   /*
    * The start screen's question under the text column's width: a step under the heading, with
-   * its leading, since Literata's "Bologna, with friends" at the heading's 22 px is wider than
-   * the line beside the button on a 390 px phone. The dek has this size with a reading leading.
+   * its leading, since a short request such as "Bologna, with friends" in Literata at the
+   * heading's 22 px is wider than the line beside the button on a 390 px phone. The dek has this size with a reading leading.
    */
   --text-sentence: 1.25rem;
   --text-sentence--line-height: 1.15;

@@ -17,9 +17,9 @@ The layers overlap on purpose. The quality checks are the eval's measures and th
 
 | Command                      | What it catches                                                | When                                                      |
 | ---------------------------- | -------------------------------------------------------------- | --------------------------------------------------------- |
-| `pnpm check`                 | Format, lint, types, about 6,300 unit tests in 275 files       | Every commit, and in CI                                   |
+| `pnpm check`                 | Format, lint, types, about 7,400 unit tests in 297 files       | Every commit, and in CI                                   |
 | `pnpm build:check`           | A page the production build or its first request refuses       | Before a merge, and in CI                                 |
-| `pnpm e2e`                   | 738 tests in 47 specs, on a laptop and a phone, frame by frame | Before UI work merges; CI: "Continuous integration" below |
+| `pnpm e2e`                   | 914 tests in 53 specs, on a laptop and a phone, frame by frame | Before UI work merges; CI: "Continuous integration" below |
 | `pnpm e2e:busy`              | Faults of frame order that a busy machine brings               | Before a frame-by-frame spec lands                        |
 | `pnpm e2e:replan-pace`       | The re-plan's story at production's pace                       | Before a re-plan change merges                            |
 | `pnpm e2e:visual`            | A changed pixel in any `/lab` matrix cell, both themes         | Before UI work merges                                     |
@@ -72,7 +72,7 @@ A unit test that asserts a moment inside a Motion animation, a sheet still rolli
 
 `pnpm e2e` runs Chromium as a laptop and as a phone against its own server (port 3417, `.next-e2e`), with live generation off: days stream from fixtures at a live model's uneven pace. Many specs read the page on every animation frame and hold rules about motion, such as "no row moves more than 3 px a frame". A spec that fails in two full runs in a row is not called flaky until it passes alone with `--workers=1`.
 
-**What earns `@frame`.** A test carries Playwright's `@frame` tag (`{ tag: "@frame" }` on the test or its `describe`) when its assertion rests on frames sampled from the page: a bound every frame keeps, what the first frame draws, or a change that must land in one frame. 196 of the 738 tests carry it. A frame read only to wait for the page to rest does not earn it. Nor does a test about a slow server's answer that also reads frames: it stays on every pull request (`e2e/replan.spec.ts`, the first day that comes back empty). A shared runner drops frames a laptop draws, so these tests run in CI by hand alone, in E2E frames, which no pull request needs. The laptop still runs the whole `pnpm e2e`, the `@frame` tests among them, before UI work merges, with `pnpm e2e:busy` before a frame-by-frame spec lands and `pnpm e2e:visual` (`CLAUDE.md`, "Definition of done"). `pnpm e2e --list --grep @frame` lists them.
+**What earns `@frame`.** A test carries Playwright's `@frame` tag (`{ tag: "@frame" }` on the test or its `describe`) when its assertion rests on frames sampled from the page: a bound every frame keeps, what the first frame draws, or a change that must land in one frame. 246 of the 914 tests carry it. A frame read only to wait for the page to rest does not earn it. Nor does a test about a slow server's answer that also reads frames: it stays on every pull request (`e2e/replan.spec.ts`, the first day that comes back empty). A shared runner drops frames a laptop draws, so these tests run in CI by hand alone, in E2E frames, which no pull request needs. The laptop still runs the whole `pnpm e2e`, the `@frame` tests among them, before UI work merges, with `pnpm e2e:busy` before a frame-by-frame spec lands and `pnpm e2e:visual` (`CLAUDE.md`, "Definition of done"). `pnpm e2e --list --grep @frame` lists them.
 
 ### Test harness: a busy machine on demand
 
@@ -80,7 +80,7 @@ A busy machine lays out, paints and runs timers in orders a quick one never show
 
 ### Test harness: the visual-regression baseline
 
-`pnpm e2e:visual` shoots every `/lab/matrix` cell at a phone's width in both themes, one shot per cell, named from the matrix's own labels. It stays out of `pnpm e2e`: its baselines belong to the Mac (Linux draws text differently), and every design change moves pixels on purpose, so updating them is a separate act after the diff is looked at. Fonts are self-hosted, Motion follows reduced motion in every cell, and figures land on whole pixels. The pixel threshold is 0.01: Playwright's default of 0.2 passed a whole new palette as unchanged, 19 of its 20 colour changes. The baseline is 1,132 shots, about 52 MB, well past the 12 MB it was planned within; lossless WebP is the lever if that starts to matter.
+`pnpm e2e:visual` shoots every `/lab/matrix` cell at a phone's width in both themes, one shot per cell, named from the matrix's own labels. It stays out of `pnpm e2e`: its baselines belong to the Mac (Linux draws text differently), and every design change moves pixels on purpose, so updating them is a separate act after the diff is looked at. Fonts are self-hosted, Motion follows reduced motion in every cell, and figures land on whole pixels. The pixel threshold is 0.01: Playwright's default of 0.2 passed a whole new palette as unchanged, 19 of its 20 colour changes. The baseline is 1,462 shots, about 91 MB, well past the 12 MB it was planned within; lossless WebP is the lever if that starts to matter.
 
 ### The build check
 

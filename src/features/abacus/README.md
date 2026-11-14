@@ -11,7 +11,7 @@ The chart a day is drawn on. Time runs down and energy runs across five lanes, r
 3. `day-rows.tsx`. `DayRows`, the day as rows. Each row (`stop-row.tsx`) measures its words (`stop-words.tsx`) unseen before paint, `rows.ts` builds an elastic time scale from them (to scale until words need room), and wires and words spring there (`useSprungAll`). The rows tell the arrivals which rooms are open (`onRoomsOpen`), which closes the loop. An open stop's details lie over the day in its sheet (`words-sheet.tsx`).
 4. `abacus-chart.tsx`. The SVG: the axes (`chart-axes.tsx`), the wires and beads (`chart-stop.tsx`), and the curve, eased while stops join (`track.ts`) and faded under the words' lines (`line-boxes.ts`).
 
-`DayRows` is still one function of about 740 lines: the rows' sizes, the scale, the arrivals and the open sheet meet there. `StopRow` (`stop-row.tsx`) is one row: its time, its words and its sheet; `StopWords` (`stop-words.tsx`) its name and kind as the pen writes them; `WordsSheet` (`words-sheet.tsx`) the open stop's details; `PennedText` (`src/components/ui/penned-text.tsx`) text as far as the pen has written it, which the reading list uses too.
+`DayRows` is still one function of about 950 lines: the rows' sizes, the scale, the arrivals and the open sheet meet there. `StopRow` (`stop-row.tsx`) is one row: its time, its words and its sheet; `StopWords` (`stop-words.tsx`) its name and kind as the pen writes them; `WordsSheet` (`words-sheet.tsx`) the open stop's details; `PennedText` (`src/components/ui/penned-text.tsx`) text as far as the pen has written it, which the reading list uses too.
 
 ## The visitor's hands
 
