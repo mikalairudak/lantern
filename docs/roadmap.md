@@ -17,7 +17,7 @@ Principles:
 
 ## The first ten seconds
 
-A visitor lands on one line about what Lantern is and one question, a sentence to finish, "A day in" and a field, with an arrow to plan the day. Under it stands an index of the cities Lantern has already written a day for, each a small engraving of an everyday thing of the place, its city and its day in a few words. No day is on screen until they press: a city writes its day in place, the same every time, and it is theirs to change. They drag the energy curve and the day reshapes around it, tap a stop's quieter or livelier bead and that version takes its place, and read on the time axis when the light turns golden, then blue, then dark. Or they type their own city and a few words: Lantern reads them in about a second and writes the day live in the same place.
+A visitor lands on one line about what Lantern is and one question, a sentence to finish, "A day in" and a field, with an arrow to plan the day. Under it stands an index of the cities Lantern has already written a day for, each a plate, an engraving of an everyday thing of the place lit from a lamp or a window drawn in it, its city and its day in a few words. No day is on screen until they press: a city writes its day in place, the same every time, and it is theirs to change. It opens on its plan, the light down a rail beside the times: they pick an energy and each stop takes its nearest version, or swipe a stop to its quieter or livelier one, and one press away they drag the energy curve on the chart. Or they type their own city and a few words: Lantern reads them in about a second and writes the day live in the same place.
 
 Pre-MVP builds all of this on fixtures: before launch the visitor's text plays only a day already written, and any other city is told Lantern is not writing new days yet. MVP connects the intake and the day to live models and makes it safe to share.
 
@@ -88,17 +88,19 @@ Each milestone is one release. Its work reaches `develop` as small pull requests
    - a start screen with two ways in, the question and an index of eight cities, each with an engraving of an everyday thing of the city and a day already written for it, and a still excerpt of a day beneath them (`docs/decisions.md`, "The start screen is an index, with a day's first stops under it" and "The index's pictures are engravings of a city's everyday thing"); the written days outside the index keep their pages, as examples a search can find;
    - a day shown first as a plan to read, with its light, and the chart as its second view;
    - the day's ways along in one menu, a reaction a visitor gives in one tap, and one answer to a pointer and the keyboard on everything that can be pressed.
-3. **The language of light (v1.2).** The product's look, redrawn around light that has a source, released as one:
-   - the night's neutral colours on the ground's own hue, and the index's engravings by night drawn whole and lit by their own lamps;
-   - every engraving drawn with a thing that truly gives light, a lamp, a lantern or an open window;
-   - the start screen's question redrawn so that the field is what a visitor reads first, with the excerpt gone: each city in the index is one press from a day that plays;
-   - the day's plan lit after sunset, a stop's versions on lines of their own on a phone, and one width for the day's head and its plan on a laptop;
-   - the mark and the wordmark, and the not-found page, in the same language;
-   - the day's head, whose polish is carried over from v1.1: fewer and quieter small notes under the headline;
+3. **The language of light (v1.2).** The product's look, redrawn around light that has a source:
+   - one serif in one weight, Literata, for every text role, the wordmark in its italic (`docs/decisions.md`, "One serif in one weight: Literata"), and the headline at 26 px on a phone;
+   - the page as plate paper, with a raised sheet a step lighter and lamplight round a lit bead; by night the sheet, the hairline and the wire on the ground's own hue (`docs/decisions.md`, "The day's page is plate paper, with room over it for a lit sheet");
+   - each city in the index drawn as its whole scene, a plate, with one or two things of the place that truly give light drawn in it, a lamp, a lantern or a window, and lit whole from them when pointed at, focused or touched (`docs/decisions.md`, "A plate is lit whole, from sources drawn in it");
+   - the start screen's question asked as one line, "A day in" and the field, with the excerpt gone so the index meets the foot; its example, "London, with friends", opens a written day for London, which stands outside the index (`docs/decisions.md`, "The start screen asks its question as one line", "The start screen ends at its index, and draws no day until a press" and "London has a written day, opened by the start screen's example");
+   - the day's plan lit after sunset, a stop's versions on lines of their own when two do not fit, a swap pressed on the plan painted as it slides, each press target on the plan's bar its own, and one width for the day's head and its plan on a laptop (`docs/decisions.md`, "A day opens on its plan, lit by the day's light" and "A stop on the plan swipes along its versions");
+   - the energy word's list drawing each answer on a small wire of five places and counting the stops each would re-pick (`docs/decisions.md`, "The energy's scale is drawn as one of the chart's wires");
+   - every list and the day's menu on one sheet, with one row and a 2 px corner (`docs/decisions.md`, "A corner is 2 px or a circle");
+   - the masthead in three kinds parted by space, "Take this day", "New day" and the theme, which is one button that turns the page to the other look in one cross-fade and is not offered under forced colours (`docs/decisions.md`, "The day's ways along live in one menu, in the masthead", "The theme is one button that turns the page to the other look", "The theme crosses as one cross-fade of the whole page" and "Under forced colours the system's theme stands");
    - after the release, a test with five people, and the events compared with their values before the start screen changed.
 4. **Day quality (v1.3).** The day itself: the model's and the data's open issues, and the written days' next seasons.
 
-After them: a weekend, tiles by season or region, and a page of the product's measures in `/studio`.
+After them: the mark redrawn in the language of light, its standalone files with it; the not-found page in the same language, as a change of its own; the day's head with fewer and quieter small notes under the headline; a weekend, tiles by season or region, and a page of the product's measures in `/studio`.
 
 ## Pre-MVP: the canvas, on fixtures
 
