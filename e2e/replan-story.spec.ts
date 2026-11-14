@@ -37,6 +37,12 @@ const FRAME_MS = 1000 / 60;
  * jump").
  */
 const STEP_PX = 8;
+/**
+ * A gap between two samples this many 60 Hz frames long is a frame that came late. The place read
+ * after it lags, and the next frame makes it up: of a glide of 3 px a frame, 3 px over a gap of 76
+ * ms and then 12 px in one frame.
+ */
+const LATE_FRAMES = 2;
 
 const rows = (page: Page): Locator => page.locator('ol[aria-label="The day"] > li');
 const rowNamed = (page: Page, name: string): Locator => rows(page).filter({ hasText: name });
@@ -289,14 +295,28 @@ test.describe("with motion", { tag: "@frame" }, () => {
     }
     // No row seen in two samples in a row, a fork row's included, moved faster than a glide's pace
     // while on screen and not faded out, the distance scaled to 60 Hz frames of the time between
-    // the samples.
+    // the samples. A step that follows a late frame is read together with it.
+    const framesBetween = (from: number, to: number): number =>
+      Math.max(1, ((frames[to]?.t ?? 0) - (frames[from]?.t ?? 0)) / FRAME_MS);
     const steps = frames.slice(1).flatMap((frame, at) => {
-      const frames60 = Math.max(1, (frame.t - (frames[at]?.t ?? frame.t)) / FRAME_MS);
+      const frames60 = framesBetween(at, at + 1);
+      const framesBefore = at > 0 ? framesBetween(at - 1, at) : 1;
       return frame.rows.flatMap(({ text, y, isSeen }) => {
         const last = frames[at]?.rows.find((each) => each.text === text);
-        return last === undefined || !(isSeen || last.isSeen)
-          ? []
-          : [{ text, step: Math.abs(y - last.y) / frames60 }];
+        if (last === undefined || !(isSeen || last.isSeen)) return [];
+        const earlier =
+          framesBefore >= LATE_FRAMES
+            ? frames[at - 1]?.rows.find((each) => each.text === text)
+            : undefined;
+        return earlier === undefined
+          ? [{ text, step: Math.abs(y - last.y) / frames60 }]
+          : [
+              {
+                text,
+                step:
+                  (Math.abs(y - last.y) + Math.abs(last.y - earlier.y)) / (frames60 + framesBefore),
+              },
+            ];
       });
     });
     const largest = steps.reduce((most, step) => (step.step > most.step ? step : most), {
