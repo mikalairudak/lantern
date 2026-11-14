@@ -255,14 +255,16 @@ test("a finger that drifts down or up, or sets off at 45 degrees, before it swip
     await expect.poll(xOf).toBe(0);
   }
 
-  // Exactly as far across as down at first, then on across.
+  // Exactly as far across as down at first, then on across. Past the browser's touch slop, some
+  // 11 to 15 px in Chromium, a start that is not mostly across is the page's pan, and the page
+  // takes the pointer with `pointercancel`; within it, the finger is the stop's to turn.
   const before = await nameOf();
   const { from, way } = await setOff();
   const diagonal = Array.from({ length: DRIFT_STEPS }, (_, step) => ({
-    x: way * 3 * (step + 1),
-    y: 3 * (step + 1),
+    x: way * 2 * (step + 1),
+    y: 2 * (step + 1),
   }));
-  await touchAlong(cdp, from, [...diagonal, ...acrossFrom(way, { x: way * 12, y: 12 })]);
+  await touchAlong(cdp, from, [...diagonal, ...acrossFrom(way, { x: way * 8, y: 8 })]);
   await expect.poll(nameOf).not.toBe(before);
 });
 
