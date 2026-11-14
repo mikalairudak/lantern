@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { LONDON_REQUEST } from "@/lib/days/written/city-days";
 import { BOLOGNA_START_REQUEST } from "@/lib/days/written/quick-starts";
 import { readWrittenOnly } from "./written-reader";
 import { writtenPool } from "./written-pool";
@@ -6,10 +7,10 @@ import { writtenPool } from "./written-pool";
 const read = readWrittenOnly(writtenPool());
 
 describe("readWrittenOnly", () => {
-  it("says nothing back for the start screen's example", async () => {
-    expect(await read("Bologna, with friends")).toEqual({
+  it("plays London's day for the start screen's example, and says nothing back", async () => {
+    expect(await read("London, with friends")).toEqual({
       kind: "request",
-      request: BOLOGNA_START_REQUEST,
+      request: LONDON_REQUEST,
       readings: [],
       unplaced: [],
       confirmed: [],
