@@ -77,8 +77,10 @@ import {
   YOUR_DAY_WHILE_WRITTEN,
   answerReachOf,
   forecastOf,
+  repickLineOf,
   replanningOf,
   replanningReachOf,
+  type EnergyRepicks,
 } from "./not-yet";
 import type { ReplanControls } from "./replan-controls";
 
@@ -410,6 +412,12 @@ interface DayStageHeaderProps {
    * streams, and with live generation off, when only the energy says what it does.
    */
   replanDay?: Itinerary | null;
+  /**
+   * What each energy answer would change on screen, from the re-pick its press makes: the line
+   * under it counts the stops. The header cannot work it out, since it knows the day and not
+   * the visitor's picks. None, and the energy's answers say nothing.
+   */
+  energyRepicks?: EnergyRepicks | null;
   /** A word whose list is drawn open, as a lab cell draws it, taking no focus; null for none. */
   openedWord?: FactKey | null;
   /** As a lab cell draws it: a locked word was pressed while a re-plan is written. */
@@ -539,6 +547,7 @@ export function DayStageHeader({
   onPointToFork = ignore,
   forkNote = null,
   replanDay = null,
+  energyRepicks = null,
   openedWord = null,
   isLockSaid = false,
   onCityOpenChange,
@@ -919,7 +928,7 @@ export function DayStageHeader({
         isFocusedOnMount={key === focusedWord}
         view={{
           ...viewOf(key, fact, notice === null),
-          options: optionsOf(key, fact, replan, forecasts),
+          options: optionsOf(key, fact, replan, forecasts, energyRepicks),
         }}
         lead={lead}
         trail={trail}
@@ -1443,24 +1452,37 @@ function withAnswerValuesOf(replan: ReplanControls): ReplanControls {
   };
 }
 
-/** What each answer of each word would do, by `${key}:${value}`; for the energy alone without a day. */
+/**
+ * What each answer of each word but the energy would do, by `${key}:${value}`; none without a
+ * day. The energy's line counts the places on screen (`EnergyRepicks`).
+ */
 type Forecasts = ReadonlyMap<string, string | null>;
 
 function forecastsOf(day: Itinerary | null, request: DayRequest, facts: SentenceFacts): Forecasts {
   const forecasts = new Map<string, string | null>();
+  if (day === null) return forecasts;
   for (const key of FACT_KEYS) {
-    if (key !== "energy" && day === null) continue;
+    if (key === "energy") continue;
     for (const { value } of FACT_OPTIONS[key]) {
-      const reach =
-        day === null
-          ? facts.energy?.value === value
-            ? ({ kind: "current" } as const)
-            : ({ kind: "repick" } as const)
-          : answerReachOf(day, request, facts, { key, value });
-      forecasts.set(`${key}:${value}`, forecastOf(reach));
+      forecasts.set(
+        `${key}:${value}`,
+        forecastOf(answerReachOf(day, request, facts, { key, value })),
+      );
     }
   }
   return forecasts;
+}
+
+/** The line under an answer the word does not have: the energy's count, or its forecast. */
+function consequenceOf(
+  key: FactKey,
+  value: string,
+  forecasts: Forecasts,
+  energyRepicks: EnergyRepicks | null,
+): string | null {
+  if (key !== "energy") return forecasts.get(`${key}:${value}`) ?? null;
+  if (energyRepicks === null) return null;
+  return repickLineOf(energyRepicks.changedBy(value as EnergyLevel), energyRepicks.stops);
 }
 
 /** An answer of a changed word as the sentence says it: its label, or the page's question. */
@@ -1498,13 +1520,16 @@ function optionsOf(
   fact: Fact | null,
   { status, change }: ReplanControls,
   forecasts: Forecasts,
+  energyRepicks: EnergyRepicks | null,
 ): OptionView[] {
   const options = (fact?.options ?? []).map((option): OptionView => ({
     value: option.value,
     label: option.label,
     isCurrent: option.value === fact?.value,
     consequence:
-      option.value === fact?.value ? null : (forecasts.get(`${key}:${option.value}`) ?? null),
+      option.value === fact?.value
+        ? null
+        : consequenceOf(key, option.value, forecasts, energyRepicks),
   }));
   if (change === null || key !== change.word || status === "failed") return options;
   // The day before had Lantern's question here: its row stands for it by what the page said.
