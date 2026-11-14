@@ -100,6 +100,13 @@ interface CityWordProps {
   /** Whether the picker is open, and where its focus goes; null while it is closed. */
   openAt: CityFocus | null;
   onOpenChange: (openAt: CityFocus | null) => void;
+  /**
+   * A control elsewhere that opens the list at its field, the new day's button: a press on it,
+   * or the focus landing on it, is the list's own, and closes nothing.
+   */
+  ownWord?: RefObject<HTMLElement | null>;
+  /** The list's field, which that control puts the focus back in when the list is open already. */
+  fieldRef?: RefObject<HTMLInputElement | null>;
   /** A written day, chosen whole: its sentence takes the place of this one. */
   onChooseWritten: (request: DayRequest) => void;
   /** Any other city, as typed. */
@@ -154,6 +161,8 @@ export function CityWord({
   onChooseReading,
   openAt,
   onOpenChange,
+  ownWord,
+  fieldRef,
   onChooseWritten,
   onChooseCity,
   typedCity = null,
@@ -248,6 +257,8 @@ export function CityWord({
             readings={readings}
             playedReading={playedReading ?? readings[0]?.placeId ?? null}
             focusAt={openAt}
+            ownWord={ownWord}
+            fieldRef={fieldRef}
             isHidden={isHidden}
             typedCity={typedCity}
             onChooseReading={(reading) => choose(() => onChooseReading?.(reading))}
@@ -270,6 +281,8 @@ interface CityPanelProps {
   readings: readonly CityReading[];
   playedReading: string | null;
   focusAt: CityFocus;
+  ownWord?: RefObject<HTMLElement | null>;
+  fieldRef?: RefObject<HTMLInputElement | null>;
   /** Held for the day chosen: out of sight and out of the hand's reach, the focus kept. */
   isHidden: boolean;
   typedCity: TypedCity | null;
@@ -287,6 +300,8 @@ function CityPanel({
   readings,
   playedReading,
   focusAt,
+  ownWord,
+  fieldRef,
   isHidden,
   typedCity,
   onChooseReading,
@@ -295,7 +310,8 @@ function CityPanel({
   onClose,
 }: CityPanelProps) {
   const panel = useRef<HTMLSpanElement>(null);
-  const input = useRef<HTMLInputElement>(null);
+  const ownInput = useRef<HTMLInputElement>(null);
+  const input = fieldRef ?? ownInput;
   const [typed, setTyped] = useState(typedCity?.name ?? "");
   // A city the page reads stands in the field, read-only, until the page answers; one it
   // could not play is left there to be changed.
@@ -306,7 +322,7 @@ function CityPanel({
     if (typedCity) setTyped(typedCity.name);
   }
   const inputId = useId();
-  useHangingList(panel, word, onClose);
+  useHangingList(panel, word, onClose, ownWord);
   // A day played as one of its name's readings is that reading, not a written day of the
   // same name; the rows run the readings first, then the written days.
   const playedIndex = readings.findIndex((reading) => reading.placeId === playedReading);
@@ -326,7 +342,7 @@ function CityPanel({
     }
     const rows = panel.current?.querySelectorAll<HTMLButtonElement>("[data-city-row]");
     rows?.[Math.max(0, currentIndex)]?.focus();
-  }, [isPresent, focusAt, currentIndex]);
+  }, [isPresent, focusAt, currentIndex, input]);
 
   /** Arrow keys move through the rows and the field, wrapping round at the ends. */
   const handleKeyDown = (event: KeyboardEvent<HTMLSpanElement>) => {
@@ -366,6 +382,7 @@ function CityPanel({
         const next = event.relatedTarget;
         if (!(next instanceof Node)) return;
         if (panel.current?.contains(next) || word.current?.contains(next)) return;
+        if (ownWord?.current?.contains(next)) return;
         onClose(false);
       }}
       className={cn(

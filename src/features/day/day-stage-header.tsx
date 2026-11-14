@@ -68,6 +68,7 @@ import {
   type SentenceFacts,
 } from "./sentence";
 import { DayMenu, type DayMenuItem } from "./day-menu";
+import { NEW_DAY, NEW_DAY_NOTE, NewDayButton } from "./new-day";
 import { Masthead } from "./masthead";
 import {
   BEING_WRITTEN,
@@ -263,10 +264,7 @@ const NO_REPLAN: ReplanControls = {
  */
 export const ONE_CHANGE_AT_A_TIME = "one change at a time";
 
-/** The day menu's last item, set apart under the ways to take the day along. */
-const PLAN_ANOTHER_DAY = "Plan another day";
-
-/** No way to take the day along: the menu holds "Plan another day" alone. */
+/** No way to take the day along: no menu is drawn, and the new day stands in the row. */
 const NO_WAYS_ALONG: readonly DayMenuItem[] = [];
 
 /** How the end of the facts line stands while a word is re-planned and after. */
@@ -424,8 +422,8 @@ interface DayStageHeaderProps {
   isLockSaid?: boolean;
   onCityOpenChange: (openAt: CityFocus | null) => void;
   /**
-   * The ways to take the day along, for the day menu, which holds them and "Plan another day";
-   * none for a day that has none, as one that ended without a day.
+   * The ways to take the day along, for the day menu, which holds them; none for a day that
+   * has none, as one that ended without a day, which draws no menu.
    */
   takeAlong?: readonly DayMenuItem[];
   /** A written day chosen from the city word's list. */
@@ -510,7 +508,7 @@ interface DayStageHeaderProps {
 /**
  * The request as the headline and the form: the visitor's words from the start, Lantern's as
  * they arrive, then the line about the day and the facts. The city is a word like the
- * others, and the masthead's "Plan another day" opens it at its field.
+ * others, and the masthead's "New day" opens it at its field.
  */
 export function DayStageHeader({
   request,
@@ -851,6 +849,20 @@ export function DayStageHeader({
   const [isLockedPressed, setIsLockedPressed] = useState(false);
   if (!isReplanWriting && isLockedPressed) setIsLockedPressed(false);
   const sayLocked = () => setIsLockedPressed(true);
+  // The new day opens the city word at its field. The button counts as the list's own word, so
+  // a press with the list open folds nothing, and puts the focus back in the field itself, as
+  // the list's own state does not change.
+  const newDayButton = useRef<HTMLButtonElement>(null);
+  const cityField = useRef<HTMLInputElement>(null);
+  const openNewDay = () => {
+    if (isReplanWriting) return sayLocked();
+    onCityOpenChange("elsewhere");
+    cityField.current?.focus();
+  };
+  // A menu that leaves the page with the focus in it, as its last way goes, hands the focus to
+  // the new day, which stands in the row from the frame the menu is gone.
+  const giveNewDayTheFocus = () => requestAnimationFrame(() => newDayButton.current?.focus());
+  const hasWaysAlong = takeAlong.length > 0;
   const isLockedSaid = isReplanWriting && (isLockedPressed || isLockSaid);
   const slotStanding: SlotStanding = !isReplanWriting ? "shown" : isLockedSaid ? "locked" : "faded";
   // A locked word pressed is answered in the facts line, so the fork's note gives way to it.
@@ -967,20 +979,32 @@ export function DayStageHeader({
     >
       <Masthead
         menu={
-          <DayMenu
-            items={[
-              ...takeAlong,
-              {
-                key: "another",
-                label: PLAN_ANOTHER_DAY,
-                note: "Ask for a day somewhere else",
-                // It opens the city word at its field, locked while a re-plan is written.
-                onSelect: () => (isReplanWriting ? sayLocked() : onCityOpenChange("elsewhere")),
-                isLocked: isReplanWriting,
-                movesFocus: !isReplanWriting,
-                isApart: takeAlong.length > 0,
-              },
-            ]}
+          hasWaysAlong && (
+            <DayMenu
+              items={[
+                ...takeAlong,
+                {
+                  key: "another",
+                  label: NEW_DAY,
+                  note: NEW_DAY_NOTE,
+                  // It opens the city word at its field, locked while a re-plan is written.
+                  onSelect: () => (isReplanWriting ? sayLocked() : onCityOpenChange("elsewhere")),
+                  isLocked: isReplanWriting,
+                  movesFocus: !isReplanWriting,
+                  isApart: true,
+                  isInRowFromMasthead: true,
+                },
+              ]}
+              onFocusLost={giveNewDayTheFocus}
+            />
+          )
+        }
+        newDay={
+          <NewDayButton
+            ref={newDayButton}
+            onPress={openNewDay}
+            isLocked={isReplanWriting}
+            isAlwaysInRow={!hasWaysAlong}
           />
         }
       />
@@ -1045,6 +1069,8 @@ export function DayStageHeader({
                       current={request}
                       openAt={cityOpenAt}
                       onOpenChange={onCityOpenChange}
+                      ownWord={newDayButton}
+                      fieldRef={cityField}
                       onChooseWritten={onChooseWritten}
                       onChooseCity={onChooseCity}
                       typedCity={typedCity}

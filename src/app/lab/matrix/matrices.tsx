@@ -25,6 +25,7 @@ import { DAY_HEAD_MATRIX } from "@/features/day/day-head-matrix";
 import { ENERGY_GLYPH_MATRIX } from "@/features/day/energy-glyph-matrix";
 import { ENERGY_LIST_MATRIX } from "@/features/day/energy-list-matrix";
 import { THEME_BUTTON_MATRIX } from "@/features/theme/theme-button-matrix";
+import { MASTHEAD_MATRIX } from "@/features/day/masthead-matrix";
 import { labMatrix, type LabMatrix } from "@/lib/lab-matrix";
 
 /**
@@ -43,6 +44,7 @@ export const MATRICES: readonly LabMatrix[] = [
   DAY_ANSWER_MATRIX,
   FOOT_LINE_MATRIX,
   DAY_MENU_MATRIX,
+  MASTHEAD_MATRIX,
   START_HEADER_MATRIX,
   START_INDEX_MATRIX,
   INDEX_PICTURE_MATRIX,

@@ -114,6 +114,22 @@ export const DURATION_TOKENS = [
   },
 ] as const;
 
+/** The widths a column or a container query is set to, each with its use. */
+export const CONTAINER_TOKENS = [
+  { name: "measure", role: "A text column; the start screen's and the head's larger type from it" },
+  { name: "page", role: "The page" },
+  { name: "label", role: "The key column of a label–value list" },
+  { name: "intro", role: "The request beside the day on a wide screen; an open list or menu" },
+  { name: "list", role: "A word's open list, never wider than a phone's room between gutters" },
+  { name: "phone", role: "A phone's screen, shown inside a wider page" },
+  { name: "chart", role: "The abacus chart beside the list on a wide screen" },
+  { name: "abacus", role: "The day as rows of the abacus on a wide screen" },
+  {
+    name: "masthead",
+    role: "The shortest masthead row that holds the day's menu, the new day and the theme",
+  },
+] as const;
+
 /** The waits before what CSS shows, each named for its one use. */
 export const DELAY_TOKENS = [
   {

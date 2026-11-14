@@ -59,7 +59,9 @@ export function CurrentCheck({ isShown }: { isShown: boolean }) {
  * A list hanging from its word: moved sideways to stay inside its bounds, the word left
  * where it is, and closed by a press anywhere but on the list or on its word, captured so
  * it is gone before the press does anything. A press on the word is the word's own: it
- * closes the list as a toggle, and a close here as well would open it again.
+ * closes the list as a toggle, and a close here as well would open it again. A control that
+ * opens the list from elsewhere, as the new day's button does the city's, counts as its word
+ * too (`ownWord`): its press opens the list and leaves it open.
  *
  * It moves in its own layout, by its margins, before the frame paints. Moved by a transform,
  * which lays nothing out again, the page's width still counted it where it first hung, so in
@@ -69,6 +71,7 @@ export function useHangingList(
   list: RefObject<HTMLElement | null>,
   word: RefObject<HTMLElement | null>,
   onClose: (isFocusReturned: boolean) => void,
+  ownWord?: RefObject<HTMLElement | null>,
 ): void {
   useLayoutEffect(() => {
     const element = list.current;
@@ -80,9 +83,10 @@ export function useHangingList(
       const { target } = event;
       if (!(target instanceof Node)) return;
       if (list.current?.contains(target) || word.current?.contains(target)) return;
+      if (ownWord?.current?.contains(target)) return;
       onClose(false);
     };
     window.addEventListener("pointerdown", closeOutside, { capture: true });
     return () => window.removeEventListener("pointerdown", closeOutside, { capture: true });
-  }, [list, word, onClose]);
+  }, [list, word, onClose, ownWord]);
 }

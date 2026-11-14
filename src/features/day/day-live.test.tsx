@@ -827,7 +827,7 @@ describe("the city word with live generation on", () => {
   async function typeCity(user: ReturnType<typeof userEvent.setup>, city: string): Promise<void> {
     await user.click(within(headline()).getByRole("button", { name: "Kanazawa" }));
     await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
-    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
+    await user.click(screen.getByRole("menuitem", { name: /New day/ }));
     await user.keyboard(`${city}{Enter}`);
   }
 

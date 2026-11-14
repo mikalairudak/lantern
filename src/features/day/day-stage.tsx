@@ -1049,8 +1049,8 @@ export function DayStage({
     onExport: (way) => onDayAct?.(EXPORT_EVENTS[way]),
   });
   // The day menu holds the ways to take the day along: there once the day is whole, waiting
-  // till then. A stream that ended with no day leaves nothing to take along: the menu holds
-  // "Plan another day" alone.
+  // till then. A stream that ended with no day leaves nothing to take along: no menu is drawn,
+  // and the new day stands in the masthead's row.
   const takeAlong = isEndedWithoutDay
     ? []
     : takeAlongOf({

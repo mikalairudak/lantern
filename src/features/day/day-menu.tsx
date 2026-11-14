@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import { cn } from "@/components/ui/cn";
 import { ICON_SIZES, ICON_STROKE_WIDTH } from "@/lib/tokens/icon";
 import { LIST_ROW_CLASSES, LIST_SHEET_CLASSES, ROW_NOTE_CLASSES } from "./word-list";
@@ -23,15 +23,20 @@ export interface DayMenuItem {
   keepsOpen?: boolean;
   /** Set apart from the items above it by a rule. */
   isApart?: boolean;
-  /** Chosen, it moves the focus itself, as "Plan another day" opens the city's field. */
+  /** Chosen, it moves the focus itself, as "New day" opens the city's field. */
   movesFocus?: boolean;
   /**
-   * Locked for now, as "Plan another day" is while a re-plan is written: drawn as waiting and
+   * Locked for now, as "New day" is while a re-plan is written: drawn as waiting and
    * marked so, but chosen it still runs, to say why it is locked.
    */
   isLocked?: boolean;
   /** What a screen reader hears once it is chosen, as "The day's link is copied". */
   status?: string;
+  /**
+   * Drawn only under a masthead's row of `@masthead`: from there it stands in the row itself,
+   * as the new day does, and the menu holds the ways alone.
+   */
+  isInRowFromMasthead?: boolean;
 }
 
 /**
@@ -44,21 +49,31 @@ const ITEM_CLASSES = cn(
   "group/pointed focus-ring-inset not-aria-disabled:pointed:bg-ground aria-disabled:cursor-default",
 );
 
-/** The menu: the lists' sheet, hung from the foot of the masthead's row. */
+/**
+ * The menu: the lists' sheet, hung from the foot of the masthead's row. Under a row of
+ * `@measure` it hangs from the row's end; from there, from its own button's right edge, since at
+ * the row's end it would stand under the new day and the theme as much as under its button.
+ */
 const MENU_CLASSES = cn(
-  "absolute top-full right-0 z-30 mt-1 flex w-full max-w-intro flex-col py-1 text-left whitespace-normal",
+  "absolute top-full right-0 z-30 mt-1 flex w-full max-w-intro flex-col py-1 text-left whitespace-normal @measure:w-intro",
   LIST_SHEET_CLASSES,
 );
+
+/**
+ * The box round the button and its menu: positioned from a row of `@measure`, and then as tall
+ * as the row, so the sheet's top stands 4 px under the row's foot at every width.
+ */
+const BOX_CLASSES = "inline-flex shrink-0 items-center self-stretch @measure:relative";
 
 /** The item's name under the pointer or the keyboard's focus: the ink hairline under it. */
 const ITEM_NAME_POINTED_CLASSES =
   "decoration-ink decoration-1 underline-offset-4 pointed-group:underline";
 
 /**
- * The day's menu in the masthead: one button, "Take this day", framed as the masthead's one
- * control, that holds the ways to take the day along and "Plan another day", each saying in a
- * line under it what it does (`docs/decisions.md`, "The day's ways along live in one menu, in
- * the masthead").
+ * The day's menu in the masthead: one button, "Take this day", framed, that holds the ways to
+ * take the day along, each saying in a line under it what it does, and under a short row the new
+ * day as its last row (`docs/decisions.md`, "The day's ways along live in one menu, in the
+ * masthead").
  *
  * A menu button and a menu: Enter, Space or the down arrow opens it on its first item, the up
  * arrow on its last, and a press opens it with the focus left on the button, which the arrows
@@ -69,12 +84,15 @@ export function DayMenu({
   items,
   isOpenAtFirst = false,
   pointedKey = null,
+  onFocusLost,
 }: {
   items: readonly DayMenuItem[];
   /** Drawn open from the first frame, as a lab cell draws it, taking no focus. */
   isOpenAtFirst?: boolean;
   /** The item drawn pointed at with no pointer, as a lab cell draws it. */
   pointedKey?: string | null;
+  /** Told when the menu leaves the page with the focus in it, so the focus can land elsewhere. */
+  onFocusLost?: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(isOpenAtFirst);
   const menuId = useId();
@@ -82,6 +100,18 @@ export function DayMenu({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const firstFocus = useRef<"first" | "last" | null>(isOpenAtFirst ? null : "first");
+  const box = useRef<HTMLSpanElement>(null);
+  const onFocusLostRef = useRef(onFocusLost);
+  useEffect(() => {
+    onFocusLostRef.current = onFocusLost;
+  });
+  // Read before the menu's elements leave the page, while the focus is still in one of them.
+  useLayoutEffect(() => {
+    const element = box.current;
+    return () => {
+      if (element?.contains(document.activeElement)) onFocusLostRef.current?.();
+    };
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -161,7 +191,8 @@ export function DayMenu({
     // The menu hangs from the masthead's row, which stands it inside the page's gutters at any
     // width: from the button alone, at 360 px it ran 25 px off the screen's left edge.
     <span
-      className="inline-flex shrink-0"
+      ref={box}
+      className={BOX_CLASSES}
       // The focus leaving the button and its menu, by Tab or otherwise, closes it.
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsOpen(false);
@@ -200,7 +231,13 @@ export function DayMenu({
           className={MENU_CLASSES}
         >
           {items.map((item) => (
-            <div key={item.key} className={cn(item.isApart && "mt-1 border-t border-line pt-1")}>
+            <div
+              key={item.key}
+              className={cn(
+                item.isApart && "mt-1 border-t border-line pt-1",
+                item.isInRowFromMasthead && "@masthead:hidden",
+              )}
+            >
               {item.href && !item.isDisabled ? (
                 <a
                   role="menuitem"
@@ -254,6 +291,15 @@ function ItemWords({ item }: { item: DayMenuItem }) {
   );
 }
 
+/**
+ * The rows the keys walk: those drawn. A row CSS hides, as the new day's from a row of
+ * `@masthead`, is in the page and no stop, so the arrows wrap and End lands on the last row seen.
+ */
 function itemsIn(menu: HTMLElement | null): HTMLElement[] {
-  return [...(menu?.querySelectorAll<HTMLElement>("[role=menuitem]") ?? [])];
+  return [...(menu?.querySelectorAll<HTMLElement>("[role=menuitem]") ?? [])].filter(isDrawn);
+}
+
+/** Whether an element is drawn; a browser that cannot say, as jsdom, draws every one. */
+function isDrawn(element: HTMLElement): boolean {
+  return typeof element.checkVisibility !== "function" || element.checkVisibility();
 }
