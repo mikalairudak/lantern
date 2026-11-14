@@ -29,7 +29,7 @@ A run is one request on screen, counted so that a day played since is told apart
 - **takes the page**: replaces what is on screen, once enough of it has streamed to stand in its place.
 - **whole**: drawn complete at once, with nothing played.
 - **stage**: one run drawn (`day-stage.tsx`): its header (`day-stage-header.tsx`), its chart or list, and its ending. The views are named for what they draw; "written" is kept for the days below.
-- **written day**: one of the thirteen days the product wrote ahead of time, six opened by the quick starts and seven city days, served from the build at its own address. **Kept day**: a live day in the generation log, opened at `/day/<id>` for 30 days.
+- **written day**: one of the fourteen days the product wrote ahead of time, six opened by the quick starts and eight city days, served from the build at its own address. **Kept day**: a live day in the generation log, opened at `/day/<id>` for 30 days.
 
 ## Read first
 
