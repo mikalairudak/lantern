@@ -701,7 +701,7 @@ describe("the line under the day, as the landing reads with live generation off"
 
     await user.type(screen.getByRole("textbox"), `${example}{Enter}`);
 
-    await waitFor(() => expect(headline()).toHaveTextContent(/^A lively Saturday in Bologna/));
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in London/));
     await waitForTheDay();
     expect(headline()).toHaveTextContent("with friends");
     expect(screen.queryByText(SAID_BACK)).not.toBeInTheDocument();

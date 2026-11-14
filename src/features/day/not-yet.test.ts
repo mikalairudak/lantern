@@ -12,7 +12,6 @@ import {
 import type { PartialDay } from "@/lib/stream/outcome";
 import { FACT_OPTIONS } from "./facts";
 import {
-  REPICKS_AT_ONCE,
   KEEPS_EVERY_STOP,
   WHOLE_DAY_AGAIN,
   answerReachOf,
@@ -25,6 +24,7 @@ import {
   replanningOf,
   replanningPartOf,
   replanningReachOf,
+  repickLineOf,
 } from "./not-yet";
 import { replannedRequestOf } from "./replan-request";
 import { sentenceFactsOf, type SentenceFacts } from "./sentence";
@@ -159,8 +159,9 @@ describe("forecastOf", () => {
             expect(line, name).toBeNull();
             continue;
           }
+          // The energy's line counts the places on screen, which the page passes in.
           if (key === "energy") {
-            expect(line, name).toBe(REPICKS_AT_ONCE);
+            expect(line, name).toBeNull();
             continue;
           }
           // The plan the page asks the route for, read here apart from the forecast.
@@ -221,6 +222,26 @@ describe("forecastOf", () => {
       "the snack",
       "dinner",
     ]);
+  });
+});
+
+describe("repickLineOf", () => {
+  it("counts the stops an energy answer changes, in words to nine and in digits past", () => {
+    expect(repickLineOf(0, 9)).toBe("keeps every stop · at\u00A0once");
+    expect(repickLineOf(1, 9)).toBe("re-picks one stop · at\u00A0once");
+    expect(repickLineOf(2, 9)).toBe("re-picks two stops · at\u00A0once");
+    expect(repickLineOf(8, 9)).toBe("re-picks eight stops · at\u00A0once");
+    expect(repickLineOf(11, 12)).toBe("re-picks 11 stops · at\u00A0once");
+  });
+
+  it("says every stop where an answer changes them all", () => {
+    expect(repickLineOf(9, 9)).toBe("re-picks every stop · at\u00A0once");
+    expect(repickLineOf(2, 2)).toBe("re-picks every stop · at\u00A0once");
+  });
+
+  it("says one stop or none on a day of one stop, never every stop", () => {
+    expect(repickLineOf(1, 1)).toBe("re-picks one stop · at\u00A0once");
+    expect(repickLineOf(0, 1)).toBe(KEEPS_EVERY_STOP);
   });
 });
 

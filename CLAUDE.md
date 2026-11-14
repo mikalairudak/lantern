@@ -76,7 +76,7 @@ src/lib/                    everything under the React layer, mapped in its READ
   live/                     live generation on the server: model calls, prompts, limits and spend, the generation log
   intake/                   POST /api/intake: the model reads the text, the city is looked up and signed
   replan/                   a targeted re-plan: its request, windows and merge
-  days/                     the thirteen written days the site serves (written/), a day's address, a kept day's
+  days/                     the fourteen written days the site serves (written/), a day's address, a kept day's
                             record, and what GET /api/day/<id> answers
   places/                   Geoapify and place matching
   quality/                  checks over one generation, recorded on every live day

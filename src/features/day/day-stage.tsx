@@ -60,7 +60,7 @@ import {
 } from "@/features/abacus/geometry";
 import { PEN_BEAT_MS, STOP_BEAT_SECONDS, usePen } from "./use-pen";
 import { axisLightWithin, dayLightOf } from "@/features/abacus/light";
-import { replanForEnergy } from "@/features/abacus/replan";
+import { replanForEnergy, stopsRepickedOf } from "@/features/abacus/replan";
 import { VIEW_HELD_AFTER_GESTURE_MS } from "./view-hold";
 import { useArrivals, type Arrivals } from "@/features/abacus/use-arrivals";
 import {
@@ -88,6 +88,7 @@ import {
   keptStopsLineOf,
   notReplanningYetOf,
   seeItAtOf,
+  type EnergyRepicks,
 } from "./not-yet";
 import { replannedRequestOf } from "./replan-request";
 import type { ReplanControls } from "./replan-controls";
@@ -835,6 +836,15 @@ export function DayStage({
   const shownPlaces = shownPlacesOf(stops, energy.committed);
   const [writtenFor, setWrittenFor] = useState({ dek, places: shownPlaces });
   if (writtenFor.dek !== dek) setWrittenFor({ dek, places: shownPlaces });
+  /** The day re-picked for an energy level from the versions already written, as a press shows it. */
+  const repickedFor = (level: EnergyLevel) =>
+    replanForEnergy(draft.stops, requestedEnergy, ENERGY_LEVELS.indexOf(level));
+  // What each energy answer would change on screen, counted from the re-pick its press makes,
+  // so the line under an answer and the press never disagree.
+  const energyRepicks: EnergyRepicks = {
+    changedBy: (level) => stopsRepickedOf(shownPlaces, repickedFor(level)),
+    stops: stops.length,
+  };
   // Under reduced motion a placed stop waits unseen while its words are written. When that
   // lasts as long as a silence, as with a live model, the waiting line stands where its row
   // will land, as it does in a silence.
@@ -1124,8 +1134,7 @@ export function DayStage({
       }
     }
     if (key === "energy") {
-      const to = ENERGY_LEVELS.indexOf(value as EnergyLevel);
-      const next = replanForEnergy(draft.stops, requestedEnergy, to);
+      const next = repickedFor(value as EnergyLevel);
       energy.replan(next);
       setRepicked({ day: ended, stops: next });
       setLocal((words) => ({ ...words, energy: value as EnergyLevel }));
@@ -1285,6 +1294,7 @@ export function DayStage({
       // A changed word re-plans the day once it is written to its end, live: each answer then
       // says what it would do, from the plan the route runs.
       replanDay={onReplan && shownOutcome?.kind === "complete" ? shownOutcome.itinerary : null}
+      energyRepicks={energyRepicks}
       takeAlong={takeAlong}
       onCityOpenChange={(openAt) => {
         setCityOpenAt(openAt);
@@ -1384,10 +1394,8 @@ export function DayStage({
                 ref={planBar}
                 energy={(facts.energy?.value as EnergyLevel | undefined) ?? request.energy}
                 isEnabled={isInteractive}
-                onChoose={(level) => {
-                  answer({ key: "energy", value: level });
-                  countWord("energy");
-                }}
+                // The headline's own answer, which counts the changed word itself.
+                onChoose={(level) => answer({ key: "energy", value: level })}
                 className={wholeClasses}
               />
             )}

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { LISBON_REQUEST } from "@/lib/fixtures/curated/requests";
 import { daySlugOf } from "../address";
 import { writtenChecksOf } from "./checks";
+import { INDEX_REQUESTS, LONDON_REQUEST } from "./city-days";
 import {
   normalizedDayOn,
   shownWrittenDayAt,
@@ -24,6 +25,13 @@ describe("writtenDayAt", () => {
         day.stops[0]?.place.coordinates,
       );
     }
+  });
+
+  it("has the fourteenth written day, London's, at its own address and outside the index", () => {
+    expect(WRITTEN_REQUESTS).toHaveLength(14);
+    expect(writtenDayAt("london")?.request).toEqual(LONDON_REQUEST);
+    expect(INDEX_REQUESTS).toHaveLength(8);
+    expect(INDEX_REQUESTS).not.toContain(LONDON_REQUEST);
   });
 
   it("has no day at a city Lantern has not written, nor at a city spelled as asked", () => {

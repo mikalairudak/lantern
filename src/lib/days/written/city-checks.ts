@@ -1,12 +1,12 @@
 import type { PlaceCheck } from "@/lib/places/verify-place";
 
 /**
- * Each city day's place checks from the run that wrote it, on 2026-11-11, as Geoapify answered
- * them then (`docs/grounding.md`), recorded as the starts' are (`checks.ts`): a meal by its area,
- * any other place by its name, a place confirmed by name with the provider's point, and only the
- * places the normalizer keeps. Keyed by the city, then by the id the normalizer gives each place.
- * Written from the place round's records of the `city-days` rounds, each day's generation named
- * above its checks.
+ * Each city day's place checks from the run that wrote it, between 2026-11-11 and 2026-11-14, as
+ * Geoapify answered them then (`docs/grounding.md`), recorded as the starts' are (`checks.ts`): a
+ * meal by its area, any other place by its name, a place confirmed by name with the provider's
+ * point, and only the places the normalizer keeps. Keyed by the city, then by the id the
+ * normalizer gives each place. Written from the place round's records of the `city-days` rounds
+ * and London's, each day's generation named above its checks.
  *
  * Data © OpenStreetMap contributors, under the ODbL, provided by Geoapify (`NOTICE`).
  */
@@ -1210,6 +1210,189 @@ export const CITY_PLACE_CHECKS: Readonly<Record<string, Readonly<Record<string, 
       lat: 37.5671,
       lng: 126.9948,
       placesAround: 10,
+      source: "geoapify",
+    },
+  },
+  // london, generation abcf1ad8-4874-486e-9627-2455d48c28f2, 2026-11-21
+  London: {
+    // Coffee on Museum Street
+    "stop-0:p": {
+      kind: "verified",
+      by: "area",
+      lat: 51.5189,
+      lng: -0.1257,
+      placesAround: 18,
+      source: "geoapify",
+    },
+    // British Museum
+    "stop-1:p": {
+      kind: "verified",
+      by: "name",
+      lat: 51.5193118,
+      lng: -0.1267051,
+      providerId:
+        "51ab425e6adf37c0bf59a4b61ecf78c24940f00101f90194b3020000000000c0020192030e42726974697368204d757365756d",
+      source: "geoapify",
+    },
+    // Lunch on Charlotte Street
+    "stop-2:p": {
+      kind: "verified",
+      by: "area",
+      lat: 51.519,
+      lng: -0.1352,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Berwick Street Market
+    "stop-3:p": {
+      kind: "verified",
+      by: "name",
+      lat: 51.513256,
+      lng: -0.13461,
+      providerId:
+        "51b476db85e63ac1bf59e63c635fb2c14940f00102f901b78d332200000000c002019203154265727769636b20537472656574204d61726b6574e203216f70656e7374726565746d61703a76656e75653a7761792f353733383033393539",
+      source: "geoapify",
+    },
+    // Beer on Dean Street
+    "stop-4:p": {
+      kind: "verified",
+      by: "area",
+      lat: 51.5142,
+      lng: -0.1317,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Dumplings on Gerrard Street
+    "stop-5:p": {
+      kind: "verified",
+      by: "area",
+      lat: 51.5111,
+      lng: -0.1317,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Cocktails on Greek Street
+    "stop-6:p": {
+      kind: "verified",
+      by: "area",
+      lat: 51.5139,
+      lng: -0.1305,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Tea in Russell Square
+    "stop-0:a1": {
+      kind: "verified",
+      by: "name",
+      lat: 51.5216985,
+      lng: -0.1260745,
+      providerId:
+        "51cd052e8f3523c0bf59a6ef3504c7c24940f00102f9019b75310000000000c0020192030e52757373656c6c20537175617265",
+      source: "geoapify",
+    },
+    // Brunch on Lamb's Conduit Street
+    "stop-0:a2": {
+      kind: "verified",
+      by: "area",
+      lat: 51.5236,
+      lng: -0.1176,
+      placesAround: 7,
+      source: "geoapify",
+    },
+    // Foundling Museum
+    "stop-1:a1": {
+      kind: "verified",
+      by: "name",
+      lat: 51.5252269,
+      lng: -0.1216833,
+      providerId:
+        "51c427f801a326bfbf595f3d93a23ac34940f00102f901975daf0100000000c00201920310466f756e646c696e67204d757365756d",
+      source: "geoapify",
+    },
+    // Charles Dickens Museum
+    "stop-1:a2": {
+      kind: "verified",
+      by: "name",
+      lat: 51.5235936,
+      lng: -0.1163232,
+      providerId:
+        "51fb1cc4735bc7bdbf598c32761d05c34940f00103f9016c11f21300000000c00201920316436861726c6573204469636b656e73204d757365756d",
+      source: "geoapify",
+    },
+    // Sandwiches on Rathbone Place
+    "stop-2:a1": {
+      kind: "verified",
+      by: "area",
+      lat: 51.5175,
+      lng: -0.1349,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Pizza on Goodge Street
+    "stop-2:a2": {
+      kind: "verified",
+      by: "area",
+      lat: 51.5206,
+      lng: -0.1345,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Soho Square
+    "stop-3:a1": { kind: "unverified", reason: "no-match" },
+    // Carnaby Street
+    "stop-3:a2": { kind: "unverified", reason: "no-match" },
+    // Coffee on Bateman Street
+    "stop-4:a1": {
+      kind: "verified",
+      by: "area",
+      lat: 51.5137,
+      lng: -0.1299,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Cocktails on Old Compton Street
+    "stop-4:a2": {
+      kind: "verified",
+      by: "area",
+      lat: 51.513,
+      lng: -0.1313,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Noodles on Lisle Street
+    "stop-5:a1": {
+      kind: "verified",
+      by: "area",
+      lat: 51.5114,
+      lng: -0.1303,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Hot pot on Wardour Street
+    "stop-5:a2": {
+      kind: "verified",
+      by: "area",
+      lat: 51.5115,
+      lng: -0.1319,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Wine on Rupert Street
+    "stop-6:a1": {
+      kind: "verified",
+      by: "area",
+      lat: 51.5115,
+      lng: -0.134,
+      placesAround: 20,
+      source: "geoapify",
+    },
+    // Drinks on Wardour Street
+    "stop-6:a2": {
+      kind: "verified",
+      by: "area",
+      lat: 51.5124,
+      lng: -0.1331,
+      placesAround: 20,
       source: "geoapify",
     },
   },

@@ -488,7 +488,7 @@ describe("the field's room", () => {
     const user = userEvent.setup();
     renderStart();
     const example = () =>
-      screen.queryByText("For example: Bologna, with friends", { selector: "p" });
+      screen.queryByText("For example: London, with friends", { selector: "p" });
     expect(example()).toBeInTheDocument();
 
     await user.click(field());
