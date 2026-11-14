@@ -117,7 +117,7 @@ Outcomes, in order:
 7. **Project skills,** distilled from the golden component: `lab-component` and `ui-review`.
 8. **Canvas.** The day header and timeline, the streaming entry choreography, a curated-day switcher, and the "Plan your own day" request form. One hook reads partials and the outcome from the app's own route, `POST /api/day`, which streams curated days through the simulator now and Claude in MVP. Failure states, including what a cut stream still shows, are designed here against the simulator's outcomes, so MVP only has to wire them up.
 9. **Features,** in this order: energy slider, then quick swap, then light radar.
-10. **Polish.** Dark mode, phone width, keyboard access for the slider and swap, reduced motion, and a visual-regression baseline, now 1,074 shots and about 37 MB, kept in plain git.
+10. **Polish.** Dark mode, phone width, keyboard access for the slider and swap, reduced motion, and a visual-regression baseline, now 1,462 shots and about 91 MB, kept in plain git.
 
 Phone review happens over the local network (`next dev -H 0.0.0.0`), so hosting is not needed yet.
 
