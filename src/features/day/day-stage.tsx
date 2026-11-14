@@ -930,8 +930,15 @@ export function DayStage({
   const daylight = context ?? contextOf(request, NOWHERE);
   // The sun's light is worked out once for the day and its place; the frame cuts it as it springs.
   const dayLight = useMemo(() => (context ? dayLightOf(context) : []), [context]);
-  const sunrise = context ? sunCrossing(context, SUNRISE_ALTITUDE, "rising") : null;
-  const sunset = context ? sunCrossing(context, SUNRISE_ALTITUDE, "setting") : null;
+  // Once a place and a day, not every render: the stage renders on each frame the curve springs.
+  const sunrise = useMemo(
+    () => (context ? sunCrossing(context, SUNRISE_ALTITUDE, "rising") : null),
+    [context],
+  );
+  const sunset = useMemo(
+    () => (context ? sunCrossing(context, SUNRISE_ALTITUDE, "setting") : null),
+    [context],
+  );
 
   // The header's written lines, which an open stop's sheet rising over the day stops short of.
   const [headerLines, setHeaderLines] = useState<HTMLDivElement | null>(null);
