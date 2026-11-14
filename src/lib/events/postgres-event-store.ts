@@ -9,10 +9,13 @@ import {
 } from "./event-store";
 
 /**
- * The product's events in Postgres (`db/migrations/0005_product_events.sql`, and the view's
- * and answer's columns from `0009_event_view_tile_answer.sql`). A day's salt
- * is read once per process and day; after that an event is one statement, which counts the
- * visitor, counts the app and keeps the row together, or does none of it.
+ * The product's events in Postgres (`db/migrations/0005_product_events.sql`, the view's and
+ * answer's columns from `0009_event_view_tile_answer.sql`, and the control's from
+ * `0010_event_control.sql`). A day's salt is read once per process and day; after that an event
+ * is one statement, which counts the visitor, counts the app and keeps the row together, or does
+ * none of it. The statement names every column, so a database short of a migration refuses every
+ * event, and production is migrated before the release that writes a new column
+ * (`docs/harness.md`, "Database").
  */
 
 if (typeof window !== "undefined") {
@@ -57,10 +60,10 @@ const RECORD = `
   )
   INSERT INTO product_events (
     id, environment, utc_day, visitor_key, kind, city, via, written, outcome, stage, word, view,
-    answer
+    answer, control
   )
   SELECT $6::uuid, $1, $2::date, $3, $7, $8::text, $9::text, $10::boolean, $11::text,
-    $12::text, $13::text, $14::text, $15::text
+    $12::text, $13::text, $14::text, $15::text, $16::text
   WHERE EXISTS (SELECT 1 FROM app)
   RETURNING id`;
 
@@ -74,6 +77,7 @@ export function columnsOf(event: ProductEvent): {
   word: string | null;
   view: string | null;
   answer: string | null;
+  control: string | null;
 } {
   return {
     city: "city" in event ? event.city : null,
@@ -84,6 +88,7 @@ export function columnsOf(event: ProductEvent): {
     word: "word" in event ? event.word : null,
     view: "view" in event ? event.view : null,
     answer: "answer" in event ? event.answer : null,
+    control: "control" in event ? event.control : null,
   };
 }
 
@@ -115,7 +120,7 @@ export class PostgresEventStore implements EventStore {
   }
 
   async record({ id, visitor, day, event }: EventEntry): Promise<boolean> {
-    const { city, via, written, outcome, stage, word, view, answer } = columnsOf(event);
+    const { city, via, written, outcome, stage, word, view, answer, control } = columnsOf(event);
     const rows = await this.sql.query(RECORD, [
       this.environment,
       day,
@@ -132,6 +137,7 @@ export class PostgresEventStore implements EventStore {
       word,
       view,
       answer,
+      control,
     ]);
     return rows.length === 1;
   }

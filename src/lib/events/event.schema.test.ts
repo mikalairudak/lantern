@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import type { IntakeResult } from "@/lib/schema/intake.schema";
-import { KYOTO_ON_CHART, ONE_EVENT_OF_EACH_KIND } from "@/lib/fixtures/events";
+import { KYOTO_DRAGGED, KYOTO_ON_CHART, ONE_EVENT_OF_EACH_KIND } from "@/lib/fixtures/events";
 import { FACT_KEYS } from "@/lib/schema/itinerary.schema";
 import { MAX_LIVE_CITY_CHARS } from "@/lib/stream/answer-day-request";
 import type { DayOutcome } from "@/lib/stream/outcome";
@@ -14,6 +14,7 @@ import {
   LEFT_STAGES,
   MAX_EVENT_CITY_CHARS,
   ProductEventSchema,
+  WORD_CONTROLS,
   type ProductEventKind,
 } from "./event.schema";
 
@@ -62,6 +63,19 @@ describe("the product's events", () => {
     );
   });
 
+  it.each(WORD_CONTROLS)(
+    "tell a word changed at the %s, and no other kind a control",
+    (control) => {
+      const changed = { kind: "word-changed", city: "kyoto", word: "energy", control } as const;
+
+      expect(ProductEventSchema.safeParse(changed).success).toBe(true);
+      expect(
+        ProductEventSchema.safeParse({ kind: "menu-opened", ...KYOTO_ON_CHART, control }).success,
+      ).toBe(false);
+      expect(ProductEventSchema.safeParse({ ...KYOTO_DRAGGED, control }).success).toBe(false);
+    },
+  );
+
   it.each([
     ["an unknown kind", { kind: "page-viewed", city: "kyoto" }],
     ["no kind", { city: "kyoto" }],
@@ -71,7 +85,19 @@ describe("the product's events", () => {
     ],
     ["the visitor's text", { kind: "intake-ended", outcome: "request", text: "Kyoto, slowly" }],
     ["a field missing", { kind: "day-opened", city: "kyoto", via: "link" }],
-    ["a word outside its vocabulary", { kind: "word-changed", city: "kyoto", word: "date" }],
+    [
+      "a word outside its vocabulary",
+      { kind: "word-changed", city: "kyoto", word: "date", control: "headline" },
+    ],
+    ["a word changed with no control", { kind: "word-changed", city: "kyoto", word: "energy" }],
+    [
+      "a control the page has none of",
+      { kind: "word-changed", city: "kyoto", word: "energy", control: "slider" },
+    ],
+    [
+      "the day's menu without its view",
+      { kind: "menu-opened", city: "kyoto", via: "link", written: true },
+    ],
     ["an outcome of the other attempt", { kind: "intake-ended", outcome: "complete" }],
     ["a view the page has none of", { kind: "stop-swapped", ...KYOTO_ON_CHART, view: "plan" }],
     ["a way in the page has none of", { kind: "stop-swapped", ...KYOTO_ON_CHART, via: "tile" }],
@@ -103,6 +129,7 @@ describe("the product's events", () => {
       ...HEADER_WORDS,
       ...DAY_OUTCOMES,
       ...INTAKE_OUTCOMES,
+      ...WORD_CONTROLS,
     ];
 
     for (const word of words) {

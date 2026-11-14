@@ -426,6 +426,8 @@ interface DayStageHeaderProps {
    * has none, as one that ended without a day, which draws no menu.
    */
   takeAlong?: readonly DayMenuItem[];
+  /** Told each time the visitor opens the day menu. */
+  onMenuOpen?: () => void;
   /** A written day chosen from the city word's list. */
   onChooseWritten: (request: DayRequest) => void;
   /** A written day the notice offers, chosen; the city word's `onChooseWritten` if not given. */
@@ -550,6 +552,7 @@ export function DayStageHeader({
   isLockSaid = false,
   onCityOpenChange,
   takeAlong = NO_WAYS_ALONG,
+  onMenuOpen,
   onChooseWritten,
   onOpenWritten = onChooseWritten,
   onChooseCity,
@@ -863,6 +866,8 @@ export function DayStageHeader({
     cityWordButton.current?.focus();
     onCityOpenChange(null);
   };
+  // Opened at its field, "elsewhere", the list is the new day's, and a city chosen in it is
+  // counted as changed at the new day (`cityControl` in `day-stage.tsx`).
   const openNewDay = () => {
     if (isReplanWriting) return sayLocked();
     onCityOpenChange("elsewhere");
@@ -1006,6 +1011,7 @@ export function DayStageHeader({
               ]}
               onFocusLost={giveNewDayTheFocus}
               triggerRef={menuButton}
+              onOpen={onMenuOpen}
             />
           )
         }

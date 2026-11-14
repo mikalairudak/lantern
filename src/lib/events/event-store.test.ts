@@ -61,6 +61,16 @@ describe("the in-memory event store", () => {
     expect(await store.record(entry(OTHER_VISITOR, TODAY))).toBe(false);
   });
 
+  it("keeps each event whole, the control a word was changed at among it", async () => {
+    const store = new InMemoryEventStore();
+    await store.saltOn(TODAY);
+    const event = { kind: "word-changed", city: "kyoto", word: "energy", control: "bar" } as const;
+
+    await store.record({ id: "1", visitor: VISITOR, day: TODAY, event });
+
+    expect(store.entries.map((kept) => kept.event)).toEqual([event]);
+  });
+
   it("keeps only the latest 500", async () => {
     const store = new InMemoryEventStore({ perVisitor: 1_000, perApp: 1_000 });
     await store.saltOn(TODAY);
