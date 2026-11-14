@@ -214,7 +214,7 @@ async function inkAt(target: Locator): Promise<string> {
 
 // The visual baseline shoots no focused state, so the rings `focus-ring` and
 // `focus-ring-inset` draw (globals.css) are held here.
-test("the keyboard's focus rings each word and link in ink, and the theme's icon inside its edge", async ({
+test("the keyboard's focus rings each word and link in ink, and the theme's button inside its edge", async ({
   page,
 }) => {
   await page.goto("/day/kanazawa");
@@ -229,7 +229,7 @@ test("the keyboard's focus rings each word and link in ink, and the theme's icon
       page.getByRole("group", { name: "View" }).getByRole("button", { name: "Plan" }),
       "2px",
     ],
-    ["the theme's icon", page.getByRole("button", { name: /^Theme: / }), "-2px"],
+    ["the theme's button", page.getByRole("button", { name: /^Switch to / }), "-2px"],
   ];
   // A key pressed first, so a focus moved there next is the keyboard's (`:focus-visible`).
   await page.keyboard.press("Tab");

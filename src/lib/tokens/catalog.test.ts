@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   COLOR_TOKENS,
+  CONTAINER_TOKENS,
+  DELAY_TOKENS,
   DURATION_TOKENS,
   FOCUS_RING_TOKENS,
   RADIUS_TOKENS,
@@ -41,6 +43,8 @@ describe("token catalog", () => {
     ["radius", RADIUS_TOKENS],
     ["root", ROOT_TOKENS.map((token) => token.name)],
     ["duration", DURATION_TOKENS.map((token) => token.name)],
+    ["delay", DELAY_TOKENS.map((token) => token.name)],
+    ["container", CONTAINER_TOKENS.map((token) => token.name)],
   ])("lists every %s token globals.css defines", (namespace, listed) => {
     expect(declaredTokens(namespace)).toEqual(listed);
   });

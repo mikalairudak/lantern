@@ -42,3 +42,13 @@ export const UNDRAWN_START: StartOffer = offerOf({
  * day in many words, so its caption wraps beside a drawn city's and the row keeps one line.
  */
 export const LONG_START: StartOffer = { request: ELCHE_REQUEST };
+
+/**
+ * A city whose name sets on two lines in a phone's cell: the lab draws it over a plate, so the
+ * light can be seen to stand clear of a name that wraps. No written day is for it.
+ */
+export const WRAPPING_START: StartOffer = offerOf({
+  city: "Santiago de Compostela",
+  timezone: "Europe/Madrid",
+  company: "friends",
+});

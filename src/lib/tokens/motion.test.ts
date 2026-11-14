@@ -176,12 +176,34 @@ const STEP_ROUNDING_PX = 0.01;
 /** A glide that goes on moves at least this share of its last frame's way in its next. */
 const GOES_ON_SHARE = 0.8;
 
+describe("the brisk spring", () => {
+  /** The reach a plate's light leaves from, as a share, so a frame's way reads as one. */
+  const WHOLE = 1;
+
+  it("goes in half the gentle spring's time", () => {
+    const framesTo = (path: readonly number[], share: number) =>
+      path.findIndex((at) => at >= WHOLE * share);
+    const brisk = pathOf(SPRINGS.brisk, WHOLE);
+    const gentle = pathOf(SPRINGS.gentle, WHOLE);
+    expect(SPRINGS.brisk.visualDuration).toBe(SPRINGS.gentle.visualDuration / 2);
+    expect(framesTo(brisk, 0.95)).toBeLessThanOrEqual(Math.ceil(framesTo(gentle, 0.95) / 2));
+  });
+
+  it("never passes its end, nor does the gentle one, so a light's reach never goes under nothing", () => {
+    for (const leaving of [SPRINGS.brisk, SPRINGS.gentle]) {
+      expect(leaving.bounce).toBe(0);
+      expect(Math.max(...pathOf(leaving, WHOLE))).toBeLessThanOrEqual(WHOLE);
+    }
+  });
+});
+
 describe("physicsOf", () => {
   it("moves from rest as the spring set by its time, every spring a glide sets off on", () => {
     const springs = [
       SPRINGS.layout,
       SPRINGS.gentle,
       SPRINGS.snappy,
+      SPRINGS.brisk,
       springOver(SPRINGS.layout, KYOTO_TO_NAFPLIO_PX, ROOM_REACH_PX),
       gestureGlideOver(330),
     ];

@@ -1,5 +1,4 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { NEVER_QUIET_DAY } from "@/lib/fixtures/edge/edge-days";
 import { dayText, simulateDayStream, type StreamEnding } from "@/lib/stream/simulate-day-stream";
@@ -124,23 +123,21 @@ describe("the line under a live day's chart", () => {
   it(
     "offers a day cut short in its versions, its stops kept, only its link, and no time",
     async () => {
-      const user = userEvent.setup();
       const text = dayText(NEVER_QUIET_DAY.day);
       streamed.ending = { kind: "cut", at: text.indexOf('"alternatives"') + 400, by: "length" };
       render(<Day first={NEVER_QUIET_DAY.request} isLive />);
 
       // Once the stream has ended with the stops it kept, the line holds its sources alone,
-      // and the day's end says what the day is and asks nothing; the menu has no way to take
-      // it along but its link, which a day with no address of its own has not.
+      // and the day's end says what the day is and asks nothing; it has no way to take it along
+      // but its link, which a day with no address of its own has not, so no menu is drawn and
+      // the new day stands in the masthead's row alone.
       await theDayEnds();
       await screen.findByText(/^Home by midnight/, undefined, { timeout: DAY_TIMEOUT_MS });
       await new Promise((settle) => setTimeout(settle, SETTLE_MS));
       expect(sourcesLine()).toHaveTextContent(/^© OpenStreetMap contributors/);
       expect(screen.queryByRole("button", { name: "Yes" })).toBeNull();
-      await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
-      expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
-        expect.stringMatching(/^Plan another day/),
-      ]);
+      expect(screen.queryByRole("button", { name: TAKE_THIS_DAY })).toBeNull();
+      expect(screen.getByRole("button", { name: "New day" })).toHaveClass("inline-flex");
     },
     TEST_TIMEOUT_MS,
   );

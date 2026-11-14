@@ -393,7 +393,7 @@ describe("the days played, as the product counts them", () => {
 
     await user.click(within(headline()).getByRole("button", { name: "Kanazawa" }));
     await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
-    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
+    await user.click(screen.getByRole("menuitem", { name: /New day/ }));
     await user.keyboard("Atlantis{Enter}");
     const lisbon = await screen.findByRole("button", { name: /Bologna/ }, DAY_TIMEOUT);
     await user.click(lisbon);

@@ -46,17 +46,15 @@ test("the start screen offers the question and an index of written days, and hol
   await expect(page).toHaveURL(/\/day\//);
 });
 
-test("a cell pointed at comes up to full ink, for a pointer and the keyboard alike, and a touch screen draws every cell full", async ({
+test("a cell pointed at is lit whole, for a pointer and the keyboard alike, and its city ruled where a pointer can hover", async ({
   page,
 }) => {
   await page.goto("/");
   const index = page.getByRole("list", { name: "No city in mind? Start from one of these" });
   const cells = index.getByRole("button");
-  const pictures = () =>
+  const lights = () =>
     index.evaluate((list) =>
-      [...list.querySelectorAll("button > span:first-child")].map(
-        (picture) => getComputedStyle(picture).opacity,
-      ),
+      [...list.querySelectorAll("svg[data-picture]")].map((svg) => svg.getAttribute("data-light")),
     );
   const ruled = () =>
     index.evaluate((list) =>
@@ -65,28 +63,27 @@ test("a cell pointed at comes up to full ink, for a pointer and the keyboard ali
           getComputedStyle(cell.querySelector("span > span:first-child")!).textDecorationLine,
       ),
     );
-  // Where a pointer can hover, every engraving rests a little under full ink and the one pointed
-  // at comes up to it; a phone's finger cannot hover, so a phone draws every one full.
+  const litAt = (at: number | null) =>
+    INDEX_REQUESTS.map((_, cell) => (cell === at ? "lit" : "rest"));
+  // Every plate rests, its lamps low; the one pointed at is lit whole.
+  await expect.poll(lights).toEqual(litAt(null));
   const canHover = await page.evaluate(() => window.matchMedia("(hover: hover)").matches);
-  const full = INDEX_REQUESTS.map(() => "1");
-  const pointedAt = (at: number) =>
-    canHover ? INDEX_REQUESTS.map((_, cell) => (cell === at ? "1" : "0.9")) : full;
-  await expect.poll(pictures).toEqual(canHover ? INDEX_REQUESTS.map(() => "0.9") : full);
 
   await cells.nth(1).hover();
-  await expect.poll(pictures).toEqual(pointedAt(1));
+  await expect.poll(lights).toEqual(litAt(1));
   expect((await ruled())[1]).toBe(canHover ? "underline" : "none");
 
   // The keyboard shows the same, wherever the pointer is.
   await page.mouse.move(0, 0);
+  await expect.poll(lights).toEqual(litAt(null));
   await cells.nth(1).focus();
   await page.keyboard.press("Tab");
   await expect(cells.nth(2)).toBeFocused();
-  await expect.poll(pictures).toEqual(pointedAt(2));
+  await expect.poll(lights).toEqual(litAt(2));
   expect((await ruled())[2]).toBe("underline");
 });
 
-test("a city's cell draws its engraving from one file, its theme's, kept forever", async ({
+test("a city's cell draws its plate from three files in either theme, its scene and its two bounds, kept forever", async ({
   page,
 }) => {
   const asked: { url: string; status: number; cache: string | null }[] = [];
@@ -104,16 +101,22 @@ test("a city's cell draws its engraving from one file, its theme's, kept forever
   // The picture is out of what is read: the cell is named by its city and its day.
   await expect(madrid).toHaveAccessibleName(/^Madrid Lively Sunday/);
   await expect(madrid.locator('rect[data-layer="scene"]')).toHaveAttribute("data-state", "drawn");
-  await expect(madrid.locator('rect[data-layer="subject"]')).toHaveAttribute(
-    "data-state",
-    "unasked",
+  // Every city the index offers is drawn: three files a cell, each kept forever.
+  await expect.poll(() => asked.length).toBe(3 * INDEX_REQUESTS.length);
+  const kinds = asked.map(({ url }) =>
+    /\/pictures\/([a-z-]+)-(scene-\d+|footprint|sheet)\.[0-9a-f]{8}\.avif$/
+      .exec(url)
+      ?.slice(1, 3)
+      .map((part) => part.replace(/-\d+$/, ""))
+      .join(" "),
   );
-  // Every city the index offers is drawn: one file a cell, its scene, each kept forever.
-  await expect.poll(() => asked.length).toBe(INDEX_REQUESTS.length);
-  const slugs = asked.map(
-    ({ url }) => /\/pictures\/([a-z-]+)-scene-\d+\.[0-9a-f]{8}\.avif$/.exec(url)?.[1],
+  expect(new Set(kinds)).toEqual(
+    new Set(
+      INDEX_REQUESTS.flatMap((request) =>
+        ["scene", "footprint", "sheet"].map((kind) => `${daySlugOf(request)} ${kind}`),
+      ),
+    ),
   );
-  expect(new Set(slugs)).toEqual(new Set(INDEX_REQUESTS.map(daySlugOf)));
   for (const each of asked) {
     expect(each).toMatchObject({ status: 200, cache: "public, max-age=31536000, immutable" });
   }

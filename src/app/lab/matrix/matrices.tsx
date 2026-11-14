@@ -13,6 +13,7 @@ import { PROGRESS_LINE_MATRIX } from "@/features/day/progress-line-matrix";
 import { DAY_MENU_MATRIX } from "@/features/day/day-menu-matrix";
 import { DAY_ANSWER_MATRIX } from "@/features/day/day-answer-matrix";
 import { START_INDEX_MATRIX } from "@/features/day/start-index-matrix";
+import { INDEX_PICTURE_MATRIX } from "@/features/day/index-picture-matrix";
 import { PLAN_MATRIX } from "@/features/day/plan-matrix";
 import { PLAN_ROW_MATRIX } from "@/features/day/plan-row-matrix";
 import { PLAN_BAR_MATRIX } from "@/features/day/plan-bar-matrix";
@@ -21,7 +22,10 @@ import { DAY_END_MATRIX } from "@/features/day/day-end-matrix";
 import { START_HEADER_MATRIX } from "@/features/day/start-header-matrix";
 import { DAY_STAGE_HEADER_MATRIX } from "@/features/day/day-stage-header-matrix";
 import { DAY_HEAD_MATRIX } from "@/features/day/day-head-matrix";
-import { THEME_WORD_MATRIX } from "@/features/theme/theme-word-matrix";
+import { ENERGY_GLYPH_MATRIX } from "@/features/day/energy-glyph-matrix";
+import { ENERGY_LIST_MATRIX } from "@/features/day/energy-list-matrix";
+import { THEME_BUTTON_MATRIX } from "@/features/theme/theme-button-matrix";
+import { MASTHEAD_MATRIX } from "@/features/day/masthead-matrix";
 import { labMatrix, type LabMatrix } from "@/lib/lab-matrix";
 
 /**
@@ -40,16 +44,20 @@ export const MATRICES: readonly LabMatrix[] = [
   DAY_ANSWER_MATRIX,
   FOOT_LINE_MATRIX,
   DAY_MENU_MATRIX,
+  MASTHEAD_MATRIX,
   START_HEADER_MATRIX,
   START_INDEX_MATRIX,
+  INDEX_PICTURE_MATRIX,
   YOUR_DAYS_MATRIX,
   CITY_WORD_MATRIX,
   DAY_STAGE_HEADER_MATRIX,
   DAY_HEAD_MATRIX,
+  ENERGY_LIST_MATRIX,
+  ENERGY_GLYPH_MATRIX,
   PLAN_MATRIX,
   PLAN_ROW_MATRIX,
   PLAN_BAR_MATRIX,
-  THEME_WORD_MATRIX,
+  THEME_BUTTON_MATRIX,
   labMatrix<FrameCellProps>({
     key: "stream-frames",
     title: "Stream frames",

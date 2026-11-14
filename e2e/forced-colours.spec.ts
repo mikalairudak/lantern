@@ -101,19 +101,28 @@ for (const system of ["light", "dark"] as const) {
   }
 }
 
-test("an engraving takes the device's layer when forced colours turn on, and the chosen one when they end", async ({
+test("a plate keeps its files as forced colours turn on and end, and stands clear of each canvas", async ({
   page,
 }) => {
   await keepTheme(page, "light");
   await page.emulateMedia({ forcedColors: "none", colorScheme: "dark" });
+  const asked: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/pictures/")) asked.push(request.url());
+  });
   await page.goto("/");
   const picture = await drawnPictureOf(page);
-  const subject = picture.locator('rect[data-layer="subject"]');
-  await expect(subject).toHaveAttribute("data-state", "unasked");
+  const filesOf = () =>
+    picture.evaluate((svg) =>
+      [...svg.querySelectorAll("image")].map((image) => image.getAttribute("href")),
+    );
+  const files = await filesOf();
+  const askedBefore = asked.length;
 
+  // A plate draws the same files in every theme, so forced colours change only its colours.
   await page.emulateMedia({ forcedColors: "active", colorScheme: "dark" });
-  await expect(subject).toHaveAttribute("data-state", "drawn");
   const forced = await inkAndCanvasOf(page);
+  expect(luminanceOf(forced.canvas) > 0.5).toBe(false);
   expect(contrastOf(forced.ink, forced.canvas)).toBeGreaterThanOrEqual(GRAPHICS_CONTRAST);
 
   await page.emulateMedia({ forcedColors: "none", colorScheme: "dark" });
@@ -121,9 +130,11 @@ test("an engraving takes the device's layer when forced colours turn on, and the
   const chosen = await inkAndCanvasOf(page);
   expect(luminanceOf(chosen.canvas) > 0.5).toBe(true);
   expect(contrastOf(chosen.ink, chosen.canvas)).toBeGreaterThanOrEqual(GRAPHICS_CONTRAST);
+  expect(await filesOf()).toEqual(files);
+  expect(asked.slice(askedBefore)).toEqual([]);
 });
 
-/** Where each thing in the masthead's row stands: the row holds the theme's icon. */
+/** Where each thing in the masthead's row stands: the row holds the theme's button. */
 async function mastheadOf(page: Page): Promise<number[][]> {
   return page
     .locator("[data-theme-icon]")
@@ -143,7 +154,8 @@ for (const path of ["/", "/day/rome"]) {
     await keepTheme(page, "dark");
     await page.emulateMedia({ colorScheme: "light" });
     await page.goto(path);
-    const icon = page.getByRole("button", { name: "Theme: Dark" });
+    // Dark kept on a light device: the page is dark, and the button offers light.
+    const icon = page.getByRole("button", { name: "Switch to light theme" });
     await expect(icon).toBeVisible();
     if (path === "/")
       await expect(page.getByRole("heading", { name: INDEX_HEADING })).toBeVisible();
@@ -152,15 +164,15 @@ for (const path of ["/", "/day/rome"]) {
 
     await page.emulateMedia({ forcedColors: "active", colorScheme: "light" });
     await expect(icon).toBeHidden();
-    await expect(page.getByRole("button", { name: /^Theme: / })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Switch to / })).toHaveCount(0);
     expect(await mastheadOf(page)).toEqual(before);
     // Out of the keyboard's way too: on the start screen the icon is otherwise its first stop.
     if (path === "/") {
       await page.keyboard.press("Tab");
       await expect(page.locator(":focus")).toBeVisible();
-      expect(
-        await page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? ""),
-      ).not.toMatch(/^Theme/);
+      expect(await page.evaluate(() => document.activeElement?.textContent ?? "")).not.toMatch(
+        /^Switch to /,
+      );
     }
     expect(await page.evaluate(() => localStorage.getItem("lantern-theme"))).toBe("dark");
 
@@ -170,14 +182,17 @@ for (const path of ["/", "/day/rome"]) {
   });
 }
 
-test("the theme's list, open as forced colours turn on, goes with its icon", async ({ page }) => {
+test("the theme's helper, shown as forced colours turn on, goes with its button", async ({
+  page,
+}) => {
   await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/");
-  await page.getByRole("button", { name: "Theme: System" }).click();
-  const list = page.getByRole("listbox", { name: "Theme" });
-  await expect(list).toBeVisible();
+  // On the start screen the button is the keyboard's first stop, and its focus shows the helper.
+  await page.keyboard.press("Tab");
+  const helper = page.locator("[data-theme-helper]");
+  await expect(helper).toHaveCSS("opacity", "1");
+  await expect(helper).toBeVisible();
 
   await page.emulateMedia({ forcedColors: "active", colorScheme: "light" });
-  await expect(list).toBeHidden();
-  await expect(page.getByRole("option")).toHaveCount(0);
+  await expect(helper).toBeHidden();
 });

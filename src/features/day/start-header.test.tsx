@@ -17,6 +17,15 @@ import { FORGET_YOUR_DAYS } from "./your-days-list";
 /** The written days as the index offers them. */
 const STARTS = startOffersOf(writtenPool());
 
+/** The start's own status: the theme's button in the masthead says its look in one too. */
+function startStatus(): HTMLElement {
+  const [line, ...others] = screen
+    .getAllByRole("status")
+    .filter((status) => !status.hasAttribute("data-theme-status"));
+  if (!line || others.length > 0) throw new Error("Not one status of the start's own");
+  return line;
+}
+
 const NO_WORDS: IntakeWords = {
   date: null,
   energy: "balanced",
@@ -86,9 +95,7 @@ describe("StartHeader", () => {
 
     expect(field).toHaveAttribute("readonly");
     expect(within(writtenDays()).getAllByRole("button")).toHaveLength(STARTS.length);
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Opening a lively Saturday in Lisbon, with friends",
-    );
+    expect(startStatus()).toHaveTextContent("Opening a lively Saturday in Lisbon, with friends");
   });
 
   it("says with live generation off that no new day is written, and with it on what happens next", () => {
@@ -214,7 +221,7 @@ describe("StartHeader", () => {
 
     // The line under the field says it in words, where the example stood, at the example's
     // size: a cold start's four seconds never stand still and unsaid.
-    const said = screen.getByRole("status");
+    const said = startStatus();
     expect(said).toHaveTextContent(/^Reading what you wrote$/);
     expect(said).toHaveClass("text-body");
     expect(said).not.toHaveTextContent(/For example/);
@@ -319,7 +326,7 @@ describe("StartHeader", () => {
   it("marks an energy the text did not name as Lantern's", () => {
     renderStart({ line: { kind: "question", words: NO_WORDS, readings: [], unplaced: [] } });
 
-    expect(within(screen.getByRole("status")).getByText("balanced")).toHaveClass("underline");
+    expect(within(startStatus()).getByText("balanced")).toHaveClass("underline");
   });
 
   it("names the weekday only when the text named the date", () => {
@@ -390,7 +397,7 @@ describe("StartHeader", () => {
     const user = userEvent.setup();
     const { onChooseWritten } = renderStart({ line: { kind } });
 
-    const line = screen.getByRole("status");
+    const line = startStatus();
     expect(line).toHaveTextContent(`${said} Start from one of the days below.`);
     // Said once, in place of the note, and the days are offered once, as the index below.
     expect(screen.queryByText(NOT_LIVE_NOTE)).not.toBeInTheDocument();
@@ -403,7 +410,7 @@ describe("StartHeader", () => {
   it("says with live generation on that the text could not be read, rather than that no days are written", () => {
     renderStart({ line: { kind: "not-yet" }, isLive: true });
 
-    expect(screen.getByRole("status")).toHaveTextContent("Lantern couldn't read that just now.");
+    expect(startStatus()).toHaveTextContent("Lantern couldn't read that just now.");
   });
 });
 
@@ -520,7 +527,7 @@ describe("the field's room", () => {
     renderStart({ line: { kind: "limited" } });
     fireEvent.change(field(), { target: { value: textOf(MAX_INTAKE_TEXT_CHARS - 30) } });
 
-    expect(screen.getByRole("status")).toHaveTextContent(/^Lantern has written all the days/);
+    expect(startStatus()).toHaveTextContent(/^Lantern has written all the days/);
     expect(field()).toHaveAccessibleDescription("30 left");
   });
 

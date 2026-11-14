@@ -3,6 +3,7 @@ import { replanPlanOf, type WindowSpan } from "@/lib/replan/windows";
 import type {
   AssumableFactKey,
   DayRequest,
+  EnergyLevel,
   FactKey,
   Itinerary,
 } from "@/lib/schema/itinerary.schema";
@@ -217,7 +218,10 @@ export function notReplanningYetOf(key: FactKey, stops: readonly StopDraft[]): s
 export type AnswerReach =
   /** The answer the word has: choosing it changes nothing. */
   | { kind: "current" }
-  /** The energy: the curve re-picks among the versions already written. */
+  /**
+   * The energy: the curve re-picks among the versions already written. What that changes
+   * depends on the places on screen, which a reach does not know: `repickLineOf` says it.
+   */
   | { kind: "repick" }
   /**
    * A word whose windows the route rewrites, by the parts of the day they hold, and the time
@@ -229,11 +233,35 @@ export type AnswerReach =
   /** A time word no stop names, or windows that hold most of the day: the whole day again. */
   | { kind: "whole" };
 
-/** Said under the energy word's other answers. */
-export const REPICKS_AT_ONCE = "re-picks at once";
+/** How long a change made on the page takes: it is there when chosen. */
+const AT_ONCE = "at\u00A0once";
 
-/** Said under an answer that changes the word alone: travel's, and company's no stop names. */
-export const KEEPS_EVERY_STOP = "keeps every stop · at\u00A0once";
+/**
+ * Said under an answer that changes the word alone (travel's, and company's no stop names),
+ * and under an energy answer that leaves every stop as it is shown.
+ */
+export const KEEPS_EVERY_STOP = `keeps every stop · ${AT_ONCE}`;
+
+/** What the energy word's answers would do to the stops on screen, as the page counts it. */
+export interface EnergyRepicks {
+  /** How many stops a level would show another place at, counted from the re-pick its press makes. */
+  changedBy: (level: EnergyLevel) => number;
+  /** The stops on screen. */
+  stops: number;
+}
+
+/**
+ * The line under an energy answer: "re-picks six stops · at once", "keeps every stop · at once"
+ * where it changes none, and "re-picks every stop" where it changes them all on a day of two or
+ * more. The count says beforehand that a level clears the stops the visitor chose, and that a
+ * neighbouring level can give the same day.
+ */
+export function repickLineOf(changed: number, stops: number): string {
+  if (changed === 0) return KEEPS_EVERY_STOP;
+  if (changed === 1) return `re-picks one stop · ${AT_ONCE}`;
+  if (changed >= stops) return `re-picks every stop · ${AT_ONCE}`;
+  return `re-picks ${PART_COUNTS[changed] ?? String(changed)} stops · ${AT_ONCE}`;
+}
 
 /**
  * What the facts line says once such a word is chosen, in place of its hint, why no stop
@@ -327,17 +355,17 @@ export function answerReachOf(
  */
 const MAX_NAMED_PARTS = 4;
 
-/** How many parts, in words, as the line under an answer counts them past `MAX_NAMED_PARTS`. */
+/** A count in words to nine, as the line under an answer says it; digits past. */
 const PART_COUNTS = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
 
 /**
  * The line under an answer: "a proposal for lunch and dinner · about half a minute", "a proposal
  * for five parts of the day · about half a minute" past four, "a proposal for the whole day ·
- * under a minute" or "re-picks at once"; none under the current answer.
+ * under a minute"; none under the current answer, nor here under the energy's, whose line counts
+ * the places on screen (`repickLineOf`).
  */
 export function forecastOf(reach: AnswerReach): string | null {
-  if (reach.kind === "current") return null;
-  if (reach.kind === "repick") return REPICKS_AT_ONCE;
+  if (reach.kind === "current" || reach.kind === "repick") return null;
   if (reach.kind === "keep") return KEEPS_EVERY_STOP;
   if (reach.kind === "whole") return WHOLE_DAY_AGAIN;
   if (reach.parts.length <= MAX_NAMED_PARTS) {

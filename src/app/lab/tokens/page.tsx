@@ -3,6 +3,8 @@ import type { LucideIcon } from "lucide-react";
 import { ArrowLeftRight, MapPin, Sun } from "lucide-react";
 import {
   COLOR_TOKENS,
+  CONTAINER_TOKENS,
+  DELAY_TOKENS,
   DURATION_TOKENS,
   FOCUS_RING_TOKENS,
   RADIUS_TOKENS,
@@ -32,7 +34,10 @@ const SWATCH_CLASSES: Record<ColorToken, string> = {
   "ink-soft": "bg-ink-soft",
   muted: "bg-muted",
   engraving: "bg-engraving",
-  "engraving-night": "bg-engraving-night",
+  "plate-tone": "bg-plate-tone",
+  "plate-lit": "bg-plate-lit",
+  "plate-lit-wide": "bg-plate-lit-wide",
+  "plate-half": "bg-plate-half",
   line: "bg-line",
   wire: "bg-wire",
   amber: "bg-amber",
@@ -163,6 +168,7 @@ export default async function TokensPage() {
       <ColorSection />
       <TypeSection />
       <SpacingSection />
+      <WidthSection />
       <ShapeSection />
       <FocusSection />
       <Section
@@ -173,13 +179,19 @@ export default async function TokensPage() {
       </Section>
       <Section
         title="Motion"
-        note="Springs from src/lib/tokens/motion.ts, and the lengths timed in CSS from globals.css"
+        note="Springs from src/lib/tokens/motion.ts, and the lengths and waits timed in CSS from globals.css"
       >
         <MotionDemo />
         <ul className="flex flex-col gap-4">
           {DURATION_TOKENS.map(({ name, role }) => (
             <li key={name} className="flex flex-col gap-1 md:flex-row md:gap-8">
               <span className="w-label shrink-0 text-meta">--duration-{name}</span>
+              <span className="text-small text-muted">{role}</span>
+            </li>
+          ))}
+          {DELAY_TOKENS.map(({ name, role }) => (
+            <li key={name} className="flex flex-col gap-1 md:flex-row md:gap-8">
+              <span className="w-label shrink-0 text-meta">--delay-{name}</span>
               <span className="text-small text-muted">{role}</span>
             </li>
           ))}
@@ -273,6 +285,21 @@ function SpacingSection() {
           <li key={token} className="flex items-center gap-4">
             <span className="w-10 shrink-0 text-meta text-muted">{token}</span>
             <span className={`h-2 bg-energy ${SPACING_CLASSES[token]}`} />
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
+function WidthSection() {
+  return (
+    <Section title="Widths" note="The columns and the container queries' thresholds">
+      <ul className="flex flex-col gap-4">
+        {CONTAINER_TOKENS.map(({ name, role }) => (
+          <li key={name} className="flex flex-col gap-1 md:flex-row md:gap-8">
+            <span className="w-label shrink-0 text-meta">--container-{name}</span>
+            <span className="text-small text-muted">{role}</span>
           </li>
         ))}
       </ul>

@@ -353,12 +353,13 @@ describe("DayStageHeader through a word's fork", () => {
 
     await user.click(onFoot);
     await user.click(within(headline()).getByRole("button", { name: /Elx \/ Elche/ }));
-    // The way to another day, in the day menu, is locked as the words are: muted, and said so.
-    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
-    const planAnother = screen.getByRole("menuitem", { name: /^Plan another day/ });
-    expect(planAnother).toHaveAttribute("aria-disabled", "true");
-    expect(within(planAnother).getByText("Plan another day")).toHaveClass("text-muted");
-    await user.click(planAnother);
+    // The way to another day, the new day's button, is locked as the words are: muted, with no
+    // hairline, and said so. With no way along there is no menu, and it stands in the row.
+    expect(screen.queryByRole("button", { name: TAKE_THIS_DAY })).toBeNull();
+    const newDay = screen.getByRole("button", { name: "New day" });
+    expect(newDay).toHaveAttribute("aria-disabled", "true");
+    expect(newDay).toHaveClass("text-muted", "no-underline");
+    await user.click(newDay);
 
     expect(seenTextOf(factsLine())).toContain(ONE_CHANGE_AT_A_TIME);
     expect(status).toHaveTextContent(ONE_CHANGE_AT_A_TIME);

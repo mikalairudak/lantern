@@ -26,7 +26,7 @@ const ITEMS: DayMenuItem[] = [
   { key: "link", label: "Copy the link", note: "Opens this day", keepsOpen: true },
   { key: "calendar", label: "Add to your calendar", note: "8 events" },
   { key: "route", label: "Walk it in Google Maps", note: "The 8 stops", href: "https://maps" },
-  { key: "another", label: "Plan another day", note: "Elsewhere", isApart: true },
+  { key: "another", label: "New day", note: "Elsewhere", isApart: true },
 ];
 
 function menuItems(): string[] {
@@ -147,7 +147,7 @@ describe("the day menu", () => {
       </>,
     );
     await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
-    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
+    await user.click(screen.getByRole("menuitem", { name: /New day/ }));
     expect(screen.getByRole("textbox")).toHaveFocus();
 
     rerender(
@@ -157,7 +157,7 @@ describe("the day menu", () => {
       </>,
     );
     await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
-    const locked = screen.getByRole("menuitem", { name: /Plan another day/ });
+    const locked = screen.getByRole("menuitem", { name: /New day/ });
     expect(locked).toHaveAttribute("aria-disabled", "true");
     await user.click(locked);
     expect(onLocked).toHaveBeenCalledOnce();
@@ -258,7 +258,7 @@ describe("the ways to take a day along", () => {
 });
 
 describe("the day header's menu", () => {
-  it("holds the ways along and opens the city's field from “Plan another day”", async () => {
+  it("holds the ways along and opens the city's field from “New day”", async () => {
     const user = userEvent.setup();
     const onCityOpenChange = vi.fn();
     const facts = sentenceFactsOf(KYOTO_REQUEST, {});
@@ -293,7 +293,7 @@ describe("the day header's menu", () => {
     );
     await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
     expect(menuItems()).toHaveLength(2);
-    await user.click(screen.getByRole("menuitem", { name: /Plan another day/ }));
+    await user.click(screen.getByRole("menuitem", { name: /New day/ }));
     expect(onCityOpenChange).toHaveBeenCalledWith("elsewhere");
   });
 });

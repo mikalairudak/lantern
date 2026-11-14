@@ -68,6 +68,7 @@ import {
   type SentenceFacts,
 } from "./sentence";
 import { DayMenu, type DayMenuItem } from "./day-menu";
+import { NEW_DAY, NEW_DAY_NOTE, NewDayButton } from "./new-day";
 import { Masthead } from "./masthead";
 import {
   BEING_WRITTEN,
@@ -77,8 +78,10 @@ import {
   YOUR_DAY_WHILE_WRITTEN,
   answerReachOf,
   forecastOf,
+  repickLineOf,
   replanningOf,
   replanningReachOf,
+  type EnergyRepicks,
 } from "./not-yet";
 import type { ReplanControls } from "./replan-controls";
 
@@ -261,10 +264,7 @@ const NO_REPLAN: ReplanControls = {
  */
 export const ONE_CHANGE_AT_A_TIME = "one change at a time";
 
-/** The day menu's last item, set apart under the ways to take the day along. */
-const PLAN_ANOTHER_DAY = "Plan another day";
-
-/** No way to take the day along: the menu holds "Plan another day" alone. */
+/** No way to take the day along: no menu is drawn, and the new day stands in the row. */
 const NO_WAYS_ALONG: readonly DayMenuItem[] = [];
 
 /** How the end of the facts line stands while a word is re-planned and after. */
@@ -410,14 +410,20 @@ interface DayStageHeaderProps {
    * streams, and with live generation off, when only the energy says what it does.
    */
   replanDay?: Itinerary | null;
+  /**
+   * What each energy answer would change on screen, from the re-pick its press makes: the line
+   * under it counts the stops. The header cannot work it out, since it knows the day and not
+   * the visitor's picks. None, and the energy's answers say nothing.
+   */
+  energyRepicks?: EnergyRepicks | null;
   /** A word whose list is drawn open, as a lab cell draws it, taking no focus; null for none. */
   openedWord?: FactKey | null;
   /** As a lab cell draws it: a locked word was pressed while a re-plan is written. */
   isLockSaid?: boolean;
   onCityOpenChange: (openAt: CityFocus | null) => void;
   /**
-   * The ways to take the day along, for the day menu, which holds them and "Plan another day";
-   * none for a day that has none, as one that ended without a day.
+   * The ways to take the day along, for the day menu, which holds them; none for a day that
+   * has none, as one that ended without a day, which draws no menu.
    */
   takeAlong?: readonly DayMenuItem[];
   /** Told each time the visitor opens the day menu. */
@@ -504,7 +510,7 @@ interface DayStageHeaderProps {
 /**
  * The request as the headline and the form: the visitor's words from the start, Lantern's as
  * they arrive, then the line about the day and the facts. The city is a word like the
- * others, and the masthead's "Plan another day" opens it at its field.
+ * others, and the masthead's "New day" opens it at its field.
  */
 export function DayStageHeader({
   request,
@@ -541,6 +547,7 @@ export function DayStageHeader({
   onPointToFork = ignore,
   forkNote = null,
   replanDay = null,
+  energyRepicks = null,
   openedWord = null,
   isLockSaid = false,
   onCityOpenChange,
@@ -845,6 +852,29 @@ export function DayStageHeader({
   const [isLockedPressed, setIsLockedPressed] = useState(false);
   if (!isReplanWriting && isLockedPressed) setIsLockedPressed(false);
   const sayLocked = () => setIsLockedPressed(true);
+  // The new day opens the city word at its field. The button counts as the list's own word, so
+  // a press with the list open folds nothing, and puts the focus back in the field itself, as
+  // the list's own state does not change.
+  const newDayButton = useRef<HTMLButtonElement>(null);
+  const cityField = useRef<HTMLInputElement>(null);
+  const cityWordButton = useRef<HTMLButtonElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  // Escape on the new day is Escape in the list it opened: the list closes, and the focus goes
+  // to the city word, which owns it.
+  const closeNewDay = () => {
+    if (cityOpenAt === null) return;
+    cityWordButton.current?.focus();
+    onCityOpenChange(null);
+  };
+  const openNewDay = () => {
+    if (isReplanWriting) return sayLocked();
+    onCityOpenChange("elsewhere");
+    cityField.current?.focus();
+  };
+  // A menu that leaves the page with the focus in it, as its last way goes, hands the focus to
+  // the new day, which stands in the row from the frame the menu is gone.
+  const giveNewDayTheFocus = () => requestAnimationFrame(() => newDayButton.current?.focus());
+  const hasWaysAlong = takeAlong.length > 0;
   const isLockedSaid = isReplanWriting && (isLockedPressed || isLockSaid);
   const slotStanding: SlotStanding = !isReplanWriting ? "shown" : isLockedSaid ? "locked" : "faded";
   // A locked word pressed is answered in the facts line, so the fork's note gives way to it.
@@ -922,7 +952,7 @@ export function DayStageHeader({
         isFocusedOnMount={key === focusedWord}
         view={{
           ...viewOf(key, fact, notice === null),
-          options: optionsOf(key, fact, replan, forecasts),
+          options: optionsOf(key, fact, replan, forecasts, energyRepicks),
         }}
         lead={lead}
         trail={trail}
@@ -961,21 +991,36 @@ export function DayStageHeader({
     >
       <Masthead
         menu={
-          <DayMenu
-            items={[
-              ...takeAlong,
-              {
-                key: "another",
-                label: PLAN_ANOTHER_DAY,
-                note: "Ask for a day somewhere else",
-                // It opens the city word at its field, locked while a re-plan is written.
-                onSelect: () => (isReplanWriting ? sayLocked() : onCityOpenChange("elsewhere")),
-                isLocked: isReplanWriting,
-                movesFocus: !isReplanWriting,
-                isApart: takeAlong.length > 0,
-              },
-            ]}
-            onOpen={onMenuOpen}
+          hasWaysAlong && (
+            <DayMenu
+              items={[
+                ...takeAlong,
+                {
+                  key: "another",
+                  label: NEW_DAY,
+                  note: NEW_DAY_NOTE,
+                  // It opens the city word at its field, locked while a re-plan is written.
+                  onSelect: () => (isReplanWriting ? sayLocked() : onCityOpenChange("elsewhere")),
+                  isLocked: isReplanWriting,
+                  movesFocus: !isReplanWriting,
+                  isApart: true,
+                  isInRowFromMasthead: true,
+                },
+              ]}
+              onFocusLost={giveNewDayTheFocus}
+              triggerRef={menuButton}
+              onOpen={onMenuOpen}
+            />
+          )
+        }
+        newDay={
+          <NewDayButton
+            ref={newDayButton}
+            onPress={openNewDay}
+            onEscape={closeNewDay}
+            onHiddenWithFocus={() => menuButton.current?.focus()}
+            isLocked={isReplanWriting}
+            isAlwaysInRow={!hasWaysAlong}
           />
         }
       />
@@ -1040,6 +1085,9 @@ export function DayStageHeader({
                       current={request}
                       openAt={cityOpenAt}
                       onOpenChange={onCityOpenChange}
+                      ownWord={newDayButton}
+                      fieldRef={cityField}
+                      wordRef={cityWordButton}
                       onChooseWritten={onChooseWritten}
                       onChooseCity={onChooseCity}
                       typedCity={typedCity}
@@ -1447,24 +1495,37 @@ function withAnswerValuesOf(replan: ReplanControls): ReplanControls {
   };
 }
 
-/** What each answer of each word would do, by `${key}:${value}`; for the energy alone without a day. */
+/**
+ * What each answer of each word but the energy would do, by `${key}:${value}`; none without a
+ * day. The energy's line counts the places on screen (`EnergyRepicks`).
+ */
 type Forecasts = ReadonlyMap<string, string | null>;
 
 function forecastsOf(day: Itinerary | null, request: DayRequest, facts: SentenceFacts): Forecasts {
   const forecasts = new Map<string, string | null>();
+  if (day === null) return forecasts;
   for (const key of FACT_KEYS) {
-    if (key !== "energy" && day === null) continue;
+    if (key === "energy") continue;
     for (const { value } of FACT_OPTIONS[key]) {
-      const reach =
-        day === null
-          ? facts.energy?.value === value
-            ? ({ kind: "current" } as const)
-            : ({ kind: "repick" } as const)
-          : answerReachOf(day, request, facts, { key, value });
-      forecasts.set(`${key}:${value}`, forecastOf(reach));
+      forecasts.set(
+        `${key}:${value}`,
+        forecastOf(answerReachOf(day, request, facts, { key, value })),
+      );
     }
   }
   return forecasts;
+}
+
+/** The line under an answer the word does not have: the energy's count, or its forecast. */
+function consequenceOf(
+  key: FactKey,
+  value: string,
+  forecasts: Forecasts,
+  energyRepicks: EnergyRepicks | null,
+): string | null {
+  if (key !== "energy") return forecasts.get(`${key}:${value}`) ?? null;
+  if (energyRepicks === null) return null;
+  return repickLineOf(energyRepicks.changedBy(value as EnergyLevel), energyRepicks.stops);
 }
 
 /** An answer of a changed word as the sentence says it: its label, or the page's question. */
@@ -1502,13 +1563,17 @@ function optionsOf(
   fact: Fact | null,
   { status, change }: ReplanControls,
   forecasts: Forecasts,
+  energyRepicks: EnergyRepicks | null,
 ): OptionView[] {
   const options = (fact?.options ?? []).map((option): OptionView => ({
     value: option.value,
     label: option.label,
     isCurrent: option.value === fact?.value,
     consequence:
-      option.value === fact?.value ? null : (forecasts.get(`${key}:${option.value}`) ?? null),
+      option.value === fact?.value
+        ? null
+        : consequenceOf(key, option.value, forecasts, energyRepicks),
+    ...(key === "energy" && { energyLevel: option.value as EnergyLevel }),
   }));
   if (change === null || key !== change.word || status === "failed") return options;
   // The day before had Lantern's question here: its row stands for it by what the page said.

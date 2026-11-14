@@ -11,13 +11,31 @@
    word opens counts. */
 @custom-variant panel-open (&:has([aria-expanded="true"]));
 
-/* The theme the visitor chose, as <html> notes it: the head script sets data-theme-choice
-   before the first paint, so the theme's icon is the choice from the first frame, and the
-   server's page and that frame agree. The choice, not the theme it resolves to: System on a dark
-   device is System. With no note, as without script, the choice is the system's. */
-@custom-variant chose-system (:root:not([data-theme-choice="light"], [data-theme-choice="dark"]) &);
-@custom-variant chose-light (:root[data-theme-choice="light"] &);
-@custom-variant chose-dark (:root[data-theme-choice="dark"] &);
+/* The look the page stands in, whatever chose it: by day where light is chosen, or nothing is
+   and the device is light; by night the same way. The head script sets data-theme-choice
+   before the first paint, so the theme's button offers the other look from the first frame,
+   and the server's page and that frame agree. With no note, as without script, the device's
+   look stands. */
+@custom-variant page-day {
+  :root[data-theme-choice="light"] & {
+    @slot;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme-choice="light"], [data-theme-choice="dark"]) & {
+      @slot;
+    }
+  }
+}
+@custom-variant page-night {
+  :root[data-theme-choice="dark"] & {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme-choice="light"], [data-theme-choice="dark"]) & {
+      @slot;
+    }
+  }
+}
 /* The day's view the visitor chose, as <html> notes it: the head script sets data-day-view
    before the first paint, the plan unless the chart was chosen (view-choice.ts). With no
    note, as without script, the plan shows, once the page's first HTML holds the day. */
@@ -86,13 +104,13 @@
    * Display and title grow with the width they are set in: `cqi` reads the nearest
    * `@container`, and with none the small viewport, which is the screen's width. The header's
    * room is a container, so its title follows the header's column: the screen's width on a
-   * phone and from about 1100 px wide, up to a pixel smaller between. The matrix's phone
+   * phone and from about 1070 px wide, about a pixel smaller between. The matrix's phone
    * cells are containers too, so a header in one reads as on a phone.
    */
   --text-display: clamp(2.5rem, 1.75rem + 2.5cqi, 3.375rem);
   --text-display--line-height: 1.02;
   --text-display--letter-spacing: -0.015em;
-  --text-title: clamp(1.75rem, 1.4rem + 1.2cqi, 2.125rem);
+  --text-title: clamp(1.625rem, 1.3rem + 1.4cqi, 2.125rem);
   --text-title--line-height: 1.08;
   --text-title--letter-spacing: -0.01em;
   --text-heading: 1.375rem;
@@ -173,6 +191,13 @@
   --container-chart: 28rem;
   /* The day as rows of the abacus, each name at its bead, on a wide screen. */
   --container-abacus: 48rem;
+  /*
+   * The shortest masthead row that holds the day's menu, the new day and the theme side by side:
+   * the widest the built row needs, measured in each browser and in the face that stands in
+   * before Literata lands, plus 6 px for the phones no measure was taken on
+   * (`docs/decisions.md`, "The day's ways along live in one menu, in the masthead").
+   */
+  --container-masthead: 21.375rem;
 
   /*
    * The page grows on a large screen. From a viewport `grows-from` rems wide, 1440 px at the
@@ -201,6 +226,11 @@
    * (`docs/decisions.md`, "The theme crosses as one cross-fade of the whole page").
    */
   --duration-theme: 200ms;
+  /*
+   * How long a pointer rests on an icon before its helper shows: long enough that a pointer
+   * crossing the masthead raises nothing.
+   */
+  --delay-helper: 400ms;
 
   /*
    * One of two loops, with `pass-steady` below: the waiting line's light, shown while the
@@ -298,12 +328,20 @@
   --color-ink-soft: light-dark(#193a47, #d0c3b1);
   --color-muted: light-dark(#405b64, #a39686);
   /*
-   * The index's engravings, in the page's ink and only in one theme each: the whole scene by day,
-   * the subject alone by night (docs/decisions.md, "The index's pictures are engravings of a
-   * city's everyday thing"). Each is ink where it is drawn; palette.test.ts holds them to it.
+   * The index's plates. By night a plate stands in its tone (plate-tone) with its lines in the
+   * ground's colour (engraving); by day the lines are the page's ink and there is no tone. A
+   * plate's light is plate-lit: lit paper by day, lamplight by night, in the pool at each source
+   * and over the whole plate when it is lit, with plate-half at a pool's edge. By day the lit
+   * sheet lies a little wider than the drawing; by night it does not. plate-lit-wide says which:
+   * it is never painted, and with plate-tone, each nothing in one theme, it fills the mask through
+   * which a plate's light takes its bounds by theme (docs/decisions.md, "A plate is lit whole,
+   * from sources drawn in it"). palette.test.ts holds their steps.
    */
-  --color-engraving: light-dark(#001924, transparent);
-  --color-engraving-night: light-dark(transparent, #f7eddf);
+  --color-engraving: light-dark(#001924, #011d27);
+  --color-plate-tone: light-dark(transparent, #4c7887);
+  --color-plate-lit: light-dark(#fffdf8, #ffe2b3);
+  --color-plate-lit-wide: light-dark(#fffdf8, transparent);
+  --color-plate-half: light-dark(#fcf4e7, #b68d53);
   --color-line: light-dark(#d8d0c1, #173843);
   /* The abacus wires: the chart's structure, 2:1 on the ground, between a rule and text. */
   --color-wire: light-dark(#a3a39b, #3a5560);
@@ -541,6 +579,24 @@ html {
       -webkit-text-fill-color: currentColor;
     }
   }
+}
+
+/*
+ * An icon's helper fades as a hover's colour does, and stands whole at once under reduced
+ * motion, which still waits as long before it shows (`theme-choice.tsx`).
+ */
+@utility helper-fade {
+  transition-property: opacity;
+  transition-timing-function: --theme(--default-transition-timing-function);
+  transition-duration: --theme(--default-transition-duration);
+  @media (prefers-reduced-motion: reduce) {
+    transition-duration: 0s;
+  }
+}
+
+/* The wait before an icon's helper shows under a pointer. */
+@utility helper-wait {
+  transition-delay: --theme(--delay-helper);
 }
 
 /*
