@@ -53,7 +53,7 @@ const CITIES = ["kanazawa", "utrecht", "nafplio"];
 const PHONE = { width: 390, height: 844 };
 /**
  * Each city's phone for the curve's clause: a width near 390 px where "livelier at breakfast"
- * takes the sentence onto a line of its own in Literata. At 390 px Utrecht's clause fits the
+ * takes the sentence onto a line of its own. At 390 px Utrecht's clause fits the
  * sentence's last line and Nafplio's moves only the line's lead.
  */
 const CLAUSE_PHONE_WIDTHS: Record<string, number> = { kanazawa: 390, utrecht: 375, nafplio: 400 };
@@ -576,15 +576,16 @@ function expectNamesKeepTheirLines(frames: readonly Frame[]): void {
   }
 }
 
-test("a re-picked energy never moves a laptop's chart, and a phone's only by the line's lead", async ({
+test("a re-picked energy never moves a 1440 px laptop's chart, and a 340 px phone's only by the line's lead", async ({
   page,
   isMobile,
 }) => {
-  // At these widths every energy word sets Porto's sentence on the same lines, so only the
-  // room held for the curve's clauses could move the chart: in Literata a phone from 360 to
-  // 395 px wraps "balanced" a line further, and one from 400 px fits the line's lead without a
-  // line more, so the phone is 340 px. On a laptop "balanced" and "social" take Porto's longest
-  // clause a line further than "calm", so the room held must be every energy word's.
+  // On a 340 px phone every energy word sets Porto's sentence on the same lines, so the chart
+  // moves only by what the line's lead adds. From 360 to 395 px "balanced" takes the sentence a
+  // line further and moves the chart by that line as well, and from 400 px the lead fits the
+  // line's last line, so the test holds the phone at 340 px. On a 1440 px laptop "balanced" and
+  // "social" take Porto's longest clause a line further than "calm", so the room held must be
+  // every energy word's, and the chart never moves.
   if (isMobile) await page.setViewportSize(RE_PICK_PHONE);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/day/porto");

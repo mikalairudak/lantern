@@ -24,8 +24,8 @@ import {
  * tabular figures. The faces most seen on generated or stock sites (Inter, IBM Plex, Roboto,
  * Open Sans, Montserrat, Noto Sans, Rubik, Instrument Serif, Fraunces, Playfair and the like)
  * are left out. Literata, the page's own, is the one chosen (`docs/decisions.md`, "One serif in
- * one weight: Literata"); the serifs set aside beside it, then the sans faces measured before
- * it, Fira Sans the face it replaced and Geist the app's first.
+ * one weight: Literata"); the serifs set aside beside it, then the sans faces set aside,
+ * Fira Sans and Geist among them.
  */
 // next/font reads its options at build time, so each call spells them out.
 const sourceSerif = Source_Serif_4({

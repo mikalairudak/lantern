@@ -46,9 +46,8 @@ interface Geometry {
 
 /**
  * Kanazawa as written (2026-11-04): its chart's column, three shown beads, its second stop's
- * sheet. The chart's column and the sheet's run are where Kyoto's stood at 78798b2; its
- * height and its beads are its own day's, its rows a bead's target over their wires since
- * 2026-11-05, and its words set in Literata, whose wider lines make a phone's rows taller.
+ * sheet. Its height and its beads are its own day's, and its rows a bead's target over their
+ * wires.
  */
 const BEFORE = {
   phone: {

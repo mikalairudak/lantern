@@ -29,9 +29,12 @@ const WIRE_RIGHT = "M17.5 11.63 Q20.25 11.25 23 10.5";
 
 /**
  * Set in ems of the word beside it, the mark stands `MARK_EM` words tall and sinks below the
- * baseline so that its bead's centre stands on the middle of the word's x-height, Literata's
- * 0.507 em at every optical size, so at every size the mark and the word read as one line, where
- * the mark set in pixels is true for one size of word alone.
+ * baseline so that its bead's centre stands on the middle of the word's x-height: `X_HEIGHT_EM`
+ * is the x-height Literata's metrics give, 0.507 em, and its drawn letters stand 0.507 to 0.519
+ * em in the roman and 0.521 to 0.532 in the italic across its optical sizes, so at the
+ * wordmark's size the bead's centre sits within a tenth of a pixel of the middle. At every size
+ * the mark and the word read as one line, where the mark set in pixels is true for one size of
+ * word alone.
  */
 const MARK_EM = 1.75;
 const X_HEIGHT_EM = 0.507;
