@@ -69,6 +69,7 @@ const PHYSICS = {
   snappy: physicsOf(SPRINGS.snappy),
   layout: physicsOf(SPRINGS.layout),
   gentle: physicsOf(SPRINGS.gentle),
+  brisk: physicsOf(SPRINGS.brisk),
 } as const satisfies Record<SpringName, PhysicalSpringOptions>;
 
 /** No spring named, one array for every set that moves on `layout` alone. */

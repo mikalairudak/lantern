@@ -101,19 +101,28 @@ for (const system of ["light", "dark"] as const) {
   }
 }
 
-test("an engraving takes the device's layer when forced colours turn on, and the chosen one when they end", async ({
+test("a plate keeps its files as forced colours turn on and end, and stands clear of each canvas", async ({
   page,
 }) => {
   await keepTheme(page, "light");
   await page.emulateMedia({ forcedColors: "none", colorScheme: "dark" });
+  const asked: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/pictures/")) asked.push(request.url());
+  });
   await page.goto("/");
   const picture = await drawnPictureOf(page);
-  const subject = picture.locator('rect[data-layer="subject"]');
-  await expect(subject).toHaveAttribute("data-state", "unasked");
+  const filesOf = () =>
+    picture.evaluate((svg) =>
+      [...svg.querySelectorAll("image")].map((image) => image.getAttribute("href")),
+    );
+  const files = await filesOf();
+  const askedBefore = asked.length;
 
+  // A plate draws the same files in every theme, so forced colours change only its colours.
   await page.emulateMedia({ forcedColors: "active", colorScheme: "dark" });
-  await expect(subject).toHaveAttribute("data-state", "drawn");
   const forced = await inkAndCanvasOf(page);
+  expect(luminanceOf(forced.canvas) > 0.5).toBe(false);
   expect(contrastOf(forced.ink, forced.canvas)).toBeGreaterThanOrEqual(GRAPHICS_CONTRAST);
 
   await page.emulateMedia({ forcedColors: "none", colorScheme: "dark" });
@@ -121,6 +130,8 @@ test("an engraving takes the device's layer when forced colours turn on, and the
   const chosen = await inkAndCanvasOf(page);
   expect(luminanceOf(chosen.canvas) > 0.5).toBe(true);
   expect(contrastOf(chosen.ink, chosen.canvas)).toBeGreaterThanOrEqual(GRAPHICS_CONTRAST);
+  expect(await filesOf()).toEqual(files);
+  expect(asked.slice(askedBefore)).toEqual([]);
 });
 
 /** Where each thing in the masthead's row stands: the row holds the theme's button. */

@@ -50,6 +50,7 @@ function optionsOf({ day, changed, stops }: Repicks): OptionView[] {
     label,
     isCurrent: value === day,
     consequence: value === day ? null : repickLineOf(changed[value as EnergyLevel] ?? 0, stops),
+    energyLevel: value as EnergyLevel,
   }));
 }
 

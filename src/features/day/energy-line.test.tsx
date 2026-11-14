@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { KANAZAWA_START_REQUEST } from "@/lib/days/written/quick-starts";
 import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { Day } from "./day";
+import { PLACES } from "./energy-glyph";
 import { repickLineOf } from "./not-yet";
 import { READING_LIST_LABEL } from "./reading-list";
 
@@ -160,6 +161,25 @@ const SCENARIOS: readonly Scenario[] = [
 const CASES = SCENARIOS.flatMap((scenario) =>
   LEVELS.filter((level) => level !== scenario.level).map((to) => ({ scenario, to })),
 );
+
+describe("the energy word's list", () => {
+  it("draws each answer's place on the scale on its row, the day's bead in energy's colour", async () => {
+    const user = await landOnThePlan();
+    await user.click(within(headline()).getByRole("button", { name: LANDED_LEVEL }));
+
+    const options = screen.getAllByRole("option");
+    options.forEach((option, index) => {
+      const bead = option.querySelector("svg[aria-hidden] [data-bead]");
+      expect(Number(bead?.getAttribute("cx"))).toBe(PLACES[index]);
+      const isDay = option.getAttribute("aria-selected") === "true";
+      expect(bead).toHaveClass(isDay ? "fill-energy" : "fill-current");
+    });
+    // Each answer is still named by its level alone, the glyph unheard, quiet first.
+    LEVELS.forEach((level, index) =>
+      expect(screen.getByRole("option", { name: level })).toBe(options[index]),
+    );
+  });
+});
 
 describe("the energy word's list, against what its press does", () => {
   it.each(CASES)(

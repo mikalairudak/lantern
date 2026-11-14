@@ -13,6 +13,8 @@ import {
 } from "react";
 import { Ink } from "@/components/ui/ink";
 import { cn } from "@/components/ui/cn";
+import type { EnergyLevel } from "@/lib/schema/itinerary.schema";
+import { EnergyGlyph } from "./energy-glyph";
 import type { FactKey, FactSource } from "./facts";
 import { Fold, type FoldExit } from "@/components/ui/fold";
 import { FadeIn } from "@/components/ui/fade-in";
@@ -36,6 +38,8 @@ export interface OptionView {
   /** One short line on what choosing it would change; null where it says nothing new. */
   consequence: string | null;
   isCurrent: boolean;
+  /** An energy answer's place on the scale of five, drawn at the end of its name's line. */
+  energyLevel?: EnergyLevel;
 }
 
 /** The fork's other answer, set after a word as its pair. */
@@ -652,7 +656,17 @@ function OptionRow({ id, option, isActive, onChoose }: OptionRowProps) {
       )}
     >
       <span className="block min-w-0 flex-1">
-        <span id={labelId}>{option.label}</span>
+        {option.energyLevel ? (
+          <span className="flex items-baseline justify-between gap-4">
+            <span id={labelId}>{option.label}</span>
+            {/* In a span of its own, so the glyph keeps its place on the line's baseline. */}
+            <span>
+              <EnergyGlyph level={option.energyLevel} isDayLevel={option.isCurrent} />
+            </span>
+          </span>
+        ) : (
+          <span id={labelId}>{option.label}</span>
+        )}
         {option.consequence && (
           <span id={noteId} className={ROW_NOTE_CLASSES}>
             {option.consequence}
