@@ -9,7 +9,7 @@ import type { EdgeDay } from "./edge-day";
 
 /**
  * A place to eat or drink around, as the area kinds name it (`docs/decisions.md`, "Lantern
- * names no restaurant, café or bar", and "A place to eat is named by its food and where"):
+ * names no restaurant, café or bar", and `docs/design-direction.md`, "Density"):
  * what is eaten or drunk there and the street, square or quarter it is eaten in, and the
  * rest as a meal's stop says it, of the street and its food rather than one door.
  */
