@@ -1,4 +1,4 @@
-import { expect, test, type Page, waitMs } from "./fixtures";
+import { expect, test, type CDPSession, type Locator, type Page, waitMs } from "./fixtures";
 
 /**
  * The day's plan: a day opens on its plan, lit by its light; the energy's five words move it; the
@@ -125,6 +125,75 @@ test("a stop swipes along its versions, from a drag and from the keys", async ({
   await page.keyboard.press("ArrowLeft");
   await expect.poll(names).toEqual(before);
   await expect(stop).toBeFocused();
+});
+
+/** A finger on the page at a point, moved by `by` in steps, and lifted unless it is to stay. */
+async function swipeOn(
+  cdp: CDPSession,
+  from: { x: number; y: number },
+  by: { x: number; y: number },
+  isLifted = true,
+): Promise<void> {
+  const STEPS = 12;
+  const at = (step: number) => [
+    { id: 1, x: from.x + (by.x * step) / STEPS, y: from.y + (by.y * step) / STEPS },
+  ];
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: at(0) });
+  for (let step = 1; step <= STEPS; step++) {
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: at(step) });
+  }
+  if (isLifted) await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+}
+
+test("a finger drags a stop by its name or its line, and a scroll that starts on it pans the page", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "a finger needs a touch screen");
+  await page.goto("/day/kanazawa");
+  await dayIsWhole(page);
+  const plan = page.getByRole("list", { name: "The day, to read" });
+  const stop = plan.locator('[role="group"][tabindex="0"]').nth(1);
+  await stop.scrollIntoViewIfNeeded();
+  const cdp = await page.context().newCDPSession(page);
+  const nameOf = () => stop.getAttribute("aria-label");
+  const xOf = () => stop.evaluate((group) => new DOMMatrix(getComputedStyle(group).transform).m41);
+  /** Toward the side with a version: right when one waits on the stop's left. */
+  const towardAVersion = async () =>
+    (
+      await stop.locator("xpath=../..").getByRole("button", { name: /./ }).first().textContent()
+    )?.startsWith("←")
+      ? 1
+      : -1;
+  const startOn = async (words: Locator) => {
+    const box = (await words.boundingBox())!;
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  };
+  const width = (await stop.boundingBox())!.width;
+
+  for (const words of [stop.locator("h2"), stop.locator("h2 + p")]) {
+    const before = await nameOf();
+    const way = await towardAVersion();
+    // Short of a third it follows the finger while held, and goes home with nothing taken.
+    const from = await startOn(words);
+    await swipeOn(cdp, from, { x: way * width * 0.2, y: 0 }, false);
+    await expect.poll(xOf).toBeCloseTo(way * width * 0.2, 0);
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await expect.poll(xOf).toBe(0);
+    expect(await nameOf()).toBe(before);
+    // Past a third it takes the version on the side it came from.
+    await swipeOn(cdp, await startOn(words), { x: way * width * 0.5, y: 0 });
+    await expect.poll(nameOf).not.toBe(before);
+    await expect.poll(xOf).toBe(0);
+  }
+
+  // A finger moving up from the stop's name scrolls the page and leaves the stop where it is.
+  const shown = await nameOf();
+  const scrolled = await page.evaluate(() => window.scrollY);
+  await swipeOn(cdp, await startOn(stop.locator("h2")), { x: 2, y: -200 });
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(scrolled + 50);
+  expect(await nameOf()).toBe(shown);
+  expect(await xOf()).toBe(0);
 });
 
 /** Each stop's versions line on the plan: its column's box and its arrows' boxes, by side. */

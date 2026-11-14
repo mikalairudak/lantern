@@ -402,6 +402,15 @@ export function VersionCarousel({
     goHome();
   };
 
+  /**
+   * The stop's own hold on the pointer lost sends the stop home. A finger's word or line holds
+   * its pointer from the press and loses it as the stop takes it at the lock; that loss bubbles
+   * here and is the drag's start, not its end.
+   */
+  const onLostPointerCapture = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) onPointerLost(event);
+  };
+
   const onClickCapture = (event: MouseEvent<HTMLDivElement>) => {
     if (!isClickDragged.current) return;
     isClickDragged.current = false;
@@ -437,7 +446,7 @@ export function VersionCarousel({
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerLost}
-          onLostPointerCapture={onPointerLost}
+          onLostPointerCapture={onLostPointerCapture}
           onClickCapture={onClickCapture}
           style={{ x }}
           className={cn(

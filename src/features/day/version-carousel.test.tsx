@@ -247,18 +247,24 @@ describe("the drag's rules", () => {
 /** The stop's box, 300 px wide where jsdom lays nothing out. */
 const WIDTH_PX = 300;
 
-/** A pointer pressed on `element` at `from`, moved to each point, and let go there or cancelled. */
+/**
+ * A pointer pressed on `element` at `from`, moved to each point with its button down, and let go
+ * there or cancelled. A finger's word holds its pointer from the press, as a browser holds it, and
+ * loses it once the drag has locked and the stop takes it (`losesAt`, the point it is lost at).
+ */
 function dragOn(
   element: Element,
   from: { x: number; y: number },
   points: readonly { x: number; y: number }[],
   end: "up" | "cancel" | "none" = "up",
+  { pointerType = "mouse", losesAt }: { pointerType?: "mouse" | "touch"; losesAt?: number } = {},
 ): void {
-  const pointer = { pointerId: 7, pointerType: "mouse", button: 0 };
-  fireEvent.pointerDown(element, { ...pointer, clientX: from.x, clientY: from.y });
-  for (const point of points) {
-    fireEvent.pointerMove(element, { ...pointer, clientX: point.x, clientY: point.y });
-  }
+  const pointer = { pointerId: 7, pointerType, button: 0 };
+  fireEvent.pointerDown(element, { ...pointer, buttons: 1, clientX: from.x, clientY: from.y });
+  points.forEach((point, at) => {
+    if (at === losesAt) fireEvent.lostPointerCapture(element, pointer);
+    fireEvent.pointerMove(element, { ...pointer, buttons: 1, clientX: point.x, clientY: point.y });
+  });
   const last = points.at(-1) ?? from;
   if (end === "up") fireEvent.pointerUp(element, { ...pointer, clientX: last.x, clientY: last.y });
   if (end === "cancel") fireEvent.pointerCancel(element, pointer);
@@ -369,5 +375,28 @@ describe("the drag", () => {
     expect(onButton).toHaveBeenCalledTimes(1);
     expect(onPick).not.toHaveBeenCalled();
     expect(stop.style.transform).not.toMatch(/translateX\((?!0px)/);
+  });
+
+  it("takes a version for a finger dragged from the stop's name, which held the pointer first", () => {
+    const { onPick } = renderPicking();
+    const { before } = neighboursOf(BOTH, 0);
+    const name = screen.getByRole("heading", { name: "The stop" });
+    // The name loses its hold on the pointer at the second move, as the stop takes it.
+    dragOn(name, { x: 10, y: 100 }, across(10, WIDTH_PX / 3 + 5), "up", {
+      pointerType: "touch",
+      losesAt: 1,
+    });
+    expect(onPick).toHaveBeenCalledWith(before?.index);
+  });
+
+  it("goes home with nothing taken when the stop's own hold on the pointer is lost", async () => {
+    const { onPick, stop } = renderPicking();
+    dragOn(stop, { x: 10, y: 100 }, across(10, WIDTH_PX / 2), "none");
+    fireEvent.lostPointerCapture(stop, { pointerId: 7, pointerType: "mouse" });
+    fireEvent.pointerUp(stop, { pointerId: 7, pointerType: "mouse", clientX: 160, clientY: 100 });
+    expect(onPick).not.toHaveBeenCalled();
+    await waitFor(() => expect(stop.style.transform).toMatch(/^(none|translateX\(0px\))$/), {
+      timeout: 2000,
+    });
   });
 });
