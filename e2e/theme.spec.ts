@@ -414,6 +414,81 @@ test(
   },
 );
 
+/** Counts every change of `data-theme` on `<html>` from here on, read by the returned call. */
+async function countThemeChanges(page: Page): Promise<() => Promise<number>> {
+  await page.evaluate(() => {
+    const seen = { changes: 0 };
+    new MutationObserver((records) => (seen.changes += records.length)).observe(
+      document.documentElement,
+      { attributeFilter: ["data-theme"] },
+    );
+    (window as unknown as { themeChanges: typeof seen }).themeChanges = seen;
+  });
+  return () =>
+    page.evaluate(
+      () => (window as unknown as { themeChanges: { changes: number } }).themeChanges.changes,
+    );
+}
+
+for (const motion of ["no-preference", "reduce"] as const) {
+  test(`a held Enter turns the page once, with motion ${motion}`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "light", reducedMotion: motion });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Switch to dark theme" }).focus();
+    const changes = await countThemeChanges(page);
+    // A key held down, as the keyboard repeats it, for about a second and a half.
+    const cdp = await page.context().newCDPSession(page);
+    const enter = { key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 };
+    await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", ...enter, text: "\r" });
+    for (let repeat = 0; repeat < 30; repeat += 1) {
+      await page.waitForTimeout(50);
+      await cdp.send("Input.dispatchKeyEvent", {
+        type: "keyDown",
+        ...enter,
+        text: "\r",
+        autoRepeat: true,
+      });
+    }
+    await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", ...enter });
+    await crossingEnded(page);
+    expect(await changes()).toBe(1);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  });
+}
+
+test("two presses of Enter while the page crosses turn it once, and the crossing runs whole", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "no-preference" });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Switch to dark theme" }).focus();
+  const changes = await countThemeChanges(page);
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(80);
+  await page.keyboard.press("Enter");
+  await crossingEnded(page);
+  expect(await changes()).toBe(1);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  // Once it has crossed, the next press is taken.
+  await page.keyboard.press("Enter");
+  await crossingEnded(page);
+  await expect(page.locator("html")).not.toHaveAttribute("data-theme");
+});
+
+test("Escape puts away the helper a pointer raised, with the focus elsewhere", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "A finger raises no helper");
+  await page.goto("/day/rome");
+  const helper = page.locator("[data-theme-helper]");
+  await page.getByRole("button", { name: THEME_NAME }).hover();
+  await expect(helper).toHaveCSS("opacity", "1");
+  expect(await page.evaluate(() => document.activeElement?.tagName)).toBe("BODY");
+  await page.keyboard.press("Escape");
+  await expect(helper).toBeHidden();
+});
+
 test("the page takes no press while it crosses, and every press once it has", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "no-preference" });
   await page.goto("/");

@@ -64,13 +64,12 @@ const STILL_ATTRIBUTE = "data-theme-still";
  * place, so the last choice always stands.
  */
 let lastChoice: ThemeChoice = "system";
-/** Whether a crossing has begun and not yet set its theme on `<html>`. */
-let isCrossingPending = false;
+/** The crossing under way, from the press that starts it until its pictures are gone. */
+let crossing: ViewTransition | null = null;
 
 /** Sets a choice on `<html>`: its theme, and the note the theme's button reads. */
 function setRootTheme(choice: ThemeChoice): void {
   lastChoice = choice;
-  isCrossingPending = false;
   const root = document.documentElement;
   root.setAttribute(STILL_ATTRIBUTE, "");
   if (choice === "system") root.removeAttribute("data-theme");
@@ -115,9 +114,40 @@ export function shownLookOf(choice: ThemeChoice): ThemeLook {
   return deviceLook();
 }
 
-/** The choice the page stands in, or is crossing to: a press reads it to know the next. */
-export function currentThemeChoice(): ThemeChoice {
-  return isCrossingPending ? lastChoice : readThemeChoice();
+/**
+ * Whether the page is crossing from one theme to the other. The theme's button takes no press
+ * meanwhile, from a pointer or the keys: a second crossing would cut the first short, and the
+ * page would snap to the end of a fade it was halfway through.
+ */
+export function isThemeCrossing(): boolean {
+  return crossing !== null;
+}
+
+/** The look the page stands in now: what `<html>` carries, on this device. */
+export function readShownLook(): ThemeLook {
+  return shownLookOf(readThemeChoice());
+}
+
+/** What the server renders for the look, before the page can know the device. */
+export function serverShownLook(): ThemeLook | null {
+  return null;
+}
+
+/**
+ * Calls back when the look the page stands in may have changed: a choice set on this page or in
+ * another tab, or the device's own scheme changing while nothing is chosen.
+ */
+export function subscribeShownLook(onChange: () => void): () => void {
+  const unsubscribe = subscribeThemeChoice(onChange);
+  const scheme =
+    typeof window.matchMedia === "function"
+      ? window.matchMedia("(prefers-color-scheme: dark)")
+      : null;
+  scheme?.addEventListener?.("change", onChange);
+  return () => {
+    unsubscribe();
+    scheme?.removeEventListener?.("change", onChange);
+  };
 }
 
 /**
@@ -154,8 +184,8 @@ function showLastChoice(): void {
  * Sets a choice on the page, keeps it for the next visit, and tells every word. Where the
  * choice changes what the page looks like, the page crosses to it: the browser's view
  * transition of the root fades the last frame in the old theme into the live page in the new
- * (`--duration-theme`, linear, in `globals.css`), and in Chromium the page takes no press
- * meanwhile. A choice that changes no colour, as every choice under forced colours, reduced
+ * (`--duration-theme`, linear, in `globals.css`). Chromium lets no pointer through to the page
+ * meanwhile, and the theme's button takes no press until it has ended (`isThemeCrossing`). A choice that changes no colour, as every choice under forced colours, reduced
  * motion and a browser without view transitions set it at once (`docs/decisions.md`, "The theme
  * crosses as one cross-fade of the whole page").
  */
@@ -169,8 +199,12 @@ export function applyThemeChoice(choice: ThemeChoice): void {
   const isSeen = shownLookOf(choice) !== shownLookOf(readThemeChoice());
   lastChoice = choice;
   if (isSeen && canCross()) {
-    isCrossingPending = true;
-    document.startViewTransition(showLastChoice);
+    const transition = document.startViewTransition(showLastChoice);
+    crossing = transition;
+    const ended = () => {
+      if (crossing === transition) crossing = null;
+    };
+    void transition.finished.then(ended, ended);
   } else showLastChoice();
 }
 

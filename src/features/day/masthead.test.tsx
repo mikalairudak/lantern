@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { DayMenu, TAKE_THIS_DAY } from "./day-menu";
 import { Masthead } from "./masthead";
@@ -42,5 +43,14 @@ describe("the masthead", () => {
     // The icon's own box, and around it the line of small type it is set in.
     const iconBox = screen.getByRole("button", { name: THEME_NAME }).parentElement;
     expect(iconBox?.parentElement).toHaveClass("type-note", "*:align-middle");
+  });
+
+  it("leaves Escape to an open menu: it closes and gives the focus back, and the theme's helper goes too", async () => {
+    render(<Masthead menu={MENU} />);
+    await userEvent.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.getByRole("button", { name: TAKE_THIS_DAY })).toHaveFocus();
   });
 });

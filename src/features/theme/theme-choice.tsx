@@ -1,16 +1,19 @@
 "use client";
 
 import { Moon, Sun, type LucideIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@/components/ui/cn";
 import { LIST_SHEET_CLASSES } from "@/features/day/word-list";
 import { ICON_SIZES, ICON_STROKE_WIDTH } from "@/lib/tokens/icon";
 import {
   applyThemeChoice,
-  currentThemeChoice,
+  isThemeCrossing,
   nextThemeChoice,
+  readShownLook,
+  readThemeChoice,
+  serverShownLook,
   shownLookOf,
-  subscribeThemeChoice,
+  subscribeShownLook,
   type ThemeLook,
 } from "./theme";
 
@@ -78,16 +81,16 @@ const HELPER_CLASSES = cn(
  */
 const HELPER_SHOWN_CLASSES =
   "peer-hover:pointer-events-auto peer-hover:opacity-100 peer-hover:helper-wait hover:pointer-events-auto hover:opacity-100 peer-focus-visible:pointer-events-auto peer-focus-visible:opacity-100";
-/** Centred under the button, where the page's gutter, from a laptop's width, has room for it. */
+/** Centred under the button from a 768 px window (`md`), where the page's gutter has room for it. */
 const HELPER_CENTRED_CLASSES = "md:right-auto md:left-1/2 md:-translate-x-1/2";
 /** The helper drawn shown, as a lab cell draws it. */
 const HELPER_DRAWN_CLASSES = "pointer-events-auto opacity-100";
 
 /**
- * What put the helper away: a pointer's press, until the pointer leaves the button's box, or the
- * keys, a press or Escape, until the focus leaves the button. Moved, not left, since the browser
- * also says a pointer left when what is under it changes, as when the theme's crossing lays its
- * pictures over the page.
+ * What put the helper away: a pointer's press, or Escape with the pointer on the button, until
+ * the pointer leaves the button's box; or the keys, a press or Escape with the focus on the
+ * button, until the focus leaves it. Moved, not left, since the browser also says a pointer left
+ * when what is under it changes, as when the theme's crossing lays its pictures over the page.
  */
 type HelperAway = "pointer" | "keys" | null;
 
@@ -98,8 +101,8 @@ function isOutside({ clientX, clientY }: PointerEvent, box: Element): boolean {
 }
 
 export interface ThemeButtonProps {
-  /** Called with the look the page will show once a press has set it. */
-  onPress: () => ThemeLook;
+  /** Called on a press: the look the page will show once it has set it, or null if not taken. */
+  onPress: () => ThemeLook | null;
   /**
    * The look drawn from the prop rather than from what `<html>` notes, as a lab cell draws the
    * look of its own theme. The page itself draws from `<html>`.
@@ -132,8 +135,32 @@ export function ThemeButton({
   isPhoneDrawn = false,
 }: ThemeButtonProps) {
   const [helperAway, setHelperAway] = useState<HelperAway>(null);
-  const [status, setStatus] = useState("");
   const box = useRef<HTMLSpanElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  // The status speaks only after this page's own press, and only while the page stands in the
+  // look that press gave: another tab's choice or the device's own change empties it.
+  const lookNow = useSyncExternalStore(subscribeShownLook, readShownLook, serverShownLook);
+  const [saidLook, setSaidLook] = useState<ThemeLook | null>(null);
+  const [lastLook, setLastLook] = useState(lookNow);
+  if (lastLook !== lookNow) {
+    setLastLook(lookNow);
+    if (saidLook !== null && lookNow !== saidLook) setSaidLook(null);
+  }
+  const status = saidLook !== null && saidLook === lookNow ? LOOK_STATUS[saidLook] : "";
+
+  // Escape puts the helper away wherever the focus is, as long as it is shown: under the pointer
+  // or by the button's focus. It takes nothing from Escape: an open list or menu still closes.
+  useEffect(() => {
+    if (helperAway !== null) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      const isFocused = document.activeElement === button.current;
+      if (isFocused) setHelperAway("keys");
+      else if (box.current?.matches(":hover")) setHelperAway("pointer");
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [helperAway]);
 
   // Put away by a pointer's press, the helper comes back once the pointer has left the box.
   useEffect(() => {
@@ -150,15 +177,18 @@ export function ThemeButton({
   return (
     <span ref={box} className={BOX_CLASSES}>
       <button
+        ref={button}
         type="button"
         data-pointed={isPointedDrawn || undefined}
         onClick={(event) => {
           // A press from the keys is a click with no count of presses.
           setHelperAway(event.detail === 0 ? "keys" : "pointer");
-          setStatus(LOOK_STATUS[onPress()]);
+          const look = onPress();
+          if (look !== null) setSaidLook(look);
         }}
         onKeyDown={(event) => {
-          if (event.key === "Escape") setHelperAway("keys");
+          // A held Enter repeats its key, and each would press: the page turns once per press.
+          if (event.key === "Enter" && event.repeat) event.preventDefault();
         }}
         onBlur={() => setHelperAway(null)}
         className={cn(BUTTON_CLASSES, isFocusDrawn && FOCUS_DRAWN_CLASSES)}
@@ -205,20 +235,21 @@ export function ThemeButton({
   );
 }
 
-/** Turns the page to the other look, and keeps the choice that makes (`nextThemeChoice`). */
-function turnThePage(): ThemeLook {
-  const choice = nextThemeChoice(currentThemeChoice());
+/**
+ * Turns the page to the other look, and keeps the choice that makes (`nextThemeChoice`). A press
+ * while the page still crosses from the last one is not taken.
+ */
+function turnThePage(): ThemeLook | null {
+  if (isThemeCrossing()) return null;
+  const choice = nextThemeChoice(readThemeChoice());
   applyThemeChoice(choice);
   return shownLookOf(choice);
 }
 
-const ignore = () => undefined;
-
 /**
- * The theme's button on the page, drawn from what `<html>` notes. It listens while it stands,
- * so a choice made in another tab is taken here at once.
+ * The theme's button on the page, drawn from what `<html>` notes. It listens while it stands
+ * (`subscribeShownLook`), so a choice made in another tab is taken here at once.
  */
 export function ThemeChoice() {
-  useEffect(() => subscribeThemeChoice(ignore), []);
   return <ThemeButton onPress={turnThePage} />;
 }

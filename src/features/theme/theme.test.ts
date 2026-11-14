@@ -4,8 +4,9 @@ import {
   THEME_SCRIPT,
   THEME_STORAGE_KEY,
   applyThemeChoice,
-  currentThemeChoice,
   nextThemeChoice,
+  isThemeCrossing,
+  readShownLook,
   readThemeChoice,
   restoreThemeChoice,
   serverThemeChoice,
@@ -174,6 +175,8 @@ describe("a theme chosen on the page", () => {
       configurable: true,
       value: vi.fn((update: () => void) => {
         crossings.push(update);
+        // Its pictures gone at once: no crossing outlives its test.
+        return { finished: Promise.resolve() };
       }),
     });
   }
@@ -353,21 +356,27 @@ describe("a press on the theme's button", () => {
     expect(shownLookOf("light")).toBe("dark");
   });
 
-  it("stands in the choice a crossing will set until it has set it, then in what <html> carries", () => {
+  it("is crossing from the press until the browser's pictures are gone, not only until the theme is set", async () => {
     stubDevice("light");
-    const crossings: (() => void)[] = [];
+    let update: () => void = () => undefined;
+    let finish: () => void = () => undefined;
     Object.defineProperty(document, "startViewTransition", {
       configurable: true,
-      value: (update: () => void) => crossings.push(update),
+      value: (callback: () => void) => {
+        update = callback;
+        return { finished: new Promise<void>((resolve) => (finish = resolve)) };
+      },
     });
-    expect(currentThemeChoice()).toBe("system");
+    expect(isThemeCrossing()).toBe(false);
     applyThemeChoice("dark");
-    expect(readThemeChoice()).toBe("system");
-    expect(currentThemeChoice()).toBe("dark");
-    for (const update of crossings.splice(0)) update();
-    expect(currentThemeChoice()).toBe("dark");
-    root.removeAttribute("data-theme");
-    expect(currentThemeChoice()).toBe("system");
+    expect(isThemeCrossing()).toBe(true);
+    update();
+    // The theme is set, and the fade to it still runs.
+    expect(readShownLook()).toBe("dark");
+    expect(isThemeCrossing()).toBe(true);
+    finish();
+    await Promise.resolve();
+    expect(isThemeCrossing()).toBe(false);
     Reflect.deleteProperty(document, "startViewTransition");
   });
 });
