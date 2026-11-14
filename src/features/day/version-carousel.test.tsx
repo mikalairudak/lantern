@@ -5,7 +5,14 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { completeDraftOf } from "@/features/abacus/day-draft";
 import { itineraryOf } from "@/features/abacus/stop-row-examples";
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
-import { neighboursOf, VersionCarousel } from "./version-carousel";
+import {
+  axisAfter,
+  draggedTo,
+  lockOf,
+  neighboursOf,
+  sideTaken,
+  VersionCarousel,
+} from "./version-carousel";
 
 const STOPS = completeDraftOf(itineraryOf(KYOTO_DAY)).stops;
 /** A stop with a version either side of its planned one, and one with none. */
@@ -211,5 +218,387 @@ describe("the carousel", () => {
     );
     expect(screen.queryByRole("group")).toBeNull();
     expect(screen.queryByRole("button")).toBeNull();
+  });
+});
+
+describe("the drag's rules", () => {
+  it("locks to the axis the pointer first travels 6 px along, and to none before", () => {
+    expect(lockOf(5, -5)).toBeNull();
+    expect(lockOf(6, 2)).toBe("x");
+    expect(lockOf(-7, 3)).toBe("x");
+    expect(lockOf(2, -6)).toBe("y");
+  });
+
+  it("keeps a finger's lock down or up open until it travels further across, and a mouse's not", () => {
+    // A finger that drifted 12 px down turns across once it has gone further across than down.
+    expect(axisAfter("y", 12, 12, true)).toBe("y");
+    expect(axisAfter("y", 13, 12, true)).toBe("x");
+    expect(axisAfter("y", -13, -12, true)).toBe("x");
+    // Drifted back to within the lock, it is not yet across.
+    expect(axisAfter("y", 4, 2, true)).toBe("y");
+    // A mouse's or a pen's lock down or up is final, and an "x" lock is final for all.
+    expect(axisAfter("y", 40, 8, false)).toBe("y");
+    expect(axisAfter("x", 0, 60, true)).toBe("x");
+    expect(axisAfter(null, 3, 2, true)).toBeNull();
+    expect(axisAfter(null, 6, 6, true)).toBe("y");
+  });
+
+  it("follows the pointer from where it caught the stop, and gives 0.08 past its reach", () => {
+    const reach = { left: -324, right: 324 };
+    expect(draggedTo(0, 100, reach)).toBe(100);
+    // Caught halfway through a slide, the stop goes on from there.
+    expect(draggedTo(-300, 50, reach)).toBe(-250);
+    expect(draggedTo(0, 424, reach)).toBeCloseTo(332);
+    // A side with no version barely gives.
+    expect(draggedTo(0, 100, { left: -324, right: 0 })).toBeCloseTo(8);
+    expect(draggedTo(0, -100, { left: 0, right: 324 })).toBeCloseTo(-8);
+  });
+
+  it("takes the version on the side it was pulled from once past a third of the width", () => {
+    const both = { hasBefore: true, hasAfter: true };
+    expect(sideTaken(100, 300, both)).toBe("before");
+    expect(sideTaken(99, 300, both)).toBeNull();
+    expect(sideTaken(-100, 300, both)).toBe("after");
+    expect(sideTaken(-99, 300, both)).toBeNull();
+    expect(sideTaken(150, 300, { hasBefore: false, hasAfter: true })).toBeNull();
+    expect(sideTaken(-150, 300, { hasBefore: true, hasAfter: false })).toBeNull();
+  });
+});
+
+/** The stop's box, 300 px wide where jsdom lays nothing out. */
+const WIDTH_PX = 300;
+
+/**
+ * A pointer pressed on `element` at `from`, moved to each point with its button down, and let go
+ * there or cancelled. A finger's word holds its pointer from the press, as a browser holds it, and
+ * loses it once the drag has locked and the stop takes it (`losesAt`, the point it is lost at).
+ */
+function dragOn(
+  element: Element,
+  from: { x: number; y: number },
+  points: readonly { x: number; y: number }[],
+  end: "up" | "cancel" | "none" = "up",
+  { pointerType = "mouse", losesAt }: { pointerType?: "mouse" | "touch"; losesAt?: number } = {},
+): void {
+  const pointer = { pointerId: 7, pointerType, button: 0 };
+  fireEvent.pointerDown(element, { ...pointer, buttons: 1, clientX: from.x, clientY: from.y });
+  points.forEach((point, at) => {
+    if (at === losesAt) fireEvent.lostPointerCapture(element, pointer);
+    fireEvent.pointerMove(element, { ...pointer, buttons: 1, clientX: point.x, clientY: point.y });
+  });
+  const last = points.at(-1) ?? from;
+  if (end === "up") fireEvent.pointerUp(element, { ...pointer, clientX: last.x, clientY: last.y });
+  if (end === "cancel") fireEvent.pointerCancel(element, pointer);
+}
+
+/** Steps from `x` to `x + by` along one line, as a hand drags. */
+function across(x: number, by: number, y = 100): { x: number; y: number }[] {
+  return [1, 2, 3, 4, 5].map((step) => ({ x: x + (by * step) / 5, y }));
+}
+
+describe("the drag", () => {
+  beforeAll(() => {
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(WIDTH_PX);
+  });
+  afterAll(() => vi.restoreAllMocks());
+
+  function renderPicking(pick = 0, content = <h2>The stop</h2>) {
+    const onPick = vi.fn();
+    const onClick = vi.fn();
+    render(
+      // A click that reaches past the stop, as one on the page around it would.
+      <div onClick={onClick}>
+        <VersionCarousel
+          stop={BOTH}
+          pick={pick}
+          name="The stop"
+          onPick={onPick}
+          renderVersion={(candidate) => <p>{`version ${candidate}`}</p>}
+        >
+          {content}
+        </VersionCarousel>
+      </div>,
+    );
+    return { onPick, onClick, stop: screen.getByRole("group", { name: "The stop" }) };
+  }
+
+  it("takes the version on its left once dragged right past a third, and the click is the drag's", () => {
+    const { onPick, onClick, stop } = renderPicking();
+    const { before } = neighboursOf(BOTH, 0);
+    dragOn(stop, { x: 10, y: 100 }, across(10, WIDTH_PX / 3 + 5));
+    expect(onPick).toHaveBeenCalledWith(before?.index);
+    fireEvent.click(stop);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("takes the version on its right once dragged left past a third", () => {
+    const { onPick, stop } = renderPicking();
+    const { after } = neighboursOf(BOTH, 0);
+    dragOn(stop, { x: 200, y: 100 }, across(200, -(WIDTH_PX / 3 + 5)));
+    expect(onPick).toHaveBeenCalledWith(after?.index);
+  });
+
+  it("follows the pointer while held, and springs home short of a third with nothing taken", async () => {
+    const { onPick, stop } = renderPicking();
+    dragOn(stop, { x: 10, y: 100 }, across(10, 60), "none");
+    await waitFor(() => expect(stop.style.transform).toBe("translateX(60px)"));
+    fireEvent.pointerUp(stop, { pointerId: 7, pointerType: "mouse", clientX: 70, clientY: 100 });
+    expect(onPick).not.toHaveBeenCalled();
+    await waitFor(() => expect(stop.style.transform).toMatch(/^(none|translateX\(0px\))$/), {
+      timeout: 2000,
+    });
+  });
+
+  it("barely gives toward a side with no version", async () => {
+    const order = [0, ...BOTH.alternatives.map((_, index) => index + 1)];
+    const last = order.find((pick) => neighboursOf(BOTH, pick).after === null)!;
+    const { onPick, stop } = renderPicking(last);
+    dragOn(stop, { x: 200, y: 100 }, across(200, -100), "none");
+    await waitFor(() => expect(stop.style.transform).toBe("translateX(-8px)"));
+    fireEvent.pointerUp(stop, { pointerId: 7, pointerType: "mouse", clientX: 100, clientY: 100 });
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
+  it("leaves a drag down or up to the page, and a press that does not travel to what it pressed", async () => {
+    const { onPick, onClick, stop } = renderPicking();
+    dragOn(stop, { x: 10, y: 100 }, [
+      { x: 12, y: 110 },
+      { x: 30, y: 160 },
+    ]);
+    expect(onPick).not.toHaveBeenCalled();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(stop.style.transform).not.toMatch(/translateX\((?!0px)/);
+    dragOn(stop, { x: 10, y: 100 }, [{ x: 12, y: 101 }]);
+    fireEvent.click(stop);
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("goes home with nothing taken when the page takes the pointer mid-drag", async () => {
+    const { onPick, stop } = renderPicking();
+    dragOn(stop, { x: 10, y: 100 }, across(10, WIDTH_PX / 2), "cancel");
+    expect(onPick).not.toHaveBeenCalled();
+    await waitFor(() => expect(stop.style.transform).toMatch(/^(none|translateX\(0px\))$/), {
+      timeout: 2000,
+    });
+  });
+
+  it("leaves a press on a button among the stop's words to the button", () => {
+    const onButton = vi.fn();
+    const { onPick, stop } = renderPicking(
+      0,
+      <button type="button" onClick={onButton}>
+        Open
+      </button>,
+    );
+    const button = screen.getByRole("button", { name: "Open" });
+    dragOn(button, { x: 10, y: 100 }, [{ x: 11, y: 100 }]);
+    fireEvent.click(button);
+    expect(onButton).toHaveBeenCalledTimes(1);
+    expect(onPick).not.toHaveBeenCalled();
+    expect(stop.style.transform).not.toMatch(/translateX\((?!0px)/);
+  });
+
+  it("takes a version for a finger dragged from the stop's name, which held the pointer first", () => {
+    const { onPick } = renderPicking();
+    const { before } = neighboursOf(BOTH, 0);
+    const name = screen.getByRole("heading", { name: "The stop" });
+    // The name loses its hold on the pointer at the second move, as the stop takes it.
+    dragOn(name, { x: 10, y: 100 }, across(10, WIDTH_PX / 3 + 5), "up", {
+      pointerType: "touch",
+      losesAt: 1,
+    });
+    expect(onPick).toHaveBeenCalledWith(before?.index);
+  });
+
+  it("goes home with nothing taken when the stop's own hold on the pointer is lost", async () => {
+    const { onPick, stop } = renderPicking();
+    dragOn(stop, { x: 10, y: 100 }, across(10, WIDTH_PX / 2), "none");
+    fireEvent.lostPointerCapture(stop, { pointerId: 7, pointerType: "mouse" });
+    fireEvent.pointerUp(stop, { pointerId: 7, pointerType: "mouse", clientX: 160, clientY: 100 });
+    expect(onPick).not.toHaveBeenCalled();
+    await waitFor(() => expect(stop.style.transform).toMatch(/^(none|translateX\(0px\))$/), {
+      timeout: 2000,
+    });
+  });
+
+  it("forgets a press let go off the stop before it was a drag", async () => {
+    const { onPick, stop } = renderPicking();
+    dragOn(stop, { x: 150, y: 100 }, [{ x: 150, y: 105 }], "none");
+    // Let go below the stop, where the stop hears nothing; the window does.
+    fireEvent.pointerUp(document.body, {
+      pointerId: 7,
+      pointerType: "mouse",
+      clientX: 150,
+      clientY: 105,
+    });
+    for (const x of [170, 250, 300]) {
+      fireEvent.pointerMove(stop, {
+        pointerId: 7,
+        pointerType: "mouse",
+        buttons: 0,
+        clientX: x,
+        clientY: 99,
+      });
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(stop.style.transform).not.toMatch(/translateX\((?!0px)/);
+    // The next press and release, far from where the first began, takes nothing.
+    fireEvent.pointerDown(stop, {
+      pointerId: 8,
+      pointerType: "mouse",
+      button: 0,
+      buttons: 1,
+      clientX: 300,
+      clientY: 99,
+    });
+    fireEvent.pointerUp(stop, { pointerId: 8, pointerType: "mouse", clientX: 300, clientY: 99 });
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
+  it("drops a press whose mouse moves with no button down, however it was let go", async () => {
+    const { onPick, stop } = renderPicking();
+    dragOn(stop, { x: 150, y: 100 }, [{ x: 151, y: 101 }], "none");
+    fireEvent.pointerMove(stop, {
+      pointerId: 7,
+      pointerType: "mouse",
+      buttons: 0,
+      clientX: 300,
+      clientY: 101,
+    });
+    fireEvent.pointerMove(stop, {
+      pointerId: 7,
+      pointerType: "mouse",
+      buttons: 0,
+      clientX: 320,
+      clientY: 101,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(stop.style.transform).not.toMatch(/translateX\((?!0px)/);
+    fireEvent.pointerUp(stop, { pointerId: 7, pointerType: "mouse", clientX: 320, clientY: 101 });
+    expect(onPick).not.toHaveBeenCalled();
+  });
+  it("drags for a finger that drifted down before it swiped across, and stays still until it does", async () => {
+    const { onPick, stop } = renderPicking();
+    const { before } = neighboursOf(BOTH, 0);
+    const drift = [
+      { x: 10, y: 104 },
+      { x: 10, y: 108 },
+      { x: 11, y: 112 },
+    ];
+    dragOn(stop, { x: 10, y: 100 }, drift, "none", { pointerType: "touch" });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(stop.style.transform).not.toMatch(/translateX\((?!0px)/);
+    for (const point of across(11, WIDTH_PX / 2, 112)) {
+      fireEvent.pointerMove(stop, {
+        pointerId: 7,
+        pointerType: "touch",
+        buttons: 1,
+        clientX: point.x,
+        clientY: point.y,
+      });
+    }
+    fireEvent.pointerUp(stop, { pointerId: 7, pointerType: "touch", clientX: 161, clientY: 112 });
+    expect(onPick).toHaveBeenCalledWith(before?.index);
+  });
+
+  it("drags for a finger that set off at exactly 45 degrees and went on across", () => {
+    const { onPick, stop } = renderPicking();
+    const { before } = neighboursOf(BOTH, 0);
+    const diagonal = [{ x: 16, y: 106 }, { x: 20, y: 110 }, ...across(20, WIDTH_PX / 2, 110)];
+    dragOn(stop, { x: 10, y: 100 }, diagonal, "up", { pointerType: "touch" });
+    expect(onPick).toHaveBeenCalledWith(before?.index);
+  });
+
+  it("lets a finger's pan go once the page takes it, and moves nothing after", async () => {
+    const { onPick, stop } = renderPicking();
+    dragOn(stop, { x: 10, y: 100 }, [{ x: 10, y: 120 }], "cancel", { pointerType: "touch" });
+    for (const point of across(10, WIDTH_PX / 2, 120)) {
+      fireEvent.pointerMove(stop, {
+        pointerId: 7,
+        pointerType: "touch",
+        buttons: 1,
+        clientX: point.x,
+        clientY: point.y,
+      });
+    }
+    fireEvent.pointerUp(stop, { pointerId: 7, pointerType: "touch", clientX: 160, clientY: 120 });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(stop.style.transform).not.toMatch(/translateX\((?!0px)/);
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
+  it("leaves a mouse's drag down at once, though it turns across after", async () => {
+    const { onPick, stop } = renderPicking();
+    dragOn(stop, { x: 10, y: 100 }, [{ x: 10, y: 108 }, ...across(10, WIDTH_PX / 2, 108)]);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(stop.style.transform).not.toMatch(/translateX\((?!0px)/);
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
+  it("swallows no click after a finger's drag, which the browser follows with none", () => {
+    const { onClick, stop } = renderPicking();
+    dragOn(stop, { x: 10, y: 100 }, across(10, 60), "up", { pointerType: "touch" });
+    // A later activation of the stop, as a keyboard's or an assistive tool's, is its own.
+    fireEvent.click(stop);
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("forgets a mouse's press let go off the stop, so a finger pressed next drags", async () => {
+    const { onPick, stop } = renderPicking();
+    const { before } = neighboursOf(BOTH, 0);
+    fireEvent.pointerDown(stop, {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      buttons: 1,
+      clientX: 150,
+      clientY: 100,
+    });
+    // Let go below the stop, with no move over the stop after.
+    fireEvent.pointerUp(document.body, {
+      pointerId: 1,
+      pointerType: "mouse",
+      clientX: 150,
+      clientY: 140,
+    });
+    dragOn(stop, { x: 10, y: 100 }, across(10, WIDTH_PX / 2), "up", { pointerType: "touch" });
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onPick).toHaveBeenCalledWith(before?.index);
+    await waitFor(() => expect(stop.style.transform).toMatch(/^(none|translateX\(0px\))$/), {
+      timeout: 2000,
+    });
+  });
+});
+
+describe("a drag let go once the stop can no longer swap", () => {
+  beforeAll(() => {
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(WIDTH_PX);
+  });
+  afterAll(() => vi.restoreAllMocks());
+
+  it("goes home with nothing taken", async () => {
+    const onPick = vi.fn();
+    const carousel = (canPick: boolean) => (
+      <VersionCarousel
+        stop={BOTH}
+        pick={0}
+        name="The stop"
+        onPick={canPick ? onPick : undefined}
+        renderVersion={(candidate) => <p>{`version ${candidate}`}</p>}
+      >
+        <h2>The stop</h2>
+      </VersionCarousel>
+    );
+    const { rerender } = render(carousel(true));
+    const stop = screen.getByRole("group", { name: "The stop" });
+    dragOn(stop, { x: 10, y: 100 }, across(10, WIDTH_PX / 2), "none");
+    await waitFor(() => expect(stop.style.transform).toBe("translateX(150px)"));
+    // A re-plan starts while the stop is held: the day can no longer be swapped.
+    rerender(carousel(false));
+    fireEvent.pointerUp(stop, { pointerId: 7, pointerType: "mouse", clientX: 160, clientY: 100 });
+    expect(onPick).not.toHaveBeenCalled();
+    await waitFor(() => expect(stop.style.transform).toMatch(/^(none|translateX\(0px\))$/), {
+      timeout: 2000,
+    });
   });
 });

@@ -449,6 +449,14 @@ html {
 }
 
 /*
+ * No callout on a long press, for a stop under a finger: a hesitant press stays a swipe rather
+ * than turning into a menu for the words it lies on.
+ */
+@utility touch-callout-none {
+  -webkit-touch-callout: none;
+}
+
+/*
  * The waiting line's light: a quarter of the screen wide, whatever it lights, so on a
  * laptop it is narrower than the chart and visibly moves across it.
  */

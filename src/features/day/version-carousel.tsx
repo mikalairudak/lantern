@@ -9,6 +9,7 @@ import {
   useState,
   type FocusEvent,
   type KeyboardEvent,
+  type MouseEvent,
   type PointerEvent,
   type ReactNode,
 } from "react";
@@ -33,6 +34,14 @@ import { SPRINGS } from "@/lib/tokens/motion";
  * press runs on from where the first has got to. The slide is quicker than "Three pixels a frame"
  * allows a row to move (`docs/design-direction.md`): the visitor starts it to replace the stop,
  * and nothing they read reflows under it. Under reduced motion the version is simply there.
+ *
+ * The drag is the carousel's own, on pointer events that set the same value. A library's drag
+ * measures its element on every render and plays the frame loop at once after the commit, inside
+ * the event that caused it; a swap re-renders the whole day each frame its curve springs, so the
+ * slide would be worked out to its end before a frame is painted (`docs/decisions.md`, "A stop on
+ * the plan swipes along its versions"). Under a finger the stop's words are neither selected nor
+ * offered a callout by a long press, so a hesitant press stays a swipe; with a fine pointer they
+ * can be selected.
  */
 
 /** How much of the stop's width a drag must carry to take a version. */
@@ -43,6 +52,88 @@ const GAP_PX = 24;
 const ELASTIC = 0.08;
 const NUDGE_PX = 12;
 const NUDGE_DELAY_MS = 900;
+/**
+ * How far a pointer travels before a press becomes a drag, along the axis it went furthest: a
+ * drag across moves the stop, a drag down or up is left to the page and, with a mouse, to a text
+ * selection.
+ */
+const LOCK_PX = 6;
+
+type Side = "before" | "after";
+
+/** The axis a drag locks to once the pointer has travelled `LOCK_PX` along it; none before. */
+export function lockOf(dx: number, dy: number): "x" | "y" | null {
+  if (Math.abs(dx) < LOCK_PX && Math.abs(dy) < LOCK_PX) return null;
+  return Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+}
+
+/**
+ * The axis a press is held along after its pointer has travelled `dx` across and `dy` down from
+ * where it was pressed. An "x" lock is final. Under a finger a "y" lock stays open, since the
+ * page takes a pan down or up only some pixels in, and sends `pointercancel` when it does: until
+ * then a finger that drifted turns into a drag across once it has travelled `LOCK_PX` across and
+ * further across than down. A mouse's or a pen's "y" lock is final at once.
+ */
+export function axisAfter(
+  axis: "x" | "y" | null,
+  dx: number,
+  dy: number,
+  isFinger: boolean,
+): "x" | "y" | null {
+  if (axis === "x") return "x";
+  if (axis === "y" && !isFinger) return "y";
+  return lockOf(dx, dy) ?? axis;
+}
+
+/**
+ * Where a dragged stop stands: where it was caught plus the pointer's travel, as far as a stride
+ * toward each side with a version, and past that a share of the travel (`ELASTIC`).
+ */
+export function draggedTo(
+  from: number,
+  travel: number,
+  reach: { left: number; right: number },
+): number {
+  const to = from + travel;
+  if (to > reach.right) return reach.right + (to - reach.right) * ELASTIC;
+  if (to < reach.left) return reach.left + (to - reach.left) * ELASTIC;
+  return to;
+}
+
+/**
+ * The version a drag let go takes: the one on the side it was pulled from, once the pointer has
+ * carried past a third of the stop's width; dragged right, the one on its left.
+ */
+export function sideTaken(
+  travel: number,
+  width: number,
+  sides: { hasBefore: boolean; hasAfter: boolean },
+): Side | null {
+  if (travel >= width * COMMIT_SHARE && sides.hasBefore) return "before";
+  if (travel <= -width * COMMIT_SHARE && sides.hasAfter) return "after";
+  return null;
+}
+
+/** A press on the stop, from its pointer's first point; `axis` once it is a drag. */
+interface Hold {
+  pointerId: number;
+  /** A finger's drag ends with no click after it; a mouse's or a pen's ends with one. */
+  isFinger: boolean;
+  fromX: number;
+  fromY: number;
+  axis: "x" | "y" | null;
+  /** Where the stop stood when the drag caught it. */
+  caught: number;
+}
+
+/** Holds the pointer to the stop while it drags; a pointer already gone cannot be held. */
+function holdPointer(element: Element, pointerId: number): void {
+  try {
+    element.setPointerCapture(pointerId);
+  } catch {
+    // The drag goes on while the pointer stays over the stop.
+  }
+}
 
 export interface Neighbour {
   index: number;
@@ -104,8 +195,6 @@ function isKeyboardFocus(element: Element): boolean {
   }
 }
 
-type Side = "before" | "after";
-
 export function VersionCarousel({
   stop,
   pick,
@@ -146,6 +235,10 @@ export function VersionCarousel({
   const stride = width + GAP_PX;
   /** The lean toward an arrow pointed at, while it plays or holds. */
   const pointedLean = useRef<{ stop: () => void } | null>(null);
+  const hold = useRef<Hold | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  /** A drag let go ends in a click on the stop, which is the drag's and nothing else's. */
+  const isClickDragged = useRef(false);
 
   useLayoutEffect(() => {
     const box = boxRef.current;
@@ -227,8 +320,6 @@ export function VersionCarousel({
     };
   }, [isNudged, isReduced, canSwipe, isEnabled, hasBefore, hasAfter, x]);
 
-  if (!canSwipe) return <>{children}</>;
-
   /**
    * Leans the stop toward the version an arrow names, or brings it home once the arrow is left.
    * The version on the left comes in from a drag to the right, so its arrow leans the stop right.
@@ -268,6 +359,105 @@ export function VersionCarousel({
     if (isPressed) groupRef.current?.focus();
   };
 
+  const goHome = () => {
+    if (isReduced) x.set(0);
+    else animate(x, 0, SPRINGS.layout);
+  };
+
+  /**
+   * Ends a press. A drag let go takes the version it carried past a third, while the stop can
+   * still swap, and otherwise goes home; a drag cancelled or lost goes home with nothing taken.
+   */
+  const endHold = (held: Hold, clientX: number | null) => {
+    hold.current = null;
+    if (held.axis !== "x") return;
+    setIsDragging(false);
+    if (clientX === null) {
+      goHome();
+      return;
+    }
+    // Only a mouse or a pen clicks on its release; a finger's drag is followed by no click.
+    if (!held.isFinger) isClickDragged.current = true;
+    const travel = clientX - held.fromX;
+    const side = isEnabled ? sideTaken(travel, width, { hasBefore, hasAfter }) : null;
+    if (side) take(side);
+    else goHome();
+  };
+
+  /** The pointer let go or taken by the page, wherever it was then. */
+  const release = (event: globalThis.PointerEvent) => {
+    const held = hold.current;
+    if (!held || held.pointerId !== event.pointerId) return;
+    endHold(held, event.type === "pointerup" ? event.clientX : null);
+  };
+
+  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    isClickDragged.current = false;
+    if (!isEnabled || hold.current !== null) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    hold.current = {
+      pointerId: event.pointerId,
+      isFinger: event.pointerType === "touch",
+      fromX: event.clientX,
+      fromY: event.clientY,
+      axis: null,
+      caught: 0,
+    };
+  };
+
+  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const held = hold.current;
+    if (!held || held.pointerId !== event.pointerId) return;
+    // A mouse or a pen moving with no button down was let go where nothing told the stop.
+    if (event.pointerType !== "touch" && event.buttons === 0) {
+      endHold(held, null);
+      return;
+    }
+    const travel = event.clientX - held.fromX;
+    if (held.axis !== "x") {
+      held.axis = axisAfter(held.axis, travel, event.clientY - held.fromY, held.isFinger);
+      if (held.axis === null) return;
+      // A mouse's or a pen's drag down or up is left to a text selection; a finger's stays held
+      // until it turns across, lifts, or the page takes it for a pan.
+      if (held.axis === "y") {
+        if (!held.isFinger) hold.current = null;
+        return;
+      }
+      // The drag catches the stop wherever a slide or a lean has got to. A finger that drifted
+      // down or up locks only once it has gone further across, so at that move the stop steps
+      // once to where the finger has carried it, by a little more than the drift.
+      x.stop();
+      pointedLean.current = null;
+      hasLeaned.current = true;
+      held.caught = x.get();
+      holdPointer(event.currentTarget, event.pointerId);
+      window.getSelection()?.removeAllRanges();
+      setIsDragging(true);
+    }
+    x.set(
+      draggedTo(held.caught, travel, { left: after ? -stride : 0, right: before ? stride : 0 }),
+    );
+  };
+
+  /**
+   * The stop's own hold on the pointer lost, as when the page takes it, sends the stop home. A
+   * finger's word or line holds its pointer from the press and loses it as the stop takes it at
+   * the lock; that loss bubbles here and is the drag's start, not its end.
+   */
+  const onLostPointerCapture = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    const held = hold.current;
+    if (!held || held.pointerId !== event.pointerId) return;
+    endHold(held, null);
+  };
+
+  const onClickCapture = (event: MouseEvent<HTMLDivElement>) => {
+    if (!isClickDragged.current) return;
+    isClickDragged.current = false;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget) return;
     if (event.key === "ArrowLeft" && before) take("before");
@@ -275,6 +465,24 @@ export function VersionCarousel({
     else return;
     event.preventDefault();
   };
+
+  // The release is heard on the window, where it cannot be missed: a press let go off the stop
+  // before it is a drag never reaches the stop.
+  const releaseNow = useRef(release);
+  useLayoutEffect(() => {
+    releaseNow.current = release;
+  });
+  useEffect(() => {
+    const onRelease = (event: globalThis.PointerEvent) => releaseNow.current(event);
+    window.addEventListener("pointerup", onRelease);
+    window.addEventListener("pointercancel", onRelease);
+    return () => {
+      window.removeEventListener("pointerup", onRelease);
+      window.removeEventListener("pointercancel", onRelease);
+    };
+  }, []);
+
+  if (!canSwipe) return <>{children}</>;
 
   const keys = [
     before && `left arrow for ${before.name}`,
@@ -292,21 +500,16 @@ export function VersionCarousel({
           aria-label={name}
           aria-describedby={hintId}
           onKeyDown={onKeyDown}
-          drag={isEnabled ? "x" : false}
-          dragDirectionLock
-          dragMomentum={false}
-          dragConstraints={{ left: after ? -stride : 0, right: before ? stride : 0 }}
-          dragElastic={ELASTIC}
-          onDragEnd={(_, { offset }) => {
-            if (offset.x >= width * COMMIT_SHARE && before) take("before");
-            else if (offset.x <= -width * COMMIT_SHARE && after) take("after");
-            else if (isReduced) x.set(0);
-            else animate(x, 0, SPRINGS.layout);
-          }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onLostPointerCapture={onLostPointerCapture}
+          onClickCapture={onClickCapture}
           style={{ x }}
           className={cn(
             "relative flex touch-pan-y flex-col gap-1 rounded-sm focus-ring-inset",
             isEnabled && "cursor-grab active:cursor-grabbing",
+            "pointer-coarse:select-none pointer-coarse:touch-callout-none",
+            isDragging && "select-none",
           )}
         >
           {children}
