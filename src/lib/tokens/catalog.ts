@@ -8,7 +8,7 @@ export const COLOR_TOKENS = [
   { name: "ground", role: "The page: plate paper by day, the petrol sky by night" },
   {
     name: "surface",
-    role: "A raised sheet over the page: a list, the day's menu, an open stop's words",
+    role: "A raised sheet over the page: a list, the day's menu, an open stop's words, a lit row's words",
   },
   { name: "ink", role: "Primary text and filled meter segments" },
   { name: "ink-soft", role: "Secondary text" },

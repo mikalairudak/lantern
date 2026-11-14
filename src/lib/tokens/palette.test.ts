@@ -253,14 +253,14 @@ describe("the palette", () => {
     it.each([
       ["paper whiter than the page", "#fffdf8"],
       ["lamplight level with the page", "#ffe9bf"],
-      ["the glow tuned to the earlier, lighter page", "#ffe2b3"],
+      ["a glow too near the page to read as a light", "#ffe2b3"],
       ["an amber deep enough to take the lamp under 3:1", "#ffd292"],
     ])("refuses %s as a bead's glow", (_, candidate) => {
       expect(isBeadGlow(candidate)).toBe(false);
     });
 
     it.each([
-      ["the haze tuned to the earlier, lighter page", "#fff1d0"],
+      ["a haze lighter than the page", "#fff1d0"],
       ["a haze level with the page", page],
       ["a haze level with its glow", glow],
     ])("refuses %s", (_, candidate) => {

@@ -36,7 +36,7 @@ Ink and light, all tokens in the product (palette Night market, `docs/decisions.
 | `lamp-glow` | `#ffdaa3`             | `#ffe2b3`              | `#543109` |
 | `lamp-haze` | `#ffe5be`             | `#fff1d0`              | `#3b220e` |
 
-The lamp stands 3.6:1 on the day ground (`#f8ebd7`) and 10.3:1 on the night (`#011d27`). In the product the two steps are the tokens: by day lamplight, `#ffdaa3`, and its haze, `#ffe5be`, 1.13:1 and 1.04:1 under the page, with the lamp 3.2:1 on the glow; by night the ember and its haze. The standalone files keep a lighter pair by day, `#ffe2b3` and `#fff1d0`: the same lamplight for a browser's white bar, where it stands 1.25:1 and 1.12:1 from the ground. At 16 px the two pairs are 3 and 5 ΔE2000 apart and read as one mark. Inline, that is `stroke-ink` on the wire, `fill-lamp` on the bead, and `fill-lamp-glow` and `fill-lamp-haze` on the two steps of light.
+The lamp stands 3.6:1 on the day ground (`#f8ebd7`) and 10.3:1 on the night (`#011d27`). In the product the two steps are the tokens: by day lamplight, `#ffdaa3`, and its haze, `#ffe5be`, 1.13:1 and 1.04:1 under the page, with the lamp 3.15:1 on the glow; by night the ember and its haze. The standalone files keep a lighter pair by day, `#ffe2b3` and `#fff1d0`: the same lamplight for a browser's white bar, where it stands 1.25:1 and 1.12:1 from the ground. At 16 px the two pairs are 3 and 5 ΔE2000 apart and read as one mark. Inline, that is `stroke-ink` on the wire, `fill-lamp` on the bead, and `fill-lamp-glow` and `fill-lamp-haze` on the two steps of light.
 
 ## Beside the wordmark
 
