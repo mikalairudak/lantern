@@ -435,7 +435,7 @@ export function DayStage({
     [ended, revealed],
   );
   const phase = phaseOf(shownOutcome, ended);
-  const assumptions = ended ? assumptionsOf(ended) : revealed.day.assumptions;
+  const streamedAssumptions = revealed.day.assumptions;
 
   const [local, setLocal] = useState<LocalWords>(NO_LOCAL_WORDS);
   const [notYet, setNotYet] = useState<string | null>(null);
@@ -449,7 +449,12 @@ export function DayStage({
     (): LocalWords => ({ ...local, confirmed: [...confirmed, ...local.confirmed] }),
     [local, confirmed],
   );
-  const facts = sentenceFactsOf(request, assumptions, words);
+  // Built again only as the day or its words change: the header works out what each answer of
+  // each word would re-plan from them, which is too costly for every frame the curve springs.
+  const facts = useMemo(
+    () => sentenceFactsOf(request, ended ? assumptionsOf(ended) : streamedAssumptions, words),
+    [request, ended, streamedAssumptions, words],
+  );
   // The facts the playing's first frame says: the request's own, none of the stream's.
   const startFacts = sentenceFactsOf(request, undefined, words);
   // A re-plan's line about the day waits for the merged day, whose pen writes it as it takes
