@@ -164,6 +164,7 @@ describe("pnpm events:report", () => {
     await seed(A, { kind: "word-changed", city: "kyoto", word: "energy", control: "headline" });
     await seed(B, { kind: "word-changed", city: "kyoto", word: "energy", control: "bar" });
     await seed(B, { kind: "word-changed", city: "kyoto", word: "city", control: "headline" });
+    await seed(B, { kind: "word-changed", city: "kyoto", word: "city", control: "new-day" });
     await seedUntold(C, "word-changed", { word: "energy" });
     await seed(A, { kind: "day-read-to-end", ...onChart });
     await seed(A, { kind: "route-opened", ...onChart });
@@ -248,6 +249,7 @@ describe("pnpm events:report", () => {
       "  curve-dragged                    1",
       "  menu-opened                      1",
       "  word-changed   city    headline  1",
+      "  word-changed   city    new-day   1",
       "  word-changed   energy  bar       1",
       "  word-changed   energy  not told  1",
       "",

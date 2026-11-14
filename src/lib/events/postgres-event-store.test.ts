@@ -180,12 +180,12 @@ describe("the Postgres event store", () => {
   it("takes any word as a control, one the schema does not list among them", async () => {
     await database.session.query(
       `INSERT INTO product_events (id, environment, utc_day, visitor_key, kind, control)
-       VALUES ($1::uuid, 'production', $2::date, $3, 'word-changed', 'new-day')`,
+       VALUES ($1::uuid, 'production', $2::date, $3, 'word-changed', 'a-later-word')`,
       [crypto.randomUUID(), TODAY, VISITOR],
     );
 
     expect(await database.session.query("SELECT control FROM product_events")).toEqual([
-      { control: "new-day" },
+      { control: "a-later-word" },
     ]);
   });
 

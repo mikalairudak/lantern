@@ -866,6 +866,8 @@ export function DayStageHeader({
     cityWordButton.current?.focus();
     onCityOpenChange(null);
   };
+  // Opened at its field, "elsewhere", the list is the new day's, and a city chosen in it is
+  // counted as changed at the new day (`cityControl` in `day-stage.tsx`).
   const openNewDay = () => {
     if (isReplanWriting) return sayLocked();
     onCityOpenChange("elsewhere");

@@ -1112,6 +1112,14 @@ export function DayStage({
     (index, at, all): index is number => index !== null && all.indexOf(index) === at,
   );
 
+  /**
+   * Where a city chosen now was asked for: in a list the new day opened, at its field, from the
+   * masthead's button or the menu's row, or in the one the headline's city word opened. The
+   * list's open state holds it, set as the list opens and null once it closes, so a list opened
+   * later from the headline counts as the headline's.
+   */
+  const cityControl: WordControl = cityOpenAt === "elsewhere" ? "new-day" : "headline";
+
   /** A word of the header changed, the city included: counted each time, with where it was. */
   const countWord = (word: HeaderWord, control: WordControl) =>
     onEvent?.({ kind: "word-changed", city, word, control });
@@ -1188,7 +1196,7 @@ export function DayStage({
   const retry = () => playOnceFaded(onRetry);
   /** A written day from the city word's list. */
   const chooseWritten = (next: DayRequest) => {
-    countWord("city", "headline");
+    countWord("city", cityControl);
     playDay(next);
   };
   /** A written day the notice offers in place of one that ended without one: no word changed. */
@@ -1199,7 +1207,7 @@ export function DayStage({
    * page reads first when it asks to (`onChooseCity`).
    */
   const chooseCity = (typedCity: string) => {
-    countWord("city", "headline");
+    countWord("city", cityControl);
     const written = writtenRequestFor(typedCity);
     if (written) return playDay(written);
     const energy = local.energy ?? request.energy;
@@ -1220,7 +1228,7 @@ export function DayStage({
   // so is its date when the day was today, and the city is now the visitor's, so it loses
   // Lantern's dots.
   const chooseReading = (reading: CityReading) => {
-    countWord("city", "headline");
+    countWord("city", cityControl);
     const energy = local.energy ?? request.energy;
     const energySource = local.energy === null ? request.energySource : "chosen";
     const next: DayRequest = {

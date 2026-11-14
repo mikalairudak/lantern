@@ -187,7 +187,8 @@ export const EVENT_TABLE_SECTIONS: readonly ReportSection[] = [
   },
   {
     // A word by the control it was changed at, so the energy changed on the plan's bar is told
-    // from the energy changed in the headline.
+    // from the energy changed in the headline, and a city asked for from the new day from one
+    // chosen at the headline's city word.
     title: "Gestures",
     columns: ["gesture", "word", "control", "times"],
     text: `

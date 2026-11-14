@@ -60,10 +60,11 @@ export type DayAnswer = (typeof DAY_ANSWERS)[number];
 export const HEADER_WORDS = ["city", ...FACT_KEYS] as const;
 
 /**
- * The control a word was changed at: the energy word on the plan's bar, or the headline's own
- * word, where every other word is changed.
+ * The control a word was changed at: the headline's own word; the energy word on the plan's
+ * bar; or the new day, the masthead's button or the menu's row, which opens the city's list at
+ * its field, for a city chosen or asked for there.
  */
-export const WORD_CONTROLS = ["headline", "bar"] as const;
+export const WORD_CONTROLS = ["headline", "bar", "new-day"] as const;
 
 /** Every way a day's stream ends, as the client's reader reads it (`DayOutcome`). */
 export const DAY_OUTCOMES = [

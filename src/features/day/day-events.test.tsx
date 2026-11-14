@@ -15,6 +15,7 @@ import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { simulateDayStream } from "@/lib/stream/simulate-day-stream";
 import { Day } from "./day";
 import { TAKE_THIS_DAY } from "./day-menu";
+import { NEW_DAY } from "./new-day";
 import { INTAKE_ROUTE } from "./intake-route";
 import { StartDay } from "./start-day";
 import { INDEX_LABEL } from "./start-index";
@@ -401,9 +402,10 @@ describe("the days played, as the product counts them", () => {
 
     const atlantis = { city: "atlantis", via: "word", written: false } as const;
     const lisbonDay = { city: "bologna", via: "pressed", written: true } as const;
+    // The menu's new day takes over the list the city word opened: the city is asked for there.
     expect(sent().slice(2)).toEqual([
       { kind: "menu-opened", ...KANAZAWA_LINK, ...ON_CHART },
-      { kind: "word-changed", city: "kanazawa", word: "city", control: "headline" },
+      { kind: "word-changed", city: "kanazawa", word: "city", control: "new-day" },
       { kind: "day-opened", ...atlantis },
       { kind: "day-ended", ...atlantis, ...ON_CHART, outcome: "unavailable" },
       { kind: "day-opened", ...lisbonDay },
@@ -483,6 +485,49 @@ describe("the gestures on a day, as the product counts them", () => {
 
     await user.click(within(headline()).getByRole("button", { name: "Kanazawa" }));
     await user.click(screen.getByRole("button", { name: /^Bologna/ }));
+
+    expect(sentOf("word-changed")).toEqual([
+      { kind: "word-changed", city: "kanazawa", word: "city", control: "headline" },
+    ]);
+  });
+
+  it("tells a written day chosen in the list the masthead's new day opened as the new day's, and opens no menu", async () => {
+    const user = await landOnKanazawa();
+
+    await user.click(screen.getByRole("button", { name: NEW_DAY }));
+    await user.click(await screen.findByRole("button", { name: /^Bologna/ }));
+
+    expect(sentOf("word-changed")).toEqual([
+      { kind: "word-changed", city: "kanazawa", word: "city", control: "new-day" },
+    ]);
+    expect(sentOf("menu-opened")).toEqual([]);
+  });
+
+  it("tells a city asked for in the list the menu's new day opened as the new day's", async () => {
+    const user = await landOnKanazawa();
+
+    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+    await user.click(screen.getByRole("menuitem", { name: /^New day/ }));
+    await user.keyboard("Lisbon{Enter}");
+
+    await waitFor(() =>
+      expect(sentOf("word-changed")).toEqual([
+        { kind: "word-changed", city: "kanazawa", word: "city", control: "new-day" },
+      ]),
+    );
+    expect(sentOf("menu-opened")).toHaveLength(1);
+  });
+
+  it("tells a city chosen at the headline after a new day's list closed unchosen as the headline's", async () => {
+    const user = await landOnKanazawa();
+    const city = () => within(headline()).getByRole("button", { name: "Kanazawa" });
+
+    await user.click(screen.getByRole("button", { name: NEW_DAY }));
+    await waitFor(() => expect(city()).toHaveAttribute("aria-expanded", "true"));
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(city()).toHaveAttribute("aria-expanded", "false"));
+    await user.click(city());
+    await user.click(await screen.findByRole("button", { name: /^Bologna/ }));
 
     expect(sentOf("word-changed")).toEqual([
       { kind: "word-changed", city: "kanazawa", word: "city", control: "headline" },

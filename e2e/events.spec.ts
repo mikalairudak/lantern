@@ -85,6 +85,22 @@ test("a day's address counts its opening, its ending, each word changed and its 
     .toEqual([{ kind: "menu-opened", ...KANAZAWA_LINK, ...ON_PLAN }]);
 });
 
+test("a city chosen from the new day is counted as changed there, and opens no menu", async ({
+  page,
+  productEvents,
+}) => {
+  await page.goto("/day/kanazawa");
+  await waitForTheDay(page);
+
+  await page.getByRole("button", { name: "New day" }).click();
+  await page.getByRole("button", { name: /^Bologna/ }).click();
+
+  await expect
+    .poll(() => productEvents.filter(isKind("word-changed")))
+    .toEqual([{ kind: "word-changed", city: "kanazawa", word: "city", control: "new-day" }]);
+  expect(productEvents.filter(isKind("menu-opened"))).toEqual([]);
+});
+
 test("a day is counted read to its end once the line under it has stood on screen", async ({
   page,
   productEvents,
