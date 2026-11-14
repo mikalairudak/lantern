@@ -8,6 +8,7 @@ import {
   DIFFERS_BY,
   differenceOf,
   hideWords,
+  lightSharesOf,
   lineBoxesOf,
   plateBoxesOf,
   shotOf,
@@ -215,11 +216,22 @@ for (const theme of THEMES) {
  * leave unlit lies in the stipple of the front's far edge, at a scene's far corner.
  */
 const JUMP_INNER_SHARE = 0.8;
+/**
+ * The shares the frame tests time their bars to: at 0.72 of its lit reach a plate is lit whole, no
+ * more than 5% of the pixels its light changes off the plate whole; at 0.09 of its covering reach
+ * it is gone, 95% or more back at rest; at 0.784, `brisk`'s third step, it has dropped, more than
+ * 0.5% off whole.
+ */
+const LIT_SHARE = 0.72;
+const GONE_SHARE = 0.09;
+const DROP_SHARE = 0.784;
+const MOST_SHARE = 0.95;
+const DROP_PIXELS_SHARE = 0.005;
 const JUMP_MOST_SHARE = 0.005;
 const JUMP_MOST_LEVELS = 64;
 
 for (const theme of THEMES) {
-  test(`${theme === "light" ? "by day" : "by night"}, each plate held at the jump reads whole: unlit only at its far edge, in a few pixels, never strongly`, async ({
+  test(`${theme === "light" ? "by day" : "by night"}, each plate held still at the shares its turns are timed to shows what they stand for, and at the jump reads whole: unlit only at its far edge, in a few pixels, never strongly`, async ({
     browser,
   }) => {
     test.setTimeout(240_000);
@@ -251,6 +263,22 @@ for (const theme of THEMES) {
             .forEach((circle, index) => circle.setAttribute("r", String(each[index])));
         }, radii);
       const lit = await shotOf(page);
+      // The shares the page's clock times its bars to, each held still.
+      const held = [];
+      for (const radii of [
+        circles.map(({ reaches }) => reaches.lit * LIT_SHARE),
+        circles.map(({ reaches }) => reaches.covering * GONE_SHARE),
+        circles.map(({ reaches }) => reaches.covering * DROP_SHARE),
+      ]) {
+        await setRadii(radii);
+        await page.waitForTimeout(PAINT_MS);
+        held.push({ at: 0, png: await shotOf(page) });
+      }
+      const pictureBox = (await plateBoxesOf(page)).find((each) => each.slug === slug)!.picture;
+      const {
+        changed: lightChanged,
+        shares: [atLit, atGone, atDrop],
+      } = await lightSharesOf(decoder, rest, lit, held, pictureBox);
       await setRadii(circles.map(({ reaches }) => reaches.covering));
       await page.waitForTimeout(PAINT_MS);
       const jump = await shotOf(page);
@@ -312,12 +340,28 @@ for (const theme of THEMES) {
         },
         { first: jump, second: opened, inner, differsBy: DIFFERS_BY },
       );
-      rows.push({ slug, changed: changed.differing, ...unlit });
+      rows.push({
+        slug,
+        changed: changed.differing,
+        ...unlit,
+        litOffWhole: atLit!.offWhole / lightChanged,
+        goneAtRest: atGone!.atRest / lightChanged,
+        dropOffWhole: atDrop!.offWhole / lightChanged,
+      });
       await page.mouse.move(1, 1);
       await expect(svg).toHaveAttribute("data-light", "rest");
     }
     writeFileSync(test.info().outputPath("jump.json"), JSON.stringify({ theme, rows }, null, 1));
     for (const row of rows) {
+      expect(row.litOffWhole, `${row.slug}: at 0.72 of its lit reach`).toBeLessThanOrEqual(
+        1 - MOST_SHARE,
+      );
+      expect(row.goneAtRest, `${row.slug}: at 0.09 of its covering reach`).toBeGreaterThanOrEqual(
+        MOST_SHARE,
+      );
+      expect(row.dropOffWhole, `${row.slug}: at 0.784 of its covering reach`).toBeGreaterThan(
+        DROP_PIXELS_SHARE,
+      );
       expect(row.within, `${row.slug}: unlit within 0.8 of a covering reach`).toBe(0);
       expect(row.differing, `${row.slug}: unlit at the jump`).toBeLessThanOrEqual(
         row.changed * JUMP_MOST_SHARE,

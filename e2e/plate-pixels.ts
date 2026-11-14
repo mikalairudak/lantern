@@ -253,17 +253,34 @@ export interface PaintedFrame {
  * The radii of a plate's lit circles as each frame painted them, each dated as its frame's
  * callbacks ran, and when its cell was entered and left.
  */
+/** A moment on the page's clock, and the radii of a plate's lit circles then. */
+export interface PlateMoment {
+  at: number;
+  radii: number[];
+}
+
+/**
+ * One crossing of a cell's edge, which the page hears as `pointerout` then `pointerover`: its
+ * start, the `pointerout`, where the radii are the last painted; and its commit, the `pointerover`,
+ * which follows the page's turn of the plate, where the radii are where the old spring stood.
+ */
+export interface PlateCrossing {
+  /** Onto the cell, which lights the plate, or off it, which puts it out. */
+  isOnto: boolean;
+  start: PlateMoment;
+  commit: PlateMoment;
+}
+
+/** The radii of a plate's lit circles as each frame painted them, and every crossing of its cell. */
 export interface PlateLog {
-  samples: { at: number; radii: number[] }[];
-  /** Each time a pointer came onto the cell or left it, and the radii standing then. */
-  entered: { at: number; radii: number[] }[];
-  left: { at: number; radii: number[] }[];
+  /** Each painted frame, dated as its callbacks ran. */
+  samples: PlateMoment[];
+  crossings: PlateCrossing[];
 }
 
 /**
  * Starts logging one plate: after each frame is painted, the radius of each of its lit circles,
- * and each time a pointer comes onto its cell or leaves it, with the radii standing then, all on
- * the page's clock.
+ * and each crossing of its cell's edge, its start and its commit, all on the page's clock.
  */
 export async function logPlate(page: Page, slug: string): Promise<void> {
   await page.evaluate((plate) => {
@@ -273,18 +290,35 @@ export async function logPlate(page: Page, slug: string): Promise<void> {
     const now = () => performance.timeOrigin + performance.now();
     const radii = () => circles.map((circle) => Number(circle.getAttribute("r")));
     type Moment = { at: number; radii: number[] };
-    const log = { samples: [] as Moment[], entered: [] as Moment[], left: [] as Moment[] };
+    type Crossing = { isOnto: boolean; start: Moment; commit: Moment };
+    const log = { samples: [] as Moment[], crossings: [] as Crossing[] };
     (window as unknown as { plateLog: typeof log }).plateLog = log;
-    // On the window, capturing, so the radii are read before the page's own handlers turn them.
-    // Over: the pointer comes onto the target from the related target; out: it leaves the target
-    // for the related target. Either crosses the cell's edge when only its target is in the cell.
+    // On the window, capturing, so each is read before the page's own handlers. A crossing has one
+    // end in the cell and one out of it: out, the pointer leaves the target for the related target;
+    // over, it comes onto the target from the related target.
     const isIn = (node: EventTarget | null) => node instanceof Node && cell.contains(node);
-    const crossing = (event: PointerEvent) => {
-      if (!isIn(event.target) || isIn(event.relatedTarget)) return;
-      (event.type === "pointerover" ? log.entered : log.left).push({ at: now(), radii: radii() });
-    };
-    window.addEventListener("pointerover", crossing, true);
-    window.addEventListener("pointerout", crossing, true);
+    let started: { isOnto: boolean; start: Moment } | null = null;
+    window.addEventListener(
+      "pointerout",
+      (event) => {
+        if (isIn(event.target) === isIn(event.relatedTarget)) return;
+        started = { isOnto: isIn(event.relatedTarget), start: { at: now(), radii: radii() } };
+      },
+      true,
+    );
+    window.addEventListener(
+      "pointerover",
+      (event) => {
+        if (isIn(event.target) === isIn(event.relatedTarget)) return;
+        const isOnto = isIn(event.target);
+        const commit = { at: now(), radii: radii() };
+        // A pointer that comes in from outside the page has no `pointerout`: it starts as it commits.
+        const start = started !== null && started.isOnto === isOnto ? started.start : commit;
+        log.crossings.push({ isOnto, start, commit });
+        started = null;
+      },
+      true,
+    );
     // Each frame is dated as its callbacks run, after the input it answers, and read once it
     // has been painted: a message posted in a frame's callbacks arrives after its paint.
     const channel = new MessageChannel();
