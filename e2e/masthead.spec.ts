@@ -159,3 +159,50 @@ test.describe("on a row of three", () => {
     expect(sheet.x + sheet.width).toBeLessThanOrEqual(newDay.x);
   });
 });
+
+test.describe("a window resized across the row's threshold", () => {
+  test("from 360 px to 390, the menu's new day row is no longer drawn and the menu's button takes the focus", async ({
+    page,
+  }) => {
+    await openDay(page, 360);
+    await trigger(page).focus();
+    // The up arrow opens the menu on its last row, here the new day's.
+    await page.keyboard.press("ArrowUp");
+    await expect(page.getByRole("menuitem", { name: /^New day/ })).toBeFocused();
+
+    await page.setViewportSize({ width: 390, height: 800 });
+    await expect(page.getByRole("menu")).toBeHidden();
+    await expect(trigger(page)).toBeFocused();
+  });
+
+  test("from 390 px to 360, the row's new day is no longer drawn and the menu's button takes the focus", async ({
+    page,
+  }) => {
+    await openDay(page, 390);
+    await newDayButton(page).focus();
+    await expect(newDayButton(page)).toBeFocused();
+
+    await page.setViewportSize({ width: 360, height: 800 });
+    await expect(newDayButton(page)).toBeHidden();
+    await expect(trigger(page)).toBeFocused();
+  });
+});
+
+test("Escape on the new day with the city's list open closes it, the focus to the city word", async ({
+  page,
+}) => {
+  await openDay(page, 1280);
+  await newDayButton(page).click();
+  await expect(field(page)).toBeFocused();
+  // Back to the button by the keys, past the list's rows and the headline's words.
+  for (let presses = 0; presses < 40; presses += 1) {
+    if (await newDayButton(page).evaluate((element) => element === document.activeElement)) break;
+    await page.keyboard.press("Shift+Tab");
+  }
+  await expect(newDayButton(page)).toBeFocused();
+  await expect(cityWord(page)).toHaveAttribute("aria-expanded", "true");
+
+  await page.keyboard.press("Escape");
+  await expect(cityWord(page)).toHaveAttribute("aria-expanded", "false");
+  await expect(cityWord(page)).toBeFocused();
+});

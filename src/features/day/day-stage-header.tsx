@@ -854,6 +854,15 @@ export function DayStageHeader({
   // the list's own state does not change.
   const newDayButton = useRef<HTMLButtonElement>(null);
   const cityField = useRef<HTMLInputElement>(null);
+  const cityWordButton = useRef<HTMLButtonElement>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  // Escape on the new day is Escape in the list it opened: the list closes, and the focus goes
+  // to the city word, which owns it.
+  const closeNewDay = () => {
+    if (cityOpenAt === null) return;
+    cityWordButton.current?.focus();
+    onCityOpenChange(null);
+  };
   const openNewDay = () => {
     if (isReplanWriting) return sayLocked();
     onCityOpenChange("elsewhere");
@@ -996,6 +1005,7 @@ export function DayStageHeader({
                 },
               ]}
               onFocusLost={giveNewDayTheFocus}
+              triggerRef={menuButton}
             />
           )
         }
@@ -1003,6 +1013,8 @@ export function DayStageHeader({
           <NewDayButton
             ref={newDayButton}
             onPress={openNewDay}
+            onEscape={closeNewDay}
+            onHiddenWithFocus={() => menuButton.current?.focus()}
             isLocked={isReplanWriting}
             isAlwaysInRow={!hasWaysAlong}
           />
@@ -1071,6 +1083,7 @@ export function DayStageHeader({
                       onOpenChange={onCityOpenChange}
                       ownWord={newDayButton}
                       fieldRef={cityField}
+                      wordRef={cityWordButton}
                       onChooseWritten={onChooseWritten}
                       onChooseCity={onChooseCity}
                       typedCity={typedCity}

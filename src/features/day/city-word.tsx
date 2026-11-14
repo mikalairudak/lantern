@@ -107,6 +107,8 @@ interface CityWordProps {
   ownWord?: RefObject<HTMLElement | null>;
   /** The list's field, which that control puts the focus back in when the list is open already. */
   fieldRef?: RefObject<HTMLInputElement | null>;
+  /** The word's own button, which that control gives the focus to when Escape closes the list. */
+  wordRef?: RefObject<HTMLButtonElement | null>;
   /** A written day, chosen whole: its sentence takes the place of this one. */
   onChooseWritten: (request: DayRequest) => void;
   /** Any other city, as typed. */
@@ -163,6 +165,7 @@ export function CityWord({
   onOpenChange,
   ownWord,
   fieldRef,
+  wordRef,
   onChooseWritten,
   onChooseCity,
   typedCity = null,
@@ -176,7 +179,8 @@ export function CityWord({
   onLockedPress,
 }: CityWordProps) {
   const isMarked = isAssumptionMarked && current.citySource === "assumed";
-  const button = useRef<HTMLButtonElement>(null);
+  const ownButton = useRef<HTMLButtonElement>(null);
+  const button = wordRef ?? ownButton;
   const isReducedMotion = useReducedMotion() ?? false;
   // Read when the word takes the focus, not a reason to take it again.
   const scrollBehavior = useRef<ScrollBehavior>(isReducedMotion ? "instant" : "smooth");
@@ -193,7 +197,7 @@ export function CityWord({
     if (!isFocusedOnMount || !word) return;
     word.focus({ preventScroll: true });
     word.scrollIntoView({ block: "nearest", behavior: scrollBehavior.current });
-  }, [isFocusedOnMount]);
+  }, [isFocusedOnMount, button]);
   const panelId = useId();
   const [exit, setExit] = useState<FoldExit>({ isInstant: false });
   // A choice made, the list stays as it stands until the day chosen takes this one's place.

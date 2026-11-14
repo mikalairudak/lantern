@@ -1,11 +1,11 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { KANAZAWA_START_DAY } from "@/lib/days/written/kanazawa";
 import { KANAZAWA_START_REQUEST } from "@/lib/days/written/quick-starts";
 import { normalizeDay } from "@/lib/normalizer/normalize";
 import type { Itinerary } from "@/lib/schema/itinerary.schema";
-import { TAKE_THIS_DAY } from "./day-menu";
+import { TAKE_THIS_DAY, isFocusDropped } from "./day-menu";
 import { DayStage } from "./day-stage";
 import { NEW_DAY, NEW_DAY_NOTE, NewDayButton } from "./new-day";
 
@@ -87,6 +87,33 @@ describe("the new day's button", () => {
     await userEvent.click(newDay());
     expect(onPress).toHaveBeenCalledTimes(1);
   });
+
+  it("asks for a place for the focus when CSS stops drawing it with the focus on it", () => {
+    const onHiddenWithFocus = vi.fn();
+    render(<NewDayButton onPress={ignore} onHiddenWithFocus={onHiddenWithFocus} />);
+    // Blurred towards nothing while still drawn, as when the window loses the focus: no move.
+    fireEvent.blur(newDay(), { relatedTarget: null });
+    expect(onHiddenWithFocus).not.toHaveBeenCalled();
+    // The row narrowed past `@masthead`: the browser stops drawing it and blurs it.
+    newDay().checkVisibility = () => false;
+    fireEvent.blur(newDay(), { relatedTarget: null });
+    expect(onHiddenWithFocus).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("a focus that CSS drops", () => {
+  it("is dropped only when blurred towards nothing from an element in the page that is not drawn", () => {
+    const element = document.createElement("button");
+    document.body.append(element);
+    element.checkVisibility = () => false;
+    expect(isFocusDropped(null, element)).toBe(true);
+    expect(isFocusDropped(document.body, element)).toBe(false);
+    element.checkVisibility = () => true;
+    expect(isFocusDropped(null, element)).toBe(false);
+    element.checkVisibility = () => false;
+    element.remove();
+    expect(isFocusDropped(null, element)).toBe(false);
+  });
 });
 
 describe("the new day on a day's page", () => {
@@ -134,6 +161,38 @@ describe("the new day on a day's page", () => {
     await waitFor(() => expect(field()).toHaveFocus());
     await user.keyboard("{Escape}");
     expect(within(headline()).getByRole("button", { name: "Kanazawa" })).toHaveFocus();
+  });
+
+  it("closes the list it opened on Escape, the focus to the city word", async () => {
+    const user = renderDay();
+    const city = within(headline()).getByRole("button", { name: "Kanazawa" });
+    await user.click(newDay());
+    await waitFor(() => expect(field()).toHaveFocus());
+    // Back on the button, the list stays open: the button is the list's own word.
+    act(() => newDay().focus());
+    expect(city).toHaveAttribute("aria-expanded", "true");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(city).toHaveAttribute("aria-expanded", "false"));
+    expect(city).toHaveFocus();
+  });
+
+  it("hands the focus to the menu's button when the menu's new day row stops being drawn", async () => {
+    const user = renderDay();
+    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+    const row = screen.getByRole("menuitem", { name: /^New day/ });
+    act(() => row.focus());
+    row.checkVisibility = () => false;
+    fireEvent.blur(row, { relatedTarget: null });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(screen.getByRole("button", { name: TAKE_THIS_DAY })).toHaveFocus();
+  });
+
+  it("hands the focus to the menu's button when the row's new day stops being drawn", () => {
+    renderDay();
+    act(() => newDay().focus());
+    newDay().checkVisibility = () => false;
+    fireEvent.blur(newDay(), { relatedTarget: null });
+    expect(screen.getByRole("button", { name: TAKE_THIS_DAY })).toHaveFocus();
   });
 
   it("takes the focus when the menu leaves the page with it, as its last way goes", async () => {

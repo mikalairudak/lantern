@@ -1,7 +1,15 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type RefObject,
+} from "react";
 import { cn } from "@/components/ui/cn";
 import { ICON_SIZES, ICON_STROKE_WIDTH } from "@/lib/tokens/icon";
 import { LIST_ROW_CLASSES, LIST_SHEET_CLASSES, ROW_NOTE_CLASSES } from "./word-list";
@@ -85,6 +93,7 @@ export function DayMenu({
   isOpenAtFirst = false,
   pointedKey = null,
   onFocusLost,
+  triggerRef,
 }: {
   items: readonly DayMenuItem[];
   /** Drawn open from the first frame, as a lab cell draws it, taking no focus. */
@@ -93,11 +102,14 @@ export function DayMenu({
   pointedKey?: string | null;
   /** Told when the menu leaves the page with the focus in it, so the focus can land elsewhere. */
   onFocusLost?: () => void;
+  /** The menu's button, for a control beside it that hands the focus to it. */
+  triggerRef?: RefObject<HTMLButtonElement | null>;
 }) {
   const [isOpen, setIsOpen] = useState(isOpenAtFirst);
   const menuId = useId();
   const buttonId = useId();
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const ownButtonRef = useRef<HTMLButtonElement>(null);
+  const buttonRef = triggerRef ?? ownButtonRef;
   const menuRef = useRef<HTMLDivElement>(null);
   const firstFocus = useRef<"first" | "last" | null>(isOpenAtFirst ? null : "first");
   const box = useRef<HTMLSpanElement>(null);
@@ -127,7 +139,7 @@ export function DayMenu({
     };
     document.addEventListener("pointerdown", onOutside);
     return () => document.removeEventListener("pointerdown", onOutside);
-  }, [isOpen]);
+  }, [isOpen, buttonRef]);
 
   /** Opens the menu; from the keyboard on an item, from a press with the focus left on the button. */
   const open = (focus: "first" | "last" | null) => {
@@ -193,9 +205,13 @@ export function DayMenu({
     <span
       ref={box}
       className={BOX_CLASSES}
-      // The focus leaving the button and its menu, by Tab or otherwise, closes it.
+      // The focus leaving the button and its menu, by Tab or otherwise, closes it. A row the
+      // row's width no longer draws, as the new day's once the row is wide enough to hold it,
+      // drops the focus to nowhere: the menu's button takes it.
       onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsOpen(false);
+        if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+        setIsOpen(false);
+        if (isFocusDropped(event.relatedTarget, event.target)) buttonRef.current?.focus();
       }}
     >
       <span role="status" className="sr-only">
@@ -300,6 +316,16 @@ function itemsIn(menu: HTMLElement | null): HTMLElement[] {
 }
 
 /** Whether an element is drawn; a browser that cannot say, as jsdom, draws every one. */
-function isDrawn(element: HTMLElement): boolean {
+export function isDrawn(element: Element): boolean {
   return typeof element.checkVisibility !== "function" || element.checkVisibility();
+}
+
+/**
+ * Whether the focus left an element because CSS stopped drawing it, as a container query does
+ * when the window is resized: the browser blurs it towards nothing, and the page must give the
+ * focus a place. An element taken out of the page is not this case: what removed it places the
+ * focus.
+ */
+export function isFocusDropped(next: EventTarget | null, left: EventTarget): boolean {
+  return next === null && left instanceof Element && left.isConnected && !isDrawn(left);
 }
