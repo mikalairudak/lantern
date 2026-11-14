@@ -1,6 +1,6 @@
 /**
  * How the visitor reads a day: on its plan, the list, or on the chart (`docs/decisions.md`, "A day
- * can be read as a list, written as the chart is", and "A day opens on its plan, lit by its
+ * can be read as a list, written as the chart is", and "A day opens on its plan, lit by the
  * day's light"). A day opens on its plan unless the visitor chose the chart, a choice a visitor of the
  * chart-first site kept too. The choice is kept in this browser's storage, as the theme is, and
  * noted on `<html>` as `data-day-view` before the first paint, so a visitor who chose the chart

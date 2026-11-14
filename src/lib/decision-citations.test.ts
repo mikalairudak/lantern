@@ -27,9 +27,11 @@ const LINE_BREAK = /\s*\n\s*(?:\/\/|\*(?!\/))?\s*/g;
 
 /**
  * The log's name, an optional date, then one quoted heading or several, as in
- * `docs/decisions.md`, 2026-10-20, "Two-layer data contract" and "Field order is render order".
+ * `docs/decisions.md`, 2026-10-20, "Two-layer data contract" and "Field order is render order",
+ * with or without a comma before the last one's "and".
  */
-const CITATION = /decisions\.md`?,\s*(?:\d{4}-\d{2}-\d{2},\s*)?((?:"[^"]+"(?:,\s*|\s+and\s+)?)+)/g;
+const CITATION =
+  /decisions\.md`?,\s*(?:\d{4}-\d{2}-\d{2},\s*)?((?:"[^"]+"(?:,\s*(?:and\s+)?|\s+and\s+)?)+)/g;
 const QUOTED = /"([^"]+)"/g;
 
 /** What ends a heading's first clause. */
@@ -77,6 +79,15 @@ describe("the decision log's citations", () => {
     ].join("\n");
 
     expect(citationsIn(text)).toEqual(["Two-layer data contract", "A", "B", "C", "D"]);
+  });
+
+  it("reads every heading of a list written with a comma before its last one", () => {
+    const text = [
+      '// (`docs/decisions.md`, "A", and "B"), and (`docs/decisions.md`, "C", "D", and "E");',
+      '// a quote after the list\'s end, ", and "F"", is not read.',
+    ].join("\n");
+
+    expect(citationsIn(text)).toEqual(["A", "B", "C", "D", "E"]);
   });
 
   it("takes a whole heading or the first clause of one, never a clause two headings share", () => {
