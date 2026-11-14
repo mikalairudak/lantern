@@ -15,6 +15,8 @@ import {
 import { Ink } from "@/components/ui/ink";
 import { cn } from "@/components/ui/cn";
 import { ICON_SIZES, ICON_STROKE_WIDTH } from "@/lib/tokens/icon";
+import type { EnergyLevel } from "@/lib/schema/itinerary.schema";
+import { EnergyGlyph } from "./energy-glyph";
 import type { FactKey, FactSource } from "./facts";
 import { Fold, type FoldExit } from "@/components/ui/fold";
 import { FadeIn } from "@/components/ui/fade-in";
@@ -41,6 +43,8 @@ export interface OptionView {
   isCurrent: boolean;
   /** Drawn before its words, as the theme's answers are; most answers are words alone. */
   icon?: LucideIcon;
+  /** An energy answer's place on the scale of five, drawn at the end of its name's line. */
+  energyLevel?: EnergyLevel;
 }
 
 /** The fork's other answer, set after a word as its pair. */
@@ -690,7 +694,17 @@ function OptionRow({ id, option, isActive, rowClasses, onChoose }: OptionRowProp
         </span>
       )}
       <span className="block min-w-0 flex-1">
-        <span id={labelId}>{option.label}</span>
+        {option.energyLevel ? (
+          <span className="flex items-baseline justify-between gap-4">
+            <span id={labelId}>{option.label}</span>
+            {/* In a span of its own, so the glyph keeps its place on the line's baseline. */}
+            <span>
+              <EnergyGlyph level={option.energyLevel} isDayLevel={option.isCurrent} />
+            </span>
+          </span>
+        ) : (
+          <span id={labelId}>{option.label}</span>
+        )}
         {option.consequence && (
           <span id={noteId} className={ROW_NOTE_CLASSES}>
             {option.consequence}
