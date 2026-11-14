@@ -21,6 +21,8 @@ test.beforeEach(async ({ page }) => {
 const DAY_TIMEOUT_MS = waitMs(30_000);
 const PHONE = { width: 390, height: 844 };
 const LAPTOP = { width: 1440, height: 900 };
+/** A laptop under the width the root grows from, whose chart's column is the 1440 px one's. */
+const UNDER_GROWTH = { width: 1024, height: 900 };
 const LARGE = { width: 2560, height: 1440 };
 /** `toBeCloseTo`'s digits, not pixels: one decimal holds a value within 0.05 px. */
 const SAME_TO_ONE_DECIMAL = 1;
@@ -123,16 +125,31 @@ test("up to 1440 px the chart is drawn at a phone's and a laptop's own pixels", 
   isMobile,
 }) => {
   const before = isMobile ? BEFORE.phone : BEFORE.laptop;
+  // On a laptop, how far down the rows stand is their words' own: a name that fills its line on
+  // one system takes two on a system that sets glyphs on whole pixels. So the chart's height
+  // and its beads' heights are held to the same day drawn under the width the root grows from.
+  let rows: Geometry | null = null;
+  if (!isMobile) {
+    await openKanazawa(page, UNDER_GROWTH);
+    rows = await geometryOf(page);
+  }
   await openKanazawa(page, isMobile ? PHONE : LAPTOP);
 
   const drawn = await geometryOf(page);
+  const down = (point: Point, index: number) => ({
+    x: point.x,
+    y: rows?.beads.at(index)?.y ?? point.y,
+  });
   expect(drawn.root).toBe("16px");
   expect(drawn.chart.x).toBeCloseTo(before.chart.x, SAME_TO_ONE_DECIMAL);
   expect(drawn.chart.width).toBeCloseTo(before.chart.width, SAME_TO_ONE_DECIMAL);
-  expect(drawn.chart.height).toBeCloseTo(before.chart.height, SAME_TO_ONE_DECIMAL);
-  expectPointAt(drawn.beads[0], before.beads.first, "the first bead");
-  expectPointAt(drawn.beads[1], before.beads.second, "the second bead");
-  expectPointAt(drawn.beads.at(-1), before.beads.last, "the last bead");
+  expect(drawn.chart.height).toBeCloseTo(
+    rows?.chart.height ?? before.chart.height,
+    SAME_TO_ONE_DECIMAL,
+  );
+  expectPointAt(drawn.beads[0], down(before.beads.first, 0), "the first bead");
+  expectPointAt(drawn.beads[1], down(before.beads.second, 1), "the second bead");
+  expectPointAt(drawn.beads.at(-1), down(before.beads.last, -1), "the last bead");
 
   await page
     .getByRole("list", { name: "The day" })
