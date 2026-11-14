@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DayMenu, TAKE_THIS_DAY } from "./day-menu";
 import { Masthead } from "./masthead";
 
@@ -49,8 +49,14 @@ describe("the masthead", () => {
     render(<Masthead menu={MENU} />);
     await userEvent.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
     expect(screen.getByRole("menu")).toBeInTheDocument();
+    // A pointer rests on the theme's button, whose helper Escape puts away as well.
+    const themeBox = screen.getByRole("button", { name: THEME_NAME }).parentElement!;
+    const matches = vi.spyOn(themeBox, "matches").mockImplementation((query) => query === ":hover");
+    expect(themeBox.querySelector("[data-theme-helper]")).not.toHaveClass("hidden");
     await userEvent.keyboard("{Escape}");
+    matches.mockRestore();
     expect(screen.queryByRole("menu")).toBeNull();
     expect(screen.getByRole("button", { name: TAKE_THIS_DAY })).toHaveFocus();
+    expect(themeBox.querySelector("[data-theme-helper]")).toHaveClass("hidden");
   });
 });
