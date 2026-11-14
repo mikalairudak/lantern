@@ -49,7 +49,7 @@ flowchart TD
 | `src/lib/places/`            | The Geoapify client and place matching                                                                                                                     |
 | `src/lib/db/`                | The `Sql` port (Neon's HTTP driver in production, PGlite in tests), migrations, read-only reports                                                          |
 | `src/lib/events/`            | Anonymous product events: schema, sender, route body, Postgres store                                                                                       |
-| `src/lib/days/`              | The six written days the site serves (`written/`), a day's address, a kept day's id, headers and the five answers of `GET /api/day/<id>`                   |
+| `src/lib/days/`              | The fourteen written days the site serves (`written/`), a day's address, a kept day's id, headers and the five answers of `GET /api/day/<id>`              |
 | `src/lib/fixtures/`          | Hand-written and edge days for tests and the lab, golden sets and test doubles, none of which a public page loads                                          |
 | `src/lib/time/`              | The clock, including days that run past midnight                                                                                                           |
 | `src/lib/geo/`               | Sun position, light windows, distances                                                                                                                     |

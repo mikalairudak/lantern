@@ -72,7 +72,7 @@ After it: `/studio` as a walk through the project, and a digest of the decisions
 - the page has a footer: the sources on its left, Lantern's links on its right;
 - a written day is shown on the next date of its weekday, and its page shows its day whatever its play ends with, which is also what a search engine reads;
 
-Next: the milestones below. Each of the six written days gets its next season before `pnpm days:fresh` says its light stops holding: early December for Kanazawa and late January to early February for the rest, by its count on 11 November (`docs/decisions.md`, "A city's written day is one of its seasons, picked by the date it is shown on").
+Next: the milestones below. Each written day gets its next season before `pnpm days:fresh` says its light stops holding: early December for Kanazawa and late January to early February for the rest, by its count on 11 November (`docs/decisions.md`, "A city's written day is one of its seasons, picked by the date it is shown on").
 
 ## After v1.0: four milestones
 
@@ -96,7 +96,7 @@ Each milestone is one release. Its work reaches `develop` as small pull requests
    - the mark and the wordmark, and the not-found page, in the same language;
    - the day's head, whose polish is carried over from v1.1: fewer and quieter small notes under the headline;
    - after the release, a test with five people, and the events compared with their values before the start screen changed.
-4. **Day quality (v1.3).** The day itself: the model's and the data's open issues, and the six written days' next seasons.
+4. **Day quality (v1.3).** The day itself: the model's and the data's open issues, and the written days' next seasons.
 
 After them: a weekend, tiles by season or region, and a page of the product's measures in `/studio`.
 

@@ -17,6 +17,7 @@ import {
 } from "./city-days";
 import { AMSTERDAM_DAY } from "./amsterdam";
 import { BARCELONA_DAY } from "./barcelona";
+import { LONDON_DAY } from "./london";
 import { NEW_YORK_DAY } from "./new-york";
 import { PARIS_DAY } from "./paris";
 import { ROME_DAY } from "./rome";
@@ -69,7 +70,8 @@ export const START_SEASONS: readonly (readonly WrittenSeason[])[] = [
  * The city days' seasons, in the order of `CITY_DAYS`, each one open-ended from the first date its
  * page showed a day on, held by the same tests as the starts'. Paris's and Seoul's days were
  * written again for the week after, as a request on a date its file answered would not have
- * reached the model, so their seasons begin a week before the date each was written for.
+ * reached the model, and London's for the Saturday after the one it was written on, so their
+ * seasons begin a week before the date each was written for.
  */
 export const CITY_SEASONS: readonly (readonly WrittenSeason[])[] = [
   [seasonOf("2026-11-15", PARIS_DAY)],
@@ -79,6 +81,7 @@ export const CITY_SEASONS: readonly (readonly WrittenSeason[])[] = [
   [seasonOf(AMSTERDAM_REQUEST.date, AMSTERDAM_DAY)],
   [seasonOf(BARCELONA_REQUEST.date, BARCELONA_DAY)],
   [seasonOf("2026-11-13", SEOUL_DAY)],
+  [seasonOf("2026-11-14", LONDON_DAY)],
 ];
 
 /** The starts' days in their first season, each on the start's own request, in the starts' order. */
