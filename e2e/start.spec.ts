@@ -83,7 +83,7 @@ test("a cell pointed at is lit whole, for a pointer and the keyboard alike, and 
   expect((await ruled())[2]).toBe("underline");
 });
 
-test("a city's cell draws its plate from one file in either theme, kept forever", async ({
+test("a city's cell draws its plate from three files in either theme, its scene and its two bounds, kept forever", async ({
   page,
 }) => {
   const asked: { url: string; status: number; cache: string | null }[] = [];
@@ -101,12 +101,22 @@ test("a city's cell draws its plate from one file in either theme, kept forever"
   // The picture is out of what is read: the cell is named by its city and its day.
   await expect(madrid).toHaveAccessibleName(/^Madrid Lively Sunday/);
   await expect(madrid.locator('rect[data-layer="scene"]')).toHaveAttribute("data-state", "drawn");
-  // Every city the index offers is drawn: one file a cell, its scene, each kept forever.
-  await expect.poll(() => asked.length).toBe(INDEX_REQUESTS.length);
-  const slugs = asked.map(
-    ({ url }) => /\/pictures\/([a-z-]+)-scene-\d+\.[0-9a-f]{8}\.avif$/.exec(url)?.[1],
+  // Every city the index offers is drawn: three files a cell, each kept forever.
+  await expect.poll(() => asked.length).toBe(3 * INDEX_REQUESTS.length);
+  const kinds = asked.map(({ url }) =>
+    /\/pictures\/([a-z-]+)-(scene-\d+|footprint|sheet)\.[0-9a-f]{8}\.avif$/
+      .exec(url)
+      ?.slice(1, 3)
+      .map((part) => part.replace(/-\d+$/, ""))
+      .join(" "),
   );
-  expect(new Set(slugs)).toEqual(new Set(INDEX_REQUESTS.map(daySlugOf)));
+  expect(new Set(kinds)).toEqual(
+    new Set(
+      INDEX_REQUESTS.flatMap((request) =>
+        ["scene", "footprint", "sheet"].map((kind) => `${daySlugOf(request)} ${kind}`),
+      ),
+    ),
+  );
   for (const each of asked) {
     expect(each).toMatchObject({ status: 200, cache: "public, max-age=31536000, immutable" });
   }

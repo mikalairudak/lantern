@@ -104,9 +104,13 @@ for (const theme of THEMES) {
         await page.mouse.move(AWAY.x, AWAY.y);
         await page.waitForTimeout(SETTLE_MS);
         const log = await plateLogOf(page);
+        const ended = (await page.screenshot()).toString("base64");
 
         const on = await lightSharesOf(decoder, rest, whole, coming, box);
         const off = await lightSharesOf(decoder, rest, whole, leaving, box);
+        const [afterTurn] = (
+          await lightSharesOf(decoder, rest, whole, [{ at: 0, png: ended }], box)
+        ).shares;
         const [entered = 0, , returned = 0] = log.entered.map(({ at }) => at);
         const [left = 0, , leftAgain = 0] = log.left.map(({ at }) => at);
         const changed = on.changed;
@@ -142,6 +146,9 @@ for (const theme of THEMES) {
             .map((sample) => [Math.round(sample.at - left), sample.radii]),
         };
         writeFileSync(testInfo.outputPath("measures.json"), JSON.stringify(measures, null, 1));
+
+        // Once its turn has ended, the plate is the plate at rest.
+        expect(afterTurn!.atRest, "back at rest once the turn has ended").toBe(changed);
 
         // F3: lit whole soon after the pointer comes.
         expect(measures.litMs, "95% lit").toBeLessThanOrEqual(ON_MS);
