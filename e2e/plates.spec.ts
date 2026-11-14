@@ -123,15 +123,15 @@ for (const width of WIDTHS) {
       );
 
       for (const row of rows) {
-        // S1: no text line holds any of a plate's light or tone.
+        // No line of text holds a pixel of a plate's light or tone.
         expect(row["linesDeltaE"], `${row["state"]}: in a line of text`).toBeLessThanOrEqual(
           SEEN_DELTA_E,
         );
-        // S2: nothing past the picture's top or foot, or past its cell at a side.
+        // Nothing of a plate stands past its picture's top or foot, or past its cell at a side.
         expect(row["outside"], `${row["state"]}: past its picture or cell`).toBe(0);
-        // S3: the screen's edge is the bare page's.
+        // The screen's edge is the bare page's.
         expect(row["atEdges"], `${row["state"]}: at the screen's edge`).toBe(0);
-        // S4: lit whole is whole: opening every circle changes nothing.
+        // A plate lit whole leaves no speck unlit: opening every circle changes nothing.
         if ("unlitSpecks" in row) expect(row["unlitSpecks"], `${row["state"]}: unlit`).toBe(0);
       }
       const scroll = await page.evaluate(() => ({

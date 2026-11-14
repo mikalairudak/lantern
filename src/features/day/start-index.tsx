@@ -24,8 +24,7 @@ const CELL_CLASSES =
 /**
  * A cell pointed at, by a pointer or the keyboard, stands forward: its city takes the ink rule
  * every word that can be pressed takes (`docs/decisions.md`, "What can be pressed takes a rule in
- * ink under a pointer"). Its plate is drawn whole at every rest, so its tone and lamps are never
- * greyed.
+ * ink under a pointer"), and its plate is lit whole (`index-picture.tsx`).
  */
 const CITY_CLASSES =
   "type-voice text-quote text-pretty text-ink decoration-ink decoration-1 underline-offset-4 pointed-group:underline";

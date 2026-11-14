@@ -4,9 +4,9 @@ import type { IndexPicture } from "./index-pictures";
  * Each city's engraving, by its day's slug: its scene's box on the field and its files in
  * `public/pictures/`; its light's box, where its light and tone may stand; its two bounds, each a
  * file over that box; and its lamps, each the centre of a source drawn in the scene as a share of
- * the scene's box, across and down. Written from the pictures' recipe, outside the repository,
- * with the files: each box is measured from its drawing, each lamp from where its source is drawn,
- * and a file's name ends in a hash of its bytes.
+ * the scene's box, across and down. Generated with the files and not edited by hand: each box is
+ * measured from its drawing, each lamp from where its source is drawn, and a file's name ends in a
+ * hash of its bytes; index-pictures.test.ts holds the folder to this module.
  */
 export const INDEX_PICTURES: Readonly<Record<string, IndexPicture>> = {
   paris: {

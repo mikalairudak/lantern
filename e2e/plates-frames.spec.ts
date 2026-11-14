@@ -263,18 +263,18 @@ for (const theme of THEMES) {
 
         // The page commits each turn soon after the crossing starts.
         for (const ms of measures.commitMs) expect(ms, "the commit").toBeLessThanOrEqual(COMMIT_MS);
-        // F3, F1 and F2 on the page's clock, from the commit.
+        // Lit whole, the light's drop and the light gone, each on the page's clock from the commit.
         expect(measures.litRadiiMs, "lit whole").toBeLessThanOrEqual(LIT_MS);
         expect(measures.dropRadiiMs, "the drop").toBeLessThanOrEqual(DROP_MS);
         expect(measures.goneRadiiMs, "gone").toBeLessThanOrEqual(GONE_MS);
-        // F1 on the circles. A leave committed within two frames of its crossing's start is drawn
+        // The leave's first frame, on the circles. A leave committed within two frames of its crossing's start is drawn
         // in its own frame: the first frame painted after the commit shows every circle strictly
         // under its covering reach and under the radius held at the commit, or at 0. The library
         // starts a spring from its first frame when that frame comes more than 40 ms after the
         // spring was made (`motion-dom`'s `MAX_START_DELAY`), so a later commit paints the spring's
         // first value, the covering reach, once: a plate held there is the plate lit within 0.23%
         // of its light (the jump's still, `e2e/plates.spec.ts`). Then a circle may stand at the
-        // smaller of the two, never over it. F1's drop within 100 ms of the commit stands either way.
+        // smaller of the two, never over it. The light's drop within 100 ms of the commit stands either way.
         const isPrompt = measures.leaveCommitMs <= PROMPT_COMMIT_MS;
         firstAfterLeave!.radii.forEach((radius, circle) => {
           if (radius === 0) return;
@@ -291,7 +291,8 @@ for (const theme of THEMES) {
           TAIL_MOST_LEVELS,
         );
         expect(afterTurn!.atRest, "back at rest once the turn has ended").toBe(changed);
-        // F4: every turn, the return 120 ms into a leave among them, holds its bar.
+        // Every turn, the return 120 ms into a leave among them, goes one way from where it was
+        // turned, and no radius goes under nothing.
         crossings.forEach((crossing, index) =>
           expectTurnHolds(log, crossing, crossings[index + 1]?.start.at ?? Infinity, reaches),
         );

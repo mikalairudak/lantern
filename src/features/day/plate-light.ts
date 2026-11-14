@@ -87,8 +87,8 @@ export function lightBoxOf(picture: IndexPicture): FieldBox {
 
 /**
  * The light's box a scene is given: its picture's own top and foot, and at each side the nearer of
- * the scene's side less `LIGHT_SIDE` and the field's side less `LIGHT_PAST`. The pictures' recipe
- * writes it with each plate, and bakes its bounds on it.
+ * the scene's side less `LIGHT_SIDE` and the field's side less `LIGHT_PAST`. Each plate's box is
+ * generated with its files, its bounds drawn on it, and a test holds the module's to this rule.
  */
 export function lightBoxFor([left, top, width]: FieldBox): FieldBox {
   const fieldLeft = FIELD_CENTRE - PICTURE_FIELD_WIDTH / 2;
