@@ -75,12 +75,23 @@ for (const width of WIDTHS) {
       await setPlatesHidden(page, false);
 
       const rows: Record<string, unknown>[] = [];
+      /** Two shots kept beside the run's results where a plate stands past its box, to show where. */
+      const keepShots = async (state: string, shots: Record<string, string>) => {
+        for (const [name, png] of Object.entries(shots)) {
+          await testInfo.attach(`${state}, ${name}`, {
+            body: Buffer.from(png, "base64"),
+            contentType: "image/png",
+          });
+        }
+      };
       const atRest = await differenceOf(decoder, rest, bare, SCALE, {
         lines,
         allowed: plates.map(({ picture }) => picture),
         edges,
       });
       rows.push({ state: "at rest", ...atRest });
+      if (atRest.outside > 0)
+        await keepShots("at rest", { "the plates": rest, "the bare page": bare });
 
       for (const { slug } of plates) {
         const svg = page.locator(`svg[data-picture="${slug}"]`);
@@ -96,6 +107,9 @@ for (const width of WIDTHS) {
         const pastBox = await differenceOf(decoder, lit, rest, SCALE, {
           allowed: [plate.picture],
         });
+        if (pastBox.outside > 0) {
+          await keepShots(`${slug} lit`, { lit: lit, "the plates at rest": rest });
+        }
         await svg.evaluate((element, radius) => {
           for (const circle of element.querySelectorAll('mask[id$="-whole"] circle')) {
             circle.setAttribute("r", String(radius));
@@ -128,7 +142,10 @@ for (const width of WIDTHS) {
           SEEN_DELTA_E,
         );
         // Nothing of a plate stands past its picture's top or foot, or past its cell at a side.
-        expect(row["outside"], `${row["state"]}: past its picture or cell`).toBe(0);
+        expect(
+          row["outside"],
+          `${row["state"]}: past its picture or cell, in ${JSON.stringify(row["outsideBox"])}`,
+        ).toBe(0);
         // The screen's edge is the bare page's.
         expect(row["atEdges"], `${row["state"]}: at the screen's edge`).toBe(0);
         // A plate lit whole leaves no speck unlit: opening every circle changes nothing.
