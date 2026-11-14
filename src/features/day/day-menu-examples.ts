@@ -57,7 +57,7 @@ export interface DayMenuState {
   /** The item drawn pointed at, as a pointer or the keyboard leaves it. */
   pointedKey?: string;
   /**
-   * The masthead's row set under `@masthead`, 320 px as a 320 px phone's: the new day is the
+   * The masthead's row set at 320 px, under `@masthead`: the new day is the
    * menu's last row there, under its rule, where a wider row holds it beside the menu.
    */
   isShortRow?: boolean;

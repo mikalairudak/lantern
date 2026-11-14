@@ -206,8 +206,8 @@ export function DayMenu({
       ref={box}
       className={BOX_CLASSES}
       // The focus leaving the button and its menu, by Tab or otherwise, closes it. A row the
-      // row's width no longer draws, as the new day's once the row is wide enough to hold it,
-      // drops the focus to nowhere: the menu's button takes it.
+      // masthead's width does not draw, as the new day's where the row is wide enough to hold
+      // it, drops the focus to nowhere when it is hidden: the menu's button takes it.
       onBlur={(event) => {
         if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
         setIsOpen(false);
