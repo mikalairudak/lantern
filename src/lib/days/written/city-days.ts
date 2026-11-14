@@ -3,13 +3,14 @@ import { MADRID_START_REQUEST, startRequestOf, type QuickStart } from "./quick-s
 
 /**
  * Eight cities' written days beside the quick starts' (`docs/decisions.md`, "Seven more cities
- * have a written day at their own address"): with Madrid's start, a day in nine cities from
- * Euromonitor's Top 100 City Destinations Index 2025. Each is a day the product wrote, at its own
- * address and played from its file as a start's is; no quick start opens it. The start screen's
- * index opens the first seven (`INDEX_REQUESTS`), and its example opens London's. Requests only,
- * apart from the days, so a page can say each day's date without loading its text, and with no
- * runtime import but relative ones, so the router's config can read the addresses. Their words
- * differ across the set, so the days between them show what the request changes.
+ * have a written day at their own address" and "London has a written day"): with Madrid's
+ * start, a day in nine cities from Euromonitor's Top 100 City Destinations Index 2025. Each is a
+ * day the product wrote, at its own address and played from its file as a start's is; no quick
+ * start opens it. The start screen's index opens the first seven (`INDEX_REQUESTS`), and its
+ * example opens London's. Requests only, apart from the days, so a page can say each day's date
+ * without loading its text, and with no runtime import but relative ones, so the router's config
+ * can read the addresses. Their words differ across the set, so the days between them show what
+ * the request changes.
  */
 
 /**
