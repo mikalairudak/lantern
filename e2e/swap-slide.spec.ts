@@ -96,6 +96,7 @@ async function press(page: Page, stop: Locator, how: Press): Promise<string> {
   const row = stop.locator("xpath=../..");
   const arrow = row.locator("button[aria-label]").first();
   const label = (await arrow.getAttribute("aria-label")) ?? "";
+  // The arrow is pressed by a mouse's click on the phone too; a finger's press is the tap.
   if (how === "arrow") await arrow.click();
   else if (how === "tap") await arrow.tap();
   else {
