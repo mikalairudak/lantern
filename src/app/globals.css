@@ -11,13 +11,31 @@
    word opens counts. */
 @custom-variant panel-open (&:has([aria-expanded="true"]));
 
-/* The theme the visitor chose, as <html> notes it: the head script sets data-theme-choice
-   before the first paint, so the theme's icon is the choice from the first frame, and the
-   server's page and that frame agree. The choice, not the theme it resolves to: System on a dark
-   device is System. With no note, as without script, the choice is the system's. */
-@custom-variant chose-system (:root:not([data-theme-choice="light"], [data-theme-choice="dark"]) &);
-@custom-variant chose-light (:root[data-theme-choice="light"] &);
-@custom-variant chose-dark (:root[data-theme-choice="dark"] &);
+/* The look the page stands in, whatever chose it: by day where light is chosen, or nothing is
+   and the device is light; by night the same way. The head script sets data-theme-choice
+   before the first paint, so the theme's button offers the other look from the first frame,
+   and the server's page and that frame agree. With no note, as without script, the device's
+   look stands. */
+@custom-variant page-day {
+  :root[data-theme-choice="light"] & {
+    @slot;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme-choice="light"], [data-theme-choice="dark"]) & {
+      @slot;
+    }
+  }
+}
+@custom-variant page-night {
+  :root[data-theme-choice="dark"] & {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme-choice="light"], [data-theme-choice="dark"]) & {
+      @slot;
+    }
+  }
+}
 /* The day's view the visitor chose, as <html> notes it: the head script sets data-day-view
    before the first paint, the plan unless the chart was chosen (view-choice.ts). With no
    note, as without script, the plan shows, once the page's first HTML holds the day. */
@@ -201,6 +219,11 @@
    * (`docs/decisions.md`, "The theme crosses as one cross-fade of the whole page").
    */
   --duration-theme: 200ms;
+  /*
+   * How long a pointer rests on an icon before its helper shows: long enough that a pointer
+   * crossing the masthead raises nothing.
+   */
+  --delay-helper: 400ms;
 
   /*
    * One of two loops, with `pass-steady` below: the waiting line's light, shown while the
@@ -541,6 +564,24 @@ html {
       -webkit-text-fill-color: currentColor;
     }
   }
+}
+
+/*
+ * An icon's helper fades as a hover's colour does, and stands whole at once under reduced
+ * motion, which still waits as long before it shows (`theme-choice.tsx`).
+ */
+@utility helper-fade {
+  transition-property: opacity;
+  transition-timing-function: --theme(--default-transition-timing-function);
+  transition-duration: --theme(--default-transition-duration);
+  @media (prefers-reduced-motion: reduce) {
+    transition-duration: 0s;
+  }
+}
+
+/* The wait before an icon's helper shows under a pointer. */
+@utility helper-wait {
+  transition-delay: --theme(--delay-helper);
 }
 
 /*

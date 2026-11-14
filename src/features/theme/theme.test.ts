@@ -4,9 +4,12 @@ import {
   THEME_SCRIPT,
   THEME_STORAGE_KEY,
   applyThemeChoice,
+  currentThemeChoice,
+  nextThemeChoice,
   readThemeChoice,
   restoreThemeChoice,
   serverThemeChoice,
+  shownLookOf,
   subscribeThemeChoice,
 } from "./theme";
 
@@ -312,5 +315,59 @@ describe("a theme chosen on the page", () => {
     applyThemeChoice("dark");
     expect(heldAtLayout).toEqual([true]);
     expect(root.hasAttribute("data-theme-still")).toBe(false);
+  });
+});
+
+describe("a press on the theme's button", () => {
+  function stubDevice(scheme: "light" | "dark", isForced = false): void {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches:
+        query === `(prefers-color-scheme: ${scheme})` ||
+        (isForced && query === "(forced-colors: active)"),
+    }));
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each([
+    // [device, the choice the page stands in, the choice a press makes]
+    ["light", "system", "dark"],
+    ["dark", "system", "light"],
+    ["light", "dark", "system"],
+    ["dark", "light", "system"],
+    // Kept from before, and the device has come to agree: the press still changes the page.
+    ["light", "light", "dark"],
+    ["dark", "dark", "light"],
+  ] as const)("on a %s device turns %s to %s", (device, from, to) => {
+    stubDevice(device);
+    expect(nextThemeChoice(from)).toBe(to);
+    // Every press changes what the page shows.
+    expect(shownLookOf(to)).not.toBe(shownLookOf(from));
+  });
+
+  it("reads the look of a choice as the device shows it, and the device's under forced colours", () => {
+    stubDevice("dark");
+    expect(shownLookOf("system")).toBe("dark");
+    expect(shownLookOf("light")).toBe("light");
+    stubDevice("dark", true);
+    expect(shownLookOf("light")).toBe("dark");
+  });
+
+  it("stands in the choice a crossing will set until it has set it, then in what <html> carries", () => {
+    stubDevice("light");
+    const crossings: (() => void)[] = [];
+    Object.defineProperty(document, "startViewTransition", {
+      configurable: true,
+      value: (update: () => void) => crossings.push(update),
+    });
+    expect(currentThemeChoice()).toBe("system");
+    applyThemeChoice("dark");
+    expect(readThemeChoice()).toBe("system");
+    expect(currentThemeChoice()).toBe("dark");
+    for (const update of crossings.splice(0)) update();
+    expect(currentThemeChoice()).toBe("dark");
+    root.removeAttribute("data-theme");
+    expect(currentThemeChoice()).toBe("system");
+    Reflect.deleteProperty(document, "startViewTransition");
   });
 });

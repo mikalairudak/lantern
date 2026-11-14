@@ -21,7 +21,7 @@ import { DAY_END_MATRIX } from "@/features/day/day-end-matrix";
 import { START_HEADER_MATRIX } from "@/features/day/start-header-matrix";
 import { DAY_STAGE_HEADER_MATRIX } from "@/features/day/day-stage-header-matrix";
 import { DAY_HEAD_MATRIX } from "@/features/day/day-head-matrix";
-import { THEME_WORD_MATRIX } from "@/features/theme/theme-word-matrix";
+import { THEME_BUTTON_MATRIX } from "@/features/theme/theme-button-matrix";
 import { labMatrix, type LabMatrix } from "@/lib/lab-matrix";
 
 /**
@@ -49,7 +49,7 @@ export const MATRICES: readonly LabMatrix[] = [
   PLAN_MATRIX,
   PLAN_ROW_MATRIX,
   PLAN_BAR_MATRIX,
-  THEME_WORD_MATRIX,
+  THEME_BUTTON_MATRIX,
   labMatrix<FrameCellProps>({
     key: "stream-frames",
     title: "Stream frames",

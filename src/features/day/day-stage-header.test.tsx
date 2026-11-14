@@ -492,7 +492,7 @@ describe("DayStageHeader", () => {
     expect(seenTextOf(noticeLine())).toBe(
       "Lantern couldn't finish this day. Write it again, or open one it has\u00A0written:",
     );
-    expect(document.querySelector("header .opacity-0")).toBeNull();
+    expect(document.querySelector("header .opacity-0:not([data-theme-helper])")).toBeNull();
     expect(document.querySelector("header [inert]")).toBeNull();
   });
 
@@ -521,7 +521,7 @@ describe("DayStageHeader", () => {
       SPRINGS_TIMEOUT,
     );
     await waitFor(
-      () => expect(document.querySelector("header .opacity-0")).toBeNull(),
+      () => expect(document.querySelector("header .opacity-0:not([data-theme-helper])")).toBeNull(),
       SPRINGS_TIMEOUT,
     );
     expect(seenTextOf(screen.getByRole("list"))).toBe(OFFERED_SENTENCES.join(""));

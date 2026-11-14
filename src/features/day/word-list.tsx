@@ -7,10 +7,10 @@ import { ICON_SIZES, ICON_STROKE_WIDTH } from "@/lib/tokens/icon";
 import { placeShift, shiftToFit } from "./panel-shift";
 
 /*
- * One form for every list a word opens: the headline's words, the city and the theme. The
- * word stays where it is and is never drawn again; the list hangs below it on the sheet's
- * colour and hairline, its rows' text starting on the word's first letter, and the current
- * answer carries a quiet ink check at the end of its row.
+ * One form for every list a word opens: the headline's words and the city. The word stays
+ * where it is and is never drawn again; the list hangs below it on the sheet's colour and
+ * hairline, its rows' text starting on the word's first letter, and the current answer carries
+ * a quiet ink check at the end of its row.
  */
 
 /** A word whose list is open: its underline turns solid ink, an assumption's dots too. */

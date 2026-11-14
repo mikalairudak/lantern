@@ -105,6 +105,14 @@ export const DURATION_TOKENS = [
   },
 ] as const;
 
+/** The waits before what CSS shows, each named for its one use. */
+export const DELAY_TOKENS = [
+  {
+    name: "helper",
+    role: "How long a pointer rests on an icon before its helper shows",
+  },
+] as const;
+
 /** The rings the keyboard's focus draws, each a `@utility` in globals.css. */
 export const FOCUS_RING_TOKENS = [
   { name: "focus-ring", role: "Ink, 2 px outside the box: a link or a button" },

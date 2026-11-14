@@ -3,6 +3,12 @@ import { describe, expect, it } from "vitest";
 import { DayMenu, TAKE_THIS_DAY } from "./day-menu";
 import { Masthead } from "./masthead";
 
+/**
+ * The theme's button by its name. jsdom applies no stylesheet, so both looks' names stand in
+ * it, where a browser shows the one for the page's look.
+ */
+const THEME_NAME = /^Switch to /;
+
 const MENU = <DayMenu items={[{ key: "another", label: "Plan another day", note: "Elsewhere" }]} />;
 
 describe("the masthead", () => {
@@ -13,8 +19,8 @@ describe("the masthead", () => {
     // The mark is set in ems of the word, so its bead stands on the word's lowercase middle.
     expect(home.querySelector("svg")).toHaveStyle({ height: "1.75em" });
     expect(screen.getByRole("button", { name: TAKE_THIS_DAY })).toBeInTheDocument();
-    // The theme is an icon, named for the setting and the choice, a short rule before it.
-    expect(screen.getByRole("button", { name: "Theme: System" })).toBeInTheDocument();
+    // The theme is an icon, named for the look a press gives, a short rule before it.
+    expect(screen.getByRole("button", { name: THEME_NAME })).toBeInTheDocument();
     expect(container.querySelector(".w-px")).not.toBeNull();
   });
 
@@ -22,9 +28,9 @@ describe("the masthead", () => {
     const { container } = render(<Masthead isHome />);
     expect(screen.queryByRole("link")).toBeNull();
     expect(screen.getByText("Lantern")).toBeInTheDocument();
-    expect(
-      screen.getAllByRole("button").map((button) => button.getAttribute("aria-label")),
-    ).toEqual(["Theme: System"]);
+    const buttons = screen.getAllByRole("button");
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]).toHaveAccessibleName(THEME_NAME);
     expect(container.querySelector(".w-px")).toBeNull();
   });
 
@@ -34,7 +40,7 @@ describe("the masthead", () => {
   ])("sets the theme's icon at the small type's lowercase middle %s", (_, masthead) => {
     render(masthead);
     // The icon's own box, and around it the line of small type it is set in.
-    const iconBox = screen.getByRole("button", { name: "Theme: System" }).parentElement;
+    const iconBox = screen.getByRole("button", { name: THEME_NAME }).parentElement;
     expect(iconBox?.parentElement).toHaveClass("type-note", "*:align-middle");
   });
 });
