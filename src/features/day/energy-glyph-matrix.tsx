@@ -14,8 +14,8 @@ interface EnergyGlyphCellProps {
 }
 
 /**
- * Where the glyph stands: after a 13 px word, 6 px on, as the bar's word would set it; and at
- * the end of a 17 px name's line in a row of the energy word's list, on the list's sheet.
+ * The glyph at its two sizes: after a 13 px word, 6 px on, where its parts are a pixel across;
+ * and at the end of a 17 px name's line in a row of the energy word's list, on the list's sheet.
  */
 const SIZE_CLASSES: Readonly<Record<GlyphSize, string>> = {
   word: "type-note gap-1.5",
