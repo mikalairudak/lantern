@@ -1,3 +1,6 @@
+import { SCALE_ARROWS_MIN_REMS, SCALE_NAME_MIN_REMS } from "../src/features/abacus/chart-axes";
+import { CHART } from "../src/features/abacus/geometry";
+import { DEFAULT_ROOT_PX } from "../src/lib/tokens/root";
 import { expect, test, type Locator, type Page, waitMs, chooseTheChart } from "./fixtures";
 
 // These tests drive the chart: each page opens as for a visitor who chose it, since a day
@@ -18,17 +21,27 @@ const SMALL_PHONE = { width: 320, height: 700 };
 const ARROWED_WIDTHS = [360, 390];
 const PHONE_HEIGHT = 844;
 /**
- * Where the arrows go: a phone's scale spans its width less 128 px, and below a 223 px span
- * the gap beside the arrows falls under one em, too tight to read as a gap, so 351 px keeps
- * them (`SCALE_ARROWS_MIN_REMS`).
+ * What a phone's width gives the scale at the default text size: the page's gutters, a rem
+ * either side, and the chart's room beside its lanes, the time axis on the left and the
+ * beads' reach on the right.
  */
-const LAST_ARROWLESS_WIDTH = 350;
-const FIRST_ARROWED_WIDTH = 351;
+const PHONE_BESIDE_SCALE_PX =
+  2 * DEFAULT_ROOT_PX + CHART.axisWidth + CHART.laneInsetStart + CHART.laneInsetEnd;
+/** The narrowest phone whose scale spans this many rems, in whole pixels. */
+function phoneWidthFor(rems: number): number {
+  return Math.ceil(rems * DEFAULT_ROOT_PX) + PHONE_BESIDE_SCALE_PX;
+}
 /**
- * Where the curve's name first stands between the arrowless end words: a 195 px span, a
- * 323 px phone (`SCALE_NAME_MIN_REMS`). Narrower, the scale keeps its two end words alone.
+ * Where the arrows go: narrower than the arrows' least span, the gap beside them falls under
+ * one em, too tight to read as a gap (`SCALE_ARROWS_MIN_REMS`).
  */
-const FIRST_NAMED_WIDTH = 323;
+const FIRST_ARROWED_WIDTH = phoneWidthFor(SCALE_ARROWS_MIN_REMS);
+const LAST_ARROWLESS_WIDTH = FIRST_ARROWED_WIDTH - 1;
+/**
+ * Where the curve's name first stands between the arrowless end words (`SCALE_NAME_MIN_REMS`).
+ * Narrower, the scale keeps its two end words alone.
+ */
+const FIRST_NAMED_WIDTH = phoneWidthFor(SCALE_NAME_MIN_REMS);
 /**
  * The least room between two of the scale's words, so they are told apart at a glance and
  * each stands apart under a finger.
