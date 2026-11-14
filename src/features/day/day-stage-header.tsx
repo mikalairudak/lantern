@@ -1530,6 +1530,7 @@ function optionsOf(
       option.value === fact?.value
         ? null
         : consequenceOf(key, option.value, forecasts, energyRepicks),
+    ...(key === "energy" && { energyLevel: option.value as EnergyLevel }),
   }));
   if (change === null || key !== change.word || status === "failed") return options;
   // The day before had Lantern's question here: its row stands for it by what the page said.

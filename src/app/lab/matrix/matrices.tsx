@@ -22,6 +22,7 @@ import { DAY_END_MATRIX } from "@/features/day/day-end-matrix";
 import { START_HEADER_MATRIX } from "@/features/day/start-header-matrix";
 import { DAY_STAGE_HEADER_MATRIX } from "@/features/day/day-stage-header-matrix";
 import { DAY_HEAD_MATRIX } from "@/features/day/day-head-matrix";
+import { ENERGY_GLYPH_MATRIX } from "@/features/day/energy-glyph-matrix";
 import { ENERGY_LIST_MATRIX } from "@/features/day/energy-list-matrix";
 import { THEME_WORD_MATRIX } from "@/features/theme/theme-word-matrix";
 import { labMatrix, type LabMatrix } from "@/lib/lab-matrix";
@@ -50,6 +51,7 @@ export const MATRICES: readonly LabMatrix[] = [
   DAY_STAGE_HEADER_MATRIX,
   DAY_HEAD_MATRIX,
   ENERGY_LIST_MATRIX,
+  ENERGY_GLYPH_MATRIX,
   PLAN_MATRIX,
   PLAN_ROW_MATRIX,
   PLAN_BAR_MATRIX,

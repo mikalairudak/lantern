@@ -37,7 +37,7 @@ const WIRE_RIGHT = "M17.5 11.63 Q20.25 11.25 23 10.5";
  * word alone.
  */
 const MARK_EM = 1.75;
-const X_HEIGHT_EM = 0.507;
+export const X_HEIGHT_EM = 0.507;
 const BOX_UNITS = BOX_WIDTH * UNITS_PER_PX;
 const EM_VIEW_BOX = `0 0 ${BOX_UNITS} ${GRID}`;
 const EM_HEIGHT = `${MARK_EM}em`;
