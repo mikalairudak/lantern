@@ -1,16 +1,16 @@
 import { daySlugOf } from "@/lib/days/slug";
 import { labMatrix, type LabMatrix } from "@/lib/lab-matrix";
 import { StartIndex, type CellStill } from "./start-index";
-import { DRAWN_STARTS, LONG_START, UNDRAWN_START } from "./start-index-examples";
+import { DRAWN_STARTS, LONG_START, UNDRAWN_START, WRAPPING_START } from "./start-index-examples";
 
 /** A drawn city's start, by its city. */
 function startIn(city: string) {
   return DRAWN_STARTS.find((start) => start.request.city === city);
 }
 
-/** The long-named city drawn over a plate, so the light can be seen under a name that wraps. */
+/** The city whose name wraps, drawn over a plate, so the light can be seen clear of both lines. */
 const LONG_NAME_PICTURE: Readonly<Record<string, string>> = {
-  [LONG_START.request.city]: daySlugOf({ city: "Tokyo" }),
+  [WRAPPING_START.request.city]: daySlugOf({ city: "Tokyo" }),
 };
 const NO_PICTURES: Readonly<Record<string, string>> = {};
 
@@ -24,7 +24,9 @@ const COUNTS = {
   },
   longest: {
     label: "the longest name, wrapping over Tokyo's plate, beside a name of four letters",
-    starts: [LONG_START, startIn("Rome")].flatMap((start) => (start === undefined ? [] : [start])),
+    starts: [WRAPPING_START, startIn("Rome")].flatMap((start) =>
+      start === undefined ? [] : [start],
+    ),
   },
   widest: {
     label:
