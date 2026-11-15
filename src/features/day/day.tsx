@@ -881,19 +881,33 @@ export function Day({
       source.current(request, signatures.current.get(signedKeyOf(request)) ?? null),
     [],
   );
-  /** Plays a day from where it streams, opened as the visitor reached it. */
+  // The stream as last drawn, for a play asked after it.
+  const streamNow = useRef<Pick<DayStream, "request" | "outcome">>(stream);
+  useLayoutEffect(() => {
+    streamNow.current = stream;
+  });
+  /**
+   * Plays a request from where it streams, opened as the visitor reached it. A request the stream
+   * has played to an ending is not asked again: a page hidden while another route shows runs its
+   * effects again as it shows, and the day would be asked of the route a second time and written
+   * over from its empty frame. One that was stopped before its ending, as hiding the page or React's
+   * Strict Mode stops it, plays again.
+   */
   const playFrom = useCallback(
-    (source: DaySource, via: DayVia) => {
+    (request: DayRequest, via: DayVia) => {
+      const now = streamNow.current;
+      if (now.request === request && now.outcome !== null) return;
+      const source = sourceOf(request);
       openDay(source.request, via);
       play(source);
     },
-    [openDay, play],
+    [openDay, play, sourceOf],
   );
   useEffect(() => {
     if (asked && !asked.isStreamed && asked.kept === null && asked.whole === null) {
-      playFrom(sourceOf(asked.request), asked.via);
+      playFrom(asked.request, asked.via);
     }
-  }, [asked, playFrom, sourceOf]);
+  }, [asked, playFrom]);
   // A day drawn whole is opened, and ended, as one played to its end is, once it is the day
   // this visit shows.
   useEffect(() => {
@@ -910,8 +924,8 @@ export function Day({
     openDay(asked.request, "kept", outcome.kind);
   }, [asked, openDay]);
   useEffect(() => {
-    if (pending) playFrom(sourceOf(pending.request), pending.via);
-  }, [pending, playFrom, sourceOf]);
+    if (pending) playFrom(pending.request, pending.via);
+  }, [pending, playFrom]);
   useEffect(() => {
     if (!pending) return undefined;
     const timer = window.setTimeout(() => setIsHoldOver(true), START_WORDS_CAP_MS);
@@ -1443,8 +1457,8 @@ export function Day({
     return () => window.clearTimeout(gone);
   }, [folding, isReducedMotion, letFoldingGo]);
   useEffect(() => {
-    if (replanning) playFrom(sourceOf(replanning.request), "word");
-  }, [replanning, playFrom, sourceOf]);
+    if (replanning) playFrom(replanning.request, "word");
+  }, [replanning, playFrom]);
   const replanned = hasStreamTaken(stream, replanning?.request) ? stream : null;
   // The whole day asked again, as one of the visitor's days, from when its answer names it.
   const replannedId = replanned?.dayId ?? null;

@@ -1,5 +1,6 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Activity } from "react";
 import {
   afterAll,
   afterEach,
@@ -1091,6 +1092,33 @@ describe("the address, on a page that asks the day to keep it", () => {
 
       await waitFor(() => expect(window.location.pathname).toBe("/day/bologna"));
       expect(document.title).toBe(BOLOGNA_TITLE);
+    },
+    LONG_TEST_MS,
+  );
+
+  it(
+    "plays each day once, however often another route hides the page and shows it again",
+    async () => {
+      const user = userEvent.setup();
+      const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
+      const page = (mode: "visible" | "hidden") => (
+        <Activity mode={mode}>
+          <Day start={{ pool: POOL, read }} isAddressed />
+        </Activity>
+      );
+      const { rerender } = render(page("visible"));
+      await playParis(user);
+      await chooseCity(user, "Paris", "Bologna");
+      await waitFor(() => expect(window.location.pathname).toBe("/day/bologna"));
+      await waitForTheDay();
+
+      // Another page of the site shows, and Back shows this one again.
+      rerender(page("hidden"));
+      rerender(page("visible"));
+
+      await waitForTheDay();
+      expect(headline()).toHaveTextContent(/^A lively Saturday in Bologna/);
+      expect(fetchDay).toHaveBeenCalledTimes(2);
     },
     LONG_TEST_MS,
   );

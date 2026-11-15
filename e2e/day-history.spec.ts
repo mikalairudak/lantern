@@ -241,6 +241,50 @@ test.describe("with reduced motion", () => {
   });
 });
 
+test("a Back past another page of the site, which the day's page does not hear, shows that entry's day and keeps the days ahead", async ({
+  page,
+}) => {
+  test.setTimeout(TWO_DAYS_TEST_MS);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const rows = await playParis(page);
+  await chooseBolognaAtTheCityWord(page);
+  const withBologna = await historyLength(page);
+  await page.getByRole("link", { name: "Privacy and terms" }).click();
+  await expect(page).toHaveURL(/\/privacy$/);
+  const seen = watch(page);
+
+  // Two entries at once, from the privacy page, past Bologna's to Paris's.
+  await page.evaluate(() => window.history.go(-2));
+
+  await expectParisWhole(page, rows);
+  await page.goForward();
+  await expect(page).toHaveURL(/\/day\/bologna$/);
+  await expect(headline(page)).toContainText(BOLOGNA);
+  await page.goForward();
+  await expect(page).toHaveURL(/\/privacy$/);
+  expect(await historyLength(page)).toBe(withBologna + 1);
+  expect(seen.posts).toEqual([]);
+});
+
+test("Back from another page of the site to a day shows it as it was, with nothing asked or played again", async ({
+  page,
+}) => {
+  test.setTimeout(TWO_DAYS_TEST_MS);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/day/kanazawa");
+  await waitForTheDay(page);
+  await page.getByRole("link", { name: "Privacy and terms" }).click();
+  await expect(page).toHaveURL(/\/privacy$/);
+  const seen = watch(page);
+
+  await page.goBack();
+
+  await expect(page).toHaveURL(/\/day\/kanazawa$/);
+  await expect(headline(page)).toContainText("in Kanazawa");
+  await waitForTheDay(page, WHOLE_TIMEOUT_MS);
+  expect(seen.posts).toEqual([]);
+});
+
 test.describe("with motion", () => {
   test("a city changed at the city word, Back shows the day before whole at once, with no call", async ({
     page,
