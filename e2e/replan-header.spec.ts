@@ -18,6 +18,8 @@ test.beforeEach(async ({ page }) => {
 const MATRIX = "/lab/matrix/written-header";
 const BENCH = "/lab/concepts/replan";
 const DAY_TIMEOUT_MS = waitMs(30_000);
+/** How long the whole proposal is watched beside the day for a lead that must not come. */
+const WHOLE_WATCH_MS = 1_000;
 /** The header's state at rest, and the re-plan's states the press brings, by their rows' labels. */
 const AT_REST = /^written, with the hint$/;
 const WRITING = /^a proposal being written: its word says both answers/;
@@ -249,6 +251,6 @@ test("leads the line about the day with no “As first planned:” while a propo
   expect(await wasLed()).toBe(false);
   await expect(facts).toHaveText(/^“eating late” drawn beside/, { timeout: waitMs(90_000) });
   // Whole beside the day and not taken, the day's stops are the ones the line was written for.
-  await page.waitForTimeout(1_000);
+  await page.waitForTimeout(WHOLE_WATCH_MS);
   expect(await wasLed()).toBe(false);
 });
