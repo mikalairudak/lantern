@@ -632,6 +632,14 @@ export function DayStage({
   // A changed word's fork, a row over each part it rewrites: what Lantern is doing, what the
   // proposal would change, or why it failed, which stays until the visitor next acts on the day.
   const changeKey = replan ? `${replan.status}|${replan.change?.word}|${replan.change?.to}` : "";
+  // While a changed word's proposal is written, no answer changes the request, the energy's
+  // included: a half-written proposal cannot be kept, so a second change waits for the first
+  // (`docs/decisions.md`, "One change at a time, the energy's included"). The header locks its
+  // words on the same condition.
+  const isReplanWriting = replan?.status === "writing" && replan.change !== null;
+  // A press on the plan's locked energy, which the header's facts line answers.
+  const [isBarLockPressed, setIsBarLockPressed] = useState(false);
+  if (!isReplanWriting && isBarLockPressed) setIsBarLockPressed(false);
   const [isActedOn, setIsActedOn] = useState(false);
   // The search is said a beat after the press: a route that answers at once that it cannot
   // write, as a busy one does in a tenth of a second, says so with nothing said before it.
@@ -1126,7 +1134,7 @@ export function DayStage({
   /** A word's answer, from the headline's own word or the plan's bar. */
   const answer = ({ key, value }: Answer, control: WordControl) => {
     const fact = facts[key];
-    if (!fact) return;
+    if (!fact || isReplanWriting) return;
     if (value === fact.value) {
       if (fact.source !== "assumed") return;
       // Lantern's word chosen as it is becomes the visitor's.
@@ -1304,6 +1312,7 @@ export function DayStage({
       isCityFocused={isChosen}
       focusedWord={focusedWord}
       replan={replan}
+      isLockSaid={isBarLockPressed}
       onPointToFork={pointToFork}
       forkNote={forkNoteShown}
       // A changed word re-plans the day once it is written to its end, live: each answer then
@@ -1410,6 +1419,10 @@ export function DayStage({
                 ref={planBar}
                 energy={(facts.energy?.value as EnergyLevel | undefined) ?? request.energy}
                 isEnabled={isInteractive}
+                // Locked with the headline's words while a proposal is written, saying so in
+                // the facts line as they do.
+                isLocked={isReplanWriting}
+                onLockedPress={() => setIsBarLockPressed(true)}
                 // The headline's own answer, which counts the changed word itself, as the bar's.
                 onChoose={(level) => answer({ key: "energy", value: level }, "bar")}
                 className={wholeClasses}

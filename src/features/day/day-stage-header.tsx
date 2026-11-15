@@ -418,7 +418,10 @@ interface DayStageHeaderProps {
   energyRepicks?: EnergyRepicks | null;
   /** A word whose list is drawn open, as a lab cell draws it, taking no focus; null for none. */
   openedWord?: FactKey | null;
-  /** As a lab cell draws it: a locked word was pressed while a re-plan is written. */
+  /**
+   * A locked control outside the header, the plan's energy, was pressed while a re-plan is
+   * written, or a lab cell draws a locked word pressed: the facts line says one change at a time.
+   */
   isLockSaid?: boolean;
   onCityOpenChange: (openAt: CityFocus | null) => void;
   /**
