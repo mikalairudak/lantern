@@ -7,6 +7,7 @@ import { STOP_ROW_MATRIX } from "@/features/abacus/stop-row-matrix";
 import { PLACE_CHECK_MATRIX } from "@/features/abacus/place-check-matrix";
 import { STICKY_SCALE_MATRIX } from "@/features/abacus/sticky-scale-matrix";
 import { FORK_ROW_MATRIX } from "@/features/abacus/fork-row-matrix";
+import { PART_SLIP_MATRIX } from "@/features/day/part-slip-matrix";
 import { CITY_WORD_MATRIX } from "@/features/day/city-word-matrix";
 import { YOUR_DAYS_MATRIX } from "@/features/day/your-days-matrix";
 import { YOUR_DAYS_LEDGER_MATRIX } from "@/features/day/your-days-ledger-matrix";
@@ -40,6 +41,7 @@ export const MATRICES: readonly LabMatrix[] = [
   AXIS_LIGHT_MATRIX,
   STICKY_SCALE_MATRIX,
   FORK_ROW_MATRIX,
+  PART_SLIP_MATRIX,
   PROGRESS_LINE_MATRIX,
   DAY_END_MATRIX,
   DAY_ANSWER_MATRIX,

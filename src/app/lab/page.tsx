@@ -32,6 +32,11 @@ const PAGES = [
     note: "The product's day, header over chart, played to any ending",
   },
   {
+    href: "/lab/concepts/fork",
+    title: "Concept · Fork",
+    note: "A changed word's fork on the plan, today beside the slip, on Elche, Utrecht's morning and a whole day",
+  },
+  {
     href: "/lab/concepts/start",
     title: "Concept · Start",
     note: "The start screen: one question over a day Lantern has already written, its named pick",

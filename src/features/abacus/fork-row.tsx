@@ -54,7 +54,7 @@ const ROW_CLASSES = "type-note";
 const ANSWERS_CLASSES = "flex min-h-6 flex-wrap items-center gap-x-3";
 
 /** An answer: its bead, then its words, the whole a 24 px target. */
-const ANSWER_CLASSES =
+export const ANSWER_CLASSES =
   "pointer-events-auto inline-flex min-h-6 items-center gap-2 rounded-sm bg-ground transition-colors focus-ring";
 
 /**
@@ -69,16 +69,16 @@ const PILL_CLASSES = "rounded-full px-2 -ml-2";
  * rounding, the versions' ring, so the tap that takes it reads as one control. The ring is drawn
  * inside, so it moves nothing.
  */
-const READY_CLASSES = "ring-1 ring-inset ring-swap-drawn";
+export const READY_CLASSES = "ring-1 ring-inset ring-swap-drawn";
 
 /**
  * "Ask again" in the line under the answers: a 24 px target that stands over the line's 20 px
  * by half its excess each way, so a failed row is as tall as any other.
  */
-const ASK_AGAIN_CLASSES = "-my-0.5";
+export const ASK_AGAIN_CLASSES = "-my-0.5";
 
 /** "Take", "Compare" and "Ask again", in the shared link's look, ink on the row's quiet words. */
-const ACTION_CLASSES =
+export const ACTION_CLASSES =
   "pointer-events-auto inline-flex min-h-6 items-center rounded-sm text-ink underline decoration-1 underline-offset-4 transition-colors pointed:decoration-2 focus-ring";
 
 /**
@@ -88,8 +88,8 @@ const ACTION_CLASSES =
  */
 const LIT_CLASSES =
   "motion-safe:bg-linear-90 motion-safe:from-transparent motion-safe:via-amber motion-safe:to-transparent motion-safe:bg-fixed motion-safe:bg-size-pass motion-safe:bg-no-repeat motion-safe:bg-clip-text motion-safe:text-transparent motion-safe:animate-pass-steady";
-const LIT_ANSWER_CLASSES = cn("motion-safe:bg-swap", LIT_CLASSES);
-const LIT_LINE_CLASSES = cn("motion-safe:bg-ink-soft", LIT_CLASSES);
+export const LIT_ANSWER_CLASSES = cn("motion-safe:bg-swap", LIT_CLASSES);
+export const LIT_LINE_CLASSES = cn("motion-safe:bg-ink-soft", LIT_CLASSES);
 
 /**
  * The line under the answers: the quiet ink, a step up while Lantern works. Its words stand on
@@ -324,7 +324,7 @@ interface AnswerBeadProps {
 }
 
 /** An answer's bead, drawn as the chart's beads are: the day's filled, a version's ringed. */
-function AnswerBead({ isFilled, isDashed, drawing }: AnswerBeadProps) {
+export function AnswerBead({ isFilled, isDashed, drawing }: AnswerBeadProps) {
   const { beadRadius, ringStroke } = drawing.chart;
   const size = 2 * (beadRadius + ringStroke);
   return (
@@ -429,7 +429,7 @@ function LineWords({ line }: { line: WorkLine }): ReactNode {
  * proposal is ready and what it would change, or why it failed. Nothing while it is written,
  * nor once a version is chosen.
  */
-function ForkStatus({ view }: { view: ForkView }) {
+export function ForkStatus({ view }: { view: ForkView }) {
   const said = view.isReady
     ? `${view.to} is ready beside your day: ${view.line?.words ?? ""}`
     : view.isFailed

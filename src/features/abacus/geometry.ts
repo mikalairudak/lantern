@@ -96,6 +96,12 @@ export type ChartSizes = { readonly [Key in keyof typeof CHART]: number };
  */
 export const HAIRLINE = 1;
 
+/**
+ * A proposal's wire, dashed in the versions' blue: its dashes and gaps, in hairlines, on the
+ * chart and on the plan's slip alike.
+ */
+export const PROPOSED_WIRE_DASH = 3;
+
 const MINUTES_PER_HOUR = 60;
 /** Far under a pixel at any pace, and far over a float's error in a count of hours. */
 const HOUR_ROUNDING = 1e-6;
