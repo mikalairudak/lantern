@@ -82,6 +82,20 @@ describe("YourDaysList", () => {
     expect(screen.queryByRole("button", { name: /All your days/ })).not.toBeInTheDocument();
   });
 
+  it("hands the keyboard's focus to the first day the press showed", async () => {
+    const user = userEvent.setup();
+    const days = Array.from({ length: 5 }, (_, at) => dayOf({ id: `day-${at}` }));
+    render(<YourDaysList days={days} now={NOW} onOpen={vi.fn()} onForget={vi.fn()} />);
+
+    screen.getByRole("button", { name: "All your days · 5" }).focus();
+    await user.keyboard("{Enter}");
+
+    const shown = within(screen.getByRole("list", { name: YOUR_DAYS_HEADING })).getAllByRole(
+      "button",
+    );
+    expect(shown[3]).toHaveFocus();
+  });
+
   it("forgets the days in this browser", async () => {
     const user = userEvent.setup();
     const onForget = vi.fn();

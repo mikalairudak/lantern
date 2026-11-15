@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { cn } from "@/components/ui/cn";
 import { LINK_CLASSES, TARGET_CLASSES } from "./link-classes";
 import { ShapeRow } from "./shape-row";
@@ -79,6 +79,15 @@ export function YourDaysList({
 }: YourDaysListProps) {
   const heading = useId();
   const [isAllShown, setIsAllShown] = useState(isAllShownAtFirst);
+  const list = useRef<HTMLUListElement>(null);
+  // "All your days" goes from sight as it is pressed: the focus goes on to the first day it
+  // showed, not to the page.
+  const isFocusOwed = useRef(false);
+  useEffect(() => {
+    if (!isAllShown || !isFocusOwed.current) return;
+    isFocusOwed.current = false;
+    list.current?.querySelectorAll("button")[DAYS_SHOWN_AT_FIRST]?.focus();
+  }, [isAllShown]);
   if (days.length === 0) return null;
   const today = now ?? new Date();
   const shown = isAllShown ? days : days.slice(0, DAYS_SHOWN_AT_FIRST);
@@ -89,6 +98,7 @@ export function YourDaysList({
         {YOUR_DAYS_HEADING}
       </p>
       <ul
+        ref={list}
         aria-labelledby={heading}
         className="grid grid-cols-1 gap-x-8 gap-y-6 @measure:grid-cols-2 @abacus:grid-cols-3"
       >
@@ -107,7 +117,10 @@ export function YourDaysList({
         {hidden > 0 && (
           <button
             type="button"
-            onClick={() => setIsAllShown(true)}
+            onClick={() => {
+              isFocusOwed.current = true;
+              setIsAllShown(true);
+            }}
             className={cn(LINK_CLASSES, TARGET_CLASSES)}
           >
             All your days · {days.length}
