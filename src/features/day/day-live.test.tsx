@@ -31,7 +31,7 @@ import type { GeneratedReplan } from "@/lib/schema/replan.schema";
 import { Day, type DayHandle } from "./day";
 import { isKeptSeen } from "./seen-days";
 import { INTAKE_ROUTE, readIntakeRoute } from "./intake-route";
-import { replanEndedOf, replanningOf, UNFINISHED } from "./not-yet";
+import { NO_MORE_REPLANS, replanEndedOf, replanningOf, UNFINISHED } from "./not-yet";
 import { NOT_LIVE_NOTE } from "./start-header";
 import { StartDay } from "./start-day";
 import { writtenPool } from "./written-pool";
@@ -237,10 +237,13 @@ const dayPosts: { request: DayRequest; signature: string | null }[] = [];
 /** Each targeted re-plan the route was asked for, with the signature it carried. */
 const replanPosts: { body: ReplanRequest; signature: string | null; signal: AbortSignal }[] = [];
 /**
- * The re-plans the route answers, in turn; with none left it answers a 409, as for a word
- * whose windows hold most of the day, and the page asks for the whole day.
+ * The re-plans the route answers, in turn, or "limited" for our limit met; with none left it
+ * answers a 409, as for a word whose windows hold most of the day, and the page asks for the
+ * whole day.
  */
-const replanReplies: (GeneratedReplan | CutReplan | HeldReplan)[] = [];
+const replanReplies: (GeneratedReplan | CutReplan | HeldReplan | "limited")[] = [];
+
+const HTTP_TOO_MANY_REQUESTS = 429;
 
 /** The ids the day route names its next answers by, in turn, as the log does once live. */
 const dayIds: string[] = [];
@@ -383,6 +386,7 @@ async function answerRoute(path: string, init: RequestInit): Promise<Response> {
     replanPosts.push({ body, signature, signal });
     const replan = replanReplies.shift();
     if (replan === undefined) return Response.json({ reason: "most of the day" }, { status: 409 });
+    if (replan === "limited") return new Response(null, { status: HTTP_TOO_MANY_REQUESTS });
     return replanStreamOf(replan, signal);
   }
   if (path !== DAY_ROUTE) throw new Error(`Nothing answers ${path}`);
@@ -2067,6 +2071,70 @@ describe("what a later change sets aside, said once in the facts line, with live
 
     expect(factsLineText()).not.toMatch(/set aside|not kept/);
     expect(statusText()).not.toMatch(/set aside|not kept/);
+  });
+});
+
+/** The options of a word's list as they read: each answer, then the line under it. */
+async function optionsOf(user: ReturnType<typeof userEvent.setup>, word: string) {
+  await user.click(within(headline()).getByRole("button", { name: word }));
+  const options = screen.getAllByRole("option").map((option) => option.textContent ?? "");
+  await user.keyboard("{Escape}");
+  return options;
+}
+
+describe("a word's list once a re-plan has met our limit, with live generation on", () => {
+  beforeEach(() => window.localStorage.clear());
+
+  it("says the limit once a whole day asked again has met it", async () => {
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    // No re-plan for company here: the route sends it to the whole day, which meets the limit.
+    dayReplies.push("limited");
+
+    await changeWord(user, "with anyone", "with family");
+
+    await waitFor(() => expect(day.current?.replan().status).toBe("failed"), DAY_TIMEOUT);
+    expect(await optionsOf(user, "early dinner")).toContainEqual(`eating late${NO_MORE_REPLANS}`);
+  });
+
+  it("says the limit under every answer that would ask for a re-plan, until one is written", async () => {
+    replanReplies.push("limited");
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    expect(await optionsOf(user, "early dinner")).toContainEqual(
+      expect.stringMatching(/^eating latea proposal for .+ · about\u00A0half\u00A0a\u00A0minute$/),
+    );
+
+    await changeWord(user, "early start", "slow morning");
+
+    await waitFor(() => expect(day.current?.replan().status).toBe("failed"), DAY_TIMEOUT);
+    expect(factsLineText()).toBe("No more re-plans for now, so “early start” stays");
+    const dinner = await optionsOf(user, "early dinner");
+    expect(dinner).toContainEqual(`eating late${NO_MORE_REPLANS}`);
+    expect(dinner.join("")).not.toMatch(/a proposal for/);
+    // The energy re-picks with no call, and travel changes the word alone: neither is limited.
+    const energy = await optionsOf(user, "calm");
+    expect(energy.join("")).not.toContain(NO_MORE_REPLANS);
+    expect(energy.some((option) => option.includes("at\u00A0once"))).toBe(true);
+
+    // It can still be chosen, and asks: the route answers as before.
+    replanReplies.push("limited");
+    await changeWord(user, "early dinner", "eating late");
+    await waitFor(() => expect(replanPosts).toHaveLength(2), DAY_TIMEOUT);
+    await waitFor(() => expect(day.current?.replan().status).toBe("failed"), DAY_TIMEOUT);
+    expect(await optionsOf(user, "early start")).toContainEqual(`slow morning${NO_MORE_REPLANS}`);
+
+    // A re-plan written whole: the lines forecast again.
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    await changeWord(user, "early start", "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("proposed"), DAY_TIMEOUT);
+    const after = await optionsOf(user, "early dinner");
+    expect(after.join("")).not.toContain(NO_MORE_REPLANS);
+    expect(after).toContainEqual(
+      expect.stringMatching(/^eating latea proposal for .+ · about\u00A0half\u00A0a\u00A0minute$/),
+    );
   });
 });
 

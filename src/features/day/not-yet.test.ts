@@ -13,6 +13,7 @@ import type { PartialDay } from "@/lib/stream/outcome";
 import { FACT_OPTIONS } from "./facts";
 import {
   KEEPS_EVERY_STOP,
+  NO_MORE_REPLANS,
   WHOLE_DAY_AGAIN,
   answerReachOf,
   forecastOf,
@@ -320,5 +321,19 @@ describe("setAsideNoteOf", () => {
       words: "“early dinner” not kept",
       heard: "“early dinner” not kept",
     });
+  });
+});
+
+describe("forecastOf once a re-plan has met our limit", () => {
+  it("says the limit, in the ending's own words, under every answer that would ask for a re-plan", () => {
+    expect(forecastOf({ kind: "part", parts: ["lunch"] }, true)).toBe("no more re-plans for now");
+    expect(forecastOf({ kind: "whole" }, true)).toBe(NO_MORE_REPLANS);
+    expect(replanEndedOf("limited", "dinner", "part")).toBe("No more re-plans for now");
+  });
+
+  it("leaves an answer that asks for no re-plan as it was", () => {
+    expect(forecastOf({ kind: "keep" }, true)).toBe(KEEPS_EVERY_STOP);
+    expect(forecastOf({ kind: "current" }, true)).toBeNull();
+    expect(forecastOf({ kind: "repick" }, true)).toBeNull();
   });
 });

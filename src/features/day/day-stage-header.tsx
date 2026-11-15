@@ -415,6 +415,11 @@ interface DayStageHeaderProps {
    */
   setAsideHeard?: string | null;
   /**
+   * A re-plan ended on our limit, and none has been written since: an answer that would ask for
+   * one says the limit in place of its forecast. It can still be chosen, and ends as the last.
+   */
+  isReplanLimited?: boolean;
+  /**
    * The day on screen once written to its end, when a changed word re-plans it: each answer in
    * a word's list says what choosing it would do, from the plan the route runs. Null while it
    * streams, and with live generation off, when only the energy says what it does.
@@ -561,6 +566,7 @@ export function DayStageHeader({
   forkNote = null,
   heldForkNote = null,
   setAsideHeard = null,
+  isReplanLimited = false,
   replanDay = null,
   energyRepicks = null,
   openedWord = null,
@@ -902,8 +908,8 @@ export function DayStageHeader({
   // What each answer of each word would do, from the plan the route runs for it: worked out
   // once a day and its words, not at each frame of the pen.
   const forecasts = useMemo(
-    () => forecastsOf(replanDay, request, givenReservedFacts),
-    [replanDay, request, givenReservedFacts],
+    () => forecastsOf(replanDay, request, givenReservedFacts, isReplanLimited),
+    [replanDay, request, givenReservedFacts, isReplanLimited],
   );
   // What a screen reader hears while the re-plan is written: what it rewrites, every part.
   const replanningLine =
@@ -1508,11 +1514,17 @@ function withAnswerValuesOf(replan: ReplanControls): ReplanControls {
 
 /**
  * What each answer of each word but the energy would do, by `${key}:${value}`; none without a
- * day. The energy's line counts the places on screen (`EnergyRepicks`).
+ * day. The energy's line counts the places on screen (`EnergyRepicks`). Once a re-plan has met
+ * our limit, an answer that would ask for one says so instead (`forecastOf`).
  */
 type Forecasts = ReadonlyMap<string, string | null>;
 
-function forecastsOf(day: Itinerary | null, request: DayRequest, facts: SentenceFacts): Forecasts {
+function forecastsOf(
+  day: Itinerary | null,
+  request: DayRequest,
+  facts: SentenceFacts,
+  isReplanLimited: boolean,
+): Forecasts {
   const forecasts = new Map<string, string | null>();
   if (day === null) return forecasts;
   for (const key of FACT_KEYS) {
@@ -1520,7 +1532,7 @@ function forecastsOf(day: Itinerary | null, request: DayRequest, facts: Sentence
     for (const { value } of FACT_OPTIONS[key]) {
       forecasts.set(
         `${key}:${value}`,
-        forecastOf(answerReachOf(day, request, facts, { key, value })),
+        forecastOf(answerReachOf(day, request, facts, { key, value }), isReplanLimited),
       );
     }
   }

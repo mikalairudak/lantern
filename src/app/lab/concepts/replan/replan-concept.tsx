@@ -70,13 +70,15 @@ type PaceName = keyof typeof PACES;
  * How a proposal ends: whole; its stream cut short after its first new stop has landed; a new
  * stop the merge drops, so the page lets it go as soon as that stop is whole (production's
  * own in Elche, its coffee a kept place again; in Lisbon its last new stop moved to a kept
- * place); or the route busy, nothing sent. Each but the first fails, the day as it was.
+ * place); the route busy, nothing sent; or our limit met, which every answer that would ask
+ * for a re-plan then says. Each but the first fails, the day as it was.
  */
 const ENDINGS = {
   complete: null,
   "cut after a stop": 0.62,
   "a stop dropped": null,
   busy: null,
+  limited: null,
 } as const;
 type EndingName = keyof typeof ENDINGS;
 /**
@@ -107,6 +109,8 @@ function benchIdOf(): string {
 
 /** What the route answers when nothing could be sent: the reader takes it as unavailable. */
 const HTTP_BUSY = 503;
+/** What the route answers once our limit is met: the reader takes it as limited. */
+const HTTP_LIMITED = 429;
 
 /** A recorded re-plan whose last new stop is at a place the day keeps, which the merge drops. */
 function withLastAtKeptPlace(replan: GeneratedReplan, basis: ReplanBasis): GeneratedReplan {
@@ -212,8 +216,10 @@ export function ReplanConcept({ lisbon }: { lisbon: BenchDay }) {
       : {
           basis: replanBasisOf(ask),
           open: (signal) =>
-            endingName === "busy"
-              ? Promise.resolve(new Response(null, { status: HTTP_BUSY }))
+            endingName === "busy" || endingName === "limited"
+              ? Promise.resolve(
+                  new Response(null, { status: endingName === "busy" ? HTTP_BUSY : HTTP_LIMITED }),
+                )
               : recordedReplan(
                   recordingOf(ask),
                   PACES[paceName],

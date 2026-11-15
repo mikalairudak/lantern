@@ -996,6 +996,9 @@ export function Day({
   const [replanLine, setReplanLine] = useState<ReplanLine | null>(null);
   // The version the last change set aside, said once after it (`settleFork`).
   const [setAside, setSetAside] = useState<RunSetAside | null>(null);
+  // A re-plan ended on our limit in this page's life: each answer that would ask for another
+  // says so in place of its forecast until one is written whole, since the limit holds a while.
+  const [isReplanLimited, setIsReplanLimited] = useState(false);
   // A whole day a changed word wrote again, once whole, and the day before it.
   const [wholeTurn, setWholeTurn] = useState<WholeTurn | null>(null);
   // A word's proposal for its part of the day, streaming beside the day on screen.
@@ -1023,6 +1026,7 @@ export function Day({
    */
   const failReplan = (run: number, ending: ReplanEnding, frame: ReplanFrame | null) => {
     setReplanLine(null);
+    if (ending === "limited") setIsReplanLimited(true);
     setChange((last) => (last === null ? null : { ...last, status: "failed", ending }));
     if (frame !== null) {
       foldOut(run, { ...frame, proposed: [], replaced: [], fading: frame.proposed });
@@ -1350,6 +1354,7 @@ export function Day({
     setTargeted(null);
     setReplanLine(null);
     if (targetedEnding.kind === "complete") {
+      setIsReplanLimited(false);
       const mergedChecks = { ...checks, ...replanStream.checks };
       const after: Merged = {
         run: targetedShown.run,
@@ -1491,6 +1496,7 @@ export function Day({
   const isReplanFailed = replanEnding !== null && replanEnding.kind !== "complete";
   if (replanning !== null && replanEnding !== null && isReplanFailed) {
     if (isNoDayOf(replanEnding.kind)) setDropped(replannedId);
+    if (replanEnding.kind === "limited") setIsReplanLimited(true);
     setReplanning(null);
     setReplanLine(null);
     setChange((last) =>
@@ -1542,6 +1548,7 @@ export function Day({
       }
       setReplanning(null);
       setReplanLine(null);
+      setIsReplanLimited(false);
       const { before } = replanning;
       if (before === null) {
         setHeldDay(null);
@@ -2113,6 +2120,7 @@ export function Day({
             replan={replanControls}
             replanLine={isThisRun(replanLine, asked) ? replanLine.text : null}
             setAside={isThisRun(setAside, asked) ? setAside : null}
+            isReplanLimited={isReplanLimited}
             // A written day chosen from a list plays on the date it is shown on.
             onPlay={(request) => playDay(shownRequestOf(request, new Date()), true)}
             onOpenWritten={(request) =>

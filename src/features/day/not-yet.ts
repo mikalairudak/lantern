@@ -120,7 +120,7 @@ export function replanEndedOf(
     case "unavailable":
       return "Couldn't re-plan just now";
     case "limited":
-      return "No more re-plans for now";
+      return `N${NO_MORE_REPLANS.slice(1)}`;
     case "refused":
       return part ? `Can't re-plan ${part}` : "Can't re-plan the day";
     case "invalid":
@@ -286,6 +286,13 @@ export const WHOLE_DAY_AGAIN = "a proposal for the whole day · under\u00A0a\u00
 /** How long a re-plan of part of the day takes, said after the parts it rewrites. */
 const PART_AGAIN_TAKES = "about\u00A0half\u00A0a\u00A0minute";
 
+/**
+ * Said under an answer that would ask for a re-plan once one has ended on our limit, in place of
+ * its forecast, in the words its fork row ended with. "For now" stays true however the limit
+ * turns over: a visitor's count by the calendar day in UTC, or the app's spend by the month.
+ */
+export const NO_MORE_REPLANS = "no more re-plans for now";
+
 /*
  * What a changed word's two answers say while its fork stands (`docs/decisions.md`, "A changed
  * word proposes its part beside the day, and the visitor takes it"): the day on screen is the
@@ -353,12 +360,14 @@ const PART_COUNTS = ["", "one", "two", "three", "four", "five", "six", "seven", 
 /**
  * The line under an answer: "a proposal for lunch and dinner · about half a minute", "a proposal
  * for five parts of the day · about half a minute" past four, "a proposal for the whole day ·
- * under a minute"; none under the current answer, nor here under the energy's, whose line counts
- * the places on screen (`repickLineOf`).
+ * under a minute", or "no more re-plans for now" once a re-plan has met our limit; none under
+ * the current answer, nor here under the energy's, whose line counts the places on screen
+ * (`repickLineOf`). An answer that keeps every stop asks for no re-plan, so the limit leaves it.
  */
-export function forecastOf(reach: AnswerReach): string | null {
+export function forecastOf(reach: AnswerReach, isReplanLimited = false): string | null {
   if (reach.kind === "current" || reach.kind === "repick") return null;
   if (reach.kind === "keep") return KEEPS_EVERY_STOP;
+  if (isReplanLimited) return NO_MORE_REPLANS;
   if (reach.kind === "whole") return WHOLE_DAY_AGAIN;
   if (reach.parts.length <= MAX_NAMED_PARTS) {
     return `a proposal for ${listOf(reach.parts)} · ${PART_AGAIN_TAKES}`;

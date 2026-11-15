@@ -321,6 +321,11 @@ interface DayStageProps {
    * it once, until the visitor next acts on the day. Null when that change set nothing aside.
    */
   setAside?: SetAside | null;
+  /**
+   * A re-plan ended on our limit in this page's life, and none has been written since: each
+   * answer that would ask for one says the limit in place of its forecast.
+   */
+  isReplanLimited?: boolean;
   /** Told of each word of the header changed, as the product's event it makes. */
   onEvent?: (event: Extract<ProductEvent, { kind: "word-changed" }>) => void;
   /**
@@ -398,6 +403,7 @@ export function DayStage({
   replanLine = null,
   replan,
   setAside = null,
+  isReplanLimited = false,
   onEvent,
   onDayAct,
   onDayAnswer,
@@ -1352,6 +1358,7 @@ export function DayStage({
       // The new word's note follows what its change set aside, in room held from the press.
       heldForkNote={isSetAsideShown ? forkNoteShown : setAsideShown}
       setAsideHeard={setAsideNote?.heard ?? null}
+      isReplanLimited={isReplanLimited}
       // A changed word re-plans the day once it is written to its end, live: each answer then
       // says what it would do, from the plan the route runs.
       replanDay={onReplan && shownOutcome?.kind === "complete" ? shownOutcome.itinerary : null}
