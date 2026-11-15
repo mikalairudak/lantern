@@ -466,10 +466,11 @@ export function forkNoteOf(
  */
 
 /**
- * Where a version set aside is: one of the visitor's days, on the start screen; or nowhere,
- * since its answer named no id or the list holds it no more.
+ * Where a version set aside is: one of the visitor's days, on the start screen; at its own
+ * address but not among them, as a day opened from someone's link, or one the list has let go
+ * of; or nowhere, since its answer named no id.
  */
-export type SetAsideWhere = "your-days" | "not-kept";
+export type SetAsideWhere = "your-days" | "not-in-your-days" | "not-kept";
 
 /** A version a later change set aside: its answer as the sentence said it, and where it is. */
 export interface SetAside {
@@ -483,10 +484,18 @@ export interface SetAsideNote {
   heard: string;
 }
 
+/** Where a version set aside is, as the line says it after "set aside". */
+const SET_ASIDE_WHERE: Readonly<Record<Exclude<SetAsideWhere, "not-kept">, string>> = {
+  "your-days": "it is in your days",
+  // It opens at its own address, but the visitor has no way back to it from the page.
+  "not-in-your-days": "not in your days",
+};
+
 /**
- * "“eating late” set aside · it is in your days", or "“eating late” not kept" for a version
- * kept nowhere, which "set aside" would promise could be picked up again. Heard with a comma
- * where the line has its dot.
+ * "“eating late” set aside · it is in your days", "“eating late” set aside · not in your days"
+ * for a version with an id the visitor's list does not hold, or "“eating late” not kept" for one
+ * whose answer named no id, which "set aside" would promise could be picked up again. Heard with
+ * a comma where the line has its dot.
  */
 export function setAsideNoteOf({ answer, where }: SetAside): SetAsideNote {
   if (where === "not-kept") {
@@ -494,7 +503,7 @@ export function setAsideNoteOf({ answer, where }: SetAside): SetAsideNote {
     return { words, heard: words };
   }
   return {
-    words: `“${answer}” set aside · it is in your days`,
-    heard: `“${answer}” set aside, it is in your days`,
+    words: `“${answer}” set aside · ${SET_ASIDE_WHERE[where]}`,
+    heard: `“${answer}” set aside, ${SET_ASIDE_WHERE[where]}`,
   };
 }

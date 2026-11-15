@@ -2001,6 +2001,41 @@ describe("what a later change sets aside, said once in the facts line, with live
     expect(keptDays()).toContainEqual([REPLAN_ID, "written"]);
   });
 
+  it("says a day before with an id the visitor's list does not hold is not among their days", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING, { held: KYOTO_LATE_EVENING, at: 0.62 });
+    // Someone's Kyoto day, at its own address, which this browser never asked for.
+    const view = keptViewOf(
+      SHARED_DAY_ID,
+      {
+        status: "written",
+        ...KYOTO_KEPT,
+        checks: {},
+        writtenAt: "2026-10-31T20:00:00.000Z",
+        seconds: 46,
+        round: 0,
+      },
+      null,
+      false,
+    );
+    if (view.kind !== "day") throw new Error("Someone's day lands as a day");
+    const day = createRef<DayHandle>();
+    const user = userEvent.setup();
+    render(<Day kept={view.landing} isLive isAddressed ref={day} />);
+    await waitForTheDay();
+    await changeWord(user, "early start", "slow morning");
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("taken"), DAY_TIMEOUT);
+    await waitForTheDay();
+    replanId = NEXT_DAY_ID;
+
+    await changeWord(user, "home by eight", "out late");
+
+    // It still opens at its link, so it is not "not kept"; but nothing on the page leads back.
+    expect(factsLineText()).toBe("“early start” set aside · not in your days");
+    expect(statusText()).toMatch(/^“early start” set aside, not in your days; re-planning /);
+    expect(keptDays().map(([id]) => id)).not.toContain(SHARED_DAY_ID);
+  });
+
   it("says alone what an energy re-pick set aside, until the visitor next acts on the day", async () => {
     const { user } = await proposeSlowMorning();
 

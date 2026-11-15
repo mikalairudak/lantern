@@ -1667,9 +1667,11 @@ export function Day({
    * The version of a whole fork that is not on screen, as the change that settles it sets it
    * aside: the proposal not taken, or the day before a taken one, by its answer, and where it
    * is then (`docs/decisions.md`, "A version a later change sets aside is said"). Among the
-   * visitor's days only when the list holds its id, which it can have let go. None for a fork
-   * written or failed, which has nothing to set aside, nor for a written day before, which
-   * stays at its own address, the places chosen on it kept under its key.
+   * visitor's days only when the list holds its id; with an id the list does not hold, as a day
+   * opened from someone's link or one the list let go of, at its own address alone; with no id,
+   * kept nowhere. None for a fork written or failed, which has nothing to set aside, nor for a
+   * written day before, which stays at its own address, the places chosen on it kept under its
+   * key.
    */
   const setAsideOf = (): RunSetAside | null => {
     if (asked === null || changeShown === null) return null;
@@ -1690,7 +1692,7 @@ export function Day({
     return {
       run: asked.run,
       answer: isTaken ? changeShown.from : changeShown.to,
-      where: isKept ? "your-days" : "not-kept",
+      where: id === null ? "not-kept" : isKept ? "your-days" : "not-in-your-days",
     };
   };
   /**

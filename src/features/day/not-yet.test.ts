@@ -316,6 +316,13 @@ describe("setAsideNoteOf", () => {
     });
   });
 
+  it("says a version with an id the visitor's list does not hold is not among their days", () => {
+    expect(setAsideNoteOf({ answer: "early start", where: "not-in-your-days" })).toEqual({
+      words: "“early start” set aside · not in your days",
+      heard: "“early start” set aside, not in your days",
+    });
+  });
+
   it("says a version kept nowhere is not kept, promising no place to find it again", () => {
     expect(setAsideNoteOf({ answer: "early dinner", where: "not-kept" })).toEqual({
       words: "“early dinner” not kept",
