@@ -34,7 +34,20 @@ const PEN_BEAT_MS = 150;
 const FRAME_MS = 17;
 /** Under reduced motion, as long as the press and the steps after it take, and more. */
 const REDUCED_SAMPLED_MS = 1500;
-const PORTLAND_LATE = "A lively Saturday in Portland, out late, with friends";
+const OREGON = "America/Los_Angeles";
+const MAINE = "America/New_York";
+
+/**
+ * The headline of the bench's Portland day read in a zone. The bench dates it on today there,
+ * as the intake dates a text that names no day, so its weekday is the clock's in that zone. A
+ * run that crosses midnight there reads the day before.
+ */
+function portlandLateIn(timeZone: string): string {
+  const weekday = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "long" }).format(
+    new Date(),
+  );
+  return `A lively ${weekday} in Portland, out late, with friends`;
+}
 
 /** A line under the headline, as drawn: what it shows, at the opacity its box is drawn at. */
 interface UnderLine {
@@ -630,7 +643,7 @@ test("lists the others an assumed city's name could mean, undotted under a notic
   await field.press("Enter");
 
   const headline = page.getByRole("heading", { level: 1 });
-  await expect(headline).toContainText("A lively Saturday in Portland, out late, with friends");
+  await expect(headline).toContainText(portlandLateIn(OREGON));
   const city = headline.getByRole("button", { name: "Portland", exact: true });
   // Lantern assumed which Portland, but no day was planned on it: under the notice that no
   // day is written, none of Lantern's words is dotted, and the dots' key left with the facts.
@@ -680,8 +693,10 @@ test(
     const pressedOn = frames[pressedFrame - 1]!;
     const after = frames.slice(pressedFrame);
     expect(pressedOn.notice).toBe(pressedOn.noticeWhole);
-    // The headline holds.
-    for (const frame of after) expect(frame.headline).toBe(PORTLAND_LATE);
+    // The headline holds: its words stand, and its weekday is today's in Oregon or, once the
+    // reading is Maine's, today's there, which are one day for all but three hours of each.
+    const headlines = [portlandLateIn(OREGON), portlandLateIn(MAINE)];
+    for (const frame of after) expect(headlines).toContain(frame.headline);
 
     // The notice fades as it stands, out of the hand's reach, and goes only once gone to the
     // eye. The list the reading was chosen from leaves sight in the frame after the choice, as

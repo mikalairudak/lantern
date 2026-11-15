@@ -1,6 +1,7 @@
 import type { WrittenGist } from "@/features/day/day";
 import { readWrittenOnly, type StartReader } from "@/features/day/written-reader";
 import { PORTLAND_MAINE, PORTLAND_OREGON, SPRINGFIELDS } from "@/lib/fixtures/city-readings";
+import { todayIn } from "@/lib/normalizer/normalize-intake";
 import type { IntakeResult, IntakeWords } from "@/lib/schema/intake.schema";
 
 /** The intake call's beat, about a second, so the lab shows what the visitor waits through. */
@@ -63,6 +64,7 @@ export const CANNED_READINGS: Readonly<Record<string, IntakeResult>> = {
       city: "Portland",
       citySource: "assumed",
       timezone: PORTLAND_OREGON.timezone,
+      // A stand-in, never shown: the reader dates a request on today in its city (`onToday`).
       date: "2026-11-14",
     },
     readings: [PORTLAND_OREGON, PORTLAND_MAINE],
@@ -88,10 +90,25 @@ export const CANNED_READINGS: Readonly<Record<string, IntakeResult>> = {
 export function readInLab(
   pool: readonly WrittenGist[],
   beatMs: number = INTAKE_BEAT_MS,
+  now: () => Date = () => new Date(),
 ): StartReader {
   const readWritten = readWrittenOnly(pool);
   return async (text, signal) => {
     await new Promise((done) => setTimeout(done, beatMs));
-    return CANNED_READINGS[text.trim().toLowerCase()] ?? readWritten(text, signal);
+    const canned = CANNED_READINGS[text.trim().toLowerCase()];
+    if (!canned) return readWritten(text, signal);
+    return canned.kind === "request" ? onToday(canned, now()) : canned;
   };
+}
+
+/**
+ * A canned request on today's date in its city, as the intake dates a text that names no day:
+ * a reading chosen afterwards takes today's date in its own zone, so a date written here would
+ * give the two another weekday on every day but its own.
+ */
+function onToday(
+  read: Extract<IntakeResult, { kind: "request" }>,
+  now: Date,
+): Extract<IntakeResult, { kind: "request" }> {
+  return { ...read, request: { ...read.request, date: todayIn(read.request.timezone, now) } };
 }
