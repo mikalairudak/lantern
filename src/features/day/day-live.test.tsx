@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRef, type Ref } from "react";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { PORTLAND_MAINE, PORTLAND_OREGON } from "@/lib/fixtures/city-readings";
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import { KYOTO_REQUEST } from "@/lib/fixtures/curated/requests";
@@ -857,6 +857,56 @@ describe("the city word with live generation on", () => {
         signature: "lisbon-signed",
       },
     ]);
+  });
+
+  it("gives a live day asked from another day one entry, at the start screen's address until its answer names its id", async () => {
+    intakeReplies.push(
+      answered({
+        kind: "request",
+        request: { ...LISBON, energy: "balanced" },
+        readings: [],
+        unplaced: [],
+        signed: [SIGNED_LISBON],
+      }),
+    );
+    const user = userEvent.setup();
+    render(<Day first={KANAZAWA_START_REQUEST} isLive isAddressed />);
+    await waitForTheDay();
+    await waitFor(() => expect(window.location.pathname).toBe("/day/kanazawa"));
+    const withKanazawa = window.history.length;
+    // Lisbon's answer, which names its row in the log, comes only once released.
+    let release = () => {};
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.mocked(fetch).mockImplementation(async (path, init) => {
+      if (path === DAY_ROUTE) await released;
+      return answerRoutes(String(path), init ?? {});
+    });
+    onTestFinished(() => {
+      vi.mocked(fetch).mockImplementation(async (path, init) =>
+        answerRoutes(String(path), init ?? {}),
+      );
+    });
+    dayIds.push(NEXT_DAY_ID);
+
+    await typeCity(user, "Lisbon");
+
+    // Asked, and no answer yet: the start screen's address, in an entry of its own.
+    await waitFor(() => expect(window.location.pathname).toBe("/"), DAY_TIMEOUT);
+    expect(intakeTexts).toEqual(["Lisbon"]);
+    expect(window.history.length).toBe(withKanazawa + 1);
+    release();
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${NEXT_DAY_ID}`), DAY_TIMEOUT);
+    await waitForTheDay();
+    // Named and stored, the same entry: Back goes to the day it was asked from.
+    expect(window.history.length).toBe(withKanazawa + 1);
+
+    act(() => window.history.back());
+
+    await waitFor(() => expect(headline()).toHaveTextContent(/in Kanazawa/), DAY_TIMEOUT);
+    expect(window.location.pathname).toBe("/day/kanazawa");
+    expect(dayPosts).toHaveLength(2);
   });
 
   it("plays a name that could mean several cities as the likeliest, Lantern's assumption", async () => {

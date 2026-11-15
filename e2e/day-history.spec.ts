@@ -1,4 +1,5 @@
-import { expect, test, type Page, waitMs } from "./fixtures";
+import { chooseTheChart, expect, test, type Page, waitMs } from "./fixtures";
+import { BROWSER_STORAGE } from "../src/lib/browser-storage";
 
 // The address names a day, and Back goes to the day before (`docs/decisions.md`, "Back goes to
 // the day before"): a day that takes the page after another has an entry of its own, a change
@@ -19,10 +20,6 @@ const DAY_POSTS = /^\/api\/(intake|day|replan)(\/|$)/;
 
 const PARIS = /^A calm Sunday in Paris/;
 const BOLOGNA = /^A lively Saturday in Bologna/;
-
-test.beforeEach(async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "reduce" });
-});
 
 /** Every post to a day's routes the page makes from now on, by path, and every error it logs. */
 function watch(page: Page): { posts: string[]; errors: string[] } {
@@ -118,91 +115,165 @@ async function expectTheStartThenForwardTwice(page: Page, rows: number): Promise
   await waitForTheDay(page, WHOLE_TIMEOUT_MS);
 }
 
-test("a city changed at the city word is an entry of its own: Back shows the day before whole, and Forward the day after, with no call", async ({
-  page,
-}) => {
-  test.setTimeout(TWO_DAYS_TEST_MS);
-  const rows = await playParis(page);
-  const withParis = await historyLength(page);
-  await chooseBolognaAtTheCityWord(page);
-  expect(await historyLength(page)).toBe(withParis + 1);
-  const seen = watch(page);
+/** The places chosen on each day, as this device keeps them. */
+const PICKS_KEY = BROWSER_STORAGE.picks.key;
 
-  await page.goBack();
+/** The stop sliders of the chart a test steps, until one shows another version. */
+const SLIDERS_TRIED = 6;
 
-  await expectParisWhole(page, rows);
-  await expect(page).toHaveTitle("A calm Sunday in Paris, slow morning, with a partner · Lantern");
-  await expectTheStartThenForwardTwice(page, rows);
-  expect(await historyLength(page)).toBe(withParis + 1);
-  expect(seen).toEqual({ posts: [], errors: [] });
+/**
+ * Steps a stop of the chart to another of its versions from the keyboard: the first of the day's
+ * stops that has one beside the version written. Which stop, and the version it then shows.
+ */
+async function chooseAnotherVersion(page: Page): Promise<{ index: number; value: string }> {
+  for (let index = 0; index < SLIDERS_TRIED; index += 1) {
+    const slider = page.getByRole("slider").nth(index);
+    const written = await slider.getAttribute("aria-valuetext");
+    await slider.focus();
+    for (const key of ["ArrowRight", "ArrowLeft"]) {
+      await page.keyboard.press(key);
+      const value = await slider.getAttribute("aria-valuetext");
+      if (value !== null && value !== written) return { index, value };
+    }
+  }
+  throw new Error("No stop of the day has another version to show");
+}
+
+test.describe("with reduced motion", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+  });
+
+  test("a city changed at the city word is an entry of its own: Back shows the day before whole, and Forward the day after, with no call", async ({
+    page,
+  }) => {
+    test.setTimeout(TWO_DAYS_TEST_MS);
+    const rows = await playParis(page);
+    const withParis = await historyLength(page);
+    await chooseBolognaAtTheCityWord(page);
+    expect(await historyLength(page)).toBe(withParis + 1);
+    const seen = watch(page);
+
+    await page.goBack();
+
+    await expectParisWhole(page, rows);
+    await expect(page).toHaveTitle(
+      "A calm Sunday in Paris, slow morning, with a partner · Lantern",
+    );
+    await expectTheStartThenForwardTwice(page, rows);
+    expect(await historyLength(page)).toBe(withParis + 1);
+    expect(seen).toEqual({ posts: [], errors: [] });
+  });
+
+  test("a city chosen at the new day is an entry of its own, Back and Forward each drawn with no call", async ({
+    page,
+  }) => {
+    test.setTimeout(TWO_DAYS_TEST_MS);
+    const rows = await playParis(page);
+    const withParis = await historyLength(page);
+    await chooseBolognaAtTheNewDay(page);
+    expect(await historyLength(page)).toBe(withParis + 1);
+    const seen = watch(page);
+
+    await page.goBack();
+
+    await expectParisWhole(page, rows);
+    await expectTheStartThenForwardTwice(page, rows);
+    expect(seen).toEqual({ posts: [], errors: [] });
+  });
+
+  test("the energy changed on a day adds no entry: Back still goes to the day before", async ({
+    page,
+  }) => {
+    test.setTimeout(TWO_DAYS_TEST_MS);
+    const rows = await playParis(page);
+    await chooseBolognaAtTheCityWord(page);
+    const withBologna = await historyLength(page);
+
+    await headline(page).getByRole("button", { name: "lively", exact: true }).click();
+    await page.getByRole("option", { name: "calm" }).click();
+
+    await expect(headline(page)).toContainText("A calm Saturday in Bologna");
+    expect(pathOf(page)).toBe("/day/bologna");
+    expect(await historyLength(page)).toBe(withBologna);
+    const seen = watch(page);
+
+    await page.goBack();
+
+    await expectParisWhole(page, rows);
+    await page.goForward();
+    await expect(page).toHaveURL(/\/day\/bologna$/);
+    // As its address opens it: at the energy it was asked at, with the places the energy
+    // re-picked showed kept as the visitor's, as a reload of it shows them too.
+    const returned = "A lively Saturday, quieter in places, in Bologna";
+    await expect(headline(page)).toContainText(returned);
+    expect(seen.posts).toEqual([]);
+    await page.reload();
+    await expect(headline(page)).toContainText(returned);
+  });
+
+  test("a reload in the middle of the days keeps them: Forward and Back open each from its own address", async ({
+    page,
+  }) => {
+    test.setTimeout(TWO_DAYS_TEST_MS);
+    const rows = await playParis(page);
+    await chooseBolognaAtTheCityWord(page);
+    await page.goBack();
+    await expectParisWhole(page, rows);
+
+    await page.reload();
+    await expect(headline(page)).toContainText(PARIS);
+    await waitForTheDay(page);
+    const seen = watch(page);
+
+    // Each was watched to its end on this device, so its own page opens it whole.
+    await page.goForward();
+    await expect(page).toHaveURL(/\/day\/bologna$/);
+    await expect(headline(page)).toContainText(BOLOGNA);
+    await waitForTheDay(page, WHOLE_TIMEOUT_MS);
+
+    await page.goBack();
+    await expectParisWhole(page, rows);
+    await page.goBack();
+    expect(pathOf(page)).toBe("/");
+    await expect(page.getByRole("list", { name: INDEX_LABEL })).toBeVisible();
+    expect(seen.posts).toEqual([]);
+  });
 });
 
-test("a city chosen at the new day is an entry of its own, Back and Forward each drawn with no call", async ({
-  page,
-}) => {
-  test.setTimeout(TWO_DAYS_TEST_MS);
-  const rows = await playParis(page);
-  const withParis = await historyLength(page);
-  await chooseBolognaAtTheNewDay(page);
-  expect(await historyLength(page)).toBe(withParis + 1);
-  const seen = watch(page);
+test.describe("with motion", () => {
+  test("a city changed at the city word, Back shows the day before whole at once, with no call", async ({
+    page,
+  }) => {
+    test.setTimeout(TWO_DAYS_TEST_MS);
+    const rows = await playParis(page);
+    await chooseBolognaAtTheCityWord(page);
+    const seen = watch(page);
 
-  await page.goBack();
+    await page.goBack();
 
-  await expectParisWhole(page, rows);
-  await expectTheStartThenForwardTwice(page, rows);
-  expect(seen).toEqual({ posts: [], errors: [] });
-});
+    await expectParisWhole(page, rows);
+    await expectTheStartThenForwardTwice(page, rows);
+    expect(seen.posts).toEqual([]);
+  });
 
-test("the energy changed on a day adds no entry: Back still goes to the day before", async ({
-  page,
-}) => {
-  test.setTimeout(TWO_DAYS_TEST_MS);
-  const rows = await playParis(page);
-  await chooseBolognaAtTheCityWord(page);
-  const withBologna = await historyLength(page);
+  test("a day returned to shows the places chosen on it", async ({ page }) => {
+    test.setTimeout(TWO_DAYS_TEST_MS);
+    await chooseTheChart(page);
+    await playParis(page);
+    const chosen = await chooseAnotherVersion(page);
+    await expect
+      .poll(() => page.evaluate((key) => localStorage.getItem(key), PICKS_KEY))
+      .not.toBeNull();
+    await chooseBolognaAtTheCityWord(page);
 
-  await headline(page).getByRole("button", { name: "lively", exact: true }).click();
-  await page.getByRole("option", { name: "calm" }).click();
+    await page.goBack();
 
-  await expect(headline(page)).toContainText("A calm Saturday in Bologna");
-  expect(pathOf(page)).toBe("/day/bologna");
-  expect(await historyLength(page)).toBe(withBologna);
-  const seen = watch(page);
-
-  await page.goBack();
-
-  await expectParisWhole(page, rows);
-  await page.goForward();
-  await expect(page).toHaveURL(/\/day\/bologna$/);
-  await expect(headline(page)).toContainText("in Bologna");
-  expect(seen.posts).toEqual([]);
-});
-
-test("a reload in the middle of the days keeps them: Forward and Back open each from its own address", async ({
-  page,
-}) => {
-  test.setTimeout(TWO_DAYS_TEST_MS);
-  const rows = await playParis(page);
-  await chooseBolognaAtTheCityWord(page);
-  await page.goBack();
-  await expectParisWhole(page, rows);
-
-  await page.reload();
-  await expect(headline(page)).toContainText(PARIS);
-  await waitForTheDay(page);
-  const seen = watch(page);
-
-  // Each was watched to its end on this device, so its own page opens it whole.
-  await page.goForward();
-  await expect(page).toHaveURL(/\/day\/bologna$/);
-  await expect(headline(page)).toContainText(BOLOGNA);
-  await waitForTheDay(page, WHOLE_TIMEOUT_MS);
-
-  await page.goBack();
-  await expectParisWhole(page, rows);
-  await page.goBack();
-  expect(pathOf(page)).toBe("/");
-  await expect(page.getByRole("list", { name: INDEX_LABEL })).toBeVisible();
-  expect(seen.posts).toEqual([]);
+    await expect(headline(page)).toContainText(PARIS);
+    await waitForTheDay(page, WHOLE_TIMEOUT_MS);
+    await expect(page.getByRole("slider").nth(chosen.index)).toHaveAttribute(
+      "aria-valuetext",
+      chosen.value,
+    );
+  });
 });
