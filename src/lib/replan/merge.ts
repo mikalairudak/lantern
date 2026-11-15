@@ -356,19 +356,25 @@ export function mergeReplan({
   idPrefix,
 }: MergeOptions): MergeResult {
   const mergeRepairs: MergeRepair[] = [];
-  const normalized = normalizeDay(request, {
-    dek: replan.dek,
-    assumptions: assumptionsOf(itinerary),
-    stops: replan.stops,
-    alternatives: replan.alternatives,
-  });
+  const keptNames = keptPlaceNamesOf(itinerary, windows);
+  // The new stops are normalized beside the places kept, so a version at one of them is
+  // dropped as one at another new stop is, and no swap puts a place in the day twice.
+  const normalized = normalizeDay(
+    request,
+    {
+      dek: replan.dek,
+      assumptions: assumptionsOf(itinerary),
+      stops: replan.stops,
+      alternatives: replan.alternatives,
+    },
+    keptNames,
+  );
   if (!normalized.ok) {
     return { ok: false, reason: normalized.reason, repairs: normalized.repairs, mergeRepairs };
   }
   // The new stops alone are not the day, so an end fitted to them is no repair of it: the
   // merged day's end is fitted below, on all its stops.
   const repairs = normalized.repairs.filter(({ kind }) => kind !== "fitted-end");
-  const keptNames = keptPlaceNamesOf(itinerary, windows);
   const bounds = windowBoundsOf(itinerary, windows);
   const filled = new Set<number>();
   const newStops: { stop: Stop; from: number }[] = [];

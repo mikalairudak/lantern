@@ -572,6 +572,36 @@ describe("mergeShownReplan", () => {
     ).toEqual([1, 1]);
   });
 
+  it("shows a merge without a new stop's version at a kept place, so no swap puts it in the day twice", () => {
+    const garden = at(KYOTO.stops, 2).primary.name;
+    const replan: GeneratedReplan = {
+      ...KYOTO_SLOW_MORNING_WITH_VERSIONS,
+      alternatives: KYOTO_SLOW_MORNING_WITH_VERSIONS.alternatives.map((set) =>
+        set.stopIndex === 1
+          ? { ...set, options: [{ ...at(set.options, 0), name: garden }, ...set.options] }
+          : set,
+      ),
+    };
+
+    const shown = mergeShownReplan({ ...BASIS, replan });
+    if (!shown.ok) throw new Error(shown.reason);
+
+    const places = shown.itinerary.stops.flatMap(({ primary, alternatives }) => [
+      primary.name,
+      ...alternatives.map(({ name }) => name),
+    ]);
+    expect(places.filter((name) => name === garden)).toEqual([garden]);
+    expect(shown.repairs).toEqual(
+      expect.arrayContaining([
+        {
+          kind: "dropped-repeat",
+          path: ["alternatives", 1, "options", 0],
+          note: `${garden} is a place the day keeps`,
+        },
+      ]),
+    );
+  });
+
   // A window's stop is no kept place: the same garden at the same hour is the window's own,
   // written again, not a repeat of a stop the re-plan keeps.
   it("shows Elche's garden written again at 16:30 as the stop it was, never as a repeat", () => {
