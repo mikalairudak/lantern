@@ -134,6 +134,16 @@ describe("the visitor's days", () => {
     }
   });
 
+  it("lets go of a row it cannot read, and keeps the days beside it", () => {
+    const storage = memoryStorage();
+    const halfWritten = { ...dayOf("b"), energies: ["cal"] };
+    storage.items.set(YOUR_DAYS_KEY, JSON.stringify([halfWritten, dayOf("a")]));
+
+    expect(readYourDays(storage).map(({ id }) => id)).toEqual(["a"]);
+    // The next day kept writes the list as it was read: the days beside the row stay.
+    expect(keepYourDay(storage, dayOf("c")).map(({ id }) => id)).toEqual(["c", "a"]);
+  });
+
   it("keeps nothing, and breaks nothing, where the browser keeps nothing", () => {
     expect(readYourDays(null)).toEqual([]);
     expect(readYourDays(BLOCKED)).toEqual([]);

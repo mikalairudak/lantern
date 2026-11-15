@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { DayOutcome, PartialDay } from "@/lib/stream/outcome";
-import type { EnergyLevel } from "@/lib/schema/itinerary.schema";
+import { EnergyLevelSchema, type EnergyLevel } from "@/lib/schema/itinerary.schema";
 import { shownEnergiesOf } from "./day-shape";
 import { KEPT_WAIT_MS, askKeptDay, restatedYourDayOf } from "./kept-day";
 import { forgetKeptPicks } from "./picked-places";
@@ -140,11 +140,15 @@ export function forgetDays(): void {
   told();
 }
 
-/** The energy of each stop that has arrived whole enough to have one, in the day's order. */
+/**
+ * The energy of each stop whose energy has arrived whole, in the day's order. A streamed word
+ * can stop mid-word ("cal"), and such a one is no energy yet: kept in the list, it would be a
+ * row the list cannot read.
+ */
 export function energiesSoFarOf(partial: PartialDay | null): EnergyLevel[] {
   return (partial?.stops ?? []).flatMap((stop) => {
-    const energy = stop?.place?.sensory?.energy;
-    return energy ? [energy] : [];
+    const energy = EnergyLevelSchema.safeParse(stop?.place?.sensory?.energy);
+    return energy.success ? [energy.data] : [];
   });
 }
 
