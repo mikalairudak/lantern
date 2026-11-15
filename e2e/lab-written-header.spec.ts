@@ -2,13 +2,13 @@ import { expect, test, waitMs } from "./fixtures";
 
 test.use({ reducedMotion: "reduce" });
 
-// Thirty moments on six days, each in both themes.
-const CELLS = 30 * 6 * 2;
+// Thirty-two moments on six days, each in both themes.
+const CELLS = 32 * 6 * 2;
 // Moments a day never reaches: Portland has no written day, Tromsø and Hong Kong have no
 // other versions to drag, and Hong Kong's every word is the visitor's.
 // Portland, with no written day, re-plans nothing either; Elche's day is production's
 // record, kept without the stream that wrote it.
-const UNREACHED = (20 + 3 + 5 + 4) * 2;
+const UNREACHED = (22 + 3 + 5 + 4) * 2;
 // The playing's first frame, an unheard copy on every day: its headline is hidden from the
 // reader too.
 const UNHEARD = 6 * 2;

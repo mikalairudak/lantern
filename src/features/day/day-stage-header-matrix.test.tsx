@@ -8,6 +8,7 @@ import { noticeOf } from "./stream-ending";
 import {
   BEING_WRITTEN,
   LINK_EXPIRED,
+  NO_MORE_REPLANS,
   OPENS_HERE,
   PROPOSED_BESIDE,
   STILL_WRITING,
@@ -132,13 +133,13 @@ describe("the day stage header's matrix", () => {
       }
     }
 
-    expect(HEADER_MOMENTS).toHaveLength(30);
+    expect(HEADER_MOMENTS).toHaveLength(32);
     expect(HEADER_DAYS).toHaveLength(6);
     // Portland has no written day, so only its first moment and its endings without a day
     // are reached, and no re-plan, which a written day asks; Tromsø and Hong Kong have no
     // other versions, so no drag can make them livelier, and no cut can fall inside their
     // swaps; Hong Kong's every word is the visitor's, so Lantern writes none.
-    expect(notes.filter((note) => note.includes("Portland"))).toHaveLength(20);
+    expect(notes.filter((note) => note.includes("Portland"))).toHaveLength(22);
     expect(notes.filter((note) => note.includes("Tromsø"))).toEqual([
       "written, after one stop is dragged livelier · Tromsø, a sun that never rises",
       "written, after every stop is dragged livelier · Tromsø, a sun that never rises",
@@ -162,7 +163,7 @@ describe("the day stage header's matrix", () => {
       "the line about the day, mid-word",
       "cut or dropped in the swaps, the day kept (after launch)",
     ]);
-    expect(notes).toHaveLength(20 + 3 + 5 + 4);
+    expect(notes).toHaveLength(22 + 3 + 5 + 4);
   });
 
   it("says why a day never reaches a moment", async () => {
@@ -404,6 +405,23 @@ describe("the day stage header's matrix", () => {
     }
   });
 
+  it("says what a later change set aside, and the limit under every answer once a re-plan met it", async () => {
+    // The longest of the three sentences, on the longest answer a proposal can have.
+    const setAside = await renderCell("replan-set-aside", KANAZAWA);
+    expect(screen.getAllByText("“home by eleven” set aside · it is in your days")[0]).toBeVisible();
+    setAside.unmount();
+
+    const limited = await renderCell("replan-limited", KANAZAWA);
+    expect(
+      screen.getAllByText(/^No more re-plans for now, so “early dinner” stays/)[0],
+    ).toBeVisible();
+    // Drawn open a frame after the cell, as a press opens it.
+    const option = await screen.findByRole("option", { name: "eating late" });
+    expect(option).toHaveAccessibleDescription(NO_MORE_REPLANS);
+    expect(document.activeElement).toBe(document.body);
+    limited.unmount();
+  });
+
   it("says busy over a written day and not yet over any other when nothing came", async () => {
     const kinds = HEADER_DAYS.map(
       ({ request }) => noticeOf({ kind: "unavailable" }, request)?.kind,
@@ -430,6 +448,8 @@ describe("the day stage header's matrix", () => {
       "replan-proposed",
       "replan-taken",
       "replan-left",
+      "replan-set-aside",
+      "replan-limited",
       "kept",
       "cut",
       "disconnected",
