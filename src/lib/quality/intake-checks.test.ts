@@ -238,13 +238,13 @@ describe("scoreIntakeCase", () => {
     const run = await runOf(golden, {
       energyGuess: "social",
       company: "friends",
-      date: "2026-11-15",
+      date: "2026-11-29",
     });
 
     expect(findingsOf(golden, run, "words")).toEqual([
       "a whole sentence: energy social, not reflective or calm",
       "a whole sentence: company friends, not partner",
-      "a whole sentence: date 2026-11-15, not 2026-11-22",
+      "a whole sentence: date 2026-11-29, not 2026-11-22",
     ]);
   });
 

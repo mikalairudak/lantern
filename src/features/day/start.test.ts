@@ -61,6 +61,13 @@ describe("requestFor", () => {
     });
   });
 
+  it("plans a named day already over in the city's zone for today there", () => {
+    // Late on the 25th in UTC, the 26th in Tokyo: "today" read against the visitor's 25th.
+    expect(requestFor("Lisbon", { ...NO_WORDS, date: "2026-10-25" }, TOKYO, NOW).date).toBe(
+      "2026-10-26",
+    );
+  });
+
   it("keeps a date the text named", () => {
     expect(requestFor("Lisbon", { ...NO_WORDS, date: "2026-11-15" }, TOKYO, NOW).date).toBe(
       "2026-11-15",

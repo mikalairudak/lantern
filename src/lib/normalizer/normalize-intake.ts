@@ -71,8 +71,23 @@ export function dateInZone(
 }
 
 /**
+ * The day a text's words are planned for once their city's zone is known: the one the text
+ * names, or today where the city is. A named day already over there is planned for today
+ * there, since "today" is read against the visitor's own date, which a city to the east may
+ * be past (`docs/decisions.md`, "A named day already over in the city is planned for today
+ * there"). A day still to come there stays, a city to the west included. Every way a city
+ * first reaches a text's words dates them through this; a day whose city then changes is
+ * dated by `dateInZone`.
+ */
+export function plannedDateOf(date: string | null, timezone: string, now: Date): string {
+  const today = todayIn(timezone, now);
+  return date === null || date < today ? today : date;
+}
+
+/**
  * The request the words make once their city is known: the visitor's, as when a question
- * is answered, or Lantern's when it played the likeliest of several.
+ * is answered, or Lantern's when it played the likeliest of several, on the day
+ * `plannedDateOf` gives them.
  */
 export function requestOf(
   words: IntakeWords,
@@ -86,7 +101,7 @@ export function requestOf(
     city: city.name,
     citySource,
     timezone: city.timezone,
-    date: date ?? todayIn(city.timezone, now),
+    date: plannedDateOf(date, city.timezone, now),
   };
 }
 

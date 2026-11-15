@@ -189,6 +189,16 @@ describe("normalizeIntake", () => {
     expect(result.kind === "request" && result.request.date).toBe("2026-11-15");
   });
 
+  // The model reads "today" against the visitor's own date, which the city may be past.
+  it("plans a named day already over where the city is for today there", () => {
+    const fromLondon = normalizeIntake(intakeOf({ date: "2026-11-13" }), [KYOTO], NOW);
+    const longPast = normalizeIntake(intakeOf({ date: "2025-06-01" }), [KYOTO], NOW);
+
+    expect(todayIn(KYOTO.timezone, NOW)).toBe("2026-11-14");
+    expect(fromLondon.kind === "request" && fromLondon.request.date).toBe("2026-11-14");
+    expect(longPast.kind === "request" && longPast.request.date).toBe("2026-11-14");
+  });
+
   it("asks for the city when none was found, the words read waiting for the answer", () => {
     const result = normalizeIntake(intakeOf({ city: null }), [], NOW);
 
