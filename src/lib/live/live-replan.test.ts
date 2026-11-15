@@ -211,6 +211,16 @@ describe("the live re-plan route", () => {
     expect(prompt).not.toContain(KEPT_OPTION);
   });
 
+  it("names no provider or model to the visitor", async () => {
+    const { deps, afterResponse } = bench();
+
+    const body = await (await answerReplanRequest(post(BODY), deps)).text();
+    await afterResponse();
+
+    expect(body).toContain('"type":"text-delta"');
+    expect(body).not.toMatch(/anthropic|claude|msg_|providerMetadata/i);
+  });
+
   it("names its row in the log in its answer, and writes on when the visitor leaves", async () => {
     const { deps, generationLog, afterResponse } = bench();
 
