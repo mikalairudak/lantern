@@ -69,7 +69,28 @@ describe("a day's caveats on this device", () => {
     expect(storage.items.has(CAVEATS_KEY)).toBe(false);
   });
 
-  it("read as none from a list another version wrote, by hand, or a blocked storage", () => {
+  it("let a row that cannot be read go alone, and keep the days beside it through the next write", () => {
+    const storage = memoryStorage();
+    storage.items.set(
+      CAVEATS_KEY,
+      JSON.stringify([
+        { id: DAY, phrases: ["she walks slowly"] },
+        { id: "another-shape", words: ["x"] },
+        { id: "third", phrases: ["no stairs"] },
+      ]),
+    );
+
+    expect(readCaveats(storage, DAY)).toEqual(["she walks slowly"]);
+    keepCaveats(storage, "fourth", ["by the sea"]);
+
+    expect(readCaveats(storage, DAY)).toEqual(["she walks slowly"]);
+    expect(readCaveats(storage, "third")).toEqual(["no stairs"]);
+    keepCaveatsOf(storage, new Set([DAY, "fourth"]));
+    expect(readCaveats(storage, DAY)).toEqual(["she walks slowly"]);
+    expect(readCaveats(storage, "third")).toEqual([]);
+  });
+
+  it("read as none from rows another version wrote, or by hand, or a blocked storage", () => {
     const storage = memoryStorage();
     storage.items.set(CAVEATS_KEY, "not json");
     expect(readCaveats(storage, DAY)).toEqual([]);

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { BROWSER_STORAGE } from "@/lib/browser-storage";
+import { readKeptRows } from "./kept-rows";
 import type { DayStorage } from "./your-days";
 
 /**
@@ -28,19 +29,9 @@ type CaveatDay = z.infer<typeof CaveatDaySchema>;
 
 const NO_PHRASES: readonly string[] = [];
 
-/**
- * Every day's caveats, the one kept last first. A browser that keeps nothing, a list another
- * version wrote, or one edited by hand reads as none, rather than as a page that breaks.
- */
+/** Every day's caveats, the one kept last first, each row read alone (`readKeptRows`). */
 function readCaveatDays(storage: DayStorage | null): CaveatDay[] {
-  try {
-    const kept = storage?.getItem(CAVEATS_KEY);
-    if (!kept) return [];
-    const parsed = z.array(CaveatDaySchema).safeParse(JSON.parse(kept));
-    return parsed.success ? parsed.data : [];
-  } catch {
-    return [];
-  }
+  return readKeptRows(storage, CAVEATS_KEY, CaveatDaySchema);
 }
 
 /** The caveats kept for the day under this id; none for a day this device kept none of. */
