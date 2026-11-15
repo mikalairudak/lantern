@@ -1374,6 +1374,37 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     );
   });
 
+  it("comes Back to a day left with its fork standing as the day on screen was, the fork settled, with no call", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "early start", "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("proposed"), DAY_TIMEOUT);
+
+    await user.click(within(headline()).getByRole("button", { name: "Kyoto" }));
+    await user.click(screen.getByRole("button", { name: /^Bologna/ }));
+    await waitFor(() => expect(window.location.pathname).toBe("/day/bologna"), DAY_TIMEOUT);
+    await waitForTheDay();
+    expect(dayPosts).toHaveLength(1);
+
+    act(() => window.history.back());
+
+    // The day as it stood, its own morning, at its own address: the proposal not taken stays
+    // among the visitor's days, and nothing is asked again.
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${KYOTO_DAY_ID}`));
+    await waitFor(() =>
+      expect(within(dayList()).getAllByRole("listitem")[0]).toHaveTextContent(/Honen-in/),
+    );
+    expect(within(dayList()).queryByText(/^Shoren-in$/)).toBeNull();
+    expect(headline()).toHaveTextContent("on foot, early start, early dinner");
+    expect(day.current?.replan().status).toBe("idle");
+    expect(keptDays()).toContainEqual([REPLAN_ID, "written"]);
+    expect(replanPosts).toHaveLength(1);
+    expect(dayPosts).toHaveLength(1);
+    await waitForTheDay();
+  });
+
   it("compares the version not taken beside the day again, and folds it", async () => {
     replanReplies.push(KYOTO_SLOW_MORNING);
     dayIds.push(KYOTO_DAY_ID);

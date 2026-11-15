@@ -29,8 +29,8 @@ interface Opening {
   isClosed: boolean;
   /** What the visitor has done with this day already, each told once. */
   acts: Set<DayAct>;
-  /** The day's end was answered: once a day opened. */
-  isAnswered: boolean;
+  /** The visitor's answer at the day's end, once given: once a day opened. */
+  answer: DayAnswer | null;
 }
 
 export interface DayEvents {
@@ -60,6 +60,13 @@ export interface DayEvents {
    * (`ended`): it has its stops, and no stream to end it.
    */
   open: (request: DayRequest, via: DayVia, ended?: DayOutcome["kind"]) => void;
+  /**
+   * A day opened before on this page is the day on screen again, as Back or Forward brings it:
+   * the day it replaces is left, and nothing is told of this one, which keeps what was told of
+   * it, its acts and its answer. A day not opened under this request, as a re-plan merged into
+   * it names its own, comes back as opened and ended, again with nothing told.
+   */
+  resume: (request: DayRequest, via: DayVia) => void;
   /** The day streaming was stopped with no day played in its place yet. */
   leave: () => void;
 }
@@ -85,6 +92,8 @@ export function useDayEvents(
   isCounted: boolean,
 ): DayEvents {
   const opening = useRef<Opening | null>(null);
+  // Every day opened on this page, by the request it was played as, for Back and Forward.
+  const openings = useRef(new WeakMap<DayRequest, Opening>());
   const [answered, setAnswered] = useState<DayAnswer | null>(null);
 
   const sendOut = useCallback(
@@ -118,14 +127,34 @@ export function useDayEvents(
         hasStop: isEnded,
         isClosed: isEnded,
         acts: new Set(),
-        isAnswered: false,
+        answer: null,
       };
+      openings.current.set(request, opening.current);
       sendOut({ kind: "day-opened", ...day }, false);
       if (isEnded) {
         sendOut({ kind: "day-ended", ...day, view: readDayView(), outcome: ended }, false);
       }
     },
     [leaveDay, sendOut],
+  );
+
+  const resume = useCallback(
+    (request: DayRequest, via: DayVia) => {
+      if (opening.current?.request === request) return;
+      leaveDay(false);
+      const past = openings.current.get(request) ?? {
+        request,
+        day: { city: daySlugOf(request), via, written: isWrittenRequest(request) },
+        hasStop: true,
+        isClosed: true,
+        acts: new Set<DayAct>(),
+        answer: null,
+      };
+      openings.current.set(request, past);
+      opening.current = past;
+      setAnswered(past.answer);
+    },
+    [leaveDay],
   );
 
   const send = useCallback((event: ProductEvent) => sendOut(event, false), [sendOut]);
@@ -143,8 +172,8 @@ export function useDayEvents(
   const answer = useCallback(
     (given: DayAnswer) => {
       const current = opening.current;
-      if (current === null || current.isAnswered) return;
-      current.isAnswered = true;
+      if (current === null || current.answer !== null) return;
+      current.answer = given;
       setAnswered(given);
       sendOut({ kind: "day-answered", ...current.day, view: readDayView(), answer: given }, false);
     },
@@ -171,7 +200,7 @@ export function useDayEvents(
   }, [leaveDay]);
 
   const leave = useCallback(() => leaveDay(false), [leaveDay]);
-  return { send, act, answer, answered, open, leave };
+  return { send, act, answer, answered, open, resume, leave };
 }
 
 /** What a page remembers of having told that the start screen was opened. */
