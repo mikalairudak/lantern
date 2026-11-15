@@ -124,6 +124,7 @@ export const CONTAINER_TOKENS = [
   { name: "phone", role: "A phone's screen, shown inside a wider page" },
   { name: "chart", role: "The abacus chart beside the list on a wide screen" },
   { name: "abacus", role: "The day as rows of the abacus on a wide screen" },
+  { name: "margin", role: "The margin beside the plan, where a part's other version stands" },
   {
     name: "masthead",
     role: "The shortest masthead row that holds the day's menu, the new day and the theme",

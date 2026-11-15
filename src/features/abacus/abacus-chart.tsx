@@ -23,7 +23,13 @@ import { examplePullAt } from "./example-pull";
 import { MAX_ENERGY, candidatesOf, midsOf, twinRankOf, writtenEnergyOf } from "./curve";
 import type { StopDraft } from "./day-draft";
 import { useDrawing } from "./drawing";
-import { HAIRLINE, drawnEnergyOf, polylinePath, type ChartScale } from "./geometry";
+import {
+  HAIRLINE,
+  PROPOSED_WIRE_DASH,
+  drawnEnergyOf,
+  polylinePath,
+  type ChartScale,
+} from "./geometry";
 import { Invitation, Knob } from "./invitation";
 import type { AxisRun } from "./light";
 import { coveredBeadsOf, isUnderSheet, type SheetBand } from "./sheet-placement";
@@ -798,9 +804,6 @@ interface WireProps {
   /** A proposal's stop: its wire dashed in the versions' blue, not yet the day's. */
   isProposed?: boolean;
 }
-
-/** How long a proposal's wire's dashes and gaps are, in hairlines. */
-const PROPOSED_WIRE_DASH = 3;
 
 /** A stop's wire, the structure its beads sit on. */
 function Wire({ from, to, y, isHighlighted, isDrawingIn, isProposed = false }: WireProps) {

@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type FocusEvent,
+  type ReactNode,
   type RefObject,
 } from "react";
 import { cn } from "@/components/ui/cn";
@@ -69,6 +70,12 @@ interface ReadingListProps {
   /** A changed word's fork, each part's row over its first stop, as on the chart. */
   fork?: ForkRows | null;
   /**
+   * What stands over a stop's row in place of a fork row, by the stop's id, or null: outside
+   * the row's fold, which clips, so it may stand out into the margin beside the list. Left out,
+   * nothing.
+   */
+  partHeadOf?: (stopId: string) => ReactNode;
+  /**
    * A version the fork folds away, by id, as on the chart: its rows fold out of the list at the
    * tap, the fork row moving to the first stop of the version that stays.
    */
@@ -121,6 +128,7 @@ export function ReadingList({
   daylight,
   proposed = NO_STOPS,
   fork = null,
+  partHeadOf,
   fading = NO_STOPS,
   heldPen,
   isWritten = true,
@@ -171,6 +179,7 @@ export function ReadingList({
             {...{ [STOP_ATTRIBUTE]: stop.id }}
             className={cn("group", rowClassName)}
           >
+            {partHeadOf?.(stop.id)}
             {/* The last row opens on the layout spring, with nothing on the list below it to
                 move; one with rows below, as a proposal's stop coming in or a version
                 folding away, no faster than the rows below can glide. The fork row over its
@@ -497,7 +506,7 @@ function VersionWords({ place, span }: { place: PlaceDraft; span: { from: number
  * gentle spring, once, as the chart's pen writes a row's words in. A row that was there
  * already, or any row under reduced motion, is written whole at once.
  */
-function useEntryPen(length: number, isPenned: boolean): number {
+export function useEntryPen(length: number, isPenned: boolean): number {
   const isReducedMotion = useReducedMotion() ?? false;
   const [written, setWritten] = useState(isPenned ? 0 : Infinity);
   // The length when the row came in: its words are final by then, so the pen is set once.

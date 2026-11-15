@@ -228,6 +228,15 @@ describe("ReadingList", () => {
     expect(within(rowsOf()[0]!).queryByRole("radiogroup")).toBeNull();
   });
 
+  it("stands what a caller gives over a stop's row, outside its fold, and nothing elsewhere", () => {
+    const second = KYOTO.stops[1]!.id;
+    const head = "the part's head";
+    render(<ReadingList {...KYOTO} partHeadOf={(id) => id === second && <p>{head}</p>} />);
+
+    expect(within(rowsOf()[1]!).getByText(head)).toBeInTheDocument();
+    expect(screen.getAllByText(head)).toHaveLength(1);
+  });
+
   it("keeps the focus on a fork row's answer as the row moves to another stop", async () => {
     const proposed = forkViewAt(FORK_EXAMPLES[2]!.example, { status: "proposed" });
     const taken = forkViewAt(FORK_EXAMPLES[2]!.example, { status: "taken" });
