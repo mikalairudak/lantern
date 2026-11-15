@@ -36,6 +36,8 @@ import { NOT_LIVE_NOTE } from "./start-header";
 import { StartDay } from "./start-day";
 import { writtenPool } from "./written-pool";
 import { TAKE_THIS_DAY } from "./day-menu";
+import { sendProductEvent } from "@/lib/events/send-event";
+import type { ProductEvent } from "@/lib/events/event.schema";
 
 /**
  * The start screen and the day with live generation on, against stand-ins of both routes:
@@ -227,6 +229,9 @@ function heldDayResponse(signal: AbortSignal | undefined): Response {
 const HELD_AT = 2400;
 const intakeTexts: string[] = [];
 /** Each day the route was asked for, with the signature it carried. */
+// The product's events, caught where a page that counts them sends them.
+vi.mock("@/lib/events/send-event", () => ({ sendProductEvent: vi.fn() }));
+
 const dayPosts: { request: DayRequest; signature: string | null }[] = [];
 /** Each targeted re-plan the route was asked for, with the signature it carried. */
 const replanPosts: { body: ReplanRequest; signature: string | null; signal: AbortSignal }[] = [];
@@ -1453,6 +1458,53 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     expect(replanPosts).toHaveLength(1);
     expect(dayPosts).toHaveLength(1);
     await waitForTheDay();
+  });
+
+  it("counts nothing again on a day with a part taken, come back to by Back", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    vi.mocked(sendProductEvent).mockClear();
+    intakeReplies.push(
+      answered({
+        kind: "request",
+        request: KYOTO_REQUEST,
+        readings: [],
+        unplaced: [],
+        signed: [SIGNED_KYOTO],
+      }),
+    );
+    const user = userEvent.setup();
+    render(<Day start={{ pool: POOL, read: readIntakeRoute }} isLive isAddressed isCounted />);
+    await ask(user, "Kyoto");
+    await waitForTheDay();
+    const menu = () => screen.getByRole("button", { name: TAKE_THIS_DAY });
+    await user.click(menu());
+    await user.click(menu());
+    await changeWord(user, "early start", "slow morning");
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${REPLAN_ID}`), DAY_TIMEOUT);
+    await waitForTheDay();
+    await user.click(within(headline()).getByRole("button", { name: "Kyoto" }));
+    await user.click(screen.getByRole("button", { name: /^Bologna/ }));
+    await waitFor(() => expect(window.location.pathname).toBe("/day/bologna"), DAY_TIMEOUT);
+    await waitForTheDay();
+
+    act(() => window.history.back());
+
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${REPLAN_ID}`));
+    await waitFor(() => expect(headline()).toHaveTextContent("slow morning"));
+    await user.click(menu());
+    await user.click(menu());
+    const sentOf = (kind: ProductEvent["kind"]) =>
+      vi
+        .mocked(sendProductEvent)
+        .mock.calls.map(([event]) => event)
+        .filter((event) => event.kind === kind);
+    // Kyoto's menu was told opened once, on Kyoto; Bologna's was never opened.
+    expect(sentOf("menu-opened")).toEqual([
+      expect.objectContaining({ kind: "menu-opened", city: "kyoto" }),
+    ]);
+    expect(sentOf("day-opened")).toHaveLength(2);
   });
 
   it("compares the version not taken beside the day again, and folds it", async () => {

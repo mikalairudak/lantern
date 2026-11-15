@@ -188,6 +188,12 @@ interface Asked {
    * Null otherwise.
    */
   seenKey: string | null;
+  /**
+   * The request the day was opened as in the product's events, its `request` as it was first
+   * played: a re-plan merged into it, drawn whole from memory, says its own request, and the day
+   * is still the one opened. Back and Forward bring its opening back by it.
+   */
+  openedAs: DayRequest;
 }
 
 /** A day's row in the log as the page knows it: its id, once named, and its re-plans so far. */
@@ -891,7 +897,7 @@ export function Day({
   // A day drawn whole is opened, and ended, as one played to its end is, once it is the day
   // this visit shows.
   useEffect(() => {
-    if (asked?.whole != null && !isAwaitingPlay) openDay(asked.request, asked.via, "complete");
+    if (asked?.whole != null && !isAwaitingPlay) openDay(asked.openedAs, asked.via, "complete");
   }, [asked, isAwaitingPlay, openDay]);
   // A kept day with its stops is opened by its own address and ended the way it was kept,
   // whether its pen writes it in or it comes whole. A notice in a day's place, for one not
@@ -939,6 +945,7 @@ export function Day({
       const entry = newEntryKey();
       setAsked((last) => ({
         request: pending.request,
+        openedAs: pending.request,
         run: (last?.run ?? 0) + 1,
         via: pending.via,
         isChosen: true,
@@ -1101,12 +1108,14 @@ export function Day({
       // ended without a day, which left nothing to come back to; any other day takes its own.
       const isInPlace = isAgain || endedWithoutDay.current;
       const fresh = newEntryKey();
+      const asking = { ...request };
       setAsked((last) => {
         const isSameCity =
           last?.request.city === request.city && last.request.timezone === request.timezone;
         const keepsReadings = played !== undefined || isSameCity;
         return {
-          request: { ...request },
+          request: asking,
+          openedAs: asking,
           run: (last?.run ?? 0) + 1,
           via,
           isChosen,
@@ -1475,6 +1484,7 @@ export function Day({
     const turn = requestAnimationFrame(() => {
       const landed: Asked = {
         request: replanning.request,
+        openedAs: replanning.request,
         run: asked.run + 1,
         via: "word",
         isChosen: true,
@@ -1934,7 +1944,7 @@ export function Day({
     stop();
     // Its opening comes back before it is drawn, so the effect that opens a day drawn whole finds
     // it open and counts nothing again.
-    events.resume(day.request, day.via);
+    events.resume(day.openedAs, day.via);
     setIsStartShown(false);
     setAsked((last) => ({ ...day, run: (last?.run ?? 0) + 1, heldRoom: null }));
   };
@@ -2166,6 +2176,7 @@ function landingOf(request: DayRequest, entry: string): Asked {
     isFromMemory: false,
     entry,
     seenKey: null,
+    openedAs: request,
   };
 }
 
