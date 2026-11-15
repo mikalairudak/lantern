@@ -1900,6 +1900,105 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
   });
 });
 
+/** Whether the line about the day is led "As first planned:" on screen, not in a reserve. */
+const isLeadSeen = () =>
+  screen.queryAllByText("As first planned:").some((lead) => lead.closest("[aria-hidden]") === null);
+
+/** Watches for the lead on screen from now; tells whether it was ever seen, and stops. */
+function watchLead(): () => boolean {
+  let isSeen = isLeadSeen();
+  const observer = new MutationObserver(() => {
+    isSeen ||= isLeadSeen();
+  });
+  observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+  return () => {
+    observer.disconnect();
+    return isSeen || isLeadSeen();
+  };
+}
+
+/** Long enough for a lead that is due to come in, as the pen's beat brings it. */
+const LEAD_DUE_MS = 800;
+
+describe("the line about the day, led as first planned only once a stop has changed", () => {
+  beforeEach(() => window.localStorage.clear());
+
+  it("takes no lead at a changed word's press nor while its proposal is written", async () => {
+    replanReplies.push({ held: KYOTO_SLOW_MORNING, at: 0.62 });
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    const wasLeadSeen = watchLead();
+
+    await changeWord(user, "early start", "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("writing"));
+    await act(() => new Promise((resolve) => setTimeout(resolve, LEAD_DUE_MS)));
+
+    expect(wasLeadSeen()).toBe(false);
+  });
+
+  it("takes no lead while the proposal stands whole beside the day, nor once it is taken", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    const wasLeadSeen = watchLead();
+
+    await changeWord(user, "early start", "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("proposed"), DAY_TIMEOUT);
+    await act(() => new Promise((resolve) => setTimeout(resolve, LEAD_DUE_MS)));
+    expect(wasLeadSeen()).toBe(false);
+
+    // Taken, the line is the proposal's, written around the day it makes: they agree again.
+    const wasLeadSeenTaken = watchLead();
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${REPLAN_ID}`), DAY_TIMEOUT);
+    await waitForTheDay();
+    await act(() => new Promise((resolve) => setTimeout(resolve, LEAD_DUE_MS)));
+    expect(isLeadSeen()).toBe(false);
+    expect(wasLeadSeenTaken()).toBe(false);
+  });
+
+  it("leads the line once an energy re-pick changes a stop", async () => {
+    const user = await askForKyoto();
+    const before = rowTexts();
+
+    await changeWord(user, "calm", "lively");
+
+    expect(rowTexts()).not.toEqual(before);
+    await waitFor(() => expect(isLeadSeen()).toBe(true), DAY_TIMEOUT);
+  });
+
+  it("takes no lead for an energy re-pick that changes no stop", async () => {
+    // Madrid's lively day re-picked balanced shows every stop it showed.
+    const user = await landOnMadrid();
+    const before = rowTexts();
+    await user.click(within(headline()).getByRole("button", { name: "lively" }));
+    const keeping = screen.getByRole("option", { name: /^balanced/ });
+    expect(keeping).toHaveTextContent("keeps every stop");
+    const wasLeadSeen = watchLead();
+
+    await user.click(keeping);
+    await act(() => new Promise((resolve) => setTimeout(resolve, LEAD_DUE_MS)));
+
+    expect(headline()).toHaveTextContent(/^A balanced /);
+    expect(rowTexts()).toEqual(before);
+    expect(wasLeadSeen()).toBe(false);
+  });
+
+  it("leads the line once a swap shows another place", async () => {
+    const user = await askForKyoto();
+    const version = [...document.querySelectorAll<SVGElement>(`[${CANDIDATE_ATTRIBUTE}]`)].find(
+      (bead) => /:a\d$/.test(bead.getAttribute(CANDIDATE_ATTRIBUTE) ?? ""),
+    );
+    if (version === undefined) throw new Error("Kyoto's stops have versions");
+
+    await user.click(version);
+
+    await waitFor(() => expect(isLeadSeen()).toBe(true), DAY_TIMEOUT);
+  });
+});
+
 describe("a changed word with live generation on", () => {
   it("asks for the day again with the word changed, and writes it", async () => {
     const user = await landOnMadrid();

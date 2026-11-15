@@ -255,10 +255,10 @@ describe("DayStageHeader through a word's fork", () => {
     }
     // The facts line's end faded and came back: none of its letters was written again.
     expect(facts()).toHaveLength(1);
-    // The line about the day was led as first planned while Lantern wrote, then, taken, written
-    // once from its first different word.
+    // The line about the day stood as written while Lantern wrote and while the proposal stood
+    // whole, as no stop had changed, then, taken, was written once from its first different word.
     const lines = deks();
-    expect(lines).toContain(`As first planned: ${ELCHE_ITINERARY.dek}`);
+    expect(lines.some((line) => line.startsWith("As first planned"))).toBe(false);
     expect(lines.at(-1)).toBe(ELCHE_MERGED.dek);
   });
 

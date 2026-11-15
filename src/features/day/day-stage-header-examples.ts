@@ -176,7 +176,7 @@ export const HEADER_MOMENTS = [
   { label: "a changed word", key: "changed" },
   { label: `a changed word being re-planned, the day held ${AFTER_LAUNCH}`, key: "replanning" },
   {
-    label: `a proposal being written: its word says both answers, the proposal's lit in blue, every other word locked, the facts line saying what is written and where, the line as first planned ${AFTER_LAUNCH}`,
+    label: `a proposal being written: its word says both answers, the proposal's lit in blue, every other word locked, the facts line saying what is written and where, the line as written, as no stop has changed ${AFTER_LAUNCH}`,
     key: "replan-writing",
   },
   {

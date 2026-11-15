@@ -198,3 +198,56 @@ test("says under each answer what it would do, from the plan the route runs", as
     "re-picks three stops · at once",
   );
 });
+
+test("leads the line about the day with no “As first planned:” while a proposal is written, nor while it stands whole", async ({
+  page,
+}) => {
+  test.setTimeout(waitMs(120_000));
+  await page.goto(BENCH);
+  const controls = page.getByRole("complementary", { name: "Lab controls" });
+  await controls.getByRole("button", { name: "Re-plan" }).click();
+  await controls.getByRole("group", { name: "Day" }).getByRole("button", { name: "Elche" }).click();
+  await controls
+    .getByRole("group", { name: "Ending" })
+    .getByRole("button", { name: "complete" })
+    .click();
+  await controls.getByRole("button", { name: "Re-plan" }).click();
+  await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+    "aria-busy",
+    "false",
+    { timeout: DAY_TIMEOUT_MS },
+  );
+  // Every frame from the press on, read by the page itself: whether the line on screen, outside
+  // the unseen copies that hold its room, was ever led as first planned.
+  await page.evaluate(() => {
+    const header = document.querySelector("header");
+    if (!header) throw new Error("The day has a header");
+    const isLed = () =>
+      [...header.querySelectorAll("p")].some(
+        (line) =>
+          line.closest("[aria-hidden]") === null &&
+          (line.textContent ?? "").startsWith("As first planned"),
+      );
+    const seen = { isLed: isLed() };
+    Object.assign(window, { leadSeen: seen });
+    new MutationObserver(() => {
+      seen.isLed ||= isLed();
+    }).observe(header, { subtree: true, childList: true, characterData: true });
+  });
+  const wasLed = () =>
+    page.evaluate(() => (window as unknown as { leadSeen: { isLed: boolean } }).leadSeen.isLed);
+
+  await page
+    .getByRole("heading", { level: 1 })
+    .getByRole("button", { name: /^early dinner/ })
+    .click();
+  await page.getByRole("option", { name: /eating late/ }).click();
+
+  const facts = page.locator("header p.type-note:not([aria-hidden] *)").first();
+  await expect(facts).toHaveText(/^Writing “eating late”/, { timeout: DAY_TIMEOUT_MS });
+  expect(await wasLed()).toBe(false);
+  await expect(facts).toHaveText(/^“eating late” drawn beside/, { timeout: waitMs(90_000) });
+  // Whole beside the day and not taken, the day's stops are the ones the line was written for.
+  await page.waitForTimeout(1_000);
+  expect(await wasLed()).toBe(false);
+});

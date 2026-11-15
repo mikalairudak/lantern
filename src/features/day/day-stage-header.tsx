@@ -274,7 +274,6 @@ interface ReservedDekProps {
   dek: string | undefined;
   /** The lead is on show or on its way: its room is held on a phone too. */
   isLeadHeld: boolean;
-  ref?: Ref<HTMLParagraphElement>;
 }
 
 /**
@@ -282,9 +281,9 @@ interface ReservedDekProps {
  * that brings the lead never moves the chart; on a phone from when the lead is due until it
  * has gone, so its line opens before the lead comes into it. None until the line has come.
  */
-function ReservedDek({ dek, isLeadHeld, ref }: ReservedDekProps): ReactNode {
+function ReservedDek({ dek, isLeadHeld }: ReservedDekProps): ReactNode {
   return (
-    <p ref={ref} className={DEK_CLASSES}>
+    <p className={DEK_CLASSES}>
       {dek && (
         <span className={cn("not-italic", LEAD_CLASSES, !isLeadHeld && LAPTOP_ROOM_CLASSES)}>
           {PLANNED_LEAD}
@@ -750,25 +749,10 @@ export function DayStageHeader({
   useLayoutEffect(() => {
     onDekWholeRef.current?.(isDekWhole);
   }, [isDekWhole]);
-  // While a word's re-plan is written, the line on screen is the day as first planned: it says
-  // so where its lead has room, which on a laptop is held always and on a phone is measured,
-  // so the press never moves the day under it.
-  const withLeadShape = useRef<HTMLParagraphElement>(null);
-  const withoutLeadShape = useRef<HTMLParagraphElement>(null);
-  const [isLeadFitting, setIsLeadFitting] = useState(false);
-  useLayoutEffect(() => {
-    const withLead = withLeadShape.current;
-    const withoutLead = withoutLeadShape.current;
-    if (!withLead || !withoutLead) return undefined;
-    const measure = () => setIsLeadFitting(withLead.offsetHeight <= withoutLead.offsetHeight);
-    measure();
-    if (typeof ResizeObserver === "undefined") return undefined;
-    const observer = new ResizeObserver(measure);
-    observer.observe(withLead);
-    observer.observe(withoutLead);
-    return () => observer.disconnect();
-  }, []);
-  const isAsFirstPlanned = !isAsPlanned || (isReplanWriting && isLeadFitting);
+  // The line is the day as first planned only once a stop shows another place than it was
+  // written around. A changed word's press, its proposal being written and the proposal whole
+  // beside the day change no stop, so the line still says the day on screen and takes no lead.
+  const isAsFirstPlanned = !isAsPlanned;
   // The lead is the line's own: it is due only before the line as written whole, so it never
   // stands alone while a re-plan unwrites the line and writes the next, and it goes at once
   // as the line starts to. It comes in once its line is open, as a clause does, so a phone's
@@ -1179,14 +1163,6 @@ export function DayStageHeader({
                     </p>
                     <div aria-hidden className="invisible col-start-1 row-start-1">
                       <ReservedDek dek={reservedDek} isLeadHeld={isLeadHeld} />
-                    </div>
-                    {/* The line with its lead and without it, measured and holding no room. */}
-                    <div
-                      aria-hidden
-                      className="invisible col-start-1 row-start-1 h-0 overflow-hidden"
-                    >
-                      <ReservedDek ref={withLeadShape} dek={reservedDek} isLeadHeld />
-                      <ReservedDek ref={withoutLeadShape} dek={reservedDek} isLeadHeld={false} />
                     </div>
                   </GlidingLine>
                   <GlidingLine>
