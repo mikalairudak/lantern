@@ -47,7 +47,7 @@ import {
   type StopDraft,
 } from "@/features/abacus/day-draft";
 import { DayRows, type ForkRows } from "@/features/abacus/day-rows";
-import { FORK_ROW_ATTRIBUTE } from "@/features/abacus/fork-row";
+import { shownFirstForkRow } from "@/features/abacus/fork-row";
 import { useDrawing } from "@/features/abacus/drawing";
 import { FACT_OPTIONS, optionOf, type Answer, type FactKey } from "./facts";
 import { forkViewOf } from "./replan-work";
@@ -673,8 +673,7 @@ export function DayStage({
    * on the chart or in the list, whichever is shown, and its chosen answer takes the focus.
    */
   const pointToFork = () => {
-    const rows = [...document.querySelectorAll<HTMLElement>(`[${FORK_ROW_ATTRIBUTE}="0"]`)];
-    const row = rows.find((each) => each.getClientRects().length > 0 && each.offsetHeight > 0);
+    const row = shownFirstForkRow();
     if (!row) return;
     scrollToPlace(row, { block: "center", behavior: isReducedMotion ? "instant" : "smooth" });
     row.querySelector<HTMLElement>('[role="radio"][tabindex="0"]')?.focus({ preventScroll: true });

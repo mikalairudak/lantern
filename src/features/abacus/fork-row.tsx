@@ -21,6 +21,21 @@ import type { WorkLine } from "./work-line";
 export const FORK_ROW_ATTRIBUTE = "data-fork-row";
 
 /**
+ * The fork's first row in the view the visitor sees, chart or plan, where the sentence's pointer
+ * leads: a row that has a box and is visible. The view not chosen holds its rows too, the chart
+ * laid out unseen under `visibility: hidden` and the plan not drawn, so a row's place among the
+ * nodes says nothing of whether it is seen.
+ */
+export function shownFirstForkRow(): HTMLElement | null {
+  const rows = document.querySelectorAll<HTMLElement>(`[${FORK_ROW_ATTRIBUTE}="0"]`);
+  return (
+    [...rows].find(
+      (row) => row.getClientRects().length > 0 && getComputedStyle(row).visibility === "visible",
+    ) ?? null
+  );
+}
+
+/**
  * Marks a fork row's line where it stands apart from its row, in the margin right of the chart
  * on a laptop, by the row's part, so what the row says is found with it.
  */
