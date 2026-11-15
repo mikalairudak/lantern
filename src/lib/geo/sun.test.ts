@@ -47,6 +47,46 @@ describe("sunAltitude", () => {
     expect(Math.abs((sunset ?? 0) - minutesOf("21:21"))).toBeLessThanOrEqual(TOLERANCE_MINUTES);
   });
 
+  // Near the midnight sun the evening's sunset falls at midnight or after it, and the minutes
+  // after midnight on the date itself hold the sunset of the evening before.
+  it("gives a day its own evening's sunset, on past midnight where it falls there", () => {
+    const fairbanks: DayContext = {
+      position: { lat: 64.8378, lng: -147.7164 },
+      date: "2026-07-15",
+      utcOffsetMinutes: -480,
+    };
+    const reykjavik: DayContext = {
+      position: { lat: 64.1466, lng: -21.9426 },
+      date: "2026-06-21",
+      utcOffsetMinutes: 0,
+    };
+
+    const beforeMidnight = sunCrossing(fairbanks, SUNRISE_ALTITUDE, "setting") ?? 0;
+    const afterMidnight = sunCrossing(reykjavik, SUNRISE_ALTITUDE, "setting") ?? 0;
+
+    expect(Math.abs(beforeMidnight - minutesOf("23:59"))).toBeLessThanOrEqual(TOLERANCE_MINUTES);
+    expect(Math.abs(afterMidnight - (24 * 60 + 5))).toBeLessThanOrEqual(TOLERANCE_MINUTES);
+    // Up until that minute, down from it.
+    for (const [context, sunset] of [
+      [fairbanks, beforeMidnight],
+      [reykjavik, afterMidnight],
+    ] as const) {
+      expect(sunAltitude(context, sunset - 1)).toBeGreaterThanOrEqual(SUNRISE_ALTITUDE);
+      expect(sunAltitude(context, sunset)).toBeLessThan(SUNRISE_ALTITUDE);
+    }
+  });
+
+  it("finds no sunrise or sunset under a midnight sun", () => {
+    const tromsoSummer: DayContext = {
+      position: TROMSO,
+      date: "2026-06-21",
+      utcOffsetMinutes: 120,
+    };
+
+    expect(sunCrossing(tromsoSummer, SUNRISE_ALTITUDE, "rising")).toBeNull();
+    expect(sunCrossing(tromsoSummer, SUNRISE_ALTITUDE, "setting")).toBeNull();
+  });
+
   it("peaks near 90° minus latitude plus the solstice tilt", () => {
     const solarNoon = minutesOf("13:02");
 

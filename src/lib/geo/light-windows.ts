@@ -4,6 +4,7 @@ import {
   NIGHT_ALTITUDE,
   SUNRISE_ALTITUDE,
   sunAltitude,
+  sunNoon,
   type DayContext,
 } from "./sun";
 
@@ -39,15 +40,8 @@ interface SunDay {
 }
 
 function sunOver(context: DayContext): SunDay {
-  let noon = 0;
-  let peak = -Infinity;
-  for (let minute = 0; minute < END_OF_DAY_MINUTES; minute++) {
-    const altitude = sunAltitude(context, minute);
-    if (altitude > peak) {
-      peak = altitude;
-      noon = minute;
-    }
-  }
+  const noon = sunNoon(context);
+  const peak = sunAltitude(context, noon);
   const lowBefore = noon - HALF_DAY_MINUTES;
   const lowAfter = noon + HALF_DAY_MINUTES;
   const nextNoon = noon + END_OF_DAY_MINUTES;
