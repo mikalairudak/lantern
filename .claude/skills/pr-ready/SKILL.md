@@ -1,6 +1,6 @@
 ---
 name: pr-ready
-description: Make a Lantern branch ready for its pull request, then push it and open the pull request against develop. Checks that the branch is one change and its checks ran, writes the body in the template's shape, runs the pull request text check and a security review, and gets one fresh read of what patterns cannot see.
+description: Make a Lantern branch ready for its pull request, then push it and open the pull request against develop. Checks that the branch is one change and its checks ran, writes the body in the template's shape, runs the pull request text check, has a branch that changes the product's logic read for defects by a reviewer who has not seen the work, runs a security review, and gets one fresh read of what patterns cannot see.
 when_to_use: Before pushing a branch and opening its pull request, or when someone says "pr-ready", "open the PR" or "ready for review". Give it the branch, as in "/pr-ready <branch>".
 argument-hint: "[branch]"
 arguments: [branch]
@@ -35,11 +35,30 @@ Every change reaches `develop` as a pull request, which the engineering session 
 
    The workflow `.github/workflows/pr-text.yml` runs the same check on GitHub, on every pull request into `develop` and again on every edit of its text.
 
-## 3. Review its security
+## 3. Review its code
 
-Run the built-in `/security-review` on the branch's diff against `develop`. Fix what it finds on the branch, in new commits, and run it again. A finding that is not fixed stays out of the pull request's text and every commit, as an open weakness stays out of the repository until it is fixed.
+Tests hold what someone thought to test. A branch that changes how the product behaves is read once, before it is pushed, by a reviewer who has not seen the work.
 
-## 4. Get one fresh read
+1. **Which branches.** The paths decide, not the size of the change: run `git diff --name-only develop...$branch`. The step runs when any path is under `db/` or `scripts/`, or under `src/` and neither a test (`*.test.ts`, `*.test.tsx`), a fixture (`src/lib/fixtures/`) nor the lab (`src/app/lab/`). A branch of docs, tests, skills or CI alone skips it, and the report says so.
+2. Start one agent that has not seen the work, on an Opus model, and give it only: the diff, `git diff develop...$branch`; each touched file whole, with the `README.md` of its folder where there is one; and `CLAUDE.md`. Nothing of how the change was arrived at.
+3. It looks for defects, these kinds first:
+   - a streamed value used before it is final, anywhere but `src/features/itinerary/revealed.ts`: a string can stop mid-word, a number grows, an enum is final only once the next field has started;
+   - a store read all or nothing and then written back, so one entry it cannot read costs the rest;
+   - code that breaks a promise its own comment, its folder's `README.md` or an entry in `docs/decisions.md` makes;
+   - time: zones, a day that runs past midnight, a clock read twice in one computation;
+   - order: two requests or two tabs at once, an answer that arrives for a day the visitor has left, an effect that reads stale state;
+   - a failure path: the database, the model, the place lookup or the browser's storage throwing, timing out, or answering in a shape nothing expected.
+
+   Style, naming and a missing test alone are not findings.
+
+4. It reports findings only, each with the file and line, a scenario from concrete inputs to the wrong result, and how sure it is. It edits nothing and runs no suite.
+5. A finding is a hypothesis until a test shows it. The author writes the failing test first, fixes the fault on the branch with that test, and drops a finding no test can show. A finding that is a trade-off, not a fault, is stated with its reason in the pull request's `## Risk`. A fix that changes much is read again.
+
+## 4. Review its security
+
+Run the built-in `/security-review` on the branch's diff against `develop`, on every branch, however small its change. Fix what it finds on the branch, in new commits, and run it again. A finding that is not fixed stays out of the pull request's text and every commit, as an open weakness stays out of the repository until it is fixed.
+
+## 5. Get one fresh read
 
 Patterns see only words. Start one agent that has not seen the work, on a Sonnet model, and give it only:
 
@@ -54,9 +73,9 @@ Patterns see only words. Start one agent that has not seen the work, on a Sonnet
   - a provider named on a public page, in its metadata or in a response, beyond the licence-required map credit;
   - a pointer that leaks or rots: a link to a chat or a shared page, a local path, a machine or account name, a production record's id, a secret or its hash, a branch name or commit hash in a doc or comment.
 
-It reports findings only, each with the file and line or the part of the text, and edits nothing. The author fixes each finding, runs steps 1 to 3 again for what changed, and asks for a fresh read only when a fix changed much.
+It reports findings only, each with the file and line or the part of the text, and edits nothing. The author fixes each finding, runs steps 1 to 4 again for what changed, and asks for a fresh read only when a fix changed much.
 
-## 5. Push the branch and open the pull request
+## 6. Push the branch and open the pull request
 
 Only when every step above is clean:
 
@@ -71,7 +90,7 @@ Only when every step above is clean:
 
 5. Give the owner the pull request's address.
 
-## 6. Merge it once its checks pass
+## 7. Merge it once its checks pass
 
 1. Wait for Check, PR text / Text and E2E result. A red check is read, not retried blind: a failure in the change is fixed on the branch; one in the runner (a mirror that did not answer, a test that passes alone) is said so in the report, and the failed jobs run again.
 2. When all three pass, squash-merge with the body file, so the commit on `develop` carries the pull request's text and its trailer:
@@ -86,5 +105,5 @@ Only when every step above is clean:
 
 - The branch is one change, and the checks the definition of done asks for passed.
 - `scripts/check-pr-text.mts` passes on the branch's name, the title and the body, and the body ends with the co-author trailer.
-- `/security-review` and the fresh read left nothing open.
+- The code review, on a branch whose paths ask for it, left nothing open; so did `/security-review` and the fresh read, on every branch.
 - The branch alone is pushed, and its pull request is open against `develop`.

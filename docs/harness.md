@@ -26,7 +26,7 @@ The layers overlap on purpose. The quality checks are the eval's measures and th
 | `/lab/matrix`, `/lab/stream` | Every state, density and data extreme, by eye                  | While building a component                                |
 | `/ui-review`                 | What the author of a UI change stopped seeing                  | Before UI work merges                                     |
 | The pull request check       | A branch name, PR title or body that breaks the rules          | Pull requests into `develop`, and each text edit          |
-| `/pr-ready`                  | A weakness, or public text a pattern cannot judge              | Before a branch is pushed                                 |
+| `/pr-ready`                  | A fault in logic no test names, a weakness, public text        | Before a branch is pushed                                 |
 | The quality checks           | A broken or off-measure day in production                      | On every live day; they never block one                   |
 | `pnpm eval:live`             | A prompt or model change that hurts quality                    | On a change, after a spend confirmation                   |
 | `pnpm log:report`            | Production's calls, outcomes, checks and spend                 | By need, in a read-only transaction                       |

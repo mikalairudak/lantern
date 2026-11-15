@@ -155,6 +155,7 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 - [2026-11-10 — Every change reaches develop as a pull request the owner merges](#2026-11-10--every-change-reaches-develop-as-a-pull-request-the-owner-merges)
 - [2026-11-11 — The engineering session merges a pull request into develop once its checks pass](#2026-11-11--the-engineering-session-merges-a-pull-request-into-develop-once-its-checks-pass)
 - [2026-11-10 — CI runs the e2e in four shards, skips it for inert paths, and runs the frame tests apart](#2026-11-10--ci-runs-the-e2e-in-four-shards-skips-it-for-inert-paths-and-runs-the-frame-tests-apart)
+- [2026-11-15 — A change to the product's logic is read for defects before it is pushed](#2026-11-15--a-change-to-the-products-logic-is-read-for-defects-before-it-is-pushed)
 
 **Privacy and security**
 
@@ -702,7 +703,7 @@ A fourth round wrote the same five again, and Madrid's start, under the undated 
 
 ## 2026-11-11 — The engineering session merges a pull request into develop once its checks pass
 
-**Decision.** The engineering session squash-merges each pull request into `develop` itself, once `/pr-ready` is clean and Check, PR text / Text and E2E result pass, with the pull request's body as the commit's message (`.claude/skills/pr-ready/SKILL.md`, step 6). The owner reads what lands and merges releases into `main`. This revises "Every change reaches develop as a pull request the owner merges"; everything else in it holds.
+**Decision.** The engineering session squash-merges each pull request into `develop` itself, once `/pr-ready` is clean and Check, PR text / Text and E2E result pass, with the pull request's body as the commit's message (`.claude/skills/pr-ready/SKILL.md`, step 7). The owner reads what lands and merges releases into `main`. This revises "Every change reaches develop as a pull request the owner merges"; everything else in it holds.
 
 **Why.** A pull request already passes the definition of done, a security review and a fresh reader before it is pushed, and three checks on GitHub before it merges, so a merge waiting for the owner held the next change back without adding a check. A release is what reaches visitors, so that merge stays the owner's.
 
@@ -855,3 +856,11 @@ Each plate is three grey images in `public/pictures/`: the scene, and two shapes
 **Why.** A settled fork took its rows and the headline's pair away with nothing said, so a visitor who changed a second word could not tell whether the proposal they waited half a minute for was lost. Most often it is not: whole, with an id, it is one of the visitor's days. Where it has no id, "set aside" would promise a place to find it again, so the line says it is not kept; where it has one the list does not hold, "not kept" would be untrue and silence would hide a loss the visitor cannot undo, so the line says where it is not. The two notes never share the line: at 390 px either fits one line, and together the longest pair takes three where the head holds two.
 
 **Cost.** A second word's note waits 2.5 s behind the first, and a proposal that ends sooner says its ending in the note's place before the first has been read. A city changed and the new day also drop a standing proposal and say nothing: the page becomes another day or the start screen, where "Your days" lists a kept one. On a phone's plan, an energy pressed on the bar held at the screen's top is said only to a screen reader until the visitor scrolls back up, as "one change at a time" is.
+
+## 2026-11-15 — A change to the product's logic is read for defects before it is pushed
+
+**Decision.** A branch that changes the product's logic is read once for defects before it is pushed, by a reviewer on an Opus model who has not seen the work, given the diff and every touched file whole (`.claude/skills/pr-ready/SKILL.md`, step 3). The paths decide which branches: anything under `src/` that is not a test, a fixture or the lab, and anything under `db/` or `scripts/`. The security review, which every branch takes, is not skipped for a small one. A finding is a hypothesis until a failing test shows it, and the fix lands with that test.
+
+**Why.** Tests hold what someone thought to test, and the fresh read of a branch looks at what its text makes public, not at whether its code is right. A fault can sit between the two: a value kept while it is still being streamed passes every test that feeds a whole day, though the rule on streamed values is written down. A reader who holds the code against its own rules is the check for that kind. Choosing by path keeps the step from being skipped for a change that looks small, which is how such a fault gets in.
+
+**Cost.** One more reviewer's run on each branch of logic, and the time to reproduce what it finds: a reviewer reports a suspicion as readily as a fault, so none is fixed or stated as fact before a test shows it. A branch of docs, tests or CI alone is not read this way.
