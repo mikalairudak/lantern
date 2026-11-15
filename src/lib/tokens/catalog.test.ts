@@ -7,6 +7,7 @@ import {
   DELAY_TOKENS,
   DURATION_TOKENS,
   FOCUS_RING_TOKENS,
+  GRID_TOKENS,
   RADIUS_TOKENS,
   ROOT_TOKENS,
   SPACING_TOKENS,
@@ -45,6 +46,7 @@ describe("token catalog", () => {
     ["duration", DURATION_TOKENS.map((token) => token.name)],
     ["delay", DELAY_TOKENS.map((token) => token.name)],
     ["container", CONTAINER_TOKENS.map((token) => token.name)],
+    ["grid-template-columns", GRID_TOKENS.map((token) => token.name)],
   ])("lists every %s token globals.css defines", (namespace, listed) => {
     expect(declaredTokens(namespace)).toEqual(listed);
   });

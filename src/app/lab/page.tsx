@@ -37,6 +37,11 @@ const PAGES = [
     note: "The start screen: one question over a day Lantern has already written, its named pick",
   },
   {
+    href: "/lab/concepts/your-days",
+    title: "Concept · Your days",
+    note: "The visitor's own days as listed today, beside the same days as a ledger",
+  },
+  {
     href: "/lab/concepts/invitation",
     title: "Concept · Invitation",
     note: "The ring and the example that invite the first drag on Lisbon, never changing the day",
