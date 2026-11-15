@@ -97,7 +97,7 @@ describe("the places picked on a day", () => {
     expect(storage.items.has(PICKED_PLACES_KEY)).toBe(false);
   });
 
-  it("reads a list another version wrote, or one edited by hand, as none", () => {
+  it("reads no pick from rows another version wrote, or ones edited by hand", () => {
     const storage = memoryStorage();
     for (const kept of ["not json", "{}", '[{"day":"kyoto"}]', '[{"day":1,"places":{}}]']) {
       storage.items.set(PICKED_PLACES_KEY, kept);
@@ -105,6 +105,28 @@ describe("the places picked on a day", () => {
     }
     // Written over, rather than kept beside what it could not read.
     keepPickedPlaces(storage, KYOTO, { s1: "s1:a1" });
+    expect(readPickedPlaces(storage, KYOTO)).toEqual({ s1: "s1:a1" });
+  });
+
+  it("lets a row it cannot read go alone, and keeps the days beside it through the next write", () => {
+    const storage = memoryStorage();
+    const kept = keptSeenKeyOf("a-day");
+    storage.items.set(
+      PICKED_PLACES_KEY,
+      JSON.stringify([
+        { day: KYOTO, places: { s1: "s1:a1" } },
+        { day: "another-shape", places: { s1: 1 } },
+        { day: kept, places: { s2: "s2:a1" } },
+      ]),
+    );
+
+    expect(readPickedPlaces(storage, KYOTO)).toEqual({ s1: "s1:a1" });
+    keepPickedPlaces(storage, "paris", { s3: "s3:a1" });
+
+    expect(readPickedPlaces(storage, KYOTO)).toEqual({ s1: "s1:a1" });
+    expect(readPickedPlaces(storage, kept)).toEqual({ s2: "s2:a1" });
+    expect(readPickedPlaces(storage, "another-shape")).toEqual({});
+    forgetKeptPicks(storage);
     expect(readPickedPlaces(storage, KYOTO)).toEqual({ s1: "s1:a1" });
   });
 

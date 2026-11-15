@@ -2,6 +2,7 @@ import { z } from "zod";
 import { candidatesOf, modelPick, type Selectable } from "@/features/abacus/curve";
 import { BROWSER_STORAGE, PICKED_DAYS_KEPT } from "@/lib/browser-storage";
 import { isKeptSeenKey } from "./seen-days";
+import { readKeptRows } from "./kept-rows";
 import type { DayStorage } from "./your-days";
 
 /**
@@ -39,19 +40,9 @@ type PickedDay = z.infer<typeof PickedDaySchema>;
 
 const NO_PICKS: PickedPlaces = {};
 
-/**
- * Every day's picked places, the one changed last first. A browser that keeps nothing, a list
- * another version wrote, or one edited by hand reads as none, rather than as a page that breaks.
- */
+/** Every day's picked places, the one changed last first, each row read alone (`readKeptRows`). */
 function readPickedDays(storage: DayStorage | null): PickedDay[] {
-  try {
-    const kept = storage?.getItem(PICKED_PLACES_KEY);
-    if (!kept) return [];
-    const parsed = z.array(PickedDaySchema).safeParse(JSON.parse(kept));
-    return parsed.success ? parsed.data : [];
-  } catch {
-    return [];
-  }
+  return readKeptRows(storage, PICKED_PLACES_KEY, PickedDaySchema);
 }
 
 /** The places kept for the day under this key; none for a day this device kept nothing of. */

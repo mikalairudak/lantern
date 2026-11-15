@@ -134,6 +134,51 @@ describe("the visitor's days", () => {
     }
   });
 
+  // Rows as browsers hold them under this key, written out so that a change to the request's
+  // shape or to a word's values fails here: a new shape takes a new key, or the days already
+  // kept stop reading. The first has every word left to Lantern, the others every word said.
+  it("reads the rows browsers already hold under this key", () => {
+    const storage = memoryStorage();
+    const left =
+      '{"id":"3e5b7d9f-1a2c-4e6f-8b0d-2c4e6a8b0d1f","request":{"city":"Kyoto",' +
+      '"date":"2026-11-14","timezone":"Asia/Tokyo","citySource":"chosen","energy":"calm",' +
+      '"energySource":"chosen","travel":null,"start":null,"dinner":null,"end":null,' +
+      '"company":null},"startedAt":"2026-10-31T18:00:00.000Z",' +
+      '"energies":["calm","reflective"],"ending":"written","seconds":41}';
+    const said = (words: string, energy: string, ending: string) =>
+      '{"id":"7a9c1e3b-5d7f-4a2c-9e1b-3d5f7a9c1e3b","request":{"city":"Elche",' +
+      `"date":"2026-11-14","timezone":"Europe/Madrid","citySource":"assumed","energy":"${energy}",` +
+      `"energySource":"assumed",${words}},"startedAt":"2026-10-31T18:00:00.000Z",` +
+      `"energies":["${energy}"],"ending":"${ending}","seconds":null}`;
+    const rows = [
+      left,
+      said(
+        '"travel":"on-foot","start":"early","dinner":"early","end":"evening","company":"alone"',
+        "balanced",
+        "writing",
+      ),
+      said(
+        '"travel":"transit","start":"slow","dinner":"late","end":"early","company":"partner"',
+        "lively",
+        "cut",
+      ),
+      said(
+        '"travel":"taxi","start":"slow","dinner":"late","end":"late","company":"family"',
+        "social",
+        "failed",
+      ),
+      said(
+        '"travel":"taxi","start":"slow","dinner":"late","end":"late","company":"friends"',
+        "reflective",
+        "written",
+      ),
+    ];
+    storage.items.set(YOUR_DAYS_KEY, `[${rows.join(",")}]`);
+
+    expect(YOUR_DAYS_KEY).toBe("lantern.days.v1");
+    expect(readYourDays(storage)).toHaveLength(rows.length);
+  });
+
   it("lets go of a row it cannot read, and keeps the days beside it", () => {
     const storage = memoryStorage();
     const halfWritten = { ...dayOf("b"), energies: ["cal"] };
