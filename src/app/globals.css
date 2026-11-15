@@ -200,6 +200,14 @@
   --container-masthead: 21.375rem;
 
   /*
+   * A ledger's line, from the text column's width: its date, in a column that keeps one width
+   * as "writing" turns to "today" (4rem holds every word the date's place says but a date in
+   * another year); its name; and what is said of it, which keeps 45% of the line however long
+   * the name is, so a 58-letter town leaves its words room.
+   */
+  --grid-template-columns-ledger: minmax(4rem, max-content) minmax(0, max-content) minmax(45%, 1fr);
+
+  /*
    * The page grows on a large screen. From a viewport `grows-from` rems wide, 1440 px at the
    * browser's default 16 px, the root's size grows in step with the width to `grows-by`
    * times the browser's own at `grows-to` rems, 2560 px, and no further; every rem grows

@@ -7,6 +7,7 @@ import {
   DELAY_TOKENS,
   DURATION_TOKENS,
   FOCUS_RING_TOKENS,
+  GRID_TOKENS,
   RADIUS_TOKENS,
   SPACING_TOKENS,
   TEXT_TOKENS,
@@ -299,6 +300,12 @@ function WidthSection() {
         {CONTAINER_TOKENS.map(({ name, role }) => (
           <li key={name} className="flex flex-col gap-1 md:flex-row md:gap-8">
             <span className="w-label shrink-0 text-meta">--container-{name}</span>
+            <span className="text-small text-muted">{role}</span>
+          </li>
+        ))}
+        {GRID_TOKENS.map(({ name, role }) => (
+          <li key={name} className="flex flex-col gap-1 md:flex-row md:gap-8">
+            <span className="w-label shrink-0 text-meta">grid-cols-{name}</span>
             <span className="text-small text-muted">{role}</span>
           </li>
         ))}

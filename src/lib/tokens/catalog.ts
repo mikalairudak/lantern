@@ -130,6 +130,14 @@ export const CONTAINER_TOKENS = [
   },
 ] as const;
 
+/** The columns a grid is set in, each with its one use. */
+export const GRID_TOKENS = [
+  {
+    name: "ledger",
+    role: "A ledger's line: its date, at one width; its name; what is said of it, never under 45%",
+  },
+] as const;
+
 /** The waits before what CSS shows, each named for its one use. */
 export const DELAY_TOKENS = [
   {
