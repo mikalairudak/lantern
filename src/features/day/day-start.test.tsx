@@ -1147,6 +1147,20 @@ describe("the address, on a page that asks the day to keep it", () => {
     expect(window.location.pathname).toBe("/");
     expect(document.title).toBe(TITLE_BEFORE);
   });
+
+  it("keeps the day of a page that does not ask when the browser shows the page again", async () => {
+    const user = userEvent.setup();
+    render(<Day start={{ pool: POOL, read: vi.fn<IntakeReader>() }} />);
+    await user.click(cityWord("Paris"));
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+
+    act(() => {
+      window.dispatchEvent(Object.assign(new Event("pageshow"), { persisted: true }));
+    });
+
+    expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/);
+    expect(window.location.pathname).toBe("/");
+  });
 });
 
 describe("the visitor's own days", () => {
@@ -1169,6 +1183,7 @@ describe("the visitor's own days", () => {
     };
   }
 
+  beforeEach(() => window.history.replaceState(null, "", "/"));
   afterEach(() => {
     window.localStorage.clear();
     window.history.replaceState(null, "", "/");

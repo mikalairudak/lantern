@@ -752,14 +752,16 @@ export function Day({
   const goneTo = useRef<(state: unknown) => void>(() => undefined);
   // A page the browser kept and shows again is the page on screen again, on whichever of its
   // entries the browser shows it: it shows that entry's day, and writes its entries as before.
+  // A page that does not keep its address has no entries of its own to read.
   useEffect(() => {
+    if (!isAddressed) return;
     const onShow = (event: PageTransitionEvent) => {
       isLeaving.current = false;
       if (event.persisted) goneTo.current(window.history.state);
     };
     window.addEventListener("pageshow", onShow);
     return () => window.removeEventListener("pageshow", onShow);
-  }, []);
+  }, [isAddressed]);
   const shownEntry = asked?.entry ?? null;
   // The address names the day on screen (`docs/decisions.md`, "Back goes to the day before"): a new
   // day pushes an entry after the day or the start screen before it, so Back comes back to that,
