@@ -992,6 +992,109 @@ describe("the address, on a page that asks the day to keep it", () => {
     LONG_TEST_MS,
   );
 
+  it(
+    "brings the day kept behind the start screen Forward whole, letting go a day being asked there",
+    async () => {
+      const user = renderAddressed();
+      const withParis = await playParis(user);
+      act(() => window.history.back());
+      await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+      const release = holdDay();
+      await user.click(cityWord("Rome"));
+      await waitFor(() => expect(fetchDay).toHaveBeenCalledTimes(2));
+
+      act(() => window.history.forward());
+
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+      const paris = writtenDayAt("paris")!.itinerary.stops;
+      expect(within(dayList()).getAllByRole("listitem")).toHaveLength(paris.length);
+      await waitForTheDay();
+      // Rome's answer, let go, never takes the page nor an entry.
+      release();
+      await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
+      expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/);
+      expect(window.location.pathname).toBe("/day/paris");
+      expect(window.history.length).toBe(withParis);
+    },
+    LONG_TEST_MS,
+  );
+
+  /**
+   * Keeps the page from hearing the next Back or Forward, as a page hidden while another
+   * route shows misses it: the page's own listener, on the window, never runs for it.
+   */
+  function missNextTraversal(): void {
+    const swallow = (event: Event) => {
+      event.stopImmediatePropagation();
+      window.removeEventListener("popstate", swallow, true);
+    };
+    window.addEventListener("popstate", swallow, true);
+  }
+
+  it(
+    "takes a Back it missed for what it is, and never writes the day it shows over that entry",
+    async () => {
+      const { user, withParis } = await playParisThenBologna();
+      missNextTraversal();
+      act(() => window.history.back());
+      await waitFor(() => expect(window.location.pathname).toBe("/day/paris"));
+      // Still Bologna on screen: a change on it runs the page's address again.
+      await user.click(within(headline()).getByRole("button", { name: "lively" }));
+      await user.click(screen.getByRole("option", { name: "calm" }));
+
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+      expect(window.location.pathname).toBe("/day/paris");
+      expect(window.history.length).toBe(withParis + 1);
+      act(() => window.history.forward());
+      await waitFor(() => expect(headline()).toHaveTextContent(/in Bologna/));
+      expect(window.location.pathname).toBe("/day/bologna");
+      expect(fetchDay).toHaveBeenCalledTimes(2);
+    },
+    LONG_TEST_MS,
+  );
+
+  it(
+    "shows the day of the entry a page kept by the browser comes back on",
+    async () => {
+      const { withParis } = await playParisThenBologna();
+      missNextTraversal();
+      act(() => window.history.back());
+      await waitFor(() => expect(window.location.pathname).toBe("/day/paris"));
+
+      act(() => {
+        window.dispatchEvent(Object.assign(new Event("pageshow"), { persisted: true }));
+      });
+
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+      expect(window.location.pathname).toBe("/day/paris");
+      expect(window.history.length).toBe(withParis + 1);
+    },
+    LONG_TEST_MS,
+  );
+
+  it(
+    "writes its entries again after a load of another address that Back stopped",
+    async () => {
+      const user = renderAddressed();
+      await playParis(user);
+      // An entry of a day this page does not hold, as one from before a reload is.
+      window.history.pushState({ lantern: "day", key: "from-another-load" }, "", "/day/porto");
+      act(() => window.history.back());
+      await waitFor(() => expect(window.location.pathname).toBe("/day/paris"));
+      // Forward starts loading that day's address in its place; Back stops it before it lands.
+      act(() => window.history.forward());
+      await waitFor(() => expect(window.location.pathname).toBe("/day/porto"));
+      act(() => window.history.back());
+      await waitFor(() => expect(window.location.pathname).toBe("/day/paris"));
+
+      await chooseCity(user, "Paris", "Bologna");
+
+      await waitFor(() => expect(window.location.pathname).toBe("/day/bologna"));
+      expect(document.title).toBe(BOLOGNA_TITLE);
+    },
+    LONG_TEST_MS,
+  );
+
   it("gives a city Lantern has not written the start screen's address again", async () => {
     const user = renderAddressed();
     await user.click(cityWord("Paris"));

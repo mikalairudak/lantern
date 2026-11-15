@@ -741,11 +741,15 @@ export function Day({
   const entriesWritten = useRef(new Set<string>());
   // The page is loading another day's address in its place: no entry is written meanwhile.
   const isLeaving = useRef(false);
-  // A page the browser kept and shows again, as Back to one of its entries can, is the page on
-  // screen again, and writes its entries as before.
+  // Back or Forward, by the entry it lands on (`onPopState`, below): also run for one the page
+  // did not hear, as a page hidden while another route shows, or kept by the browser, misses it.
+  const goneTo = useRef<(state: unknown) => void>(() => undefined);
+  // A page the browser kept and shows again is the page on screen again, on whichever of its
+  // entries the browser shows it: it shows that entry's day, and writes its entries as before.
   useEffect(() => {
-    const onShow = () => {
+    const onShow = (event: PageTransitionEvent) => {
       isLeaving.current = false;
+      if (event.persisted) goneTo.current(window.history.state);
     };
     window.addEventListener("pageshow", onShow);
     return () => window.removeEventListener("pageshow", onShow);
@@ -753,14 +757,25 @@ export function Day({
   const shownEntry = asked?.entry ?? null;
   // The address names the day on screen (`docs/decisions.md`, "Back goes to the day before"): a new
   // day pushes an entry after the day or the start screen before it, so Back comes back to that,
-  // and a change within the day replaces its own entry's address, so a re-plan is one entry. The
-  // router keeps its tree, so nothing remounts and nothing is fetched.
+  // and a change within the day replaces its own entry's address, so a re-plan is one entry. A day
+  // whose entry is written already stands on another entry only by a Back or Forward the page did
+  // not hear, which it takes as one. The router keeps its tree, so nothing remounts and nothing is
+  // fetched.
   useEffect(() => {
-    if (!isAddressed || isStartShown || isLeaving.current) return;
+    if (!isAddressed || isLeaving.current) return;
+    const here = window.location.pathname;
+    const state = window.history.state as unknown;
+    const key = entryKeyOf(state);
+    if (isStartShown) {
+      // The start screen stands on its own entry, or on a day's it holds nothing for.
+      if (key !== null) goneTo.current(state);
+      return;
+    }
     if (shownEntry !== null && shownRequest !== null) {
-      const here = window.location.pathname;
-      const state = window.history.state as unknown;
-      const key = entryKeyOf(state);
+      if (key !== shownEntry && entriesWritten.current.has(shownEntry)) {
+        goneTo.current(state);
+        return;
+      }
       if (key !== shownEntry) {
         const isAfterDay = key !== null && entriesWritten.current.has(key);
         const isFromStart = !isDayEntry(state) && here === START_ADDRESS && start !== undefined;
@@ -1929,14 +1944,21 @@ export function Day({
    * day on screen's shows it, a day left for another comes back from memory, and any other loads
    * its own address in the entry's place: its own page draws it, a kept day from its record. A day
    * at the start screen's address that the page no longer holds has no page of its own, so the
-   * start screen stands for it.
+   * start screen stands for it. A day the start screen was asking for gives way to the day Forward
+   * brings back, which is drawn from memory, since that day took the stream.
    */
-  const onPopState = (event: PopStateEvent) => {
+  const onPopState = (state: unknown) => {
+    // A load of another address that this Back or Forward stopped is no longer under way.
+    isLeaving.current = false;
     const here = window.location.pathname;
-    const key = entryKeyOf(event.state);
+    const key = entryKeyOf(state);
     const left = key === null ? undefined : daysLeft.current.get(key);
     const isAtStart = here === START_ADDRESS && start !== undefined;
-    if (key !== null && key === asked?.entry) {
+    if (key !== null && key === asked?.entry && pending === null) {
+      if (isStartShown && reading.current !== null) {
+        stopReading();
+        setLine(null);
+      }
       setIsStartShown(false);
     } else if (left !== undefined) {
       returnTo(left);
@@ -1948,13 +1970,12 @@ export function Day({
       window.location.replace(here);
     }
   };
-  const onPopStateNow = useRef(onPopState);
   useLayoutEffect(() => {
-    onPopStateNow.current = onPopState;
+    goneTo.current = onPopState;
   });
   useEffect(() => {
     if (!isAddressed) return undefined;
-    const onPop = (event: PopStateEvent) => onPopStateNow.current(event);
+    const onPop = (event: PopStateEvent) => goneTo.current(event.state);
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, [isAddressed]);
