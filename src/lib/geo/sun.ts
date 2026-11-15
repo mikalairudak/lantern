@@ -113,14 +113,41 @@ export function lightRuns(context: DayContext, fromMinutes: number, toMinutes: n
   return runs;
 }
 
-/** The first minute of the day the sun crosses an altitude, rising or setting. */
+/** From the sun's noon to its lowest point, near enough: the day's solar half. */
+const HALF_DAY_MINUTES = MINUTES_PER_DAY / 2;
+
+/** The minute of the day the sun stands highest: its own noon, which the clock's rarely is. */
+export function sunNoon(context: DayContext): number {
+  let noon = 0;
+  let peak = -Infinity;
+  for (let minute = 0; minute < MINUTES_PER_DAY; minute++) {
+    const altitude = sunAltitude(context, minute);
+    if (altitude > peak) {
+      peak = altitude;
+      noon = minute;
+    }
+  }
+  return noon;
+}
+
+/**
+ * The minute the sun crosses an altitude on the day's own way up or down: rising before its
+ * noon, setting after it, in minutes of the day that run on past midnight. Near the midnight
+ * sun a day's sunset falls at midnight or after it, and the minutes after midnight on the date
+ * itself hold the sunset of the evening before, so the search is anchored on the noon and not
+ * on the date. Null where the sun does not cross: a polar night, a midnight sun, or a sun
+ * already up when the date began.
+ */
 export function sunCrossing(
   context: DayContext,
   altitude: number,
   direction: "rising" | "setting",
 ): number | null {
+  const noon = sunNoon(context);
   const isRising = direction === "rising";
-  for (let minute = 0; minute < MINUTES_PER_DAY; minute++) {
+  const from = isRising ? Math.max(0, noon - HALF_DAY_MINUTES) : noon;
+  const to = isRising ? noon : noon + HALF_DAY_MINUTES;
+  for (let minute = from; minute < to; minute++) {
     const before = sunAltitude(context, minute);
     const after = sunAltitude(context, minute + 1);
     const crossesUp = before < altitude && after >= altitude;
