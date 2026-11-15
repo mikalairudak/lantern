@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { FORK_ROW_ATTRIBUTE, ForkLine, ForkRow } from "./fork-row";
+import { FORK_ROW_ATTRIBUTE, ForkLine, ForkRow, shownFirstForkRow } from "./fork-row";
 import { FORK_EXAMPLES, FORK_MOMENTS, forkViewAt, type ForkMoment } from "./fork-row-examples";
 import { FORK_ROW_MATRIX } from "./fork-row-matrix";
 import { DEFAULT_DRAWING } from "./rows";
@@ -184,6 +184,53 @@ describe("ForkLine", () => {
 
     expect(screen.getByText("Dinner 21:00, not 18:15 · 3 new stops")).toBeInTheDocument();
     expect(screen.getByText("ends 23:45, not 20:45")).toBeInTheDocument();
+  });
+});
+
+describe("shownFirstForkRow", () => {
+  /**
+   * Both views' first fork rows, the chart's before the plan's as the page holds them, each
+   * given a box where its view is laid out (jsdom lays nothing out) and hidden as `hidden` says.
+   */
+  function renderBothViews(hidden: "chart" | "plan") {
+    render(
+      <>
+        <div>
+          <div {...{ [FORK_ROW_ATTRIBUTE]: 0 }}>the chart&apos;s</div>
+        </div>
+        <div>
+          <div {...{ [FORK_ROW_ATTRIBUTE]: 0 }}>the plan&apos;s</div>
+        </div>
+      </>,
+    );
+    const [chartRow, planRow] = [screen.getByText("the chart's"), screen.getByText("the plan's")];
+    const box = () => [new DOMRect(0, 0, 320, 66)] as unknown as DOMRectList;
+    // The chart is laid out in either view, unseen behind the plan; the plan is not drawn
+    // behind the chart. jsdom has no stylesheet, so the plan's hiding is set here.
+    chartRow.getClientRects = box;
+    if (hidden === "chart") {
+      planRow.getClientRects = box;
+      chartRow.parentElement?.style.setProperty("visibility", "hidden");
+    }
+    return { chartRow, planRow };
+  }
+
+  it("finds the plan's row on the plan, past the chart's laid out unseen before it", () => {
+    const { planRow } = renderBothViews("chart");
+
+    expect(shownFirstForkRow()).toBe(planRow);
+  });
+
+  it("finds the chart's row on the chart, the plan's not drawn", () => {
+    const { chartRow } = renderBothViews("plan");
+
+    expect(shownFirstForkRow()).toBe(chartRow);
+  });
+
+  it("finds none while no fork row is seen", () => {
+    render(<div {...{ [FORK_ROW_ATTRIBUTE]: 0 }}>not laid out</div>);
+
+    expect(shownFirstForkRow()).toBeNull();
   });
 });
 
