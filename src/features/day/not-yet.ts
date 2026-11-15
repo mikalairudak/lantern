@@ -120,7 +120,7 @@ export function replanEndedOf(
     case "unavailable":
       return "Couldn't re-plan just now";
     case "limited":
-      return `N${NO_MORE_REPLANS.slice(1)}`;
+      return "No more re-plans for now";
     case "refused":
       return part ? `Can't re-plan ${part}` : "Can't re-plan the day";
     case "invalid":
@@ -288,8 +288,8 @@ const PART_AGAIN_TAKES = "about\u00A0half\u00A0a\u00A0minute";
 
 /**
  * Said under an answer that would ask for a re-plan once one has ended on our limit, in place of
- * its forecast, in the words its fork row ended with. "For now" stays true however the limit
- * turns over: a visitor's count by the calendar day in UTC, or the app's spend by the month.
+ * its forecast, in the words its fork row ended with: "for now" names no hour, so it stays
+ * true however long the limit holds.
  */
 export const NO_MORE_REPLANS = "no more re-plans for now";
 
