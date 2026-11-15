@@ -1,6 +1,6 @@
 # Lantern Roadmap
 
-Status: v1.1, 2026-11-12. Planned 2026-10-20; fixtures-only build done 2026-10-27; live since 2026-10-31; v1.0 on 2026-11-09; the milestones after v1.0 planned 2026-11-10 and revised 2026-11-12.
+Status: v1.2, 2026-11-15. Planned 2026-10-20; fixtures-only build done 2026-10-27; live since 2026-10-31; v1.0 on 2026-11-09; the milestones after v1.0 planned 2026-11-10 and revised 2026-11-12.
 
 ## What we are building, and for whom
 
@@ -88,7 +88,7 @@ Each milestone is one release. Its work reaches `develop` as small pull requests
    - a start screen with two ways in, the question and an index of eight cities, each with an engraving of an everyday thing of the city and a day already written for it, and a still excerpt of a day beneath them (`docs/decisions.md`, "The start screen is an index, with a day's first stops under it" and "The index's pictures are engravings of a city's everyday thing"); the written days outside the index keep their pages, as examples a search can find;
    - a day shown first as a plan to read, with its light, and the chart as its second view;
    - the day's ways along in one menu, a reaction a visitor gives in one tap, and one answer to a pointer and the keyboard on everything that can be pressed.
-3. **The language of light (v1.2).** The product's look, redrawn around light that has a source:
+3. **The language of light (v1.2), released 2026-11-15.** The product's look, redrawn around light that has a source:
    - one serif in one weight, Literata, for every text role, the wordmark in its italic (`docs/decisions.md`, "One serif in one weight: Literata"), and the headline at 26 px on a phone;
    - the page as plate paper, with a raised sheet a step lighter and lamplight round a lit bead; by night the sheet, the hairline and the wire on the ground's own hue (`docs/decisions.md`, "The day's page is plate paper, with room over it for a lit sheet");
    - each city in the index drawn as its whole scene, a plate, with one or two things of the place that truly give light drawn in it, a lamp, a lantern or a window, and lit whole from them when pointed at, focused or touched (`docs/decisions.md`, "A plate is lit whole, from sources drawn in it");
