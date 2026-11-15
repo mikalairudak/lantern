@@ -16,12 +16,20 @@ test.beforeEach(async ({ page }) => {
 const BENCH = "/lab/concepts/replan";
 /** The phone pass's own screen, its browser's bars taking their share. */
 const PHONE = { width: 390, height: 664 };
+const LAPTOP = { width: 1440, height: 900 };
 const DAY_TIMEOUT_MS = waitMs(60_000);
 const STORY_TIMEOUT_MS = waitMs(120_000);
 
-/** Elche on the bench, its re-plans ending as `ending` says, the day written to its end. */
-async function openElche(page: Page, ending: "complete" | "busy"): Promise<void> {
-  await page.setViewportSize(PHONE);
+/**
+ * Elche on the bench, its re-plans ending as `ending` says, at the pace given, the day written
+ * to its end.
+ */
+async function openElche(
+  page: Page,
+  ending: "complete" | "busy",
+  { size = PHONE, pace = "live" }: { size?: typeof PHONE; pace?: "live" | "slow" } = {},
+): Promise<void> {
+  await page.setViewportSize(size);
   await page.goto(BENCH);
   const controls = page.getByRole("complementary", { name: "Lab controls" });
   await controls.getByRole("button", { name: "Re-plan" }).click();
@@ -29,6 +37,10 @@ async function openElche(page: Page, ending: "complete" | "busy"): Promise<void>
   await controls
     .getByRole("group", { name: "Ending" })
     .getByRole("button", { name: ending })
+    .click();
+  await controls
+    .getByRole("group", { name: "Re-plan pace" })
+    .getByRole("button", { name: pace })
     .click();
   await controls.getByRole("button", { name: "Re-plan" }).click();
   await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
@@ -99,3 +111,44 @@ test("a proposal being written says on the screen what it writes and where, and 
 
   await expect.poll(() => isOnScreen(page, row), { timeout: DAY_TIMEOUT_MS }).toBe(true);
 });
+
+/** The top of the chart's energy, which stands under the head: it moves when the head grows. */
+async function chartTopOf(page: Page): Promise<number | undefined> {
+  const box = await page.getByRole("group", { name: /The day's energy/ }).boundingBox();
+  return box?.y;
+}
+
+for (const [name, size] of [
+  ["a phone", PHONE],
+  ["a laptop", LAPTOP],
+] as const) {
+  test(`a second word says on ${name} that the proposal standing was set aside, then what it writes, in the room the head holds`, async ({
+    page,
+  }) => {
+    test.setTimeout(STORY_TIMEOUT_MS);
+    // At the slow pace, so the second word's proposal is still written once the first note has
+    // been said.
+    await openElche(page, "complete", { size, pace: "slow" });
+    await changeDinner(page);
+    await expect(factsLine(page)).toHaveText(/^“eating late” drawn beside .+ ·\u00A0see it$/, {
+      timeout: DAY_TIMEOUT_MS,
+    });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const chartTop = await chartTopOf(page);
+
+    await page
+      .getByRole("heading", { level: 1 })
+      .getByRole("button", { name: /^home by eleven/ })
+      .click();
+    await page.getByRole("option", { name: /out late/ }).click();
+
+    // The bench's proposals name no id, so the one set aside is kept nowhere.
+    await expect(factsLine(page)).toHaveText("“eating late” not kept");
+    expect(await isOnScreen(page, factsLine(page))).toBe(true);
+    expect(await chartTopOf(page)).toBe(chartTop);
+    await expect(factsLine(page)).toHaveText("Writing “out late” for the evening ·\u00A0see it", {
+      timeout: DAY_TIMEOUT_MS,
+    });
+    expect(await chartTopOf(page)).toBe(chartTop);
+  });
+}

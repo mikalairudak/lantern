@@ -25,6 +25,7 @@ import {
   replanningPartOf,
   replanningReachOf,
   repickLineOf,
+  setAsideNoteOf,
 } from "./not-yet";
 import { replannedRequestOf } from "./replan-request";
 import { sentenceFactsOf, type SentenceFacts } from "./sentence";
@@ -303,5 +304,21 @@ describe("forkNoteOf", () => {
   it("says nothing once a version is chosen, nor at rest", () => {
     expect(forkNoteOf({ ...FORK, isChosen: true }, PARTS, true)).toBeNull();
     expect(forkNoteOf(FORK, PARTS, true)).toBeNull();
+  });
+});
+
+describe("setAsideNoteOf", () => {
+  it("says a version set aside is among the visitor's days, heard with a comma for the dot", () => {
+    expect(setAsideNoteOf({ answer: "eating late", where: "your-days" })).toEqual({
+      words: "“eating late” set aside · it is in your days",
+      heard: "“eating late” set aside, it is in your days",
+    });
+  });
+
+  it("says a version kept nowhere is not kept, promising no place to find it again", () => {
+    expect(setAsideNoteOf({ answer: "early dinner", where: "not-kept" })).toEqual({
+      words: "“early dinner” not kept",
+      heard: "“early dinner” not kept",
+    });
   });
 });

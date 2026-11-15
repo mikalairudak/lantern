@@ -1904,6 +1904,172 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
   });
 });
 
+/** What the header's status says to a screen reader. */
+const statusText = () => document.querySelector('header p[role="status"]')?.textContent ?? "";
+
+/** Every line the facts line shows, and every status said, from now until it stops. */
+function watchFactsLine(): { lines: (string | null)[]; statuses: string[]; stop: () => void } {
+  const lines = [factsLineText()];
+  const statuses = [statusText()];
+  const observer = new MutationObserver(() => {
+    const line = factsLineText();
+    if (line !== lines.at(-1)) lines.push(line);
+    const status = statusText();
+    if (status !== statuses.at(-1)) statuses.push(status);
+  });
+  observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+  return { lines, statuses, stop: () => observer.disconnect() };
+}
+
+/** Longer than the set-aside note stands before the new word's own note takes its place. */
+const SET_ASIDE_SAID_MS = 2800;
+
+const WRITING_OUT_LATE = /^Writing “out late” for .+ · see it$/;
+
+describe("what a later change sets aside, said once in the facts line, with live generation on", () => {
+  beforeEach(() => window.localStorage.clear());
+
+  /** Kyoto's morning proposed whole beside the day, kept among the visitor's days if named. */
+  async function proposeSlowMorning(): Promise<{
+    user: ReturnType<typeof userEvent.setup>;
+    day: ReturnType<typeof createRef<DayHandle>>;
+  }> {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "early start", "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("proposed"), DAY_TIMEOUT);
+    return { user, day };
+  }
+
+  it("says a proposal not taken is set aside among the visitor's days, then what the next word writes", async () => {
+    const { user } = await proposeSlowMorning();
+    await waitFor(() => expect(keptDays()).toContainEqual([REPLAN_ID, "written"]));
+    replanReplies.push({ held: KYOTO_LATE_EVENING, at: 0.62 });
+    replanId = NEXT_DAY_ID;
+    const watch = watchFactsLine();
+
+    await changeWord(user, "home by eight", "out late");
+
+    expect(factsLineText()).toBe("“slow morning” set aside · it is in your days");
+    await waitFor(() => expect(factsLineText()).toMatch(WRITING_OUT_LATE), {
+      timeout: SET_ASIDE_SAID_MS + 1000,
+    });
+    watch.stop();
+    // Said once, then the new word's own note, one at a time in the line's place.
+    expect(watch.lines.slice(1)).toEqual([
+      "“slow morning” set aside · it is in your days",
+      expect.stringMatching(WRITING_OUT_LATE),
+    ]);
+    // Heard once, with what the new word re-plans, in one line that stays as the note steps on.
+    const heard = watch.statuses.filter((status) => status.includes("set aside"));
+    expect(heard).toEqual([
+      expect.stringMatching(/^“slow morning” set aside, it is in your days; re-planning /),
+    ]);
+    expect(statusText()).toBe(heard[0]);
+    expect(keptDays()).toContainEqual([REPLAN_ID, "written"]);
+  });
+
+  it("says a proposal whose answer named no id is not kept", async () => {
+    replanId = null;
+    const { user } = await proposeSlowMorning();
+    replanReplies.push({ held: KYOTO_LATE_EVENING, at: 0.62 });
+
+    await changeWord(user, "home by eight", "out late");
+
+    expect(factsLineText()).toBe("“slow morning” not kept");
+    expect(statusText()).toMatch(/^“slow morning” not kept; re-planning /);
+  });
+
+  it("says the day before a proposal taken is set aside among the visitor's days, where it keeps its row", async () => {
+    const { user, day } = await proposeSlowMorning();
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("taken"), DAY_TIMEOUT);
+    await waitForTheDay();
+    replanReplies.push({ held: KYOTO_LATE_EVENING, at: 0.62 });
+    replanId = NEXT_DAY_ID;
+
+    await changeWord(user, "home by eight", "out late");
+
+    expect(factsLineText()).toBe("“early start” set aside · it is in your days");
+    expect(keptDays()).toContainEqual([KYOTO_DAY_ID, "written"]);
+    expect(keptDays()).toContainEqual([REPLAN_ID, "written"]);
+  });
+
+  it("says alone what an energy re-pick set aside, until the visitor next acts on the day", async () => {
+    const { user } = await proposeSlowMorning();
+
+    await changeWord(user, "calm", "lively");
+
+    expect(factsLineText()).toBe("“slow morning” set aside · it is in your days");
+    expect(statusText()).toBe("“slow morning” set aside, it is in your days");
+    await waitForTheDay();
+    // No new word's note follows it: it stands.
+    await new Promise((resolve) => setTimeout(resolve, SET_ASIDE_SAID_MS));
+    expect(factsLineText()).toBe("“slow morning” set aside · it is in your days");
+
+    // A pull of the curve is the next act: the line is the facts again, the status quiet.
+    const slider = screen.getAllByRole("slider").at(-1);
+    if (slider === undefined) throw new Error("Kyoto's day has stops on its curve");
+    slider.focus();
+    await user.keyboard("{ArrowLeft}");
+
+    await waitFor(() => expect(factsLineText()).toMatch(/sunrise/));
+    expect(factsLineText()).not.toContain("set aside");
+    expect(statusText()).not.toContain("set aside");
+  });
+
+  it("lets the next energy press take the note away, setting nothing more aside", async () => {
+    const { user } = await proposeSlowMorning();
+    await changeWord(user, "calm", "lively");
+    expect(factsLineText()).toContain("set aside");
+    await waitForTheDay();
+
+    await changeWord(user, "lively", "calm");
+
+    expect(factsLineText()).not.toContain("set aside");
+    expect(statusText()).not.toContain("set aside");
+  });
+
+  it("says nothing set aside when a failed proposal is asked again", async () => {
+    replanReplies.push({ cut: KYOTO_SLOW_MORNING, at: 0.62 });
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "early start", "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("failed"), DAY_TIMEOUT);
+    replanReplies.push({ held: KYOTO_SLOW_MORNING, at: 0.62 });
+    const watch = watchFactsLine();
+
+    act(() => day.current?.replan().askAgain());
+
+    await waitFor(() => expect(day.current?.replan().status).toBe("writing"));
+    watch.stop();
+    expect(watch.lines.some((line) => /set aside|not kept/.test(line ?? ""))).toBe(false);
+    expect(watch.statuses.some((status) => /set aside|not kept/.test(status))).toBe(false);
+  });
+
+  it("says nothing of a written day before a taken whole day, which stays at its own address", async () => {
+    const user = await landOnMadrid();
+    dayReplies.push(MADRID_START_REQUEST);
+    await changeWord(user, "with friends", "with family");
+    await takeProposal(user, "with family");
+    await waitFor(() => expect(headline()).toHaveTextContent(/with family$/), DAY_TIMEOUT);
+    await waitForTheDay();
+    const bar = screen.getByRole("group", { name: "How lively the day is" });
+    const other = within(bar)
+      .getAllByRole("button")
+      .find((button) => button.getAttribute("aria-pressed") === "false");
+    if (other === undefined) throw new Error("Madrid's bar has another energy");
+
+    await user.click(other);
+
+    expect(factsLineText()).not.toMatch(/set aside|not kept/);
+    expect(statusText()).not.toMatch(/set aside|not kept/);
+  });
+});
+
 /** Whether the line about the day is led "As first planned:" on screen, not in a reserve. */
 const isLeadSeen = () =>
   screen.queryAllByText("As first planned:").some((lead) => lead.closest("[aria-hidden]") === null);

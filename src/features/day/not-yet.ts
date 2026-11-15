@@ -449,3 +449,43 @@ export function forkNoteOf(
   }
   return null;
 }
+
+/*
+ * What the facts line says once a later change sets a whole fork's other version aside: the
+ * proposal not taken, or the day before a taken one, which the change takes out of a tap's reach
+ * (`docs/decisions.md`, "A version a later change sets aside is said").
+ */
+
+/**
+ * Where a version set aside is: one of the visitor's days, on the start screen; or nowhere,
+ * since its answer named no id or the list holds it no more.
+ */
+export type SetAsideWhere = "your-days" | "not-kept";
+
+/** A version a later change set aside: its answer as the sentence said it, and where it is. */
+export interface SetAside {
+  answer: string;
+  where: SetAsideWhere;
+}
+
+/** What the facts line says of a version set aside, and what a screen reader hears of it. */
+export interface SetAsideNote {
+  words: string;
+  heard: string;
+}
+
+/**
+ * "“eating late” set aside · it is in your days", or "“eating late” not kept" for a version
+ * kept nowhere, which "set aside" would promise could be picked up again. Heard with a comma
+ * where the line has its dot.
+ */
+export function setAsideNoteOf({ answer, where }: SetAside): SetAsideNote {
+  if (where === "not-kept") {
+    const words = `“${answer}” not kept`;
+    return { words, heard: words };
+  }
+  return {
+    words: `“${answer}” set aside · it is in your days`,
+    heard: `“${answer}” set aside, it is in your days`,
+  };
+}

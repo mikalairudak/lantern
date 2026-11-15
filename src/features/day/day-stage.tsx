@@ -94,7 +94,9 @@ import {
   keptStopsLineOf,
   notReplanningYetOf,
   SEE_IT,
+  setAsideNoteOf,
   type EnergyRepicks,
+  type SetAside,
 } from "./not-yet";
 import { replannedRequestOf } from "./replan-request";
 import type { ReplanControls } from "./replan-controls";
@@ -128,6 +130,12 @@ const MS_PER_SECOND = 1000;
  * busy route takes to answer that it cannot write (0.1 to 0.3 s), so a failure is said alone.
  */
 const LOOKING_SAID_AFTER_SECONDS = 0.35;
+/**
+ * How long what a change set aside stands in the facts line before the new word's note takes
+ * its place: long enough to read its few words at a glance. The two never share the line, which
+ * on a phone would take a line the head does not hold.
+ */
+const SET_ASIDE_SAID_SECONDS = 2.5;
 /** Where the chart's light is worked out before the first place says where the day is. */
 const NOWHERE: GeoPoint = { lat: 0, lng: 0 };
 /**
@@ -308,6 +316,11 @@ interface DayStageProps {
   replanLine?: string | null;
   /** A changed word, while Lantern writes it and after, as the header tells it (`DayStageHeader`). */
   replan?: ReplanControls;
+  /**
+   * The fork's other version the last change set aside, and where it is: the facts line says
+   * it once, until the visitor next acts on the day. Null when that change set nothing aside.
+   */
+  setAside?: SetAside | null;
   /** Told of each word of the header changed, as the product's event it makes. */
   onEvent?: (event: Extract<ProductEvent, { kind: "word-changed" }>) => void;
   /**
@@ -384,6 +397,7 @@ export function DayStage({
   isReplanning = false,
   replanLine = null,
   replan,
+  setAside = null,
   onEvent,
   onDayAct,
   onDayAnswer,
@@ -727,6 +741,22 @@ export function DayStage({
                 ? { label: SEE_IT, name: forkNote.link.name, onPress: pointToFork }
                 : { label: ASK_AGAIN, onPress: fork?.onAskAgain ?? (() => replan?.askAgain()) },
         };
+  // What the last change set aside is said where the fork's notes are, until the visitor next
+  // acts on the day: alone after the energy, and after a word for a moment before its own note
+  // (`docs/decisions.md`, "A version a later change sets aside is said"). It gives way to the
+  // new word's fork once that is whole or has failed, which says so itself.
+  const [setAsideActedAfter, setSetAsideActedAfter] = useState<SetAside | null>(null);
+  const replanStatus = replan?.status ?? "idle";
+  const isSetAsideStanding =
+    setAside !== null &&
+    setAside !== setAsideActedAfter &&
+    (replanStatus === "idle" || isReplanWriting);
+  const isSetAsideSaid = useSilence(setAside, isReplanWriting, SET_ASIDE_SAID_SECONDS);
+  const setAsideNote = isSetAsideStanding ? setAsideNoteOf(setAside) : null;
+  const setAsideShown = setAsideNote === null ? null : { words: setAsideNote.words, link: null };
+  const isSetAsideShown = setAsideShown !== null && !(isReplanWriting && isSetAsideSaid);
+  /** The visitor acted on the day: what a change before set aside has been said. */
+  const actAfterSetAside = () => setSetAsideActedAfter(setAside);
   // The line under the day counts the rows on screen, never the stream ahead of them: it
   // says nothing until the first row has landed. In Read those are the list's, which lets a
   // stop in and says its versions later than the chart: counted from the chart, the line
@@ -770,8 +800,10 @@ export function DayStage({
     return () => window.clearTimeout(timer);
   }, [heldGesture, isHeaderGliding]);
   const countGesture = (kind: GestureKind) => {
-    // A gesture on the day is the visitor acting on it: a re-plan's receipt makes way.
+    // A gesture on the day is the visitor acting on it: a re-plan's receipt makes way, and so
+    // does what a change set aside.
     setIsActedOn(true);
+    actAfterSetAside();
     setHeldGesture((count) => count + 1);
     // One who has bent the curve needs showing how no more, on any page.
     if (kind === "curve-dragged") noteCurveDragged();
@@ -1144,6 +1176,8 @@ export function DayStage({
     }
     countWord(key, control);
     setOpenStop(null);
+    // A change of the energy or a word says what it sets aside, if anything, in place of this.
+    actAfterSetAside();
     // A word that changes no stop is the visitor's at once, the day as it was, live or not: the
     // facts line says why (`docs/decisions.md`, "A changed word proposes its part beside the day,
     // and the visitor takes it").
@@ -1314,7 +1348,10 @@ export function DayStage({
       replan={replan}
       isLockSaid={isBarLockPressed}
       onPointToFork={pointToFork}
-      forkNote={forkNoteShown}
+      forkNote={isSetAsideShown ? setAsideShown : forkNoteShown}
+      // The new word's note follows what its change set aside, in room held from the press.
+      heldForkNote={isSetAsideShown ? forkNoteShown : setAsideShown}
+      setAsideHeard={setAsideNote?.heard ?? null}
       // A changed word re-plans the day once it is written to its end, live: each answer then
       // says what it would do, from the plan the route runs.
       replanDay={onReplan && shownOutcome?.kind === "complete" ? shownOutcome.itinerary : null}

@@ -404,6 +404,17 @@ interface DayStageHeaderProps {
    */
   forkNote?: ForkNoteShown | null;
   /**
+   * A note that stands in the fork note's place before or after the one shown: what a change
+   * set aside, and the new word's note that follows it. Its room is held too, so the step from
+   * one to the other moves nothing under the line.
+   */
+  heldForkNote?: ForkNoteShown | null;
+  /**
+   * What a screen reader hears of the version the last change set aside, once, with what the
+   * new word re-plans while it is written; null when nothing was set aside or it has been said.
+   */
+  setAsideHeard?: string | null;
+  /**
    * The day on screen once written to its end, when a changed word re-plans it: each answer in
    * a word's list says what choosing it would do, from the plan the route runs. Null while it
    * streams, and with live generation off, when only the energy says what it does.
@@ -548,6 +559,8 @@ export function DayStageHeader({
   replan: givenReplan = NO_REPLAN,
   onPointToFork = ignore,
   forkNote = null,
+  heldForkNote = null,
+  setAsideHeard = null,
   replanDay = null,
   energyRepicks = null,
   openedWord = null,
@@ -1175,10 +1188,15 @@ export function DayStageHeader({
                     <div aria-hidden className="invisible col-start-1 row-start-1">
                       <FactsLine {...reservedFactsLine} isReserve />
                     </div>
-                    {/* The room of the longer of the two, so the switch moves nothing under it. */}
+                    {/* The room of the longest, so a switch moves nothing under it. */}
                     {forkNote && (
                       <div aria-hidden className="invisible col-start-1 row-start-1">
                         <ForkNoteLine note={forkNote} isReserve />
+                      </div>
+                    )}
+                    {heldForkNote && (
+                      <div aria-hidden className="invisible col-start-1 row-start-1">
+                        <ForkNoteLine note={heldForkNote} isReserve />
                       </div>
                     )}
                   </GlidingLine>
@@ -1190,7 +1208,8 @@ export function DayStageHeader({
               {/* What a screen reader hears: that the day is being written, or once, in the
                 step, the notice's whole line, before the page shows it. Once the notice stands
                 whole, the page says it, so this says it no more: read through, the header
-                holds the line once. */}
+                holds the line once. What a change set aside is heard with what the new word
+                re-plans, in one line that stays as the note on screen steps on. */}
               <p role="status" className="sr-only">
                 {noticeLine !== null
                   ? isNoticeSaid
@@ -1199,10 +1218,14 @@ export function DayStageHeader({
                   : replanningLine !== null
                     ? isLockedSaid
                       ? ONE_CHANGE_AT_A_TIME
-                      : replanningLine
-                    : isWaiting
-                      ? "Writing the day"
-                      : ""}
+                      : setAsideHeard !== null
+                        ? `${setAsideHeard}; ${replanningLine}`
+                        : replanningLine
+                    : status === "idle" && setAsideHeard !== null
+                      ? setAsideHeard
+                      : isWaiting
+                        ? "Writing the day"
+                        : ""}
               </p>
             </div>
             {!notice && (
@@ -1230,6 +1253,13 @@ export function DayStageHeader({
                     />
                     {forkNote && (
                       <ForkNoteLine note={forkNote} isReserve className="col-start-1 row-start-1" />
+                    )}
+                    {heldForkNote && (
+                      <ForkNoteLine
+                        note={heldForkNote}
+                        isReserve
+                        className="col-start-1 row-start-1"
+                      />
                     )}
                   </div>
                   {unplacedLine && <p className="type-note">{unplacedLine}</p>}
