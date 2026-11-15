@@ -751,7 +751,7 @@ export function Day({
   // did not hear, as a page hidden while another route shows, or kept by the browser, misses it.
   const goneTo = useRef<(state: unknown) => void>(() => undefined);
   // A page the browser kept and shows again is the page on screen again, on whichever of its
-  // entries the browser shows it: it shows that entry's day, and writes its entries as before.
+  // entries the browser shows it: it shows that entry's day, and goes on writing its entries.
   // A page that does not keep its address has no entries of its own to read.
   useEffect(() => {
     if (!isAddressed) return;

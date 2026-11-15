@@ -228,10 +228,10 @@ function heldDayResponse(signal: AbortSignal | undefined): Response {
 /** How much of a held day's text arrives: its header and its first stops. */
 const HELD_AT = 2400;
 const intakeTexts: string[] = [];
-/** Each day the route was asked for, with the signature it carried. */
 // The product's events, caught where a page that counts them sends them.
 vi.mock("@/lib/events/send-event", () => ({ sendProductEvent: vi.fn() }));
 
+/** Each day the route was asked for, with the signature it carried. */
 const dayPosts: { request: DayRequest; signature: string | null }[] = [];
 /** Each targeted re-plan the route was asked for, with the signature it carried. */
 const replanPosts: { body: ReplanRequest; signature: string | null; signal: AbortSignal }[] = [];
