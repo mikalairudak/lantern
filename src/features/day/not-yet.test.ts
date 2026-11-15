@@ -13,6 +13,7 @@ import type { PartialDay } from "@/lib/stream/outcome";
 import { FACT_OPTIONS } from "./facts";
 import {
   KEEPS_EVERY_STOP,
+  NO_MORE_REPLANS,
   WHOLE_DAY_AGAIN,
   answerReachOf,
   forecastOf,
@@ -25,6 +26,7 @@ import {
   replanningPartOf,
   replanningReachOf,
   repickLineOf,
+  setAsideNoteOf,
 } from "./not-yet";
 import { replannedRequestOf } from "./replan-request";
 import { sentenceFactsOf, type SentenceFacts } from "./sentence";
@@ -303,5 +305,42 @@ describe("forkNoteOf", () => {
   it("says nothing once a version is chosen, nor at rest", () => {
     expect(forkNoteOf({ ...FORK, isChosen: true }, PARTS, true)).toBeNull();
     expect(forkNoteOf(FORK, PARTS, true)).toBeNull();
+  });
+});
+
+describe("setAsideNoteOf", () => {
+  it("says a version set aside is among the visitor's days, heard with a comma for the dot", () => {
+    expect(setAsideNoteOf({ answer: "eating late", where: "your-days" })).toEqual({
+      words: "“eating late” set aside · it is in your days",
+      heard: "“eating late” set aside, it is in your days",
+    });
+  });
+
+  it("says a version with an id the visitor's list does not hold is not among their days", () => {
+    expect(setAsideNoteOf({ answer: "early start", where: "not-in-your-days" })).toEqual({
+      words: "“early start” set aside · not in your days",
+      heard: "“early start” set aside, not in your days",
+    });
+  });
+
+  it("says a version kept nowhere is not kept, promising no place to find it again", () => {
+    expect(setAsideNoteOf({ answer: "early dinner", where: "not-kept" })).toEqual({
+      words: "“early dinner” not kept",
+      heard: "“early dinner” not kept",
+    });
+  });
+});
+
+describe("forecastOf once a re-plan has met our limit", () => {
+  it("says the limit, in the ending's own words, under every answer that would ask for a re-plan", () => {
+    expect(forecastOf({ kind: "part", parts: ["lunch"] }, true)).toBe("no more re-plans for now");
+    expect(forecastOf({ kind: "whole" }, true)).toBe(NO_MORE_REPLANS);
+    expect(replanEndedOf("limited", "dinner", "part")).toBe("No more re-plans for now");
+  });
+
+  it("leaves an answer that asks for no re-plan as it was", () => {
+    expect(forecastOf({ kind: "keep" }, true)).toBe(KEEPS_EVERY_STOP);
+    expect(forecastOf({ kind: "current" }, true)).toBeNull();
+    expect(forecastOf({ kind: "repick" }, true)).toBeNull();
   });
 });

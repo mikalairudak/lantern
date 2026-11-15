@@ -55,7 +55,15 @@ import {
 } from "@/lib/stream/simulate-day-stream";
 import { endedDayOf, keptNoticeOf, noticeOf, phaseOf, slotOf } from "./stream-ending";
 import { ASKED_LABELS, FACT_OPTIONS, labelOf } from "./facts";
-import { answerReachOf, forkNoteOf, notReplanningYetOf, replanningOf, SEE_IT } from "./not-yet";
+import {
+  answerReachOf,
+  forkNoteOf,
+  notReplanningYetOf,
+  replanEndedOf,
+  replanningOf,
+  SEE_IT,
+  setAsideNoteOf,
+} from "./not-yet";
 import type { ReplanControls } from "./replan-controls";
 import {
   NO_LOCAL_WORDS,
@@ -211,6 +219,14 @@ export const HEADER_MOMENTS = [
     label: `a proposal left, its word's list open: the proposal one press away ${AFTER_LAUNCH}`,
     key: "replan-left",
   },
+  {
+    label: `a version a later change set aside, said in the facts line: the longest of its sentences, on the longest answer a proposal can have ${AFTER_LAUNCH}`,
+    key: "replan-set-aside",
+  },
+  {
+    label: `a re-plan ended at our own limit, its word's list open: each answer that would ask for another says the limit in place of its forecast ${AFTER_LAUNCH}`,
+    key: "replan-limited",
+  },
   { label: "an unplaced phrase", key: "unplaced" },
   { label: `cut or dropped in the swaps, the day kept ${AFTER_LAUNCH}`, key: "kept" },
   { label: `cut before a day, or invalid ${AFTER_LAUNCH}`, key: "cut" },
@@ -313,6 +329,8 @@ type HeaderFrame = Pick<
   | "replanDay"
   | "openedWord"
   | "isLockSaid"
+  | "forkNote"
+  | "isReplanLimited"
 >;
 
 /**
@@ -336,6 +354,7 @@ const REPLAN_MOMENTS = {
   "replan-proposed": { status: "proposed", isListOpen: true, pick: "part" },
   "replan-taken": { status: "taken", isListOpen: true, pick: "part" },
   "replan-left": { status: "left", isListOpen: true, pick: "part" },
+  "replan-limited": { status: "failed", isListOpen: true, pick: "part" },
 } as const satisfies Partial<
   Record<HeaderMoment, { status: ReplanControls["status"]; isListOpen: boolean; pick: ReplanPick }>
 >;
@@ -577,11 +596,13 @@ function replanStillOf(
   const { status, isListOpen, pick } = REPLAN_MOMENTS[moment];
   const asked = replanChangeOf(itinerary, request, frame.reservedFacts, pick);
   if (asked === null) return { unreached: "This day has no word to re-plan." };
+  // A re-plan's failure set here is our limit's: the one after which the lists say it.
+  const isLimited = status === "failed";
   const replan: ReplanControls = {
     status,
     change: asked.change,
     reach: asked.reach,
-    ending: null,
+    ending: isLimited ? "limited" : null,
     written: null,
     receipt: null,
     windows: [],
@@ -599,10 +620,10 @@ function replanStillOf(
       to: asked.change.to,
       isWriting: status === "writing",
       isReady: status === "proposed",
-      isFailed: false,
+      isFailed: isLimited,
       isChosen: false,
       canAskAgain: false,
-      reason: null,
+      reason: isLimited ? replanEndedOf("limited", asked.change.word, asked.reach) : null,
     },
     reach.kind === "part" ? reach.parts : [],
     reach.kind === "part",
@@ -612,6 +633,7 @@ function replanStillOf(
     replanDay: itinerary,
     openedWord,
     isLockSaid: moment === "replan-locked" || isUnhinted,
+    isReplanLimited: isLimited,
     forkNote:
       note === null
         ? null
@@ -635,6 +657,34 @@ function replanStillOf(
     outcome: { kind: "complete", itinerary: landed.itinerary },
   });
   return { frame: { ...merged, ...shared, replanDay: landed.itinerary } };
+}
+
+/**
+ * The longest answer a proposal can be named by, which its set-aside note quotes: of every word
+ * but travel, which changes the word alone and proposes nothing.
+ */
+const LONGEST_PROPOSED_ANSWER = REPLAN_WORDS.filter((key) => key !== "travel")
+  .flatMap((key) => FACT_OPTIONS[key].map(({ label }) => label))
+  .reduce((longest, label) => (label.length > longest.length ? label : longest), "");
+
+/**
+ * The day as written once a later change has set a proposal aside, its fork settled: the facts
+ * line says where the proposal went, in the longest of its sentences (`setAsideNoteOf`), as it
+ * does after an energy pressed, alone until the visitor next acts.
+ */
+function setAsideStillOf(request: DayRequest, itinerary: Itinerary): HeaderStill {
+  const written = { request, partial: null, outcome: { kind: "complete", itinerary } } as const;
+  const sentences = (["your-days", "not-in-your-days", "not-kept"] as const).map(
+    (where) => setAsideNoteOf({ answer: LONGEST_PROPOSED_ANSWER, where }).words,
+  );
+  const longest = sentences.reduce((most, words) => (words.length > most.length ? words : most));
+  return {
+    frame: {
+      ...headerFrameOf(written),
+      replanDay: itinerary,
+      forkNote: { words: longest, link: null },
+    },
+  };
 }
 
 async function stillFor(headerDay: HeaderDay, moment: HeaderMoment): Promise<HeaderStill> {
@@ -675,6 +725,7 @@ async function stillFor(headerDay: HeaderDay, moment: HeaderMoment): Promise<Hea
   if (itinerary === null) {
     return { unreached: `No day is written for ${request.city}, so it never reaches this moment.` };
   }
+  if (moment === "replan-set-aside") return setAsideStillOf(request, itinerary);
   if (isReplanMoment(moment)) return replanStillOf(headerDay, itinerary, moment);
   // The moments a stream reaches, which a day recorded without its stream never shows.
   const isStreamed =

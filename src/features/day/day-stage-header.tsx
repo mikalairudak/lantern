@@ -404,6 +404,22 @@ interface DayStageHeaderProps {
    */
   forkNote?: ForkNoteShown | null;
   /**
+   * A note that stands in the fork note's place before or after the one shown: what a change
+   * set aside, and the new word's note that follows it. Its room is held too, so the step from
+   * one to the other moves nothing under the line.
+   */
+  heldForkNote?: ForkNoteShown | null;
+  /**
+   * What a screen reader hears of the version the last change set aside, once, with what the
+   * new word re-plans while it is written; null when nothing was set aside or it has been said.
+   */
+  setAsideHeard?: string | null;
+  /**
+   * A re-plan ended on our limit, and none has been written since: an answer that would ask for
+   * one says the limit in place of its forecast. It can still be chosen, and ends as the last.
+   */
+  isReplanLimited?: boolean;
+  /**
    * The day on screen once written to its end, when a changed word re-plans it: each answer in
    * a word's list says what choosing it would do, from the plan the route runs. Null while it
    * streams, and with live generation off, when only the energy says what it does.
@@ -548,6 +564,9 @@ export function DayStageHeader({
   replan: givenReplan = NO_REPLAN,
   onPointToFork = ignore,
   forkNote = null,
+  heldForkNote = null,
+  setAsideHeard = null,
+  isReplanLimited = false,
   replanDay = null,
   energyRepicks = null,
   openedWord = null,
@@ -889,8 +908,8 @@ export function DayStageHeader({
   // What each answer of each word would do, from the plan the route runs for it: worked out
   // once a day and its words, not at each frame of the pen.
   const forecasts = useMemo(
-    () => forecastsOf(replanDay, request, givenReservedFacts),
-    [replanDay, request, givenReservedFacts],
+    () => forecastsOf(replanDay, request, givenReservedFacts, isReplanLimited),
+    [replanDay, request, givenReservedFacts, isReplanLimited],
   );
   // What a screen reader hears while the re-plan is written: what it rewrites, every part.
   const replanningLine =
@@ -1175,10 +1194,15 @@ export function DayStageHeader({
                     <div aria-hidden className="invisible col-start-1 row-start-1">
                       <FactsLine {...reservedFactsLine} isReserve />
                     </div>
-                    {/* The room of the longer of the two, so the switch moves nothing under it. */}
+                    {/* The room of the longest, so a switch moves nothing under it. */}
                     {forkNote && (
                       <div aria-hidden className="invisible col-start-1 row-start-1">
                         <ForkNoteLine note={forkNote} isReserve />
+                      </div>
+                    )}
+                    {heldForkNote && (
+                      <div aria-hidden className="invisible col-start-1 row-start-1">
+                        <ForkNoteLine note={heldForkNote} isReserve />
                       </div>
                     )}
                   </GlidingLine>
@@ -1190,7 +1214,8 @@ export function DayStageHeader({
               {/* What a screen reader hears: that the day is being written, or once, in the
                 step, the notice's whole line, before the page shows it. Once the notice stands
                 whole, the page says it, so this says it no more: read through, the header
-                holds the line once. */}
+                holds the line once. What a change set aside is heard with what the new word
+                re-plans, in one line that stays as the note on screen steps on. */}
               <p role="status" className="sr-only">
                 {noticeLine !== null
                   ? isNoticeSaid
@@ -1199,10 +1224,14 @@ export function DayStageHeader({
                   : replanningLine !== null
                     ? isLockedSaid
                       ? ONE_CHANGE_AT_A_TIME
-                      : replanningLine
-                    : isWaiting
-                      ? "Writing the day"
-                      : ""}
+                      : setAsideHeard !== null
+                        ? `${setAsideHeard}; ${replanningLine}`
+                        : replanningLine
+                    : status === "idle" && setAsideHeard !== null
+                      ? setAsideHeard
+                      : isWaiting
+                        ? "Writing the day"
+                        : ""}
               </p>
             </div>
             {!notice && (
@@ -1230,6 +1259,13 @@ export function DayStageHeader({
                     />
                     {forkNote && (
                       <ForkNoteLine note={forkNote} isReserve className="col-start-1 row-start-1" />
+                    )}
+                    {heldForkNote && (
+                      <ForkNoteLine
+                        note={heldForkNote}
+                        isReserve
+                        className="col-start-1 row-start-1"
+                      />
                     )}
                   </div>
                   {unplacedLine && <p className="type-note">{unplacedLine}</p>}
@@ -1478,11 +1514,17 @@ function withAnswerValuesOf(replan: ReplanControls): ReplanControls {
 
 /**
  * What each answer of each word but the energy would do, by `${key}:${value}`; none without a
- * day. The energy's line counts the places on screen (`EnergyRepicks`).
+ * day. The energy's line counts the places on screen (`EnergyRepicks`). Once a re-plan has met
+ * our limit, an answer that would ask for one says so instead (`forecastOf`).
  */
 type Forecasts = ReadonlyMap<string, string | null>;
 
-function forecastsOf(day: Itinerary | null, request: DayRequest, facts: SentenceFacts): Forecasts {
+function forecastsOf(
+  day: Itinerary | null,
+  request: DayRequest,
+  facts: SentenceFacts,
+  isReplanLimited: boolean,
+): Forecasts {
   const forecasts = new Map<string, string | null>();
   if (day === null) return forecasts;
   for (const key of FACT_KEYS) {
@@ -1490,7 +1532,7 @@ function forecastsOf(day: Itinerary | null, request: DayRequest, facts: Sentence
     for (const { value } of FACT_OPTIONS[key]) {
       forecasts.set(
         `${key}:${value}`,
-        forecastOf(answerReachOf(day, request, facts, { key, value })),
+        forecastOf(answerReachOf(day, request, facts, { key, value }), isReplanLimited),
       );
     }
   }

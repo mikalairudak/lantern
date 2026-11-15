@@ -18,6 +18,7 @@ import { keptPlaceNamesOf, type ReplanBasis } from "@/lib/replan/merge";
 import type { GeneratedReplan } from "@/lib/schema/replan.schema";
 import { generatedDayOf } from "@/lib/normalizer/generated-day";
 import { isSameRequest } from "@/lib/days/request";
+import { DAY_ID_HEADER } from "@/lib/days/stored-day";
 import { simulateDayStream, type StreamPace } from "@/lib/stream/simulate-day-stream";
 import { THEME_CHOICES, type ThemeChoice } from "@/features/theme/theme";
 
@@ -69,13 +70,15 @@ type PaceName = keyof typeof PACES;
  * How a proposal ends: whole; its stream cut short after its first new stop has landed; a new
  * stop the merge drops, so the page lets it go as soon as that stop is whole (production's
  * own in Elche, its coffee a kept place again; in Lisbon its last new stop moved to a kept
- * place); or the route busy, nothing sent. Each but the first fails, the day as it was.
+ * place); the route busy, nothing sent; or our limit met, which every answer that would ask
+ * for a re-plan then says. Each but the first fails, the day as it was.
  */
 const ENDINGS = {
   complete: null,
   "cut after a stop": 0.62,
   "a stop dropped": null,
   busy: null,
+  limited: null,
 } as const;
 type EndingName = keyof typeof ENDINGS;
 /**
@@ -85,8 +88,29 @@ type EndingName = keyof typeof ENDINGS;
  */
 const CUT_SILENCE_MS = 1500;
 
+/**
+ * Whether a proposal's answer names its id, as the log's does once live, which keeps it among
+ * the visitor's days; the bench's day has none, as a day the log did not keep.
+ */
+const ANSWERS = ["no id", "an id"] as const;
+type AnswerName = (typeof ANSWERS)[number];
+
+/** How many ids the bench has named since the page loaded. */
+let idsNamed = 0;
+
+/**
+ * A new id in the log's form for a proposal on the bench. Counted rather than random, so it
+ * names one on a phone's page over the local network too, which has no secure context.
+ */
+function benchIdOf(): string {
+  idsNamed += 1;
+  return `00000000-0000-4000-8000-${idsNamed.toString(16).padStart(12, "0")}`;
+}
+
 /** What the route answers when nothing could be sent: the reader takes it as unavailable. */
 const HTTP_BUSY = 503;
+/** What the route answers once our limit is met: the reader takes it as limited. */
+const HTTP_LIMITED = 429;
 
 /** A recorded re-plan whose last new stop is at a place the day keeps, which the merge drops. */
 function withLastAtKeptPlace(replan: GeneratedReplan, basis: ReplanBasis): GeneratedReplan {
@@ -112,6 +136,7 @@ function recordedReplan(
   pace: (typeof PACES)[PaceName],
   signal: AbortSignal,
   cutAt: number | null = null,
+  dayId: string | null = null,
 ) {
   const whole = JSON.stringify(replan);
   const text = cutAt === null ? whole : whole.slice(0, Math.floor(whole.length * cutAt));
@@ -151,7 +176,9 @@ function recordedReplan(
       }
     },
   });
-  return Promise.resolve(new Response(body, { headers: { "Content-Type": "text/event-stream" } }));
+  const headers = new Headers({ "Content-Type": "text/event-stream" });
+  if (dayId !== null) headers.set(DAY_ID_HEADER, dayId);
+  return Promise.resolve(new Response(body, { headers }));
 }
 
 /**
@@ -165,6 +192,7 @@ export function ReplanConcept({ lisbon }: { lisbon: BenchDay }) {
   const [theme, setTheme] = useState<ThemeChoice>("system");
   const [paceName, setPaceName] = useState<PaceName>("live");
   const [endingName, setEndingName] = useState<EndingName>("complete");
+  const [answerName, setAnswerName] = useState<AnswerName>("no id");
   const [dayName, setDayName] = useState<DayName>("Elche");
   const [replays, setReplays] = useState(0);
   const [isChoosing, setIsChoosing] = useState(false);
@@ -188,9 +216,17 @@ export function ReplanConcept({ lisbon }: { lisbon: BenchDay }) {
       : {
           basis: replanBasisOf(ask),
           open: (signal) =>
-            endingName === "busy"
-              ? Promise.resolve(new Response(null, { status: HTTP_BUSY }))
-              : recordedReplan(recordingOf(ask), PACES[paceName], signal, ENDINGS[endingName]),
+            endingName === "busy" || endingName === "limited"
+              ? Promise.resolve(
+                  new Response(null, { status: endingName === "busy" ? HTTP_BUSY : HTTP_LIMITED }),
+                )
+              : recordedReplan(
+                  recordingOf(ask),
+                  PACES[paceName],
+                  signal,
+                  ENDINGS[endingName],
+                  answerName === "an id" ? benchIdOf() : null,
+                ),
         };
 
   return (
@@ -259,6 +295,12 @@ export function ReplanConcept({ lisbon }: { lisbon: BenchDay }) {
               chosen={endingName}
               onChoose={setEndingName}
             />
+            <ChoiceGroup
+              label="Answer"
+              names={ANSWERS}
+              chosen={answerName}
+              onChoose={setAnswerName}
+            />
             <div role="group" aria-label="Re-plan pace" className="-ml-1 flex flex-wrap">
               {(Object.keys(PACES) as PaceName[]).map((name) => (
                 <button
@@ -279,7 +321,8 @@ export function ReplanConcept({ lisbon }: { lisbon: BenchDay }) {
               In Elche “early dinner” to “eating late” proposes its lunch and its afternoon anew,
               one fork of two parts; in Lisbon the same word its last two stops. Company, which no
               recording here answers, proposes the whole day at the pace chosen; travel changes the
-              word alone.
+              word alone. A proposal whose answer names an id is kept among this browser&apos;s
+              days.
             </p>
           </div>
         )}

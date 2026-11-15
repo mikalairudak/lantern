@@ -286,6 +286,13 @@ export const WHOLE_DAY_AGAIN = "a proposal for the whole day · under\u00A0a\u00
 /** How long a re-plan of part of the day takes, said after the parts it rewrites. */
 const PART_AGAIN_TAKES = "about\u00A0half\u00A0a\u00A0minute";
 
+/**
+ * Said under an answer that would ask for a re-plan once one has ended on our limit, in place of
+ * its forecast, in the words its fork row ended with: "for now" names no hour, so it stays
+ * true however long the limit holds.
+ */
+export const NO_MORE_REPLANS = "no more re-plans for now";
+
 /*
  * What a changed word's two answers say while its fork stands (`docs/decisions.md`, "A changed
  * word proposes its part beside the day, and the visitor takes it"): the day on screen is the
@@ -353,12 +360,14 @@ const PART_COUNTS = ["", "one", "two", "three", "four", "five", "six", "seven", 
 /**
  * The line under an answer: "a proposal for lunch and dinner · about half a minute", "a proposal
  * for five parts of the day · about half a minute" past four, "a proposal for the whole day ·
- * under a minute"; none under the current answer, nor here under the energy's, whose line counts
- * the places on screen (`repickLineOf`).
+ * under a minute", or "no more re-plans for now" once a re-plan has met our limit; none under
+ * the current answer, nor here under the energy's, whose line counts the places on screen
+ * (`repickLineOf`). An answer that keeps every stop asks for no re-plan, so the limit leaves it.
  */
-export function forecastOf(reach: AnswerReach): string | null {
+export function forecastOf(reach: AnswerReach, isReplanLimited = false): string | null {
   if (reach.kind === "current" || reach.kind === "repick") return null;
   if (reach.kind === "keep") return KEEPS_EVERY_STOP;
+  if (isReplanLimited) return NO_MORE_REPLANS;
   if (reach.kind === "whole") return WHOLE_DAY_AGAIN;
   if (reach.parts.length <= MAX_NAMED_PARTS) {
     return `a proposal for ${listOf(reach.parts)} · ${PART_AGAIN_TAKES}`;
@@ -448,4 +457,53 @@ export function forkNoteOf(
     };
   }
   return null;
+}
+
+/*
+ * What the facts line says once a later change sets a whole fork's other version aside: the
+ * proposal not taken, or the day before a taken one, which the change takes out of a tap's reach
+ * (`docs/decisions.md`, "A version a later change sets aside is said").
+ */
+
+/**
+ * Where a version set aside is: one of the visitor's days, on the start screen; at its own
+ * address but not among them, as a day opened from someone's link, or one the list has let go
+ * of; or nowhere, since its answer named no id.
+ */
+export type SetAsideWhere = "your-days" | "not-in-your-days" | "not-kept";
+
+/** A version a later change set aside: its answer as the sentence said it, and where it is. */
+export interface SetAside {
+  answer: string;
+  where: SetAsideWhere;
+}
+
+/** What the facts line says of a version set aside, and what a screen reader hears of it. */
+export interface SetAsideNote {
+  words: string;
+  heard: string;
+}
+
+/** Where a version set aside is, as the line says it after "set aside". */
+const SET_ASIDE_WHERE: Readonly<Record<Exclude<SetAsideWhere, "not-kept">, string>> = {
+  "your-days": "it is in your days",
+  // It opens at its own address, but the visitor has no way back to it from the page.
+  "not-in-your-days": "not in your days",
+};
+
+/**
+ * "“eating late” set aside · it is in your days", "“eating late” set aside · not in your days"
+ * for a version with an id the visitor's list does not hold, or "“eating late” not kept" for one
+ * whose answer named no id, which "set aside" would promise could be picked up again. Heard with
+ * a comma where the line has its dot.
+ */
+export function setAsideNoteOf({ answer, where }: SetAside): SetAsideNote {
+  if (where === "not-kept") {
+    const words = `“${answer}” not kept`;
+    return { words, heard: words };
+  }
+  return {
+    words: `“${answer}” set aside · ${SET_ASIDE_WHERE[where]}`,
+    heard: `“${answer}” set aside, ${SET_ASIDE_WHERE[where]}`,
+  };
 }

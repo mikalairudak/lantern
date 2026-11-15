@@ -94,7 +94,7 @@ import { endedDayOf, phaseOf } from "./stream-ending";
 import { isSentenceStreamed } from "./header-ready";
 import { readIntakeRoute } from "./intake-route";
 import { FootLine } from "./foot-line";
-import { replanningOf, replanningPartOf } from "./not-yet";
+import { replanningOf, replanningPartOf, type SetAside } from "./not-yet";
 import { requestFor, standInZoneOf } from "./start";
 import { StartHeader, type CityQuestion, type StartLine } from "./start-header";
 import type { TypedCity, TypedCityFailure } from "./city-word";
@@ -380,6 +380,11 @@ interface PartFork {
 interface ReplanLine {
   run: number;
   text: string;
+}
+
+/** A fork's other version a later change set aside on a run, which its facts line says once. */
+interface RunSetAside extends SetAside {
+  run: number;
 }
 
 /** No fork on screen: no parts to stand over. */
@@ -989,6 +994,11 @@ export function Day({
   // its words included, and its fork row says why.
   const [replanning, setReplanning] = useState<Replanning | null>(null);
   const [replanLine, setReplanLine] = useState<ReplanLine | null>(null);
+  // The version the last change set aside, said once after it (`settleFork`).
+  const [setAside, setSetAside] = useState<RunSetAside | null>(null);
+  // A re-plan ended on our limit in this page's life: each answer that would ask for another
+  // says so in place of its forecast until one is written whole, since the limit holds a while.
+  const [isReplanLimited, setIsReplanLimited] = useState(false);
   // A whole day a changed word wrote again, once whole, and the day before it.
   const [wholeTurn, setWholeTurn] = useState<WholeTurn | null>(null);
   // A word's proposal for its part of the day, streaming beside the day on screen.
@@ -1016,6 +1026,7 @@ export function Day({
    */
   const failReplan = (run: number, ending: ReplanEnding, frame: ReplanFrame | null) => {
     setReplanLine(null);
+    if (ending === "limited") setIsReplanLimited(true);
     setChange((last) => (last === null ? null : { ...last, status: "failed", ending }));
     if (frame !== null) {
       foldOut(run, { ...frame, proposed: [], replaced: [], fading: frame.proposed });
@@ -1113,6 +1124,7 @@ export function Day({
       stopReplan();
       // Another day: no change of this one's is told, or taken back, from now on.
       setChange(null);
+      setSetAside(null);
       setWholeTurn(null);
       setPartFork(null);
       // A day the visitor plays from one with a chart keeps its header's room until its own
@@ -1342,6 +1354,7 @@ export function Day({
     setTargeted(null);
     setReplanLine(null);
     if (targetedEnding.kind === "complete") {
+      setIsReplanLimited(false);
       const mergedChecks = { ...checks, ...replanStream.checks };
       const after: Merged = {
         run: targetedShown.run,
@@ -1483,6 +1496,7 @@ export function Day({
   const isReplanFailed = replanEnding !== null && replanEnding.kind !== "complete";
   if (replanning !== null && replanEnding !== null && isReplanFailed) {
     if (isNoDayOf(replanEnding.kind)) setDropped(replannedId);
+    if (replanEnding.kind === "limited") setIsReplanLimited(true);
     setReplanning(null);
     setReplanLine(null);
     setChange((last) =>
@@ -1534,6 +1548,7 @@ export function Day({
       }
       setReplanning(null);
       setReplanLine(null);
+      setIsReplanLimited(false);
       const { before } = replanning;
       if (before === null) {
         setHeldDay(null);
@@ -1649,11 +1664,44 @@ export function Day({
     setChange({ ...changeShown, isCompared: !changeShown.isCompared });
   };
   /**
+   * The version of a whole fork that is not on screen, as the change that settles it sets it
+   * aside: the proposal not taken, or the day before a taken one, by its answer, and where it
+   * is then (`docs/decisions.md`, "A version a later change sets aside is said"). Among the
+   * visitor's days only when the list holds its id; with an id the list does not hold, as a day
+   * opened from someone's link or one the list let go of, at its own address alone; with no id,
+   * kept nowhere. None for a fork written or failed, which has nothing to set aside, nor for a
+   * written day before, which stays at its own address, the places chosen on it kept under its
+   * key.
+   */
+  const setAsideOf = (): RunSetAside | null => {
+    if (asked === null || changeShown === null) return null;
+    const { status } = changeShown;
+    if (status !== "proposed" && status !== "left" && status !== "taken") return null;
+    const isTaken = status === "taken";
+    const part = partForkShown;
+    const id = isTaken
+      ? (part?.after.fromId ?? wholeTurn?.before.record?.id ?? null)
+      : (part?.after.dayId ?? wholeTurn?.after.record?.id ?? null);
+    // The run's own day, unmerged, as the route reads a written day: by its address.
+    const before =
+      part !== null ? (part.before === null ? asked : null) : (wholeTurn?.before ?? null);
+    const isWrittenBefore =
+      before !== null && before.kept === null && id === null && isWrittenRequest(before.request);
+    if (isTaken && isWrittenBefore) return null;
+    const isKept = id !== null && yourDays.some((day) => day.id === id);
+    return {
+      run: asked.run,
+      answer: isTaken ? changeShown.from : changeShown.to,
+      where: id === null ? "not-kept" : isKept ? "your-days" : "not-in-your-days",
+    };
+  };
+  /**
    * The fork settles as the next word changes (`docs/decisions.md`, "A changed word proposes its
    * part beside the day, and the visitor takes it"): the version on screen stays the day, the
-   * other stays among the visitor's days as a row of its own, and its rows fold away. A word
-   * re-picked settles it at once, with no fold: the re-picked stops are the ones then shown, as
-   * the curve is told of them, so no row of the other version stands among them meanwhile.
+   * other is set aside, a row of its own among the visitor's days where its answer named an id,
+   * and its rows fold away; the facts line says where it went (`setAsideOf`). A word re-picked
+   * settles it at once, with no fold: the re-picked stops are the ones then shown, as the curve
+   * is told of them, so no row of the other version stands among them meanwhile.
    */
   const settleFork = (isFolded = true) => {
     if (isFolded && changeShown !== null && partFork !== null && changeShown.isCompared) {
@@ -1661,6 +1709,8 @@ export function Day({
       foldOut(run, forkFrameShown === null ? null : foldedFrameOf(forkFrameShown));
     }
     if (!isFolded) setFolding(null);
+    // Each change says what it set aside, or nothing, in place of what the change before said.
+    setSetAside(setAsideOf());
     setChange(null);
     setPartFork(null);
     setWholeTurn(null);
@@ -2071,6 +2121,8 @@ export function Day({
             // is taken from memory until the next word changes.
             replan={replanControls}
             replanLine={isThisRun(replanLine, asked) ? replanLine.text : null}
+            setAside={isThisRun(setAside, asked) ? setAside : null}
+            isReplanLimited={isReplanLimited}
             // A written day chosen from a list plays on the date it is shown on.
             onPlay={(request) => playDay(shownRequestOf(request, new Date()), true)}
             onOpenWritten={(request) =>
