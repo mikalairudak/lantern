@@ -55,6 +55,23 @@ export function runningStart(clockMinutes: number, previousEnd: number | null): 
   return isSmallHours ? clockMinutes + MINUTES_PER_DAY : clockMinutes;
 }
 
+/** A stop already read on the day's count of minutes: where it starts and where it ends. */
+export interface TimedVisit {
+  start: number;
+  end: number;
+}
+
+/**
+ * How a stop's clock time is read on the day's count of minutes, given the stop read before
+ * it (`null` for the first). A day reads its own stops by `runningStartAfter`; a re-plan's new
+ * stops are read beside the kept stops they stand between.
+ */
+export type StartReader = (clockMinutes: number, previous: TimedVisit | null) => number;
+
+/** A day's own reading: `runningStart` after the end of the stop before. */
+export const runningStartAfter: StartReader = (clockMinutes, previous) =>
+  runningStart(clockMinutes, previous?.end ?? null);
+
 /**
  * Each stop's visit in minutes from the day's midnight, running on past it. The same shape
  * as a light window's span, so a visit after midnight compares with an evening window

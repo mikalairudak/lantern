@@ -13,7 +13,14 @@ import {
   type Stop,
 } from "@/lib/schema/itinerary.schema";
 import type { GeneratedReplan } from "@/lib/schema/replan.schema";
-import { runningSpans } from "@/lib/time/clock";
+import {
+  minutesOf,
+  runningSpans,
+  runningStart,
+  runningStartAfter,
+  type StartReader,
+  type TimedVisit,
+} from "@/lib/time/clock";
 import type { WindowSpan } from "./windows";
 import { isReplannedBy, replannedIdOf, stopIndexOfId } from "@/lib/schema/positions";
 
@@ -304,6 +311,47 @@ export function windowBoundsOf(
   }));
 }
 
+function isHeldBy(bounds: readonly WindowBound[], minute: number): boolean {
+  return bounds.some(({ opens, closes }) => minute >= opens && minute < closes);
+}
+
+/**
+ * How a re-plan's new stops are read on the day's own count of minutes, which runs on past
+ * midnight. The new stops are written without the kept stops they stand between, so the first
+ * of them has no stop before it to be read after. Where a window holds its start as written,
+ * it stands. Otherwise it is read after the end of the kept stop a window opens at, as the
+ * merged day will read it (`runningStart`), where that window then holds it: "00:00" in a
+ * window that opens at 23:00 is minute 1440, and in a window that opens before the late
+ * evening it stays the day's first minute, outside it. Each stop after the first follows the
+ * one before it, as a day's own stops do.
+ *
+ * The normalizer orders the new stops by it, and the merge and the page's frame place them by
+ * it, so the three agree on every stop.
+ */
+export function newStopStartIn(bounds: readonly WindowBound[]): StartReader {
+  return (clock, previous) => {
+    if (previous !== null || isHeldBy(bounds, clock)) return runningStartAfter(clock, previous);
+    const aDayOn = bounds
+      .map(({ opens, closes }) => ({ start: runningStart(clock, opens), opens, closes }))
+      .find(({ start, opens, closes }) => start !== clock && start >= opens && start < closes);
+    return aDayOn?.start ?? clock;
+  };
+}
+
+/** The new stops' visits as `newStopStartIn` reads them, each after the one before it. */
+export function newStopSpansOf(
+  stops: readonly { startTime: string; durationMinutes: number }[],
+  bounds: readonly WindowBound[],
+): { from: number; to: number }[] {
+  const startOf = newStopStartIn(bounds);
+  let previous: TimedVisit | null = null;
+  return stops.map((stop) => {
+    const start = startOf(minutesOf(stop.startTime), previous);
+    previous = { start, end: start + stop.durationMinutes };
+    return { from: start, to: previous.end };
+  });
+}
+
 /** What the merge does with a new stop: it takes it into a window, cut short or not, or drops it. */
 export type NewStopFate =
   | { kind: "taken"; window: number; durationMinutes: number; isShortened: boolean }
@@ -357,8 +405,10 @@ export function mergeReplan({
 }: MergeOptions): MergeResult {
   const mergeRepairs: MergeRepair[] = [];
   const keptNames = keptPlaceNamesOf(itinerary, windows);
+  const bounds = windowBoundsOf(itinerary, windows);
   // The new stops are normalized beside the places kept, so a version at one of them is
-  // dropped as one at another new stop is, and no swap puts a place in the day twice.
+  // dropped as one at another new stop is, and no swap puts a place in the day twice; and
+  // beside the windows, so the first of them is read where the merged day will read it.
   const normalized = normalizeDay(
     request,
     {
@@ -368,6 +418,7 @@ export function mergeReplan({
       alternatives: replan.alternatives,
     },
     keptNames,
+    newStopStartIn(bounds),
   );
   if (!normalized.ok) {
     return { ok: false, reason: normalized.reason, repairs: normalized.repairs, mergeRepairs };
@@ -375,10 +426,9 @@ export function mergeReplan({
   // The new stops alone are not the day, so an end fitted to them is no repair of it: the
   // merged day's end is fitted below, on all its stops.
   const repairs = normalized.repairs.filter(({ kind }) => kind !== "fitted-end");
-  const bounds = windowBoundsOf(itinerary, windows);
   const filled = new Set<number>();
   const newStops: { stop: Stop; from: number }[] = [];
-  const spans = runningSpans(normalized.itinerary.stops);
+  const spans = newStopSpansOf(normalized.itinerary.stops, bounds);
   // The window stops a new stop stands for, by id: each is stood for once.
   const stood = new Set<string>();
 
