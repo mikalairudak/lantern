@@ -55,7 +55,7 @@ import {
 } from "@/lib/stream/simulate-day-stream";
 import { endedDayOf, keptNoticeOf, noticeOf, phaseOf, slotOf } from "./stream-ending";
 import { ASKED_LABELS, FACT_OPTIONS, labelOf } from "./facts";
-import { answerReachOf, forkNoteOf, notReplanningYetOf, replanningOf, seeItAtOf } from "./not-yet";
+import { answerReachOf, forkNoteOf, notReplanningYetOf, replanningOf, SEE_IT } from "./not-yet";
 import type { ReplanControls } from "./replan-controls";
 import {
   NO_LOCAL_WORDS,
@@ -176,7 +176,7 @@ export const HEADER_MOMENTS = [
   { label: "a changed word", key: "changed" },
   { label: `a changed word being re-planned, the day held ${AFTER_LAUNCH}`, key: "replanning" },
   {
-    label: `a proposal being written: its word says both answers, the proposal's lit in blue, every other word locked, the facts line saying what is written and where, the line as first planned ${AFTER_LAUNCH}`,
+    label: `a proposal being written: its word says both answers, the proposal's lit in blue, every other word locked, the facts line saying what is written and where, the line as written, as no stop has changed ${AFTER_LAUNCH}`,
     key: "replan-writing",
   },
   {
@@ -605,7 +605,7 @@ function replanStillOf(
       reason: null,
     },
     reach.kind === "part" ? reach.parts : [],
-    reach.kind === "part" ? reach.at : null,
+    reach.kind === "part",
   );
   const shared = {
     replan,
@@ -619,7 +619,7 @@ function replanStillOf(
             words: note.words,
             link:
               note.link?.kind === "see"
-                ? { label: seeItAtOf(note.link.at), onPress: ignore }
+                ? { label: SEE_IT, name: note.link.name, onPress: ignore }
                 : null,
           },
   };

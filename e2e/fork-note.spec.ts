@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
  * Where a visitor looks once they have pressed a word, the facts line says what its fork is
  * doing and where, or why the word came back (`forkNoteOf`; the phone pass, 2026-11-08). On a
  * phone a fork's rows are usually below the screen, and the page never scrolls by itself: "see
- * it at" leads there on a press. Played on the re-plan bench's Elche at its live pace.
+ * it" leads there on a press. Played on the re-plan bench's Elche at its live pace.
  */
 
 const BENCH = "/lab/concepts/replan";
@@ -83,19 +83,18 @@ test("a proposal being written says on the screen what it writes and where, and 
 
   await changeDinner(page);
 
-  await expect(factsLine(page)).toHaveText(
-    /^Writing “eating late” for .+ ·\u00A0see it at 13:15$/,
-    {
-      timeout: DAY_TIMEOUT_MS,
-    },
-  );
+  await expect(factsLine(page)).toHaveText(/^Writing “eating late” for .+ ·\u00A0see it$/, {
+    timeout: DAY_TIMEOUT_MS,
+  });
   expect(await isOnScreen(page, factsLine(page))).toBe(true);
   // Nothing scrolls by itself: the fork's first row is below the screen until the press.
   const row = page.locator('[data-fork-row="0"]').first();
   expect(await isOnScreen(page, row)).toBe(false);
 
   await factsLine(page)
-    .getByRole("button", { name: /^see it at/ })
+    .getByRole("button", {
+      name: "see it: “eating late” beside lunch, the afternoon, dinner and the evening",
+    })
     .click();
 
   await expect.poll(() => isOnScreen(page, row), { timeout: DAY_TIMEOUT_MS }).toBe(true);

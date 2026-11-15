@@ -223,17 +223,24 @@ describe("DayStageHeader", () => {
     renderHeader(PORTLAND, null, null, {
       forkNote: {
         words: "Writing “eating late” for dinner and the evening",
-        link: { label: "see it at\u00A017:30", onPress },
+        link: {
+          label: "see it",
+          name: "see it: “eating late” beside dinner and the evening",
+          onPress,
+        },
       },
     });
 
-    const press = screen.getByRole("button", { name: "see it at\u00A017:30" });
+    // Heard on its own, the press says where it leads; seen, it says "see it", and no hour.
+    const press = screen.getByRole("button", {
+      name: "see it: “eating late” beside dinner and the evening",
+    });
     const bound = press.parentElement as HTMLElement;
     // The dot and the press stand in one span that never breaks, a space before it only.
     expect(bound).toHaveClass("whitespace-nowrap");
-    expect(bound.textContent).toBe("·\u00A0see it at\u00A017:30");
+    expect(bound.textContent).toBe("·\u00A0see it");
     expect(bound.closest("p")?.textContent).toBe(
-      "Writing “eating late” for dinner and the evening ·\u00A0see it at\u00A017:30",
+      "Writing “eating late” for dinner and the evening ·\u00A0see it",
     );
     await userEvent.setup().click(press);
     expect(onPress).toHaveBeenCalledOnce();
@@ -277,10 +284,7 @@ describe("DayStageHeader", () => {
     // jsdom has no container queries: the room a phone leaves out says so in its classes.
     const longest = screen.getAllByText("quieter in the morning and livelier in the afternoon");
     for (const clause of longest) expect(clause.closest("p")).toHaveClass("@max-measure:hidden");
-    // Of the copies that hold its room: one measures the line with its lead, holding none.
-    const leads = screen
-      .getAllByText("As first planned:")
-      .filter((lead) => lead.closest(".h-0") === null);
+    const leads = screen.getAllByText("As first planned:");
     expect(leads.length).toBeGreaterThan(0);
     for (const lead of leads) expect(lead).toHaveClass("@max-measure:hidden");
     cleanup();
@@ -289,7 +293,7 @@ describe("DayStageHeader", () => {
     renderHeader(PORTLAND, null, null, { isAsPlanned: false });
     const held = screen
       .getAllByText("As first planned:")
-      .filter((lead) => lead.closest("[aria-hidden]") !== null && lead.closest(".h-0") === null);
+      .filter((lead) => lead.closest("[aria-hidden]") !== null);
     expect(held.length).toBeGreaterThan(0);
     for (const lead of held) expect(lead).not.toHaveClass("@max-measure:hidden");
     // The sentence's own room, without a clause, is held at every width.
@@ -311,11 +315,8 @@ describe("DayStageHeader", () => {
     renderHeader(PORTLAND);
 
     // The line about the day is written once, and held twice unseen: by its own line, and
-    // by the whole header's reserve, each with the room its lead after a swap takes. Two more
-    // copies, holding no room, measure whether its lead fits its lines on a phone.
-    const lines = screen
-      .getAllByText(/Food carts at noon, the river at dusk\.$/)
-      .filter((line) => line.closest(".h-0") === null);
+    // by the whole header's reserve, each with the room its lead after a swap takes.
+    const lines = screen.getAllByText(/Food carts at noon, the river at dusk\.$/);
     expect(lines).toHaveLength(3);
     const held = lines.filter((line) => line.closest("[aria-hidden]") !== null);
     expect(held.map((line) => line.textContent)).toEqual([
@@ -404,6 +405,42 @@ describe("DayStageHeader", () => {
     );
     expect(separator ?? null).toBeNull();
     expect(status).toHaveTextContent(`· ${next}`);
+  });
+
+  it("takes no lead at a changed word's press, while its proposal is written, nor once it stands whole, while no stop has changed", async () => {
+    const isLeadSeen = () =>
+      screen
+        .queryAllByText("As first planned:")
+        .some((lead) => lead.closest("[aria-hidden]") === null);
+    const view = renderHeader(KYOTO_REQUEST);
+
+    view.rerender(
+      headerOf(KYOTO_REQUEST, null, null, { replan: slowMorning({ status: "writing" }) }),
+    );
+    await wait(STILL_MS);
+    expect(isLeadSeen()).toBe(false);
+    // Its room is not held on a phone either: nothing is due to come into it.
+    const rooms = screen
+      .getAllByText("As first planned:")
+      .filter((lead) => lead.closest("[aria-hidden]") !== null);
+    for (const room of rooms) expect(room).toHaveClass("@max-measure:hidden");
+
+    view.rerender(
+      headerOf(KYOTO_REQUEST, null, null, {
+        replan: slowMorning({ status: "proposed", isCompared: true }),
+      }),
+    );
+    await wait(STILL_MS);
+    expect(isLeadSeen()).toBe(false);
+  });
+
+  it("leads the line while a proposal is written once a stop shows another place", async () => {
+    renderHeader(KYOTO_REQUEST, null, null, {
+      replan: slowMorning({ status: "writing" }),
+      isAsPlanned: false,
+    });
+
+    await waitFor(() => expect(shownText(/^As first planned:/)).toBeInTheDocument());
   });
 
   it("says it is the day as first planned, in the quiet ink, once a stop shows another place", () => {

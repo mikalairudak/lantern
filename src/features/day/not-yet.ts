@@ -223,11 +223,8 @@ export type AnswerReach =
    * depends on the places on screen, which a reach does not know: `repickLineOf` says it.
    */
   | { kind: "repick" }
-  /**
-   * A word whose windows the route rewrites, by the parts of the day they hold, and the time
-   * its first window starts at, where its fork's first row stands.
-   */
-  | { kind: "part"; parts: readonly string[]; at: string }
+  /** A word whose windows the route rewrites, by the parts of the day they hold. */
+  | { kind: "part"; parts: readonly string[] }
   /** Travel, or company no stop names: the word changes alone, every stop as it was. */
   | { kind: "keep" }
   /** A time word no stop names, or windows that hold most of the day: the whole day again. */
@@ -340,12 +337,7 @@ export function answerReachOf(
   const plan = replanPlanOf(day, asked, key);
   if (plan.kind === "full") return { kind: "whole" };
   if (plan.kind === "word") return { kind: "keep" };
-  const first = plan.windows[0];
-  return {
-    kind: "part",
-    parts: partsInWindowsOf(day.stops, plan.windows, key),
-    at: (first && day.stops[first.from]?.startTime) ?? day.stops[0]?.startTime ?? "",
-  };
+  return { kind: "part", parts: partsInWindowsOf(day.stops, plan.windows, key) };
 }
 
 /**
@@ -401,14 +393,19 @@ export interface ForkNoteInput {
 /** What the facts line says while a changed word's fork stands, and the press it offers. */
 export interface ForkNote {
   words: string;
-  /** To the fork's first row, by its stop's time; or "Ask again"; or none. */
-  link: { kind: "see"; at: string } | { kind: "ask-again" } | null;
+  /**
+   * To the fork's first row, "see it", with the name a screen reader hears of it; or "Ask
+   * again"; or none.
+   */
+  link: { kind: "see"; name: string } | { kind: "ask-again" } | null;
 }
 
-/** The press that leads to a fork's first row, which is usually below a phone's screen. */
-export function seeItAtOf(at: string): string {
-  return `see it at\u00A0${at}`;
-}
+/**
+ * The press that leads to a fork's first row, which is usually below a phone's screen. It
+ * names no hour: the row stands over the first stop of the part, and the proposal may begin at
+ * another hour.
+ */
+export const SEE_IT = "see it";
 
 /** The press that asks for a failed proposal again. */
 export const ASK_AGAIN = "Ask again";
@@ -417,23 +414,27 @@ export const ASK_AGAIN = "Ask again";
  * The facts line's words while a changed word's fork stands, where the visitor looks once they
  * have pressed (the phone pass, 2026-11-08): what is being written and where, what is drawn
  * beside the day, or why the word came back. The answers are quoted, so "Writing “eating
- * late”" never reads as a slip; a part's fork points to its first row at `at`, a press away,
+ * late”" never reads as a slip; a part's fork points to its first row, a press away,
  * since the page never scrolls by itself. `parts` are those the proposal writes, none for a
- * whole day's. Null once a version is chosen, and at rest.
+ * whole day's; `hasRow` says a fork row stands to lead to. Null once a version is chosen, and
+ * at rest.
  */
 export function forkNoteOf(
   fork: ForkNoteInput,
   parts: readonly string[],
-  at: string | null,
+  hasRow: boolean,
 ): ForkNote | null {
   if (fork.isChosen) return null;
-  const see = at === null ? null : { kind: "see" as const, at };
   const what =
     parts.length === 0
       ? "the whole day"
       : parts.length <= MAX_NAMED_PARTS
         ? listOf(parts)
         : `${PART_COUNTS[parts.length] ?? String(parts.length)} parts of the day`;
+  // Heard on its own, as a press is tabbed to, the link says what it leads to.
+  const see = hasRow
+    ? { kind: "see" as const, name: `${SEE_IT}: “${fork.to}” beside ${what}` }
+    : null;
   if (fork.isWriting) return { words: `Writing “${fork.to}” for ${what}`, link: see };
   if (fork.isReady) {
     return parts.length === 0
