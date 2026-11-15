@@ -15,7 +15,8 @@ const CAPTION_CLASSES = "type-note";
 /** Which suns on the axis say their minute beside them in the gutter. */
 export type SunLabels = Readonly<Record<BestLight, boolean>>;
 
-const NO_SUN_LABELS: SunLabels = { sunrise: false, sunset: false };
+/** No sun says its minute: before the day is whole, and wherever none is given. */
+export const NO_SUN_LABELS: SunLabels = { sunrise: false, sunset: false };
 
 /**
  * How far a sun's glyph reaches from its centre along the axis, as a share of its size: up

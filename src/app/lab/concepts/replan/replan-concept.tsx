@@ -13,6 +13,8 @@ import {
   ELCHE_REQUEST,
 } from "@/lib/fixtures/replan/elche-dinner";
 import { LISBON_LATE_DINNER } from "@/lib/fixtures/replan/lisbon-dinner";
+import { UTRECHT_EARLY_MORNING } from "@/lib/fixtures/replan/utrecht-morning";
+import { UTRECHT_START_DAY } from "@/lib/days/written/utrecht";
 import type { DayRequest, GeneratedDay } from "@/lib/schema/itinerary.schema";
 import { keptPlaceNamesOf, type ReplanBasis } from "@/lib/replan/merge";
 import type { GeneratedReplan } from "@/lib/schema/replan.schema";
@@ -27,6 +29,9 @@ export interface BenchDay {
   request: DayRequest;
   day: GeneratedDay;
 }
+
+/** A Sunday in mid-November, the date the bench shows Utrecht's day on. */
+const UTRECHT_SHOWN_ON = "2026-11-15";
 
 /** How fast the bench's day first lands: at once, so the re-plan has a day to rewrite. */
 const LANDING_PACE: Partial<StreamPace> = { deltaChars: 64 };
@@ -55,6 +60,18 @@ const sourceOf =
  * proposal stands whole; with the coffee, it fails as production's did.
  */
 const ELCHE: BenchDay = { request: ELCHE_REQUEST, day: generatedDayOf(ELCHE_ITINERARY) };
+
+/**
+ * The written Utrecht day, a slow Sunday morning, whose start changed to early proposes its
+ * morning anew, written by hand (`UTRECHT_EARLY_MORNING`). Shown on a Sunday in mid-November,
+ * as the start shows it then: the sun rises at eight, between the proposal's coffee at half past
+ * seven and its tower at half past eight, and sets at 16:49, by the dinner at half past five, so
+ * both suns' minutes stand among the gutter's times.
+ */
+const UTRECHT: BenchDay = {
+  request: { ...UTRECHT_START_DAY.request, date: UTRECHT_SHOWN_ON },
+  day: UTRECHT_START_DAY.day,
+};
 
 /**
  * Paces a proposal streams at, a part or the whole day written again, as a live one does and
@@ -185,8 +202,9 @@ function recordedReplan(
  * A changed word's fork on the product's day (`docs/decisions.md`, "A changed word proposes its
  * part beside the day, and the visitor takes it"): production's Elche, whose dinner changed to
  * "eating late" proposes a new lunch and evening beside its own, two parts of one fork, and
- * Lisbon's, whose dinner proposes its last two stops anew. Each proposal is a recorded one, at
- * a live pace or slower; the day is the product's, the same as on a day's own address.
+ * Lisbon's, whose dinner proposes its last two stops anew, and Utrecht's, whose early start
+ * proposes its morning by the sunrise. Each proposal is a recorded one, at a live pace or
+ * slower; the day is the product's, the same as on a day's own address.
  */
 export function ReplanConcept({ lisbon }: { lisbon: BenchDay }) {
   const [theme, setTheme] = useState<ThemeChoice>("system");
@@ -196,12 +214,17 @@ export function ReplanConcept({ lisbon }: { lisbon: BenchDay }) {
   const [dayName, setDayName] = useState<DayName>("Elche");
   const [replays, setReplays] = useState(0);
   const [isChoosing, setIsChoosing] = useState(false);
-  const days: Record<DayName, BenchDay> = { Elche: ELCHE, Lisbon: lisbon };
+  const days: Record<DayName, BenchDay> = { Elche: ELCHE, Lisbon: lisbon, Utrecht: UTRECHT };
   const bench = days[dayName];
   // The day chooses the recording: Elche's dinner rewrites its lunch and its afternoon,
-  // Lisbon's its last two stops.
+  // Lisbon's its last two stops, Utrecht's start its morning.
   const recordingOf = (ask: ReplanAsk): GeneratedReplan => {
     const isDropped = endingName === "a stop dropped";
+    if (dayName === "Utrecht") {
+      return isDropped
+        ? withLastAtKeptPlace(UTRECHT_EARLY_MORNING, replanBasisOf(ask))
+        : UTRECHT_EARLY_MORNING;
+    }
     if (dayName === "Elche") return isDropped ? ELCHE_LATE_DINNER : ELCHE_LATE_DINNER_UNREPEATED;
     return isDropped
       ? withLastAtKeptPlace(LISBON_LATE_DINNER, replanBasisOf(ask))
@@ -319,10 +342,10 @@ export function ReplanConcept({ lisbon }: { lisbon: BenchDay }) {
             </div>
             <p className="type-note text-muted">
               In Elche “early dinner” to “eating late” proposes its lunch and its afternoon anew,
-              one fork of two parts; in Lisbon the same word its last two stops. Company, which no
-              recording here answers, proposes the whole day at the pace chosen; travel changes the
-              word alone. A proposal whose answer names an id is kept among this browser&apos;s
-              days.
+              one fork of two parts; in Lisbon the same word its last two stops; in Utrecht “slow
+              morning” to “early start” its morning, by the sunrise. Company, which no recording
+              here answers, proposes the whole day at the pace chosen; travel changes the word
+              alone. A proposal whose answer names an id is kept among this browser&apos;s days.
             </p>
           </div>
         )}
@@ -331,7 +354,7 @@ export function ReplanConcept({ lisbon }: { lisbon: BenchDay }) {
   );
 }
 
-const DAY_NAMES = ["Elche", "Lisbon"] as const;
+const DAY_NAMES = ["Elche", "Lisbon", "Utrecht"] as const;
 type DayName = (typeof DAY_NAMES)[number];
 
 interface ChoiceGroupProps<Name extends string> {

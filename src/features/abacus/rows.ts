@@ -104,6 +104,56 @@ export function isSunMinuteInOrder(
   );
 }
 
+/** The chart's frame a day's rows are laid in: its width, its height's basis and its hours. */
+export interface RowFrame {
+  width: number;
+  basisHeight: number;
+  dayStart: number;
+  dayEnd: number;
+}
+
+/** Where the day's rows rest, and each one's time in the gutter there. */
+export interface RestingRows {
+  rows: readonly RowExtent[];
+  /** Each row's wire where it rests: held lower while a version stands beside the day. */
+  anchors: readonly number[];
+  /** Each stop's time in the gutter, its middle where its row rests. */
+  times: readonly GutterTime[];
+}
+
+/**
+ * Which suns say their minute beside them (`isSunMinuteInOrder`), weighed on the scale the axis
+ * is drawn on once the rows rest: the one bent by the wires where they rest, not by the day laid
+ * out afresh. While a version stands beside the day the rows that stay are held where they stood
+ * or lower, so the two scales part, and a minute weighed on the other would be drawn on a time
+ * it was found clear of.
+ */
+export function sunLabelsAt(
+  suns: Readonly<Record<"sunrise" | "sunset", number | null>>,
+  frame: RowFrame,
+  resting: RestingRows,
+  drawing: Drawing = DEFAULT_DRAWING,
+): Record<"sunrise" | "sunset", boolean> {
+  const { width, basisHeight, dayStart, dayEnd } = frame;
+  const { scale } = rowScale(
+    width,
+    basisHeight,
+    dayStart,
+    dayEnd,
+    resting.rows,
+    resting.anchors,
+    drawing,
+  );
+  const isSaid = (minute: number | null): boolean =>
+    minute !== null &&
+    isSunMinuteInOrder(
+      { minutes: minute, y: scale.yOf(minute) },
+      resting.times,
+      drawing.row.sunLabelClearance,
+    );
+  return { sunrise: isSaid(suns.sunrise), sunset: isSaid(suns.sunset) };
+}
+
 /** The rows' pixels as one drawing sets them: `ROW` at the default root, or scaled. */
 export type RowSizes = { readonly [Key in keyof typeof ROW]: number };
 
