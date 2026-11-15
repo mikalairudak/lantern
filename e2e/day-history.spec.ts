@@ -313,7 +313,8 @@ test.describe("with motion", () => {
 
     await page.goBack();
 
-    await expect(headline(page)).toContainText(PARIS);
+    // The headline may say where the chosen place makes the day quieter or livelier.
+    await expect(headline(page)).toContainText(/^A calm Sunday\b.* in Paris/);
     await waitForTheDay(page, WHOLE_TIMEOUT_MS);
     await expect(page.getByRole("slider").nth(chosen.index)).toHaveAttribute(
       "aria-valuetext",
