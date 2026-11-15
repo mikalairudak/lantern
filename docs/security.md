@@ -273,6 +273,8 @@ The public site does not name Lantern's stack, as `/privacy` names categories of
 
 **Fix.** In production (`VERCEL_ENV=production`) the header says each metric's name and duration alone, `limits;dur=…, model;dur=…, cities;dur=…, total;dur=…`, with no description and no `cold`. The names say what a step is, not whose: the harness's measurements read them and their durations, and keep them. A laptop and a preview deploy keep the descriptions and `cold`, for measuring. A test holds that an intake answered in production names no service and carries no `desc` or `cold`.
 
+**The stream's own parts, since 2026-11-15.** They are held to the same rule. The provider opens each stream with a part of its own that names it, its model and the message's id, and may hang its metadata on any other part; both are left out of a day's and a re-plan's stream before the visitor's copy is made (`withoutProviderParts` in `src/lib/live/streamed-call.ts`). The server counts a call's input from that first part before it is dropped. Tests on the provider's own client, answered by a recorded API, hold it for a day, a day with its place checks and a re-plan.
+
 **Left as it is:** `server: Vercel` and the day stream's `x-vercel-ai-ui-message-stream` header, which say the host and the stream's format; the host is on every answer either way.
 
 ### S16. A day opened by its link could not be written again in its own city
@@ -328,3 +330,4 @@ Account-level controls are set in each provider's dashboard and kept out of this
 - **2026-11-06, the intake's early call.** A process the database has been quiet to for four minutes starts Haiku's read beside the limits. S3 says what bounds it: one early call per process every four minutes, a refused one charged to the caps, at most $0.33 a day per process.
 - **2026-11-07, the studio's login leaves the code.** Before the repository opens (S11), on an independent review of a clean clone: the login built into the code is gone, the studio takes one password, `STUDIO_PASSWORD`, set only in Vercel's environment, and a build without it is shut to everyone and logs one `studio-closed` line saying why. The old login was removed from the history the same day, and the password was changed.
 - **2026-11-10, an escaped name of the studio is not found.** The proxy answers a path that names the studio only once its escapes are read, as `/%6Cab`, with the site's not-found page and a 404, before any page of the studio streams (S14).
+- **2026-11-15, the stream's parts.** A day's and a re-plan's stream carried the provider's opening part, which names it and its model, to the visitor. It is left out, with any provider metadata, before the visitor's copy is made (S15).

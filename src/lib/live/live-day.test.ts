@@ -293,6 +293,25 @@ describe("the live day route's stream", () => {
   });
 });
 
+describe("what a live day's answer says of who wrote it", () => {
+  // The real provider opens its stream with a part that names itself, its model and the
+  // message's id. The server still counts a cut day's input from that part, as "keeps the
+  // request id and the input of a day an error cut" holds below.
+  it("names no provider or model to the visitor", async () => {
+    const { deps, afterResponse, generationLog } = bench({
+      day: sonnet({ kind: "message", text: TEXT }),
+    });
+
+    const response = await answerDayRequest(post(LIVELY_KANAZAWA), QUICK, liveDayOf(deps));
+    const body = await response.text();
+    await afterResponse();
+
+    expect(body).toContain('"type":"text-delta"');
+    expect(body).not.toMatch(/anthropic|claude|msg_|providerMetadata/i);
+    expect(generationLog.records[0]).toMatchObject({ role: "day", outcome: "complete" });
+  });
+});
+
 describe("a day whose letters came escaped twice", () => {
   // Sonnet's recorded text, through the real provider: it wrote "á" as `\\u00e1`.
   it("shows the visitor letters, and logs the text as written with each escaped string", async () => {

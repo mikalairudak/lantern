@@ -7,6 +7,7 @@ import {
   type LanguageModel,
   type LanguageModelMiddleware,
   type LanguageModelUsage,
+  type UIMessageChunk,
 } from "ai";
 import { z } from "zod";
 import { placeCheckResults } from "@/lib/quality/place-results";
@@ -28,12 +29,13 @@ import type { Reservation } from "./limits";
 
 /**
  * One streamed model call, as a day, its shadow and a targeted re-plan each make it: Claude
- * through `streamText` with `Output.object`, out through `toUIMessageStreamResponse()`, the
- * same stream the simulator sends, so the client reads it with the same reader and gets the
- * same outcomes. The server reads its own copy of the stream to the end, so the trace keeps
- * the outcome the visitor got, what the call read and wrote, and its place checks. What each
- * route counts, holds, settles and records around the call stays with the route:
- * `live-day.ts` for a day and its shadow, `live-replan.ts` for a re-plan. Server only.
+ * through `streamText` with `Output.object`, out as the UI message stream the simulator sends
+ * too, less the provider's own parts (`withoutProviderParts`), so the client reads it with the
+ * same reader and gets the same outcomes. The server reads its own copy of the stream to the
+ * end, so the trace keeps the outcome the visitor got, what the call read and wrote, and its
+ * place checks. What each route counts, holds, settles and records around the call stays with
+ * the route: `live-day.ts` for a day and its shadow, `live-replan.ts` for a re-plan. Server
+ * only.
  */
 
 if (typeof window !== "undefined") {
@@ -243,15 +245,13 @@ export function startStreamedCall({
     log("model-call-failed", { role, model: modelId, ...error });
     return DEFAULT_ERROR_MESSAGE;
   };
+  const parts = withoutProviderParts(result.toUIMessageStream({ onError }));
   // With the places checked, their checks go out beside the model's parts, in the same stream.
-  const response =
-    placeChecking === null
-      ? result.toUIMessageStreamResponse({ onError })
-      : createUIMessageStreamResponse({
-          stream: placeChecking.checking.streamWith(result.toUIMessageStream({ onError })),
-        });
+  const response = createUIMessageStreamResponse({
+    stream: placeChecking === null ? parts : placeChecking.checking.streamWith(parts),
+  });
 
-  // `toUIMessageStreamResponse` always streams a body.
+  // `createUIMessageStreamResponse` always streams a body.
   const body = response.body as ReadableStream<Uint8Array>;
   const [forVisitor, forServer] = role === "day" ? body.tee() : [null, body];
   const trace = call
@@ -292,6 +292,27 @@ export function startStreamedCall({
           headers: response.headers,
         });
   return { response: toVisitor, trace };
+}
+
+/**
+ * The model's parts without what names who wrote them (`docs/security.md`, S15): the
+ * provider's own parts, the first of which names it, its model and the message's id, and the
+ * metadata it hangs on any other. The call's input is counted from that first part before
+ * this, in `onChunk`, and no reader of the stream takes either.
+ */
+function withoutProviderParts(
+  parts: ReadableStream<UIMessageChunk>,
+): ReadableStream<UIMessageChunk> {
+  return parts.pipeThrough(
+    new TransformStream<UIMessageChunk, UIMessageChunk>({
+      transform(part, controller) {
+        if (part.type === "custom") return;
+        if (!("providerMetadata" in part)) return controller.enqueue(part);
+        const { providerMetadata, ...unnamed } = part;
+        controller.enqueue(unnamed);
+      },
+    }),
+  );
 }
 
 /**

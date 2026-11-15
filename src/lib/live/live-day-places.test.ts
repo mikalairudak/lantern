@@ -341,6 +341,18 @@ describe("the place checks on a day Sonnet wrote", () => {
     expect(names.some((name) => name.includes(String.fromCharCode(92)))).toBe(false);
   });
 
+  it("names no provider or model to the visitor beside the checks", async () => {
+    const { verifier } = fakeVerifier(() => Promise.resolve(CONFIRMED));
+    const { deps } = bench(verifier, undefined, sonnet());
+
+    const body = await (
+      await answerDayRequest(await signed(request), QUICK, liveDayOf(deps))
+    ).text();
+
+    expect(checksIn(body).length).toBeGreaterThan(0);
+    expect(body).not.toMatch(/anthropic|claude|msg_|providerMetadata/i);
+  });
+
   it("still settles every check and closes when the model's stream is cut by an error", async () => {
     const { verifier, asked } = fakeVerifier(() => Promise.resolve(CONFIRMED));
     const { deps } = bench(verifier, SHORT_DEADLINE_MS, sonnet(true));
