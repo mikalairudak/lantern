@@ -125,9 +125,8 @@ export interface RestingRows {
  * Which suns say their minute beside them (`isSunMinuteInOrder`), weighed on the scale the axis
  * is drawn on once the rows rest: the one bent by the wires where they rest, not by the day laid
  * out afresh. While a version stands beside the day the rows that stay are held where they stood
- * or lower, and a sun weighed on the day laid out afresh stood 53 px higher than it was drawn:
- * Utrecht's sunset at 16:49, with the day before compared beside its early start, was drawn on
- * the dinner's "17:30".
+ * or lower, so the two scales part, and a minute weighed on the other would be drawn on a time
+ * it was found clear of.
  */
 export function sunLabelsAt(
   suns: Readonly<Record<"sunrise" | "sunset", number | null>>,

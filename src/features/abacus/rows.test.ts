@@ -138,7 +138,7 @@ describe("sunLabelsAt", () => {
     expect(sunLabelsAt({ sunrise: null, sunset: sunsetOnDinner }, FRAME, resting).sunset).toBe(
       false,
     );
-    // Weighed on the day laid out afresh, the same sunset stood clear above the dinner's time.
+    // On the day laid out afresh the same sunset reads as clear of the dinner's time.
     const afreshScaleSaid = sunLabelsAt({ sunrise: null, sunset: sunsetOnDinner }, FRAME, {
       ...resting,
       anchors: afresh.anchors,
