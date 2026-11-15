@@ -163,8 +163,9 @@ test("says in the facts line's place what a proposal being written writes, and w
       each.filter((line) => line.closest("[aria-hidden]") === null).map((line) => line.textContent),
     );
   expect(lines).toHaveLength(1);
-  expect(lines[0]).toMatch(/^Writing “[^”]+” for .+ ·\u00A0see it at\u00A0\d\d:\d\d$/);
-  await expect(header.getByRole("button", { name: /^see it at/ })).toBeVisible();
+  expect(lines[0]).toMatch(/^Writing “[^”]+” for .+ ·\u00A0see it$/);
+  // Seen as "see it", heard by where it leads: the proposal's answer beside the parts it writes.
+  await expect(header.getByRole("button", { name: /^see it: “[^”]+” beside .+$/ })).toBeVisible();
 });
 
 test("says under each answer what it would do, from the plan the route runs", async ({ page }) => {

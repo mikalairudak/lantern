@@ -223,17 +223,24 @@ describe("DayStageHeader", () => {
     renderHeader(PORTLAND, null, null, {
       forkNote: {
         words: "Writing “eating late” for dinner and the evening",
-        link: { label: "see it at\u00A017:30", onPress },
+        link: {
+          label: "see it",
+          name: "see it: “eating late” beside dinner and the evening",
+          onPress,
+        },
       },
     });
 
-    const press = screen.getByRole("button", { name: "see it at\u00A017:30" });
+    // Heard on its own, the press says where it leads; seen, it says "see it", and no hour.
+    const press = screen.getByRole("button", {
+      name: "see it: “eating late” beside dinner and the evening",
+    });
     const bound = press.parentElement as HTMLElement;
     // The dot and the press stand in one span that never breaks, a space before it only.
     expect(bound).toHaveClass("whitespace-nowrap");
-    expect(bound.textContent).toBe("·\u00A0see it at\u00A017:30");
+    expect(bound.textContent).toBe("·\u00A0see it");
     expect(bound.closest("p")?.textContent).toBe(
-      "Writing “eating late” for dinner and the evening ·\u00A0see it at\u00A017:30",
+      "Writing “eating late” for dinner and the evening ·\u00A0see it",
     );
     await userEvent.setup().click(press);
     expect(onPress).toHaveBeenCalledOnce();

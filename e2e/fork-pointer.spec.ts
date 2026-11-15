@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page, waitMs, chooseTheChart } from ".
 
 /**
  * A changed word's proposal points to its fork from the sentence (`docs/decisions.md`, "A changed
- * word proposes its part beside the day, and the visitor takes it"): "see it at" under the
+ * word proposes its part beside the day, and the visitor takes it"): "see it" under the
  * headline and the proposal's blue answer in it each bring the fork's first row into view and
  * give it the focus, in the view the visitor reads, the plan or the chart, on a phone and on a
  * laptop. Played on the re-plan bench's Elche, whose dinner changed to "eating late" proposes a
@@ -50,8 +50,8 @@ async function expectTheForkReached(page: Page): Promise<void> {
 }
 
 const POINTERS = {
-  "the line's “see it at”": (page: Page) =>
-    factsLine(page).getByRole("button", { name: /^see it at/ }),
+  "the line's “see it”": (page: Page) =>
+    factsLine(page).getByRole("button", { name: /^see it: “eating late” beside / }),
   "the sentence's blue answer": (page: Page) =>
     page.locator("h1").getByRole("button", { name: /^eating late, proposed: go to it/ }),
 };

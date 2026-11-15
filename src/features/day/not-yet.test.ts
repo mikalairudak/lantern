@@ -18,7 +18,7 @@ import {
   forecastOf,
   forkNoteOf,
   partsInWindowsOf,
-  seeItAtOf,
+  SEE_IT,
   type ForkNoteInput,
   replanEndedOf,
   replanningOf,
@@ -187,10 +187,10 @@ describe("forecastOf", () => {
   it("counts five parts or more, which would take a third line of a phone's word list", () => {
     const parts = ["the morning", "lunch", "the afternoon", "dinner", "the evening"];
 
-    expect(forecastOf({ kind: "part", parts, at: "13:15" })).toBe(
+    expect(forecastOf({ kind: "part", parts })).toBe(
       `a proposal for five parts of the day${HALF_A_MINUTE}`,
     );
-    expect(forecastOf({ kind: "part", parts: parts.slice(0, 4), at: "13:15" })).toBe(
+    expect(forecastOf({ kind: "part", parts: parts.slice(0, 4) })).toBe(
       `a proposal for the morning, lunch, the afternoon and dinner${HALF_A_MINUTE}`,
     );
   });
@@ -259,27 +259,28 @@ describe("forkNoteOf", () => {
   const PARTS = ["lunch", "dinner"];
 
   it("says what is written and where, its answer quoted, while the proposal is written", () => {
-    expect(forkNoteOf({ ...FORK, isWriting: true }, PARTS, "13:15")).toEqual({
+    expect(forkNoteOf({ ...FORK, isWriting: true }, PARTS, true)).toEqual({
       words: "Writing “eating late” for lunch and dinner",
-      link: { kind: "see", at: "13:15" },
+      link: { kind: "see", name: "see it: “eating late” beside lunch and dinner" },
     });
-    expect(seeItAtOf("13:15")).toBe("see it at\u00A013:15");
+    // The press names no hour, which the proposal may not begin at.
+    expect(SEE_IT).toBe("see it");
   });
 
   it("says the proposal is drawn beside the day once whole, a press away", () => {
-    expect(forkNoteOf({ ...FORK, isReady: true }, PARTS, "13:15")).toEqual({
+    expect(forkNoteOf({ ...FORK, isReady: true }, PARTS, true)).toEqual({
       words: "“eating late” drawn beside lunch and dinner",
-      link: { kind: "see", at: "13:15" },
+      link: { kind: "see", name: "see it: “eating late” beside lunch and dinner" },
     });
   });
 
   it("says why the word came back, and offers to ask again where another try might mend it", () => {
     const failed = { ...FORK, isFailed: true, reason: "Couldn't re-plan just now" };
-    expect(forkNoteOf({ ...failed, canAskAgain: true }, PARTS, "13:15")).toEqual({
+    expect(forkNoteOf({ ...failed, canAskAgain: true }, PARTS, true)).toEqual({
       words: "Couldn't re-plan just now, so “early dinner” stays",
       link: { kind: "ask-again" },
     });
-    expect(forkNoteOf({ ...failed, reason: "No more re-plans for now" }, PARTS, "13:15")).toEqual({
+    expect(forkNoteOf({ ...failed, reason: "No more re-plans for now" }, PARTS, true)).toEqual({
       words: "No more re-plans for now, so “early dinner” stays",
       link: null,
     });
@@ -287,20 +288,20 @@ describe("forkNoteOf", () => {
 
   it("counts the parts past four, and names a whole day's proposal with nothing to point to", () => {
     const five = ["breakfast", "the morning", "lunch", "the afternoon", "dinner"];
-    expect(forkNoteOf({ ...FORK, isWriting: true }, five, "08:00")?.words).toBe(
+    expect(forkNoteOf({ ...FORK, isWriting: true }, five, true)?.words).toBe(
       "Writing “eating late” for five parts of the day",
     );
-    expect(forkNoteOf({ ...FORK, isWriting: true }, [], null)).toEqual({
+    expect(forkNoteOf({ ...FORK, isWriting: true }, [], false)).toEqual({
       words: "Writing “eating late” for the whole day",
       link: null,
     });
-    expect(forkNoteOf({ ...FORK, isReady: true }, [], null)?.words).toBe(
+    expect(forkNoteOf({ ...FORK, isReady: true }, [], false)?.words).toBe(
       "“eating late” is written as a whole day",
     );
   });
 
   it("says nothing once a version is chosen, nor at rest", () => {
-    expect(forkNoteOf({ ...FORK, isChosen: true }, PARTS, "13:15")).toBeNull();
-    expect(forkNoteOf(FORK, PARTS, "13:15")).toBeNull();
+    expect(forkNoteOf({ ...FORK, isChosen: true }, PARTS, true)).toBeNull();
+    expect(forkNoteOf(FORK, PARTS, true)).toBeNull();
   });
 });

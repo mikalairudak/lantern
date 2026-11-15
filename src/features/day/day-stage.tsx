@@ -93,7 +93,7 @@ import {
   forkNoteOf,
   keptStopsLineOf,
   notReplanningYetOf,
-  seeItAtOf,
+  SEE_IT,
   type EnergyRepicks,
 } from "./not-yet";
 import { replannedRequestOf } from "./replan-request";
@@ -687,7 +687,7 @@ export function DayStage({
     row.querySelector<HTMLElement>('[role="radio"][tabindex="0"]')?.focus({ preventScroll: true });
   };
   // Where the visitor looks once they have pressed a word, the facts line says what its fork is
-  // doing and where, or why the word came back, until they next act on the day; "see it at"
+  // doing and where, or why the word came back, until they next act on the day; "see it"
   // leads to the fork's first row, usually below a phone's screen, which nothing scrolls to by
   // itself (the phone pass, 2026-11-08).
   const replanBasis = shownOutcome?.kind === "complete" ? shownOutcome.itinerary : null;
@@ -702,8 +702,8 @@ export function DayStage({
             )?.value ?? replan.change.to,
         })
       : null;
-  // The fork's first row stands over its part's first stop, where "see it at" leads.
-  const forkAt = fork && forkParts?.kind === "part" ? forkParts.at : null;
+  // The fork's first row stands over its part's first stop, where "see it" leads.
+  const hasForkRow = fork !== null && forkParts?.kind === "part";
   const forkNote =
     forkView !== null && isForkShown && !isActedOn
       ? forkNoteOf(
@@ -712,7 +712,7 @@ export function DayStage({
             reason: forkView.isFailed ? (forkView.line?.words ?? null) : null,
           },
           forkParts?.kind === "part" ? forkParts.parts : [],
-          forkAt,
+          hasForkRow,
         )
       : null;
   const forkNoteShown =
@@ -724,7 +724,7 @@ export function DayStage({
             forkNote.link === null
               ? null
               : forkNote.link.kind === "see"
-                ? { label: seeItAtOf(forkNote.link.at), onPress: pointToFork }
+                ? { label: SEE_IT, name: forkNote.link.name, onPress: pointToFork }
                 : { label: ASK_AGAIN, onPress: fork?.onAskAgain ?? (() => replan?.askAgain()) },
         };
   // The line under the day counts the rows on screen, never the stream ahead of them: it

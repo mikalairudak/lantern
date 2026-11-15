@@ -1101,8 +1101,8 @@ describe("a changed time word with live generation on", () => {
     // then what stands beside the day; the facts come back once a version is taken.
     expect(lines).toEqual([
       before,
-      "Writing “slow morning” for the morning ·\u00A0see it at\u00A007:30",
-      "“slow morning” drawn beside the morning ·\u00A0see it at\u00A007:30",
+      "Writing “slow morning” for the morning ·\u00A0see it",
+      "“slow morning” drawn beside the morning ·\u00A0see it",
       before,
     ]);
     expect(statuses).toContain("re-planning the morning");
@@ -1368,6 +1368,10 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     const proposal = screen.getAllByRole("radio", { name: "slow morning, being written" })[0];
     expect(proposal).toHaveAttribute("aria-disabled", "true");
     expect(window.location.pathname).toBe(`/day/${KYOTO_DAY_ID}`);
+    // The facts line's "see it" leads to the proposal, and says so to a screen reader.
+    expect(
+      screen.getByRole("button", { name: "see it: “slow morning” beside the morning" }),
+    ).toHaveTextContent(/^see it$/);
   });
 
   it("takes the day before back from memory, with no call, and the proposal again, in the run's place", async () => {

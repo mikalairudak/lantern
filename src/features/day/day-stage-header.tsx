@@ -1838,7 +1838,8 @@ function FactsLine({
 /** What a changed word's fork says in the facts line's place, and the press it offers. */
 export interface ForkNoteShown {
   words: string;
-  link: { label: string; onPress: () => void } | null;
+  /** The press, its words and, where they say less than where it leads, the name it is heard by. */
+  link: { label: string; name?: string; onPress: () => void } | null;
 }
 
 interface ForkNoteLineProps {
@@ -1852,7 +1853,7 @@ interface ForkNoteLineProps {
  * The fork's note in the facts line's place, in the stronger of the two quiet inks: its words
  * come in faded as they change, as words not the model's do, and its press leads to the fork
  * or asks again. The dot before the press is bound to it, so a note that wraps takes the dot to
- * the next line with "see it at 17:30" rather than leaving it at a line's end, as the day's end
+ * the next line with "see it" rather than leaving it at a line's end, as the day's end
  * does with its ways.
  */
 function ForkNoteLine({ note, isReserve = false, className }: ForkNoteLineProps) {
@@ -1869,6 +1870,7 @@ function ForkNoteLine({ note, isReserve = false, className }: ForkNoteLineProps)
             ) : (
               <button
                 type="button"
+                aria-label={note.link.name}
                 onClick={note.link.onPress}
                 className={cn(LINK_CLASSES, TARGET_CLASSES, "text-ink")}
               >

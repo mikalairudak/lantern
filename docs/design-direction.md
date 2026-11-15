@@ -205,7 +205,7 @@ The phone is where a day is used: in the street, one hand, in sunlight, tired. T
 - For two seconds after a swap or a drag, the header's growth scrolls the page, so the chart under the finger holds still.
 - The line about the day is a size down, and the room for the curve's clause is taken when it comes, after the finger lifts.
 - A word's open list stands over the scale's band, moved into the screen. The city's field is large enough that Safari does not zoom to it.
-- A fork's parts are usually below the screen, so the facts line says what the fork does, "Writing “eating late” for lunch and dinner · see it at 13:15", and "see it at" scrolls there on a press. Nothing scrolls by itself.
+- A fork's parts are usually below the screen, so the facts line says what the fork does, "Writing “eating late” for lunch and dinner · see it", and "see it" scrolls to the fork's first row on a press. It names no hour, since the proposal may begin at another hour than the row's stop; a screen reader hears where it leads, "see it: “eating late” beside lunch and dinner". Nothing scrolls by itself.
 
 ### On a large screen
 
