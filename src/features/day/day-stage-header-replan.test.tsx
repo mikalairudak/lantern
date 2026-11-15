@@ -355,6 +355,10 @@ describe("DayStageHeader through a word's fork", () => {
     expect(energy).toHaveClass("text-muted");
 
     await user.click(energy);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(seenTextOf(factsLine())).toContain(ONE_CHANGE_AT_A_TIME);
+    expect(status).toHaveTextContent(ONE_CHANGE_AT_A_TIME);
+
     await user.click(onFoot);
     await user.click(within(headline()).getByRole("button", { name: /Elx \/ Elche/ }));
     // The way to another day, the new day's button, is locked as the words are: muted, with no

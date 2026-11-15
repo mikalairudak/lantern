@@ -1611,6 +1611,27 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     expect(replanPosts[0]?.signal.aborted).toBe(false);
   });
 
+  it("offers a changed word of three answers only its fork's two while its proposal is written", async () => {
+    replanReplies.push({ held: KYOTO_LATE_EVENING, at: 0.62 });
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "home by eight", "out late");
+    await waitFor(() => expect(day.current?.replan().status).toBe("writing"));
+
+    await user.click(within(headline()).getByRole("button", { name: "home by eight" }));
+
+    // "home by eleven", the word's third answer, would be a second request: it is not offered.
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      expect.stringContaining("home by eight"),
+      expect.stringContaining("out late"),
+    ]);
+    await user.click(screen.getByRole("option", { name: "out late" }));
+    expect(day.current?.replan().status).toBe("writing");
+    expect(replanPosts).toHaveLength(1);
+    expect(replanPosts[0]?.signal.aborted).toBe(false);
+  });
+
   it("never holds a pull of the curve or a swap while a proposal is written, nor drops it for one", async () => {
     replanReplies.push({ held: KYOTO_SLOW_MORNING, at: 0.62 });
     dayIds.push(KYOTO_DAY_ID);

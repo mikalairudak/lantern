@@ -9,7 +9,10 @@ import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
  */
 
 const BENCH = "/lab/concepts/replan";
-/** The proposal streams for about fifteen seconds at the bench's live pace; a cold server adds a few. */
+/**
+ * The bench's recorded proposal streams for about fifteen seconds at its live pace, modelled on
+ * production's; a cold server adds a few.
+ */
 const DAY_TIMEOUT_MS = waitMs(45_000);
 const LOCKED = "one change at a time";
 /** The proposal's last new stop, Elche's dinner eaten late. */
