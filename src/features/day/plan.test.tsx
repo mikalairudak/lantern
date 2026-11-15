@@ -55,6 +55,34 @@ describe("the plan's energy", () => {
     await user.click(screen.getByRole("button", { name: "lively" }));
     expect(onChoose).toHaveBeenCalledWith("lively");
   });
+
+  it("waits while a proposal is written, saying so on a press, and answers again once free", async () => {
+    const user = userEvent.setup();
+    const onChoose = vi.fn();
+    const onLockedPress = vi.fn();
+    const { rerender } = render(
+      <PlanEnergy
+        energy="calm"
+        isEnabled
+        isLocked
+        onLockedPress={onLockedPress}
+        onChoose={onChoose}
+      />,
+    );
+    const lively = screen.getByRole("button", { name: "lively" });
+    expect(lively).toHaveAttribute("aria-disabled", "true");
+    await user.click(lively);
+    expect(onChoose).not.toHaveBeenCalled();
+    expect(onLockedPress).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <PlanEnergy energy="calm" isEnabled onLockedPress={onLockedPress} onChoose={onChoose} />,
+    );
+    expect(lively).not.toHaveAttribute("aria-disabled");
+    await user.click(lively);
+    expect(onChoose).toHaveBeenCalledWith("lively");
+    expect(onLockedPress).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("the headline over the plan", () => {

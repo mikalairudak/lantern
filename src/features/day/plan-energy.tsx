@@ -12,17 +12,26 @@ import { DayViewSwitch } from "./view-switch";
  * energy's colour, held at the top with the view's switch while the plan scrolls, so on a phone
  * the day's energy stays one tap away. A word chosen is the headline's word chosen: the day moves
  * to the versions nearest it, and the headline says so (`docs/decisions.md`, "A day opens on its
- * plan, lit by the day's light"). Until the day can be changed, the words are said and wait.
+ * plan, lit by the day's light"). Until the day can be changed, the words are said and wait;
+ * while a changed word's proposal is written they are locked, as the headline's words are.
  */
 export function PlanEnergy({
   energy,
   isEnabled,
+  isLocked = false,
+  onLockedPress,
   onChoose,
   className,
 }: {
   /** The day's energy as the headline says it now. */
   energy: EnergyLevel;
   isEnabled: boolean;
+  /**
+   * A changed word's proposal is being written: the words wait as they do until the day can be
+   * changed, and a press says why (`onLockedPress`) and does nothing else.
+   */
+  isLocked?: boolean;
+  onLockedPress?: () => void;
   onChoose: (energy: EnergyLevel) => void;
   className?: string;
 }) {
@@ -39,8 +48,11 @@ export function PlanEnergy({
             key={level}
             type="button"
             aria-pressed={isOn}
-            aria-disabled={!isEnabled || undefined}
-            onClick={() => isEnabled && !isOn && onChoose(level)}
+            aria-disabled={!isEnabled || isLocked || undefined}
+            onClick={() => {
+              if (isLocked) return onLockedPress?.();
+              if (isEnabled && !isOn) onChoose(level);
+            }}
             className={cn(
               TARGET_CLASSES,
               // Six past the words sideways, where a link reaches eight: neighbours 12 px apart
@@ -69,12 +81,16 @@ export function PlanEnergy({
 export function PlanBar({
   energy,
   isEnabled,
+  isLocked,
+  onLockedPress,
   onChoose,
   ref,
   className,
 }: {
   energy: EnergyLevel;
   isEnabled: boolean;
+  isLocked?: boolean;
+  onLockedPress?: () => void;
   onChoose: (energy: EnergyLevel) => void;
   ref?: Ref<HTMLDivElement>;
   className?: string;
@@ -90,6 +106,8 @@ export function PlanBar({
       <PlanEnergy
         energy={energy}
         isEnabled={isEnabled}
+        isLocked={isLocked}
+        onLockedPress={onLockedPress}
         onChoose={onChoose}
         className="view-chart:hidden"
       />

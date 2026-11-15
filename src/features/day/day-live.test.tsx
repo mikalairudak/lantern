@@ -36,6 +36,7 @@ import { NOT_LIVE_NOTE } from "./start-header";
 import { StartDay } from "./start-day";
 import { writtenPool } from "./written-pool";
 import { TAKE_THIS_DAY } from "./day-menu";
+import { ONE_CHANGE_AT_A_TIME } from "./day-stage-header";
 import { sendProductEvent } from "@/lib/events/send-event";
 import type { ProductEvent } from "@/lib/events/event.schema";
 
@@ -1572,6 +1573,135 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     expect(screen.queryByRole("radiogroup")).toBeNull();
     expect(headline()).toHaveTextContent(/^A lively Saturday in Kyoto, on foot, early start,/);
     await waitForTheDay();
+  });
+
+  it("holds the energy while a proposal is written, on the plan's bar and in the headline, saying one change at a time", async () => {
+    replanReplies.push({ held: KYOTO_SLOW_MORNING, at: 0.62 });
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "early start", "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("writing"));
+    const bar = screen.getByRole("group", { name: "How lively the day is" });
+    const lively = within(bar).getByRole("button", { name: "lively" });
+    expect(lively).toHaveAttribute("aria-disabled", "true");
+
+    await user.click(lively);
+
+    // The half-written proposal is still on its way, the day's energy as it was, and the facts
+    // line says why nothing changed.
+    expect(day.current?.replan().status).toBe("writing");
+    expect(replanPosts[0]?.signal.aborted).toBe(false);
+    expect(within(bar).getByRole("button", { name: "calm" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(headline()).toHaveTextContent(/^A calm /);
+    expect(factsLineText()).toContain(ONE_CHANGE_AT_A_TIME);
+    // Said to a screen reader too, where the facts line has scrolled away above the bar.
+    const status = screen.getAllByRole("status").find((each) => each.tagName === "P");
+    expect(status).toHaveTextContent(ONE_CHANGE_AT_A_TIME);
+
+    const energyWord = within(headline()).getByRole("button", { name: "calm" });
+    expect(energyWord).toHaveAttribute("aria-disabled", "true");
+    await user.click(energyWord);
+
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(day.current?.replan().status).toBe("writing");
+    expect(replanPosts[0]?.signal.aborted).toBe(false);
+  });
+
+  it("offers a changed word of three answers only its fork's two while its proposal is written", async () => {
+    replanReplies.push({ held: KYOTO_LATE_EVENING, at: 0.62 });
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "home by eight", "out late");
+    await waitFor(() => expect(day.current?.replan().status).toBe("writing"));
+
+    await user.click(within(headline()).getByRole("button", { name: "home by eight" }));
+
+    // "home by eleven", the word's third answer, would be a second request: it is not offered.
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      expect.stringContaining("home by eight"),
+      expect.stringContaining("out late"),
+    ]);
+    await user.click(screen.getByRole("option", { name: "out late" }));
+    expect(day.current?.replan().status).toBe("writing");
+    expect(replanPosts).toHaveLength(1);
+    expect(replanPosts[0]?.signal.aborted).toBe(false);
+  });
+
+  it("never holds a pull of the curve or a swap while a proposal is written, nor drops it for one", async () => {
+    replanReplies.push({ held: KYOTO_SLOW_MORNING, at: 0.62 });
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "early start", "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("writing"));
+    await waitForTheDay();
+
+    // The day's last stop, past the morning the proposal rewrites: its curve pulled, then a
+    // version of it chosen.
+    const slider = screen.getAllByRole("slider").at(-1);
+    if (slider === undefined) throw new Error("Kyoto's day has stops on its curve");
+    slider.focus();
+    await user.keyboard("{ArrowRight}");
+    const version = [...document.querySelectorAll<SVGElement>(`[${CANDIDATE_ATTRIBUTE}]`)]
+      .filter((bead) => /:a\d$/.test(bead.getAttribute(CANDIDATE_ATTRIBUTE) ?? ""))
+      .at(-1);
+    if (version === undefined) throw new Error("Kyoto's last stops have versions");
+    await user.click(version);
+
+    expect(day.current?.replan().status).toBe("writing");
+    expect(replanPosts[0]?.signal.aborted).toBe(false);
+    expect(factsLineText()).not.toContain(ONE_CHANGE_AT_A_TIME);
+  });
+
+  it.each([
+    ["whole", KYOTO_SLOW_MORNING, "proposed"],
+    ["failed", { cut: KYOTO_SLOW_MORNING, at: 0.62 }, "failed"],
+  ] as const)(
+    "frees the energy once the proposal is %s, a press on the bar settling the fork as before",
+    async (_, reply, status) => {
+      replanReplies.push(reply);
+      dayIds.push(KYOTO_DAY_ID);
+      const day = createRef<DayHandle>();
+      const user = await askForKyoto(day);
+      await changeWord(user, "early start", "slow morning");
+      await waitFor(() => expect(day.current?.replan().status).toBe(status), DAY_TIMEOUT);
+      const bar = screen.getByRole("group", { name: "How lively the day is" });
+      const lively = within(bar).getByRole("button", { name: "lively" });
+      expect(lively).not.toHaveAttribute("aria-disabled");
+      expect(within(headline()).getByRole("button", { name: "calm" })).not.toHaveAttribute(
+        "aria-disabled",
+      );
+
+      await user.click(lively);
+
+      expect(day.current?.replan().status).toBe("idle");
+      expect(headline()).toHaveTextContent(/^A lively /);
+      await waitForTheDay();
+    },
+  );
+
+  it("frees the energy once the proposal is taken", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "early start", "slow morning");
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("taken"), DAY_TIMEOUT);
+    await waitForTheDay();
+
+    const bar = screen.getByRole("group", { name: "How lively the day is" });
+    expect(within(bar).getByRole("button", { name: "lively" })).not.toHaveAttribute(
+      "aria-disabled",
+    );
+    expect(within(headline()).getByRole("button", { name: "calm" })).not.toHaveAttribute(
+      "aria-disabled",
+    );
   });
 
   it("re-plans from the day before after taking it back, as the round after its own", async () => {

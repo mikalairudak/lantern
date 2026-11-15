@@ -348,8 +348,16 @@ describe("DayStageHeader through a word's fork", () => {
     expect(onFoot).toHaveAttribute("aria-disabled", "true");
     expect(onFoot).toHaveClass("text-muted");
     expect(onFoot).not.toHaveClass("hover:underline");
-    // So is the date.
+    // So is the date, and the energy, though a re-pick asks for no day.
     expect(within(headline()).getByText("Thursday")).toHaveClass("text-muted");
+    const energy = within(headline()).getByRole("button", { name: "balanced" });
+    expect(energy).toHaveAttribute("aria-disabled", "true");
+    expect(energy).toHaveClass("text-muted");
+
+    await user.click(energy);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(seenTextOf(factsLine())).toContain(ONE_CHANGE_AT_A_TIME);
+    expect(status).toHaveTextContent(ONE_CHANGE_AT_A_TIME);
 
     await user.click(onFoot);
     await user.click(within(headline()).getByRole("button", { name: /Elx \/ Elche/ }));
