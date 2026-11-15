@@ -19,7 +19,6 @@ import { axisLightTo, bestLightOf, isGoldenAt } from "./light";
 import { isSameLines, type LineBox } from "./line-boxes";
 import {
   isRoomOpen,
-  isSunMinuteInOrder,
   placeLabel,
   rowScale,
   rowScaleLeaving,
@@ -27,6 +26,7 @@ import {
   hasEntered,
   keptApart,
   rowsKeptClear,
+  sunLabelsAt,
   wordsRightOf,
   type RowExtent,
   type RowSizes,
@@ -34,7 +34,7 @@ import {
 import { hungDayHeightOf, sheetBandOf, sheetSideOf, type SheetRoom } from "./sheet-placement";
 import { detailsOf } from "./stop-details";
 
-import type { SunLabels } from "./chart-axes";
+import { NO_SUN_LABELS, type SunLabels } from "./chart-axes";
 import { dayViewOf, roomAboveOf, roomUnder, tailUnderOf } from "./day-view";
 import { useSprung, useSprungAll } from "@/components/ui/use-sprung";
 import {
@@ -775,18 +775,16 @@ export function DayRows({
     const wordsTop = topsTarget[index] ?? 0;
     return { minutes: visits[index]?.from ?? 0, y: wordsTop + middle };
   });
-  const isSunLabelled = (minute: number | null): boolean =>
-    isUsable &&
-    minute !== null &&
-    isSunMinuteInOrder(
-      { minutes: minute, y: target.scale.yOf(minute) },
-      gutterTimes,
-      rowSizes.sunLabelClearance,
-    );
-  const sunLabels: SunLabels = {
-    sunrise: isSunLabelled(chart.sunrise),
-    sunset: isSunLabelled(chart.sunset),
-  };
+  // Weighed where the axis is drawn once the rows rest, held lower while a version stands
+  // beside the day, as their times are (`sunLabelsAt`).
+  const sunLabels: SunLabels = isUsable
+    ? sunLabelsAt(
+        { sunrise: chart.sunrise, sunset: chart.sunset },
+        { width, basisHeight, dayStart, dayEnd },
+        { rows, anchors: restingAnchors, times: gutterTimes },
+        drawing,
+      )
+    : NO_SUN_LABELS;
   // A stop that starts where the axis runs in golden hour says its time in amber.
   const isGoldenStart = (index: number): boolean => isGoldenAt(axisLight, visits[index]?.from ?? 0);
   /** Where a waiting phrase sits: by the bead the next name will be written beside. */

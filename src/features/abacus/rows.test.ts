@@ -10,6 +10,7 @@ import {
   rowScaleLeaving,
   rowsKeptClear,
   ROW,
+  sunLabelsAt,
   wordsRightOf,
   anchorsOf,
   type RowExtent,
@@ -96,6 +97,59 @@ describe("isSunMinuteInOrder", () => {
 
   it("says it on a day with no stops yet", () => {
     expect(isSunMinuteInOrder({ minutes: clock(17, 25), y: 0 }, [], CLEAR)).toBe(true);
+  });
+});
+
+describe("sunLabelsAt", () => {
+  const clock = (hours: number, minutes = 0) => hours * 60 + minutes;
+  /** A laptop's abacus column from ten to eight. */
+  const FRAME = { width: 768, basisHeight: 600, dayStart: clock(10), dayEnd: clock(20) };
+  /** A morning, an afternoon and a dinner at 17:30, each row's words 60 px over its wire. */
+  const ROWS = [
+    { start: clock(10, 30), mid: clock(11) },
+    { start: clock(14, 30), mid: clock(15) },
+    { start: clock(17, 30), mid: clock(18) },
+  ].map(({ start, mid }) => ({ start, extent: { mid, above: 60 } }));
+  const extents = ROWS.map(({ extent }) => extent);
+  /** The middle of a time's line under the top of its row's words. */
+  const TIME_MIDDLE = 11;
+  const timesAt = (anchors: readonly number[]) =>
+    ROWS.map(({ start, extent }, index) => ({
+      minutes: start,
+      y: (anchors[index] ?? 0) - extent.above + TIME_MIDDLE,
+    }));
+  const afresh = rowScale(FRAME.width, FRAME.basisHeight, FRAME.dayStart, FRAME.dayEnd, extents);
+  /** The rows under the first held 53 px lower, as a version beside the day holds them. */
+  const held = afresh.anchors.map((anchor, index) => (index === 0 ? anchor : anchor + 53));
+  const heldScale = rowScale(
+    FRAME.width,
+    FRAME.basisHeight,
+    FRAME.dayStart,
+    FRAME.dayEnd,
+    extents,
+    held,
+  ).scale;
+  const heldTimes = timesAt(held);
+  /** The sunset drawn level with the dinner's time where the rows rest. */
+  const sunsetOnDinner = Math.floor(heldScale.minutesAt(heldTimes[2]?.y ?? 0));
+
+  it("weighs a sun where the axis draws it once the rows rest, held lower beside a version", () => {
+    const resting = { rows: extents, anchors: held, times: heldTimes };
+    expect(sunLabelsAt({ sunrise: null, sunset: sunsetOnDinner }, FRAME, resting).sunset).toBe(
+      false,
+    );
+    // Weighed on the day laid out afresh, the same sunset stood clear above the dinner's time.
+    const afreshScaleSaid = sunLabelsAt({ sunrise: null, sunset: sunsetOnDinner }, FRAME, {
+      ...resting,
+      anchors: afresh.anchors,
+    });
+    expect(afreshScaleSaid.sunset).toBe(true);
+  });
+
+  it("says a sun clear of every time where the rows rest, and none that does not rise", () => {
+    const resting = { rows: extents, anchors: held, times: heldTimes };
+    const labels = sunLabelsAt({ sunrise: null, sunset: clock(16, 30) }, FRAME, resting);
+    expect(labels).toEqual({ sunrise: false, sunset: true });
   });
 });
 
