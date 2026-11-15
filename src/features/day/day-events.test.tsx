@@ -734,6 +734,41 @@ describe("the gestures on a day, as the product counts them", () => {
     ]);
   });
 
+  it("counts a day reached by Back or Forward as opened once, and tells what was done on it once", async () => {
+    const user = userEvent.setup();
+    render(<Day first={KANAZAWA_START_REQUEST} isAddressed isCounted />);
+    await waitForTheDay();
+    const menu = () => screen.getByRole("button", { name: TAKE_THIS_DAY });
+    await user.click(menu());
+    await user.click(menu());
+    await user.click(within(headline()).getByRole("button", { name: "Kanazawa" }));
+    await user.click(screen.getByRole("button", { name: /^Bologna/ }));
+    await waitFor(() => expect(window.location.pathname).toBe("/day/bologna"), DAY_TIMEOUT);
+    await waitForTheDay();
+
+    window.history.back();
+    await waitFor(() => expect(headline()).toHaveTextContent(/in Kanazawa/), DAY_TIMEOUT);
+    // Its menu was told opened already, on this day.
+    await user.click(menu());
+    await user.click(menu());
+    window.history.forward();
+    await waitFor(() => expect(headline()).toHaveTextContent(/in Bologna/), DAY_TIMEOUT);
+    await user.click(menu());
+    await user.click(menu());
+
+    const BOLOGNA_WORD = { city: "bologna", via: "word", written: true } as const;
+    expect(sentOf("day-opened")).toEqual([
+      { kind: "day-opened", ...KANAZAWA_LINK },
+      { kind: "day-opened", ...BOLOGNA_WORD },
+    ]);
+    expect(sentOf("day-ended")).toHaveLength(2);
+    expect(sentOf("day-left")).toEqual([]);
+    expect(sentOf("menu-opened")).toEqual([
+      { kind: "menu-opened", ...KANAZAWA_LINK, ...ON_CHART },
+      { kind: "menu-opened", ...BOLOGNA_WORD, ...ON_CHART },
+    ]);
+  });
+
   it("tells the day's end answer once a day opened, with the day and the view", async () => {
     const user = userEvent.setup();
     render(<Day first={KANAZAWA_START_REQUEST} isCounted />);

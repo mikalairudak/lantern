@@ -105,8 +105,8 @@ test("a city pressed on the start screen is named in the address once its day ta
   await expect(page).toHaveURL(/\/day\/bologna$/);
   await expect(page).toHaveTitle("A lively Saturday in Bologna, with friends · Lantern");
   await expect(headline(page)).toContainText("A lively Saturday in Bologna");
-  // A day after a day replaces its address: one entry for the day, whichever city it is.
-  expect(await page.evaluate(() => window.history.length)).toBe(entries + 1);
+  // A day after a day takes an entry of its own, so Back comes back to the day before.
+  expect(await page.evaluate(() => window.history.length)).toBe(entries + 2);
   expect(seen).toEqual({ routeFetches: [], errors: [] });
 
   await page.reload();

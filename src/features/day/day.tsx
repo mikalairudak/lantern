@@ -171,10 +171,29 @@ interface Asked {
    */
   record: DayRecord | null;
   /**
-   * A whole day's version taken from memory by its fork: the visitor's list already holds it,
-   * so the stream, which may still hold the same request, never tells it.
+   * A whole day's version taken from memory by its fork, or by Back or Forward: the visitor's
+   * list already holds it, so the stream, which may still hold the same request, never tells it.
    */
   isFromMemory: boolean;
+  /**
+   * The key of the day's history entry (`DAY_ENTRY`). A new day asked for takes a key of its
+   * own, and with it an entry after the day before, so Back comes back to that day; a change
+   * within the day, a re-plan, a version of its fork, the same day asked again or landing again,
+   * keeps its key, and replaces the entry's address.
+   */
+  entry: string;
+  /**
+   * A written day drawn whole from memory, by the key this device knows it by (`seen-days.ts`),
+   * which the stream that played it no longer says: the places chosen on it come back under it.
+   * Null otherwise.
+   */
+  seenKey: string | null;
+  /**
+   * The request the day was opened as in the product's events, its `request` as it was first
+   * played: a re-plan merged into it, drawn whole from memory, says its own request, and the day
+   * is still the one opened. Back and Forward bring its opening back by it.
+   */
+  openedAs: DayRequest;
 }
 
 /** A day's row in the log as the page knows it: its id, once named, and its re-plans so far. */
@@ -199,6 +218,8 @@ interface PlayOptions {
   confirmed?: readonly AssumableFactKey[];
   /** The cities the name could mean, when an intake just read them for this day. */
   readings?: readonly CityReading[];
+  /** The same day asked again, as a retry or a replay: it keeps its history entry. */
+  isAgain?: boolean;
 }
 
 /** How a day is asked for on the start screen, beyond its request. */
@@ -368,18 +389,48 @@ const NO_WINDOWS: readonly ReplanWindow[] = [];
 const NO_READINGS: readonly CityReading[] = [];
 
 /**
- * A history entry of a day's, as the day pushes or replaces it: told apart from the start
- * screen's own entry when both are at the start screen's address, as a day for a city
- * Lantern writes no day for is.
+ * A history entry of a day's, as the day pushes or replaces it, named by the day's entry key
+ * (`Asked.entry`): told apart from the start screen's own entry when both are at the start
+ * screen's address, as a day for a city Lantern writes no day for is, and from another day's
+ * at the same address, so Back and Forward know which day each entry holds.
  */
-const DAY_ENTRY = { lantern: "day" } as const;
+const DAY_ENTRY = "day";
+
+interface DayEntry {
+  lantern: typeof DAY_ENTRY;
+  key: string;
+}
+
+function dayEntryOf(key: string): DayEntry {
+  return { lantern: DAY_ENTRY, key };
+}
 
 function isDayEntry(state: unknown): boolean {
   return (
     typeof state === "object" &&
     state !== null &&
-    (state as { lantern?: unknown }).lantern === DAY_ENTRY.lantern
+    (state as { lantern?: unknown }).lantern === DAY_ENTRY
   );
+}
+
+/** The key of the day a history entry holds, or null for an entry that is no day's. */
+function entryKeyOf(state: unknown): string | null {
+  if (!isDayEntry(state)) return null;
+  const { key } = state as { key?: unknown };
+  return typeof key === "string" ? key : null;
+}
+
+/** How many entry keys this page load has made, so each is its own. */
+let entriesMade = 0;
+/**
+ * A day's entry key, its own across page loads too: a reload keeps the tab's entries and
+ * their keys, so a count alone, which starts again with the page, could name an old entry.
+ */
+const PAGE_LOAD_KEY = Math.random().toString(36).slice(2);
+
+function newEntryKey(): string {
+  entriesMade += 1;
+  return `${PAGE_LOAD_KEY}-${entriesMade}`;
 }
 
 /** A day kept under the start screen: the viewport's size, out of the flow, unseen. */
@@ -552,11 +603,11 @@ export function Day({
   const [asked, setAsked] = useState<Asked | null>(() =>
     first
       ? {
-          ...landingOf(first),
+          ...landingOf(first, newEntryKey()),
           whole: written ? { itinerary: written.itinerary, checks: written.checks } : null,
         }
       : kept
-        ? keptLandingOf(kept, 0, false)
+        ? keptLandingOf(kept, 0, false, newEntryKey())
         : null,
   );
   // A visitor who has not watched the page's day to its end has it played, from its empty
@@ -600,7 +651,7 @@ export function Day({
   if (keptKey !== landedKey) {
     setLandedKey(keptKey);
     if (kept && asked?.kept?.id === kept.id) {
-      setAsked(keptLandingOf(kept, asked.run + 1, isKeptSeen(kept.id)));
+      setAsked(keptLandingOf(kept, asked.run + 1, isKeptSeen(kept.id), asked.entry));
     }
   }
   // What the day says back of the visitor's words that Lantern could not plan around: those it
@@ -628,9 +679,9 @@ export function Day({
   // title says the energy the headline says. Kept with its run, so a new day drops it.
   const [repicked, setRepicked] = useState<{ run: number; energy: EnergyLevel } | null>(null);
   const shownEnergy = isThisRun(repicked, asked) ? repicked.energy : undefined;
-  // Back from a day asked on the start screen shows the start screen again, while the day writes on
-  // in memory; Forward shows the day again as it stands (`docs/decisions.md`, "A day is written to
-  // its end, and kept to be opened again").
+  // Back from the first day asked on the start screen shows the start screen again, while the day
+  // writes on in memory; Forward shows the day again as it stands (`docs/decisions.md`, "Back goes
+  // to the day before").
   const [isStartShown, setIsStartShown] = useState(false);
   const [line, setLine] = useState<StartLine>(null);
   // What the visitor has typed: held here, so a day on its way keeps it.
@@ -672,7 +723,9 @@ export function Day({
     if (!asked || asked.kept || !isWrittenRequest(asked.request)) return null;
     const isFirst = first !== undefined && isSameRequest(asked.request, first);
     if (isFirst && firstSeenKey !== null) return firstSeenKey;
-    return playedVersion !== null ? seenKeyOf(daySlugOf(asked.request), playedVersion) : null;
+    return playedVersion !== null
+      ? seenKeyOf(daySlugOf(asked.request), playedVersion)
+      : asked.seenKey;
   }, [asked, first, firstSeenKey, playedVersion]);
   // The places chosen on the day on screen are kept under the same key as its seen mark: a day
   // the log keeps by its id, a written one by its version. A re-plan's day not yet named has
@@ -688,40 +741,64 @@ export function Day({
     if (shownDayId !== null) markSeen(keptSeenKeyOf(shownDayId));
     if (writtenKey !== null) markSeen(writtenKey);
   }, [writtenKey, shownDayId]);
-  // A day taking the page from the start screen pushes its address, so Back comes back to
-  // the start screen; a day after a day replaces it, so a re-plan or a city changed is one
-  // entry. The router keeps its tree, so nothing remounts and nothing is fetched.
+  // The day entries this page has written, by key: a day after one of them, or after the start
+  // screen's own entry, takes an entry of its own; on any other, as the page lands, it takes the
+  // entry it landed on.
+  const entriesWritten = useRef(new Set<string>());
+  // The page is loading another day's address in its place: no entry is written meanwhile.
+  const isLeaving = useRef(false);
+  // Back or Forward, by the entry it lands on (`onPopState`, below): also run for one the page
+  // did not hear, as a page hidden while another route shows, or kept by the browser, misses it.
+  const goneTo = useRef<(state: unknown) => void>(() => undefined);
+  // A page the browser kept and shows again is the page on screen again, on whichever of its
+  // entries the browser shows it: it shows that entry's day, and goes on writing its entries.
+  // A page that does not keep its address has no entries of its own to read.
   useEffect(() => {
-    if (!isAddressed || isStartShown) return;
+    if (!isAddressed) return;
+    const onShow = (event: PageTransitionEvent) => {
+      isLeaving.current = false;
+      if (event.persisted) goneTo.current(window.history.state);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, [isAddressed]);
+  const shownEntry = asked?.entry ?? null;
+  // The address names the day on screen (`docs/decisions.md`, "Back goes to the day before"): a new
+  // day pushes an entry after the day or the start screen before it, so Back comes back to that,
+  // and a change within the day replaces its own entry's address, so a re-plan is one entry. A day
+  // whose entry is written already stands on another entry only by a Back or Forward the page did
+  // not hear, which it takes as one. The router keeps its tree, so nothing remounts and nothing is
+  // fetched.
+  useEffect(() => {
+    if (!isAddressed || isLeaving.current) return;
     const here = window.location.pathname;
-    const entry = window.history.state as unknown;
-    // The start screen with no day keeps its own entry.
-    if (shownRequest !== null && (here !== dayAddress || !isDayEntry(entry))) {
-      const isFromStart = here === START_ADDRESS && start !== undefined && !isDayEntry(entry);
-      if (isFromStart) window.history.pushState(DAY_ENTRY, "", dayAddress);
-      else window.history.replaceState(DAY_ENTRY, "", dayAddress);
+    const state = window.history.state as unknown;
+    const key = entryKeyOf(state);
+    if (isStartShown) {
+      // The start screen stands on its own entry, or on a day's it holds nothing for.
+      if (key !== null) goneTo.current(state);
+      return;
+    }
+    if (shownEntry !== null && shownRequest !== null) {
+      if (key !== shownEntry && entriesWritten.current.has(shownEntry)) {
+        goneTo.current(state);
+        return;
+      }
+      if (key !== shownEntry) {
+        const isAfterDay = key !== null && entriesWritten.current.has(key);
+        const isFromStart = !isDayEntry(state) && here === START_ADDRESS && start !== undefined;
+        entriesWritten.current.add(shownEntry);
+        if (isAfterDay || isFromStart) {
+          window.history.pushState(dayEntryOf(shownEntry), "", dayAddress);
+        } else {
+          window.history.replaceState(dayEntryOf(shownEntry), "", dayAddress);
+        }
+      } else if (here !== dayAddress) {
+        window.history.replaceState(dayEntryOf(shownEntry), "", dayAddress);
+      }
     }
     document.title = dayTitleOf(shownRequest, shownEnergy, dayAddress);
-  }, [isAddressed, isStartShown, dayAddress, start, shownRequest, shownEnergy]);
-  useEffect(() => {
-    if (!isAddressed) return undefined;
-    const onPop = (event: PopStateEvent) => {
-      const here = window.location.pathname;
-      // The start screen's own entry, not a day's at the same address, as a city Lantern
-      // writes no day for has.
-      if (here === START_ADDRESS && start !== undefined && !isDayEntry(event.state)) {
-        setIsStartShown(true);
-        document.title = dayTitleOf(null);
-      } else if (here === dayAddress) {
-        setIsStartShown(false);
-      } else {
-        // Any other day of the visitor's: its own page opens it.
-        window.location.assign(here);
-      }
-    };
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-  }, [isAddressed, start, dayAddress]);
+  }, [isAddressed, isStartShown, shownEntry, dayAddress, start, shownRequest, shownEnergy]);
   // A day with an id keeps its caveats on this device under it, and a re-plan merged into it, or
   // written whole from it, under its own id once it is the day on screen: so a re-plan the visitor
   // let go, never on screen, keeps none.
@@ -806,23 +883,37 @@ export function Day({
       source.current(request, signatures.current.get(signedKeyOf(request)) ?? null),
     [],
   );
-  /** Plays a day from where it streams, opened as the visitor reached it. */
+  // The stream as last drawn, for a play asked after it.
+  const streamNow = useRef<Pick<DayStream, "request" | "outcome">>(stream);
+  useLayoutEffect(() => {
+    streamNow.current = stream;
+  });
+  /**
+   * Plays a request from where it streams, opened as the visitor reached it. A request the stream
+   * has played to an ending is not asked again: a page hidden while another route shows runs its
+   * effects again as it shows, and the day would be asked of the route a second time and written
+   * over from its empty frame. One that was stopped before its ending, as hiding the page or React's
+   * Strict Mode stops it, plays again.
+   */
   const playFrom = useCallback(
-    (source: DaySource, via: DayVia) => {
+    (request: DayRequest, via: DayVia) => {
+      const now = streamNow.current;
+      if (now.request === request && now.outcome !== null) return;
+      const source = sourceOf(request);
       openDay(source.request, via);
       play(source);
     },
-    [openDay, play],
+    [openDay, play, sourceOf],
   );
   useEffect(() => {
     if (asked && !asked.isStreamed && asked.kept === null && asked.whole === null) {
-      playFrom(sourceOf(asked.request), asked.via);
+      playFrom(asked.request, asked.via);
     }
-  }, [asked, playFrom, sourceOf]);
+  }, [asked, playFrom]);
   // A day drawn whole is opened, and ended, as one played to its end is, once it is the day
   // this visit shows.
   useEffect(() => {
-    if (asked?.whole != null && !isAwaitingPlay) openDay(asked.request, asked.via, "complete");
+    if (asked?.whole != null && !isAwaitingPlay) openDay(asked.openedAs, asked.via, "complete");
   }, [asked, isAwaitingPlay, openDay]);
   // A kept day with its stops is opened by its own address and ended the way it was kept,
   // whether its pen writes it in or it comes whole. A notice in a day's place, for one not
@@ -835,8 +926,8 @@ export function Day({
     openDay(asked.request, "kept", outcome.kind);
   }, [asked, openDay]);
   useEffect(() => {
-    if (pending) playFrom(sourceOf(pending.request), pending.via);
-  }, [pending, playFrom, sourceOf]);
+    if (pending) playFrom(pending.request, pending.via);
+  }, [pending, playFrom]);
   useEffect(() => {
     if (!pending) return undefined;
     const timer = window.setTimeout(() => setIsHoldOver(true), START_WORDS_CAP_MS);
@@ -867,8 +958,10 @@ export function Day({
       setPending(null);
       setLine(null);
       setIsStartShown(false);
+      const entry = newEntryKey();
       setAsked((last) => ({
         request: pending.request,
+        openedAs: pending.request,
         run: (last?.run ?? 0) + 1,
         via: pending.via,
         isChosen: true,
@@ -884,6 +977,8 @@ export function Day({
         whole: null,
         record: null,
         isFromMemory: false,
+        entry,
+        seenKey: null,
       }));
     });
     return () => cancelAnimationFrame(turn);
@@ -999,7 +1094,14 @@ export function Day({
     (
       request: DayRequest,
       isChosen: boolean,
-      { via = "word", unplaced = [], played, confirmed = NO_CONFIRMED, readings }: PlayOptions = {},
+      {
+        via = "word",
+        unplaced = [],
+        played,
+        confirmed = NO_CONFIRMED,
+        readings,
+        isAgain = false,
+      }: PlayOptions = {},
     ) => {
       // A city still being read for the city word gives way to the day played instead, and
       // so does a re-plan on its way.
@@ -1018,12 +1120,18 @@ export function Day({
       // one that ended without a day has only a notice's room above no chart.
       const isHeld = isChosen && !endedWithoutDay.current;
       const heldRoom = isHeld ? (room.current?.getBoundingClientRect().height ?? null) : null;
+      // The same day asked again keeps its entry, and so does a day played in place of one that
+      // ended without a day, which left nothing to come back to; any other day takes its own.
+      const isInPlace = isAgain || endedWithoutDay.current;
+      const fresh = newEntryKey();
+      const asking = { ...request };
       setAsked((last) => {
         const isSameCity =
           last?.request.city === request.city && last.request.timezone === request.timezone;
         const keepsReadings = played !== undefined || isSameCity;
         return {
-          request: { ...request },
+          request: asking,
+          openedAs: asking,
           run: (last?.run ?? 0) + 1,
           via,
           isChosen,
@@ -1039,6 +1147,8 @@ export function Day({
           whole: wholeOf(request),
           record: null,
           isFromMemory: false,
+          entry: isInPlace && last !== null ? last.entry : fresh,
+          seenKey: null,
         };
       });
     },
@@ -1091,6 +1201,8 @@ export function Day({
       whole: { itinerary: outcome.itinerary, checks },
       record: { id: shownDayId, round: shownRound },
       isFromMemory: true,
+      // A re-plan merged into a written day is no longer that day.
+      seenKey: mergedShown === null ? writtenKey : null,
     };
   };
   /**
@@ -1347,8 +1459,8 @@ export function Day({
     return () => window.clearTimeout(gone);
   }, [folding, isReducedMotion, letFoldingGo]);
   useEffect(() => {
-    if (replanning) playFrom(sourceOf(replanning.request), "word");
-  }, [replanning, playFrom, sourceOf]);
+    if (replanning) playFrom(replanning.request, "word");
+  }, [replanning, playFrom]);
   const replanned = hasStreamTaken(stream, replanning?.request) ? stream : null;
   // The whole day asked again, as one of the visitor's days, from when its answer names it.
   const replannedId = replanned?.dayId ?? null;
@@ -1388,6 +1500,7 @@ export function Day({
     const turn = requestAnimationFrame(() => {
       const landed: Asked = {
         request: replanning.request,
+        openedAs: replanning.request,
         run: asked.run + 1,
         via: "word",
         isChosen: true,
@@ -1405,6 +1518,9 @@ export function Day({
         // A day written again whole is a new day of the log's: it has taken no re-plan.
         record: { id: replannedId, round: 0 },
         isFromMemory: false,
+        // A re-plan of the day on screen: the day's own entry, its address replaced.
+        entry: asked.entry,
+        seenKey: null,
       };
       if (replannedId !== null) {
         keepDay({
@@ -1594,7 +1710,7 @@ export function Day({
     () => ({
       // The same day again, reached as it was.
       replay: () => {
-        if (asked) playDay(asked.request, false, { via: asked.via });
+        if (asked) playDay(asked.request, false, { via: asked.via, isAgain: true });
       },
       replan: () => controlsNow.current,
     }),
@@ -1790,13 +1906,105 @@ export function Day({
    * back as it stands, as Forward brings it; any other opens at its own address.
    */
   const openYourDay = (id: string) => {
-    if (id === shownDayId) {
-      window.history.pushState(DAY_ENTRY, "", dayAddress);
+    if (id === shownDayId && asked !== null) {
+      entriesWritten.current.add(asked.entry);
+      window.history.pushState(dayEntryOf(asked.entry), "", dayAddress);
       setIsStartShown(false);
     } else {
       window.location.assign(dayAddressOfId(id));
     }
   };
+
+  // Each day this page has shown, by its entry key, as it last stood drawn whole: complete, or
+  // the page's own written day, which the page holds whole however far its play went. Back or
+  // Forward to its entry draws it from here, with no call.
+  const daysLeft = useRef(new Map<string, Asked>());
+  const dayToKeep =
+    dayBeforeOf() ??
+    (asked !== null && pageOwnWhole !== null && mergedShown === null
+      ? {
+          ...asked,
+          isChosen: false,
+          isAfterExit: false,
+          whole: pageOwnWhole,
+          record: null,
+          isFromMemory: true,
+          seenKey: writtenKey,
+        }
+      : null);
+  useEffect(() => {
+    if (dayToKeep !== null) daysLeft.current.set(dayToKeep.entry, dayToKeep);
+  });
+
+  /**
+   * A day left for another, back on screen from memory as Back or Forward brings it: drawn whole
+   * as it stood, its address and its places chosen with it. Whatever the day it replaces had
+   * under way stops as a new day stops it: a re-plan, a reading, or its own stream, which a live
+   * day's server writes on to its end.
+   */
+  const returnTo = (day: Asked) => {
+    stopReading();
+    setTypedCity(null);
+    // A day the start screen was writing gives way too, and its line with it.
+    if (pending) {
+      setPending(null);
+      setLine(null);
+    }
+    setReplanning(null);
+    setReplanLine(null);
+    setTargeted(null);
+    stopReplan();
+    setChange(null);
+    setWholeTurn(null);
+    setPartFork(null);
+    stop();
+    // Its opening comes back before it is drawn, so the effect that opens a day drawn whole finds
+    // it open and counts nothing again.
+    events.resume(day.openedAs, day.via);
+    setIsStartShown(false);
+    setAsked((last) => ({ ...day, run: (last?.run ?? 0) + 1, heldRoom: null }));
+  };
+
+  /**
+   * Back or Forward, by the entry it lands on: the start screen's own shows the start screen, the
+   * day on screen's shows it, a day left for another comes back from memory, and any other loads
+   * its own address in the entry's place: its own page draws it, a kept day from its record. A day
+   * at the start screen's address that the page no longer holds has no page of its own, so the
+   * start screen stands for it. A day the start screen was asking for gives way to the day Forward
+   * brings back, which is drawn from memory, since that day took the stream.
+   */
+  const onPopState = (state: unknown) => {
+    // A load of another address that this Back or Forward stopped is no longer under way.
+    isLeaving.current = false;
+    const here = window.location.pathname;
+    const key = entryKeyOf(state);
+    const left = key === null ? undefined : daysLeft.current.get(key);
+    const isAtStart = here === START_ADDRESS && start !== undefined;
+    if (key !== null && key === asked?.entry && pending === null) {
+      if (isStartShown && reading.current !== null) {
+        stopReading();
+        setLine(null);
+      }
+      setIsStartShown(false);
+    } else if (left !== undefined) {
+      returnTo(left);
+    } else if (isAtStart) {
+      setIsStartShown(true);
+      document.title = dayTitleOf(null);
+    } else {
+      isLeaving.current = true;
+      window.location.replace(here);
+    }
+  };
+  useLayoutEffect(() => {
+    goneTo.current = onPopState;
+  });
+  useEffect(() => {
+    if (!isAddressed) return undefined;
+    const onPop = (event: PopStateEvent) => goneTo.current(event.state);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [isAddressed]);
 
   return (
     <MotionConfig reducedMotion="user" transition={SPRINGS.layout}>
@@ -1876,6 +2084,7 @@ export function Day({
                 via: asked.via,
                 unplaced: saidBack,
                 confirmed: asked.confirmed,
+                isAgain: true,
               })
             }
             typedCity={typedCity}
@@ -1963,7 +2172,7 @@ function isNoDayOf(ending: DayOutcome["kind"]): boolean {
 }
 
 /** The day a page lands on, played from the route on arrival: its address was opened. */
-function landingOf(request: DayRequest): Asked {
+function landingOf(request: DayRequest, entry: string): Asked {
   return {
     request,
     run: 0,
@@ -1981,12 +2190,15 @@ function landingOf(request: DayRequest): Asked {
     whole: null,
     record: null,
     isFromMemory: false,
+    entry,
+    seenKey: null,
+    openedAs: request,
   };
 }
 
 /** A kept day as the page lands on it, or as a new landing for it takes the page. */
-function keptLandingOf(kept: KeptLanding, run: number, isWhole: boolean): Asked {
-  return { ...landingOf(kept.request), run, isStreamed: true, kept, isKeptWhole: isWhole };
+function keptLandingOf(kept: KeptLanding, run: number, isWhole: boolean, entry: string): Asked {
+  return { ...landingOf(kept.request, entry), run, isStreamed: true, kept, isKeptWhole: isWhole };
 }
 
 /** A word as the sentence says it: its answer's label, or its open question's cue. */

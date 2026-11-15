@@ -1,5 +1,6 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Activity } from "react";
 import {
   afterAll,
   afterEach,
@@ -858,6 +859,270 @@ describe("the address, on a page that asks the day to keep it", () => {
     expect(fetchDay).toHaveBeenCalledOnce();
   });
 
+  /** Plays another written day from the headline's city word. */
+  async function chooseCity(user: ReturnType<typeof userEvent.setup>, from: string, to: string) {
+    await user.click(within(headline()).getByRole("button", { name: from }));
+    await user.click(screen.getByRole("button", { name: new RegExp(`^${to}`) }));
+  }
+
+  /**
+   * Presses Paris on the start screen: the entries the tab then holds, Paris's the last, since
+   * jsdom keeps one history for every test, and a push drops what an earlier test left ahead.
+   */
+  async function playParis(user: ReturnType<typeof userEvent.setup>): Promise<number> {
+    await user.click(cityWord("Paris"));
+    await waitFor(() => expect(window.location.pathname).toBe("/day/paris"));
+    await waitForTheDay();
+    return window.history.length;
+  }
+
+  /** The start screen, then Paris pressed on it, then Bologna from Paris's city word. */
+  async function playParisThenBologna() {
+    const user = renderAddressed();
+    const withParis = await playParis(user);
+    await chooseCity(user, "Paris", "Bologna");
+    await waitFor(() => expect(window.location.pathname).toBe("/day/bologna"));
+    await waitForTheDay();
+    return { user, withParis };
+  }
+
+  const PARIS_TITLE = "A calm Sunday in Paris, slow morning, with a partner · Lantern";
+  const BOLOGNA_TITLE = "A lively Saturday in Bologna, with friends · Lantern";
+
+  it(
+    "gives a day after a day an entry of its own: Back shows the day before whole, and Forward the day after, with no call",
+    async () => {
+      const { withParis } = await playParisThenBologna();
+      expect(window.history.length).toBe(withParis + 1);
+      expect(document.title).toBe(BOLOGNA_TITLE);
+      expect(fetchDay).toHaveBeenCalledTimes(2);
+
+      act(() => window.history.back());
+
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+      expect(window.location.pathname).toBe("/day/paris");
+      expect(document.title).toBe(PARIS_TITLE);
+      // Drawn whole at once: every stop in, and nothing still being written.
+      const paris = writtenDayAt("paris")!.itinerary.stops;
+      expect(within(dayList()).getAllByRole("listitem")).toHaveLength(paris.length);
+      await waitForTheDay();
+
+      act(() => window.history.back());
+      await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+      expect(window.location.pathname).toBe("/");
+
+      act(() => window.history.forward());
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+      expect(window.location.pathname).toBe("/day/paris");
+
+      act(() => window.history.forward());
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A lively Saturday in Bologna/));
+      expect(window.location.pathname).toBe("/day/bologna");
+      expect(document.title).toBe(BOLOGNA_TITLE);
+      await waitForTheDay();
+      // Two days, each played once: Back and Forward ask the route for nothing, and add no entry.
+      expect(fetchDay).toHaveBeenCalledTimes(2);
+      expect(window.history.length).toBe(withParis + 1);
+    },
+    LONG_TEST_MS,
+  );
+
+  it(
+    "keeps one entry for a change within the day, as its energy re-picked",
+    async () => {
+      const { user, withParis } = await playParisThenBologna();
+
+      await user.click(within(headline()).getByRole("button", { name: "lively" }));
+      await user.click(screen.getByRole("option", { name: "calm" }));
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Saturday in Bologna/));
+      expect(window.location.pathname).toBe("/day/bologna");
+      expect(window.history.length).toBe(withParis + 1);
+
+      act(() => window.history.back());
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+      expect(fetchDay).toHaveBeenCalledTimes(2);
+    },
+    LONG_TEST_MS,
+  );
+
+  it(
+    "goes Back to the day before while a day is being written, and to the start screen after it",
+    async () => {
+      const user = renderAddressed();
+      const withParis = await playParis(user);
+      stallDay();
+      await chooseCity(user, "Paris", "Bologna");
+      await waitFor(() => expect(window.location.pathname).toBe("/day/bologna"));
+      expect(window.history.length).toBe(withParis + 1);
+
+      act(() => window.history.back());
+
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+      expect(window.location.pathname).toBe("/day/paris");
+      await waitForTheDay();
+      // The day being written was let go, and nothing asked again.
+      const [, bologna] = fetchDay.mock.calls;
+      expect(bologna?.[1].signal?.aborted).toBe(true);
+      expect(fetchDay).toHaveBeenCalledTimes(2);
+
+      act(() => window.history.back());
+      await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+    },
+    LONG_TEST_MS,
+  );
+
+  it(
+    "gives a day played in place of one that ended without a day that day's entry",
+    async () => {
+      const user = renderAddressed();
+      const withParis = await playParis(user);
+      await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+      await user.click(screen.getByRole("menuitem", { name: /New day/ }));
+      await user.keyboard("Lisbon{Enter}");
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Lisbon/));
+      expect(window.location.pathname).toBe("/");
+      expect(window.history.length).toBe(withParis + 1);
+
+      await chooseCity(user, "Lisbon", "Bologna");
+
+      await waitFor(() => expect(window.location.pathname).toBe("/day/bologna"));
+      expect(window.history.length).toBe(withParis + 1);
+      act(() => window.history.back());
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+    },
+    LONG_TEST_MS,
+  );
+
+  it(
+    "brings the day kept behind the start screen Forward whole, letting go a day being asked there",
+    async () => {
+      const user = renderAddressed();
+      const withParis = await playParis(user);
+      act(() => window.history.back());
+      await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+      const release = holdDay();
+      await user.click(cityWord("Rome"));
+      await waitFor(() => expect(fetchDay).toHaveBeenCalledTimes(2));
+
+      act(() => window.history.forward());
+
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+      const paris = writtenDayAt("paris")!.itinerary.stops;
+      expect(within(dayList()).getAllByRole("listitem")).toHaveLength(paris.length);
+      await waitForTheDay();
+      // Rome's answer, let go, never takes the page nor an entry.
+      release();
+      await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
+      expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/);
+      expect(window.location.pathname).toBe("/day/paris");
+      expect(window.history.length).toBe(withParis);
+    },
+    LONG_TEST_MS,
+  );
+
+  /**
+   * Keeps the page from hearing the next Back or Forward, as a page hidden while another
+   * route shows misses it: the page's own listener, on the window, never runs for it.
+   */
+  function missNextTraversal(): void {
+    const swallow = (event: Event) => {
+      event.stopImmediatePropagation();
+      window.removeEventListener("popstate", swallow, true);
+    };
+    window.addEventListener("popstate", swallow, true);
+  }
+
+  it(
+    "takes a Back it missed for what it is, and never writes the day it shows over that entry",
+    async () => {
+      const { user, withParis } = await playParisThenBologna();
+      missNextTraversal();
+      act(() => window.history.back());
+      await waitFor(() => expect(window.location.pathname).toBe("/day/paris"));
+      // Still Bologna on screen: a change on it runs the page's address again.
+      await user.click(within(headline()).getByRole("button", { name: "lively" }));
+      await user.click(screen.getByRole("option", { name: "calm" }));
+
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+      expect(window.location.pathname).toBe("/day/paris");
+      expect(window.history.length).toBe(withParis + 1);
+      act(() => window.history.forward());
+      await waitFor(() => expect(headline()).toHaveTextContent(/in Bologna/));
+      expect(window.location.pathname).toBe("/day/bologna");
+      expect(fetchDay).toHaveBeenCalledTimes(2);
+    },
+    LONG_TEST_MS,
+  );
+
+  it(
+    "shows the day of the entry a page kept by the browser comes back on",
+    async () => {
+      const { withParis } = await playParisThenBologna();
+      missNextTraversal();
+      act(() => window.history.back());
+      await waitFor(() => expect(window.location.pathname).toBe("/day/paris"));
+
+      act(() => {
+        window.dispatchEvent(Object.assign(new Event("pageshow"), { persisted: true }));
+      });
+
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+      expect(window.location.pathname).toBe("/day/paris");
+      expect(window.history.length).toBe(withParis + 1);
+    },
+    LONG_TEST_MS,
+  );
+
+  it(
+    "writes its entries again after a load of another address that Back stopped",
+    async () => {
+      const user = renderAddressed();
+      await playParis(user);
+      // An entry of a day this page does not hold, as one from before a reload is.
+      window.history.pushState({ lantern: "day", key: "from-another-load" }, "", "/day/porto");
+      act(() => window.history.back());
+      await waitFor(() => expect(window.location.pathname).toBe("/day/paris"));
+      // Forward starts loading that day's address in its place; Back stops it before it lands.
+      act(() => window.history.forward());
+      await waitFor(() => expect(window.location.pathname).toBe("/day/porto"));
+      act(() => window.history.back());
+      await waitFor(() => expect(window.location.pathname).toBe("/day/paris"));
+
+      await chooseCity(user, "Paris", "Bologna");
+
+      await waitFor(() => expect(window.location.pathname).toBe("/day/bologna"));
+      expect(document.title).toBe(BOLOGNA_TITLE);
+    },
+    LONG_TEST_MS,
+  );
+
+  it(
+    "plays each day once, however often another route hides the page and shows it again",
+    async () => {
+      const user = userEvent.setup();
+      const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
+      const page = (mode: "visible" | "hidden") => (
+        <Activity mode={mode}>
+          <Day start={{ pool: POOL, read }} isAddressed />
+        </Activity>
+      );
+      const { rerender } = render(page("visible"));
+      await playParis(user);
+      await chooseCity(user, "Paris", "Bologna");
+      await waitFor(() => expect(window.location.pathname).toBe("/day/bologna"));
+      await waitForTheDay();
+
+      // Another page of the site shows, and Back shows this one again.
+      rerender(page("hidden"));
+      rerender(page("visible"));
+
+      await waitForTheDay();
+      expect(headline()).toHaveTextContent(/^A lively Saturday in Bologna/);
+      expect(fetchDay).toHaveBeenCalledTimes(2);
+    },
+    LONG_TEST_MS,
+  );
+
   it("gives a city Lantern has not written the start screen's address again", async () => {
     const user = renderAddressed();
     await user.click(cityWord("Paris"));
@@ -882,6 +1147,20 @@ describe("the address, on a page that asks the day to keep it", () => {
     expect(window.location.pathname).toBe("/");
     expect(document.title).toBe(TITLE_BEFORE);
   });
+
+  it("keeps the day of a page that does not ask when the browser shows the page again", async () => {
+    const user = userEvent.setup();
+    render(<Day start={{ pool: POOL, read: vi.fn<IntakeReader>() }} />);
+    await user.click(cityWord("Paris"));
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+
+    act(() => {
+      window.dispatchEvent(Object.assign(new Event("pageshow"), { persisted: true }));
+    });
+
+    expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/);
+    expect(window.location.pathname).toBe("/");
+  });
 });
 
 describe("the visitor's own days", () => {
@@ -904,6 +1183,7 @@ describe("the visitor's own days", () => {
     };
   }
 
+  beforeEach(() => window.history.replaceState(null, "", "/"));
   afterEach(() => {
     window.localStorage.clear();
     window.history.replaceState(null, "", "/");

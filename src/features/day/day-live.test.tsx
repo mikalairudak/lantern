@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRef, type Ref } from "react";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { PORTLAND_MAINE, PORTLAND_OREGON } from "@/lib/fixtures/city-readings";
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import { KYOTO_REQUEST } from "@/lib/fixtures/curated/requests";
@@ -36,6 +36,8 @@ import { NOT_LIVE_NOTE } from "./start-header";
 import { StartDay } from "./start-day";
 import { writtenPool } from "./written-pool";
 import { TAKE_THIS_DAY } from "./day-menu";
+import { sendProductEvent } from "@/lib/events/send-event";
+import type { ProductEvent } from "@/lib/events/event.schema";
 
 /**
  * The start screen and the day with live generation on, against stand-ins of both routes:
@@ -226,6 +228,9 @@ function heldDayResponse(signal: AbortSignal | undefined): Response {
 /** How much of a held day's text arrives: its header and its first stops. */
 const HELD_AT = 2400;
 const intakeTexts: string[] = [];
+// The product's events, caught where a page that counts them sends them.
+vi.mock("@/lib/events/send-event", () => ({ sendProductEvent: vi.fn() }));
+
 /** Each day the route was asked for, with the signature it carried. */
 const dayPosts: { request: DayRequest; signature: string | null }[] = [];
 /** Each targeted re-plan the route was asked for, with the signature it carried. */
@@ -859,6 +864,56 @@ describe("the city word with live generation on", () => {
     ]);
   });
 
+  it("gives a live day asked from another day one entry, at the start screen's address until its answer names its id", async () => {
+    intakeReplies.push(
+      answered({
+        kind: "request",
+        request: { ...LISBON, energy: "balanced" },
+        readings: [],
+        unplaced: [],
+        signed: [SIGNED_LISBON],
+      }),
+    );
+    const user = userEvent.setup();
+    render(<Day first={KANAZAWA_START_REQUEST} isLive isAddressed />);
+    await waitForTheDay();
+    await waitFor(() => expect(window.location.pathname).toBe("/day/kanazawa"));
+    const withKanazawa = window.history.length;
+    // Lisbon's answer, which names its row in the log, comes only once released.
+    let release = () => {};
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.mocked(fetch).mockImplementation(async (path, init) => {
+      if (path === DAY_ROUTE) await released;
+      return answerRoutes(String(path), init ?? {});
+    });
+    onTestFinished(() => {
+      vi.mocked(fetch).mockImplementation(async (path, init) =>
+        answerRoutes(String(path), init ?? {}),
+      );
+    });
+    dayIds.push(NEXT_DAY_ID);
+
+    await typeCity(user, "Lisbon");
+
+    // Asked, and no answer yet: the start screen's address, in an entry of its own.
+    await waitFor(() => expect(window.location.pathname).toBe("/"), DAY_TIMEOUT);
+    expect(intakeTexts).toEqual(["Lisbon"]);
+    expect(window.history.length).toBe(withKanazawa + 1);
+    release();
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${NEXT_DAY_ID}`), DAY_TIMEOUT);
+    await waitForTheDay();
+    // Named and stored, the same entry: Back goes to the day it was asked from.
+    expect(window.history.length).toBe(withKanazawa + 1);
+
+    act(() => window.history.back());
+
+    await waitFor(() => expect(headline()).toHaveTextContent(/in Kanazawa/), DAY_TIMEOUT);
+    expect(window.location.pathname).toBe("/day/kanazawa");
+    expect(dayPosts).toHaveLength(2);
+  });
+
   it("plays a name that could mean several cities as the likeliest, Lantern's assumption", async () => {
     const user = await landOnKanazawa(
       answered({
@@ -1372,6 +1427,84 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     await waitFor(() =>
       expect(screen.getByRole("textbox", { name: "Where, and anything else" })).toBeVisible(),
     );
+  });
+
+  it("comes Back to a day left with its fork standing as the day on screen was, the fork settled, with no call", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "early start", "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("proposed"), DAY_TIMEOUT);
+
+    await user.click(within(headline()).getByRole("button", { name: "Kyoto" }));
+    await user.click(screen.getByRole("button", { name: /^Bologna/ }));
+    await waitFor(() => expect(window.location.pathname).toBe("/day/bologna"), DAY_TIMEOUT);
+    await waitForTheDay();
+    expect(dayPosts).toHaveLength(1);
+
+    act(() => window.history.back());
+
+    // The day as it stood, its own morning, at its own address: the proposal not taken stays
+    // among the visitor's days, and nothing is asked again.
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${KYOTO_DAY_ID}`));
+    await waitFor(() =>
+      expect(within(dayList()).getAllByRole("listitem")[0]).toHaveTextContent(/Honen-in/),
+    );
+    expect(within(dayList()).queryByText(/^Shoren-in$/)).toBeNull();
+    expect(headline()).toHaveTextContent("on foot, early start, early dinner");
+    expect(day.current?.replan().status).toBe("idle");
+    expect(keptDays()).toContainEqual([REPLAN_ID, "written"]);
+    expect(replanPosts).toHaveLength(1);
+    expect(dayPosts).toHaveLength(1);
+    await waitForTheDay();
+  });
+
+  it("counts nothing again on a day with a part taken, come back to by Back", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    vi.mocked(sendProductEvent).mockClear();
+    intakeReplies.push(
+      answered({
+        kind: "request",
+        request: KYOTO_REQUEST,
+        readings: [],
+        unplaced: [],
+        signed: [SIGNED_KYOTO],
+      }),
+    );
+    const user = userEvent.setup();
+    render(<Day start={{ pool: POOL, read: readIntakeRoute }} isLive isAddressed isCounted />);
+    await ask(user, "Kyoto");
+    await waitForTheDay();
+    const menu = () => screen.getByRole("button", { name: TAKE_THIS_DAY });
+    await user.click(menu());
+    await user.click(menu());
+    await changeWord(user, "early start", "slow morning");
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${REPLAN_ID}`), DAY_TIMEOUT);
+    await waitForTheDay();
+    await user.click(within(headline()).getByRole("button", { name: "Kyoto" }));
+    await user.click(screen.getByRole("button", { name: /^Bologna/ }));
+    await waitFor(() => expect(window.location.pathname).toBe("/day/bologna"), DAY_TIMEOUT);
+    await waitForTheDay();
+
+    act(() => window.history.back());
+
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${REPLAN_ID}`));
+    await waitFor(() => expect(headline()).toHaveTextContent("slow morning"));
+    await user.click(menu());
+    await user.click(menu());
+    const sentOf = (kind: ProductEvent["kind"]) =>
+      vi
+        .mocked(sendProductEvent)
+        .mock.calls.map(([event]) => event)
+        .filter((event) => event.kind === kind);
+    // Kyoto's menu was told opened once, on Kyoto; Bologna's was never opened.
+    expect(sentOf("menu-opened")).toEqual([
+      expect.objectContaining({ kind: "menu-opened", city: "kyoto" }),
+    ]);
+    expect(sentOf("day-opened")).toHaveLength(2);
   });
 
   it("compares the version not taken beside the day again, and folds it", async () => {
