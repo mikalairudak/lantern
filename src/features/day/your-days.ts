@@ -39,15 +39,21 @@ export type YourDay = z.infer<typeof YourDaySchema>;
 export type DayStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 /**
- * The visitor's days, newest first. A browser that keeps nothing, a list another version
- * wrote, or one edited by hand reads as no days, rather than as a page that breaks.
+ * The visitor's days, newest first. A browser that keeps nothing, or a value that is no list,
+ * reads as no days, rather than as a page that breaks. A row that does not read, another
+ * version's or one edited by hand, is let go alone: the next day kept writes the list as it
+ * was read, so one row must never take the days beside it.
  */
 export function readYourDays(storage: DayStorage | null): YourDay[] {
   try {
     const kept = storage?.getItem(YOUR_DAYS_KEY);
     if (!kept) return [];
-    const parsed = z.array(YourDaySchema).safeParse(JSON.parse(kept));
-    return parsed.success ? parsed.data : [];
+    const rows: unknown = JSON.parse(kept);
+    if (!Array.isArray(rows)) return [];
+    return rows.flatMap((row) => {
+      const day = YourDaySchema.safeParse(row);
+      return day.success ? [day.data] : [];
+    });
   } catch {
     return [];
   }
