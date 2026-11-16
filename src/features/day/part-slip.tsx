@@ -51,9 +51,11 @@ export type SlipPlacement = "column" | "margin";
 
 /**
  * Every word of the fork is a note's size, as a row's second line is. Its hairline goes at the
- * list's first row, as the fork row's does.
+ * list's first row, as the fork row's does. It sets no position of its own: the slip in the
+ * margin stands from the plan's row it heads (`ReadingList`), outside the fold that opens the
+ * fork line's room, which would cut it.
  */
-const FORK_CLASSES = "relative border-t border-line pt-3 pb-3 type-note group-first:border-t-0";
+const FORK_CLASSES = "border-t border-line pt-3 pb-3 type-note group-first:border-t-0";
 
 /** The gutter, the rail's room and the words, as the plan's row lays them out. */
 const LINE_ROW_CLASSES = "flex gap-3";
@@ -69,7 +71,7 @@ const RAIL_ROOM_CLASSES = "w-2 shrink-0";
  */
 const SLIP_PILL_CLASSES = "rounded-full px-2";
 
-/** In the margin: out of flow at the fork's top, the fork's hairline carried over it. */
+/** In the margin: out of flow at the top of the row it heads, the fork's hairline carried over it. */
 const MARGIN_CLASSES =
   "absolute -top-px left-full w-margin border-t border-line pt-3 pl-4 group-first:border-t-0";
 
@@ -86,9 +88,12 @@ const NO_BREAK = "\u00a0";
 /**
  * How a moved line names the hour the day on screen gives that place, by whose version the slip
  * lists: the proposal's lines say what the hour was; once it is taken, the day before's lines say
- * what it is now.
+ * what it is now, "now at 01:30". The words and their hour never part at a line's end.
  */
-export const MOVED_WORDS: Readonly<Record<ForkSide, string>> = { to: "was", from: "now" };
+export const MOVED_WORDS: Readonly<Record<ForkSide, string>> = {
+  to: "was",
+  from: `now${NO_BREAK}at`,
+};
 
 /** How far faded in a milestone's words come in, so a change of words reads as one. */
 const NOTE_COMES_FROM = 0.3;
@@ -251,6 +256,9 @@ function ShownAnswer({ view, onChoose }: ShownAnswerProps) {
       {...{ [FORK_CONTROL_ATTRIBUTE]: side }}
       aria-checked
       aria-label={`${label}, your day`}
+      // The checked answer is the group's stop in the tab order, which the sentence's pointer
+      // finds by it.
+      tabIndex={0}
       onClick={() => onChoose(side)}
       className={ANSWER_CLASSES}
     >

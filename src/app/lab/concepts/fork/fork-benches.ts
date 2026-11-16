@@ -1,20 +1,19 @@
 import { parsePartialJson } from "ai";
-import { draftDayOf, type StopDraft } from "@/features/abacus/day-draft";
+import type { StopDraft } from "@/features/abacus/day-draft";
 import { dayContextOf } from "@/features/abacus/light";
 import {
   newStopsOf,
   replanFrameOf,
   windowsOf,
+  writtenStopsOf,
   WHOLE_DAY_WINDOW,
   type PartialReplanDraft,
   type ReplanFrame,
-  type ReplanRow,
   type ReplanWindow,
 } from "@/features/abacus/replan-frame";
 import { receiptOf, type WorkReceipt } from "@/features/abacus/work-line";
 import type { ReplanWritten } from "@/features/day/replan-controls";
-import { placesKeptOf, writtenOf } from "@/features/day/replan-work";
-import { revealedOf } from "@/features/itinerary/revealed";
+import { placesKeptOf, wholeDayWrittenOf, writtenOf } from "@/features/day/replan-work";
 import {
   ELCHE_DINNER_BASIS,
   ELCHE_LATE_DINNER_UNREPEATED,
@@ -104,25 +103,18 @@ async function firstAt<Value>(
   return { at: low, value: await valueAt(low) };
 }
 
-/** A frame's rows the proposal wrote and the page shows: a whole new stop, or one that stays. */
-function finishedOf(frame: ReplanFrame): StopDraft[] {
-  return frame.rows.flatMap((row: ReplanRow) =>
-    row.source === "stays" || (row.source === "proposed" && row.isWhole) ? [row.stop] : [],
-  );
-}
-
 /** A part's proposal, step by step: each of its stops finished, then its versions, then its line. */
 async function partStepsOf(basis: ReplanBasis, replan: GeneratedReplan): Promise<WritingStep[]> {
   const text = JSON.stringify(replan);
   const stepOf = (label: string, partial: PartialReplanDraft): WritingStep => {
     const frame = replanFrameOf(basis, partial);
-    return { label, isLookingDue: true, frame, written: null, finished: finishedOf(frame) };
+    return { label, isLookingDue: true, frame, written: null, finished: writtenStopsOf(frame) };
   };
   const steps = [PRESSED, stepOf("looking", {})];
   for (let count = 1; count <= replan.stops.length; count += 1) {
     const { value } = await firstAt<PartialReplanDraft>(
       text,
-      (partial) => finishedOf(replanFrameOf(basis, partial)).length >= count,
+      (partial) => writtenStopsOf(replanFrameOf(basis, partial)).length >= count,
     );
     steps.push(stepOf(`${count} of ${replan.stops.length} stops finished`, value));
   }
@@ -136,12 +128,6 @@ async function partStepsOf(basis: ReplanBasis, replan: GeneratedReplan): Promise
   return steps;
 }
 
-/** A whole day's stops the stream has finished: each once the next is placed, all once past them. */
-function finishedDayOf(partial: PartialDay): StopDraft[] {
-  const stops = draftDayOf(revealedOf(partial, null)).stops;
-  return partial.alternatives === undefined ? stops.slice(0, -1) : stops;
-}
-
 /** A whole day's proposal, step by step: each of its stops finished, then its versions. */
 async function wholeStepsOf(day: GeneratedDay): Promise<WritingStep[]> {
   const text = dayText(day);
@@ -150,13 +136,13 @@ async function wholeStepsOf(day: GeneratedDay): Promise<WritingStep[]> {
     isLookingDue: true,
     frame: null,
     written: writtenOf(partial),
-    finished: finishedDayOf(partial),
+    finished: wholeDayWrittenOf(partial),
   });
   const steps = [PRESSED, stepOf("looking", {})];
   for (let count = 1; count <= day.stops.length; count += 1) {
     const { value } = await firstAt<PartialDay>(
       text,
-      (partial) => finishedDayOf(partial).length >= count,
+      (partial) => wholeDayWrittenOf(partial).length >= count,
     );
     steps.push(stepOf(`${count} of ${day.stops.length} stops finished`, value));
   }

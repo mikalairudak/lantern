@@ -20,6 +20,7 @@ import {
   forkFrameOf,
   newStopsOf,
   replanFrameOf,
+  writtenStopsOf,
   windowsOf,
   type ReplanFrame,
   type ReplanWindow,
@@ -89,7 +90,8 @@ import type {
   ReplanPlaces,
   ReplanStatus,
 } from "./replan-controls";
-import { placesKeptOf, writtenOf } from "./replan-work";
+import { placesKeptOf, wholeDayWrittenOf, writtenOf } from "./replan-work";
+import type { ForkOther } from "./plan-fork";
 import { shownEnergiesOf } from "./day-shape";
 import { endedDayOf, phaseOf } from "./stream-ending";
 import { isSentenceStreamed } from "./header-ready";
@@ -1665,6 +1667,32 @@ export function Day({
     isAskedBeforeForget,
   ]);
 
+  // The fork's other version, as the plan's slips list it beside the day's parts, as far as it
+  // is written: the proposal until it is taken, the day before once it is. A part's is read
+  // from its frame while written and from memory once whole; a whole day's from its stream,
+  // then from memory. A part's two versions are both at the energy its re-plan was asked at:
+  // the day before as it showed at the press (`withPicks`), the proposal as it was written for.
+  const forkOther = useMemo((): ForkOther | null => {
+    if (changeShown === null || changeShown.status === "failed") return null;
+    const isTaken = changeShown.status === "taken";
+    if (changeShown.status === "writing") {
+      if (replanFrame !== null && targetedShown !== null) {
+        return { stops: writtenStopsOf(replanFrame), energy: targetedShown.request.energy };
+      }
+      if (replanned !== null && replanning !== null) {
+        return { stops: wholeDayWrittenOf(replanned.partial), energy: replanning.request.energy };
+      }
+      return null;
+    }
+    if (partForkShown !== null) {
+      const { before, after } = versionsOf(partForkShown);
+      return { stops: isTaken ? before : after, energy: partForkShown.after.request.energy };
+    }
+    if (wholeTurn === null) return null;
+    const other = isTaken ? wholeTurn.before : wholeTurn.after;
+    return { stops: other.whole?.itinerary.stops ?? [], energy: other.request.energy };
+  }, [changeShown, replanFrame, targetedShown, replanned, replanning, partForkShown, wholeTurn]);
+
   const roomHeight = () => room.current?.getBoundingClientRect().height ?? null;
   /** A frame of the fork's two versions with the other one fading out where it stands. */
   const foldedFrameOf = (frame: ReplanFrame): ReplanFrame => ({
@@ -1781,9 +1809,10 @@ export function Day({
    * The fork settles as the next word changes (`docs/decisions.md`, "A changed word proposes its
    * part beside the day, and the visitor takes it"): the version on screen stays the day, the
    * other is set aside, a row of its own among the visitor's days where its answer named an id,
-   * and its rows fold away; the facts line says where it went (`setAsideOf`). A word re-picked
-   * settles it at once, with no fold: the re-picked stops are the ones then shown, as the curve
-   * is told of them, so no row of the other version stands among them meanwhile.
+   * and its rows fold away; the facts line says where it went (`setAsideOf`). An energy that
+   * settles it, as it settles an answered fork or a whole day's, does so at once, with no fold:
+   * the re-picked stops are the ones then shown, as the curve is told of them, so no row of the
+   * other version stands among them meanwhile.
    */
   const settleFork = (isFolded = true) => {
     if (isFolded && changeShown !== null && partFork !== null && changeShown.isCompared) {
@@ -2202,6 +2231,7 @@ export function Day({
             address={dayAddress === START_ADDRESS ? null : dayAddress}
             replanFrame={replanFrame ?? forkFrameShown ?? foldingShown}
             onReplanFaded={letFoldingGo}
+            forkOther={forkOther}
             replanRoom={targetedShown?.room ?? null}
             heldRoom={asked.heldRoom}
             roomRef={room}
@@ -2217,7 +2247,11 @@ export function Day({
             onEnergyPicked={(energy) => {
               setRepicked({ run: asked.run, energy });
               if (!replanning) setReplanLine(null);
-              // A word re-picked settles the fork, as any changed word does, at once.
+              // A part's proposal whole and not yet answered stands through the re-pick: both of
+              // its versions re-pick to the new energy, the slip's names and the chart's rows with
+              // them. Any other fork settles at once, as a changed word settles it: a whole day
+              // taken is a run of its own, drawn as it was written.
+              if (changeShown?.status === "proposed" && partForkShown !== null) return;
               settleFork(false);
             }}
             // Once live, a changed word asks for the day again with it, under the same city's

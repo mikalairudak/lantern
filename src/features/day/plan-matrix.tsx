@@ -9,13 +9,13 @@ type PlanProps = { day: number; state: ReadingState };
  * timetable of the chart's own stops and picks, from its real stream, with the rail of the day's
  * light beside the times and the sun's minutes where they fall. Every state the list meets, from
  * a stop let in once its row is final, the pen writing it and the versions' second pass, to a
- * swap and a re-plan's fork, on every day it has, so twelve stops, one stop, a night past
- * midnight and a proposal are drawn too.
+ * swap, on every day it has, so twelve stops, one stop and a night past midnight are drawn too.
+ * A changed word's fork over it is the part slip's matrix (`part-slip-matrix.tsx`).
  */
 export const PLAN_MATRIX: LabMatrix = labMatrix<PlanProps>({
   key: "plan",
   title: "The day's plan",
-  note: "The day's plan, from its real stream to a swap and a fork: the rail of the day's light down the times, golden hour in the lamp, dusk and night dotted, the sun's minutes where they fall",
+  note: "The day's plan, from its real stream to a swap: the rail of the day's light down the times, golden hour in the lamp, dusk and night dotted, the sun's minutes where they fall",
   base: { day: 0, state: "whole" },
   axes: [
     {

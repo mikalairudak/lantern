@@ -17,9 +17,7 @@ import { BestLightIcon } from "@/features/abacus/best-light-icon";
 import { candidatesOf } from "@/features/abacus/curve";
 import type { PlaceDraft, StopDraft } from "@/features/abacus/day-draft";
 import { PennedText } from "@/components/ui/penned-text";
-import type { ForkRows } from "@/features/abacus/day-rows";
-import { useDrawing } from "@/features/abacus/drawing";
-import { FORK_CONTROL_ATTRIBUTE, FORK_ROW_ATTRIBUTE, ForkRow } from "@/features/abacus/fork-row";
+import { FORK_CONTROL_ATTRIBUTE, FORK_ROW_ATTRIBUTE } from "@/features/abacus/fork-row";
 import { bestLightOf } from "@/features/abacus/light";
 import { kindWordOf } from "@/features/abacus/meal";
 import { isQuarterNamed } from "@/features/abacus/quarter";
@@ -63,23 +61,13 @@ interface ReadingListProps {
   /** The day's sun, to mark a stop visited in its best light. */
   daylight: DayContext;
   /**
-   * A proposal's stops beside the day, by id, as on the chart: in the versions' blue, "proposed"
-   * under their time, with nothing to swap until the proposal is taken.
+   * The rows of a fork's other version among `stops`, by id, as the chart draws them beside the
+   * day: the plan lists the day alone, so none of them stands in it. One that comes to be the
+   * day, as a proposal taken, comes in whole: it is no row being written.
    */
-  proposed?: ReadonlySet<string>;
-  /** A changed word's fork, each part's row over its first stop, as on the chart. */
-  fork?: ForkRows | null;
-  /**
-   * What stands over a stop's row in place of a fork row, by the stop's id, or null: outside
-   * the row's fold, which clips, so it may stand out into the margin beside the list. Left out,
-   * nothing.
-   */
-  partHeadOf?: (stopId: string) => ReactNode;
-  /**
-   * A version the fork folds away, by id, as on the chart: its rows fold out of the list at the
-   * tap, the fork row moving to the first stop of the version that stays.
-   */
-  fading?: ReadonlySet<string>;
+  hidden?: ReadonlySet<string>;
+  /** A changed word's fork: over each part it rewrites, the part's head, its slip. */
+  parts?: PlanParts | null;
   /**
    * One row's pen held at a letter, as the lab's still frame of a row being written; the pen
    * runs on its own otherwise.
@@ -98,24 +86,39 @@ interface ReadingListProps {
   onGlide?: (isGliding: boolean) => void;
 }
 
+/**
+ * A fork's parts on the plan: over which of the list's stops each part's head stands, and the
+ * head itself, the part's slip (`PartSlip`).
+ */
+export interface PlanParts {
+  /**
+   * Each part's stop, by id: the first of the day's stops in the part, or, for a part the day on
+   * screen has no stop in, the first stop after it. Null where none follows: its head stands
+   * under the last row.
+   */
+  anchors: readonly (string | null)[];
+  headOf: (part: number) => ReactNode;
+  /**
+   * A head stands out beside the list, as a slip in the margin does: its fold then feathers no
+   * edge, which would hide what stands beside it, and its opacity alone hides a line it cuts.
+   */
+  isBeside?: boolean;
+}
+
 /** The list's name, which a screen reader hears and the page finds it by. */
 export const READING_LIST_LABEL = "The day, to read";
 
 const NO_STOPS: ReadonlySet<string> = new Set();
-/** Marks each row by its stop's id, so a fork row's new place is found by its stop. */
+/** Marks each row by its stop's id, so a part's head is found by its stop. */
 const STOP_ATTRIBUTE = "data-stop";
-/** "proposed" under a proposal's stop's time, a step up from the gutter's quiet ink. */
-const MARK_CLASSES = "type-note text-ink-soft";
-/** The gutter's width, where a fork row's "1 of 2" stands: `w-12`. */
-const GUTTER_PX = 48;
+/** The heads of the parts no stop of the day follows, under the last row. */
+const TAIL_KEY = "parts-after";
 
 /**
  * The plan's row: no rule between rows, the rail between the time and the words doing that work,
  * and the words' own room under them, so the rail runs on.
  */
 const ROW_CLASSES = "flex gap-3";
-/** On the plan the words start after the gutter, the rail and two gaps: `w-12`, `w-2`, `gap-3`. */
-const RAIL_WORDS_LEFT_PX = 48 + 8 + 12 * 2;
 const GUTTER_CLASSES = "w-12 shrink-0 pt-0.5 type-time tabular-nums";
 const NAME_CLASSES = "self-start type-name";
 
@@ -126,10 +129,8 @@ export function ReadingList({
   versionsShown,
   picks,
   daylight,
-  proposed = NO_STOPS,
-  fork = null,
-  partHeadOf,
-  fading = NO_STOPS,
+  hidden = NO_STOPS,
+  parts = null,
   heldPen,
   isWritten = true,
   rowClassName,
@@ -137,18 +138,20 @@ export function ReadingList({
   onGlide,
 }: ReadingListProps) {
   // Each stop let in with its place among the chart's stops, which its picks are counted by; a
-  // version the fork folds away leaves the list at once.
+  // fork's other version stands in no row.
   const shown = stops
     .slice(0, entered)
     .map((stop, index) => ({ stop, index }))
-    .filter(({ stop }) => !fading.has(stop.id));
+    .filter(({ stop }) => !hidden.has(stop.id));
   const spans = runningSpans(shown.map(({ stop }) => stop));
-  // Rows on the list when it is first drawn, as a day come back to whole, stand whole; the
-  // rows let in after are written in.
+  // Rows on the list when it is first drawn, as a day come back to whole, stand whole; so do the
+  // rows of a fork's other version, once it is taken. The rows let in after are written in.
   const [firstIds] = useState(() => new Set(shown.map(({ stop }) => stop.id)));
+  const [wholeIds, setWholeIds] = useState(() => new Set([...firstIds, ...hidden]));
+  const newlyHidden = [...hidden].filter((id) => !wholeIds.has(id));
+  if (newlyHidden.length > 0) setWholeIds(new Set([...wholeIds, ...newlyHidden]));
   // Rows a new energy changes together glide as one, in about 1.5 s.
   const [glideGroup] = useState(createGlideGroup);
-  const drawing = useDrawing();
   // The list says it is written once its rows are at rest too, so the last row's final form, its
   // versions come in, is part of the day written rather than after it.
   const [isGliding, setIsGliding] = useState(false);
@@ -159,11 +162,38 @@ export function ReadingList({
   const sunLines = sunLinesOf(sunsOf(daylight), spans, isWritten);
   // The first stop on the plan with a version to swipe to leans once, when the day is whole.
   const firstSwappable = shown.findIndex(
-    ({ stop }) =>
-      versionsShown.has(stop.id) && !proposed.has(stop.id) && stop.alternatives.length > 0,
+    ({ stop }) => versionsShown.has(stop.id) && stop.alternatives.length > 0,
   );
   const list = useRef<HTMLOListElement>(null);
-  const noteFocus = useForkFocusKept(list, fork?.anchors ?? NO_ANCHORS);
+  const anchors = parts?.anchors ?? NO_ANCHORS;
+  // A head under the last row, there when the list was first drawn, stands whole with it.
+  const [isTailFirst] = useState(() => anchors.includes(null));
+  const noteFocus = useForkFocusKept(list, anchors);
+  /**
+   * The heads of the parts that stand over a row, or under the last: each folds in and out as
+   * its part comes and goes, and with its row as the row comes and goes. One over a row let in
+   * after the list was drawn folds in with it.
+   */
+  const headsAt = (anchor: string | null, glideKey: string, isAppearing: boolean) => (
+    <AnimatePresence initial={false} propagate>
+      {anchors.flatMap((each, part) => {
+        const head = each === anchor ? parts?.headOf(part) : null;
+        return head
+          ? [
+              <Fold
+                key={part}
+                reachPx={ROW_REACH_PX}
+                isAppearing={isAppearing || undefined}
+                isOpenToTheSide={parts?.isBeside}
+                onGlide={glideOf(`${glideKey} head ${part}`)}
+              >
+                {head}
+              </Fold>,
+            ]
+          : [];
+      })}
+    </AnimatePresence>
+  );
   return (
     <ol
       ref={list}
@@ -174,49 +204,20 @@ export function ReadingList({
     >
       <AnimatePresence initial={false}>
         {shown.map(({ stop, index }, at) => (
+          // Positioned, so a slip in the margin stands from the row's top, out of its head's fold.
           <li
             key={stop.id}
             {...{ [STOP_ATTRIBUTE]: stop.id }}
-            className={cn("group", rowClassName)}
+            className={cn("group relative", rowClassName)}
           >
-            {partHeadOf?.(stop.id)}
+            {headsAt(stop.id, stop.id, !firstIds.has(stop.id))}
             {/* The last row opens on the layout spring, with nothing on the list below it to
-                move; one with rows below, as a proposal's stop coming in or a version
-                folding away, no faster than the rows below can glide. The fork row over its
-                stop is in its fold, so a row leaving or coming back takes it with it. */}
+                move; one with rows below, as a version taken coming in or the one it replaces
+                folding away, no faster than the rows below can glide. */}
             <Fold
               reachPx={at === shown.length - 1 ? undefined : ROW_REACH_PX}
               onGlide={glideOf(`${stop.id} fold`)}
             >
-              {/* A fork row folds in over the stop it now stands over and out of the one it
-                  left, and glides to its own height as its line comes and goes, as the rows do. */}
-              <AnimatePresence initial={false}>
-                {fork && fork.anchors.includes(stop.id) && (
-                  <Fold reachPx={ROW_REACH_PX} onGlide={glideOf(`${stop.id} fork fold`)}>
-                    <GlidingHeight
-                      reachPx={ROW_REACH_PX}
-                      shouldAlwaysReach
-                      glideGroup={glideGroup}
-                      onGlide={glideOf(`${stop.id} fork`)}
-                    >
-                      <div className="border-t border-line pt-3 group-first:border-t-0">
-                        <ForkRow
-                          view={fork.view}
-                          index={fork.anchors.indexOf(stop.id)}
-                          count={fork.anchors.length}
-                          timeWidth={GUTTER_PX}
-                          wordsLeft={RAIL_WORDS_LEFT_PX}
-                          drawing={drawing}
-                          lineAt="under"
-                          onChoose={fork.onChoose}
-                          onCompare={fork.onCompare}
-                          onAskAgain={fork.onAskAgain}
-                        />
-                      </div>
-                    </GlidingHeight>
-                  </Fold>
-                )}
-              </AnimatePresence>
               {(sunLines[at]?.lead ?? []).map(({ sun, to }) => (
                 <SunLine key={sun.word} daylight={daylight} sun={sun} to={to} />
               ))}
@@ -228,10 +229,9 @@ export function ReadingList({
                 span={spans[at] ?? { from: 0, to: 0 }}
                 pick={picks[index] ?? 0}
                 daylight={daylight}
-                isPenned={!firstIds.has(stop.id)}
+                isPenned={!wholeIds.has(stop.id)}
                 heldWritten={heldPen?.id === stop.id ? heldPen.written : undefined}
                 glideGroup={glideGroup}
-                isProposed={proposed.has(stop.id)}
                 isVersionsShown={versionsShown.has(stop.id)}
                 onGlide={glideOf(`${stop.id} row`)}
               />
@@ -241,21 +241,26 @@ export function ReadingList({
             </Fold>
           </li>
         ))}
+        {anchors.includes(null) && (
+          <li key={TAIL_KEY} className={cn("group relative", rowClassName)}>
+            {headsAt(null, TAIL_KEY, !isTailFirst)}
+          </li>
+        )}
       </AnimatePresence>
     </ol>
   );
 }
 
-/** No fork rows: one array for every list without a fork. */
+/** No fork: one array for every list without one. */
 const NO_ANCHORS: readonly (string | null)[] = [];
 
-/** Which of a fork row's controls had the focus: by its part, and how to find it again. */
+/** Which of a part's controls had the focus: by its part, and how to find it again. */
 interface ForkFocus {
   part: number;
   selector: string;
 }
 
-/** The fork row control `target` is, if it is one: an answer by its side, or an action. */
+/** The part's control `target` is, if it is one: an answer by its side, or an action. */
 function forkFocusOf(target: EventTarget | null): ForkFocus | null {
   if (!(target instanceof HTMLElement)) return null;
   const row = target.closest(`[${FORK_ROW_ATTRIBUTE}]`);
@@ -269,10 +274,10 @@ function forkFocusOf(target: EventTarget | null): ForkFocus | null {
 }
 
 /**
- * Keeps the keys' focus on a fork row that moves to another stop, as taking or comparing moves
- * it: the row is drawn anew over its new stop, and the one that had the focus folds away. The
- * focus goes to the same control in the row's new place, or to its chosen answer. Gives the
- * handler that notes which control has the focus.
+ * Keeps the keys' focus on a part's head that moves to another stop, as a take moves it: the
+ * head is drawn anew over the first stop of the version taken, and the one that had the focus
+ * folds away with its row. The focus goes to the same control in the head's new place, or to its
+ * chosen answer. Gives the handler that notes which control has the focus.
  */
 function useForkFocusKept(
   list: RefObject<HTMLOListElement | null>,
@@ -290,7 +295,7 @@ function useForkFocusKept(
       `li[${STOP_ATTRIBUTE}="${CSS.escape(anchor)}"] [${FORK_ROW_ATTRIBUTE}]`,
     );
     const active = document.activeElement;
-    // Only the focus still on the row that folds away, or fallen to the page, is moved.
+    // Only the focus still on the head that folds away, or fallen to the page, is moved.
     const isLost = active === null || active === document.body || element.contains(active);
     if (!row || row.contains(active) || !isLost) return;
     const control =
@@ -333,8 +338,6 @@ interface ReadingRowProps {
   daylight: DayContext;
   /** Let in after the list was drawn: the pen writes it in. */
   isPenned: boolean;
-  /** A proposal's stop beside the day: blue, "proposed" under its time, nothing to swap. */
-  isProposed: boolean;
   isVersionsShown: boolean;
   /** The pen held at this letter, for the lab's still frame. */
   heldWritten?: number;
@@ -355,7 +358,6 @@ function ReadingRow({
   pick,
   daylight,
   isPenned,
-  isProposed,
   isVersionsShown,
   heldWritten,
   glideGroup,
@@ -380,7 +382,7 @@ function ReadingRow({
   // chart's folding by energy is the chart's. A version swapped in says its own line; what it
   // trades against the planned place is said where the choice is made, in its sheet.
   const summary = shown.summary ?? "";
-  const light = isProposed ? null : bestLightOf(shown, span, daylight);
+  const light = bestLightOf(shown, span, daylight);
   // One pen through the row, in the order it reads.
   const penned = useEntryPen(time.length + name.length + what.length + summary.length, isPenned);
   const written = heldWritten ?? penned;
@@ -393,7 +395,7 @@ function ReadingRow({
   // A stop swipes along its versions, once they are written. Drawn from the moment its versions
   // are written, waiting until the day can be changed, so the stop's form never changes as the
   // day is done.
-  const isCarousel = isVersionsShown && !isProposed && others.length > 0;
+  const isCarousel = isVersionsShown && others.length > 0;
   const words = (
     <>
       <h2 className={NAME_CLASSES}>
@@ -431,27 +433,20 @@ function ReadingRow({
       // view; only those in view glide.
       shouldHoldTheView
     >
-      <div className={cn(ROW_CLASSES, isProposed ? "text-swap" : "text-ink")}>
+      <div className={cn(ROW_CLASSES, "text-ink")}>
         <span
           className={cn(
             GUTTER_CLASSES,
-            isProposed
-              ? "text-swap"
-              : isGoldenAt(daylight, span.from)
-                ? "text-amber"
-                : "text-muted",
+            isGoldenAt(daylight, span.from) ? "text-amber" : "text-muted",
           )}
         >
           <PennedText text={time} written={written} isActive={false} />
-          {/* Under its time: it takes no room from the row's words. */}
-          {isProposed && <span className={cn("block", MARK_CLASSES)}>proposed</span>}
         </span>
         <LightRail
           daylight={daylight}
           from={span.from}
           to={railTo}
           hasBead
-          isProposed={isProposed}
           // The bead and its rail come with the stop's time, as the pen writes it.
           className={cn(written < time.length && "invisible")}
         />

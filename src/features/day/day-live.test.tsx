@@ -440,6 +440,7 @@ afterAll(() => {
 
 const headline = () => screen.getByRole("heading", { level: 1 });
 const dayList = () => screen.getByRole("list", { name: "The day" });
+const planList = () => screen.getByRole("list", { name: "The day, to read" });
 /** The line under the field, as the start screen says it. */
 const saysBack = (sentence: string) =>
   screen.findByText((_, element) => element?.tagName === "P" && element.textContent === sentence);
@@ -1657,7 +1658,9 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     expect(day.current?.replan().change?.word).toBe("dinner");
   });
 
-  it("settles a proposal at once when the energy is re-picked, the re-picked day's own rows shown", async () => {
+  it("carries a part's proposal not yet answered through an energy re-pick, setting nothing aside", async () => {
+    // On the plan, where the proposal stands as a slip; the chart is laid out unseen under it.
+    document.documentElement.setAttribute("data-day-view", "read");
     replanReplies.push(KYOTO_SLOW_MORNING);
     dayIds.push(KYOTO_DAY_ID);
     const day = createRef<DayHandle>();
@@ -1668,11 +1671,20 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
 
     await changeWord(user, "calm", "lively");
 
-    expect(day.current?.replan().status).toBe("idle");
-    expect(within(dayList()).queryByText(/^Shoren-in$/)).toBeNull();
-    expect(screen.queryByRole("radiogroup")).toBeNull();
-    expect(headline()).toHaveTextContent(/^A lively Saturday in Kyoto, on foot, early start,/);
+    // The proposal stands beside the re-picked day, on the chart and in the plan's slip.
+    expect(day.current?.replan().status).toBe("proposed");
+    expect(within(dayList()).getByText(/^Shoren-in$/)).toBeInTheDocument();
+    expect(
+      within(planList()).getByRole("radio", { name: "slow morning, proposed" }),
+    ).toBeInTheDocument();
+    expect(headline()).toHaveTextContent(/^A lively Saturday in Kyoto, on foot, /);
+    expect(factsLineText()).not.toMatch(/set aside|not kept/);
     await waitForTheDay();
+
+    // Taken after the re-pick, the proposal is the day, at the energy the headline says.
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("taken"), DAY_TIMEOUT);
+    expect(headline()).toHaveTextContent(/^A lively /);
   });
 
   it("holds the energy while a proposal is written, on the plan's bar and in the headline, saying one change at a time", async () => {
@@ -1759,11 +1771,11 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
   });
 
   it.each([
-    ["whole", KYOTO_SLOW_MORNING, "proposed"],
-    ["failed", { cut: KYOTO_SLOW_MORNING, at: 0.62 }, "failed"],
+    ["whole", KYOTO_SLOW_MORNING, "proposed", "proposed"],
+    ["failed", { cut: KYOTO_SLOW_MORNING, at: 0.62 }, "failed", "idle"],
   ] as const)(
-    "frees the energy once the proposal is %s, a press on the bar settling the fork as before",
-    async (_, reply, status) => {
+    "frees the energy once the proposal is %s, a press on the bar re-picking the day",
+    async (_, reply, status, after) => {
       replanReplies.push(reply);
       dayIds.push(KYOTO_DAY_ID);
       const day = createRef<DayHandle>();
@@ -1779,7 +1791,8 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
 
       await user.click(lively);
 
-      expect(day.current?.replan().status).toBe("idle");
+      // A whole proposal stands through the re-pick; a failed one's fork settles.
+      expect(day.current?.replan().status).toBe(after);
       expect(headline()).toHaveTextContent(/^A lively /);
       await waitForTheDay();
     },
@@ -2128,17 +2141,26 @@ describe("what a later change sets aside, said once in the facts line, with live
     expect(keptDays().map(([id]) => id)).not.toContain(SHARED_DAY_ID);
   });
 
-  it("says alone what an energy re-pick set aside, until the visitor next acts on the day", async () => {
-    const { user } = await proposeSlowMorning();
+  /** Kyoto's morning proposed, then taken, the day before beside it. */
+  async function takeSlowMorning(): Promise<ReturnType<typeof userEvent.setup>> {
+    const { user, day } = await proposeSlowMorning();
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("taken"), DAY_TIMEOUT);
+    await waitForTheDay();
+    return user;
+  }
+
+  it("says alone what an energy re-pick set aside of a fork answered, until the visitor next acts on the day", async () => {
+    const user = await takeSlowMorning();
 
     await changeWord(user, "calm", "lively");
 
-    expect(factsLineText()).toBe("“slow morning” set aside · it is in your days");
-    expect(statusText()).toBe("“slow morning” set aside, it is in your days");
+    expect(factsLineText()).toBe("“early start” set aside · it is in your days");
+    expect(statusText()).toBe("“early start” set aside, it is in your days");
     await waitForTheDay();
     // No new word's note follows it: it stands.
     await new Promise((resolve) => setTimeout(resolve, SET_ASIDE_SAID_MS));
-    expect(factsLineText()).toBe("“slow morning” set aside · it is in your days");
+    expect(factsLineText()).toBe("“early start” set aside · it is in your days");
 
     // A pull of the curve is the next act: the line is the facts again, the status quiet.
     const slider = screen.getAllByRole("slider").at(-1);
@@ -2152,7 +2174,7 @@ describe("what a later change sets aside, said once in the facts line, with live
   });
 
   it("lets the next energy press take the note away, setting nothing more aside", async () => {
-    const { user } = await proposeSlowMorning();
+    const user = await takeSlowMorning();
     await changeWord(user, "calm", "lively");
     expect(factsLineText()).toContain("set aside");
     await waitForTheDay();
@@ -2808,4 +2830,127 @@ describe("one of the visitor's days pressed while a day asked on the start scree
       "false",
     );
   }, 20_000);
+});
+
+describe("a changed word's fork on the plan, with live generation on", () => {
+  // On the plan, where the fork's other version stands as a slip; the chart is laid out unseen.
+  beforeEach(() => document.documentElement.setAttribute("data-day-view", "read"));
+
+  /** The rows of the plan, without the slips over them: the day's stops' names. */
+  const planNames = () =>
+    within(planList())
+      .getAllByRole("heading", { level: 2 })
+      .map((heading) => heading.textContent);
+  const slipRadio = (name: string) => within(planList()).getByRole("radio", { name });
+
+  it("lists the day alone while a proposal is written, each stop finished standing in its slip", async () => {
+    replanReplies.push({ held: KYOTO_SLOW_MORNING, at: 0.62 });
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    const before = planNames();
+
+    await changeWord(user, "early start", "slow morning");
+
+    await waitFor(() => expect(day.current?.replan().status).toBe("writing"));
+    expect(slipRadio("slow morning, being written")).toHaveAttribute("aria-disabled", "true");
+    expect(planNames()).toEqual(before);
+    expect(planNames()).not.toContain("Shoren-in");
+    await waitFor(() =>
+      expect(planList().querySelector("[data-slip] ol")).toHaveTextContent("09:00Shoren-in"),
+    );
+  });
+
+  it("takes the proposal from its slip by the keyboard and the day before back, the focus on the day's answer", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    const before = planNames();
+    await changeWord(user, "early start", "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("proposed"), DAY_TIMEOUT);
+
+    // Whole: the slip lists the proposal's morning; the plan is still the day.
+    expect(within(planList()).getByText("Shoren-in")).toBeInTheDocument();
+    expect(planNames()).toEqual(before);
+    const take = slipRadio("slow morning, proposed");
+    expect(take).toHaveTextContent("slow morning· Take");
+    take.focus();
+    await user.keyboard("{Enter}");
+
+    await waitFor(() => expect(day.current?.replan().status).toBe("taken"), DAY_TIMEOUT);
+    await waitFor(() => expect(slipRadio("slow morning, your day")).toHaveFocus());
+    await waitFor(() => expect(planNames()).toContain("Shoren-in"));
+    // The day before stands in the slip under the same control, to take back.
+    const back = slipRadio("early start, the day before");
+    expect(back).toHaveTextContent("early start· Take");
+
+    await user.click(back);
+
+    await waitFor(() => expect(day.current?.replan().status).toBe("left"), DAY_TIMEOUT);
+    await waitFor(() => expect(planNames()).toEqual(before), DAY_TIMEOUT);
+    expect(slipRadio("slow morning, proposed")).toBeInTheDocument();
+  });
+
+  it("re-picks the day from its own plan when an energy is pressed again with a proposal standing", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    const bar = () => screen.getByRole("group", { name: "How lively the day is" });
+    await user.click(within(bar()).getByRole("button", { name: "quiet" }));
+    const quiet = planNames();
+    await user.click(within(bar()).getByRole("button", { name: "lively" }));
+    expect(planNames()).not.toEqual(quiet);
+    await changeWord(user, "early start", "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("proposed"), DAY_TIMEOUT);
+
+    // The re-plan's day holds its stops as they showed, lively; pressed quiet again, they are
+    // re-picked from the day's own plan, as on the day with no proposal beside it.
+    await user.click(within(bar()).getByRole("button", { name: "quiet" }));
+
+    expect(day.current?.replan().status).toBe("proposed");
+    expect(planNames()).toEqual(quiet);
+  });
+
+  it("keeps an energy re-picked before a word on the day's rows, written, whole, taken and taken back", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "calm", "lively");
+    await waitForTheDay();
+    const repicked = planNames();
+
+    await changeWord(user, "early start", "slow morning");
+
+    // While written, then whole: the frame holds the day as it showed at the press.
+    expect(planNames()).toEqual(repicked);
+    await waitFor(() => expect(day.current?.replan().status).toBe("proposed"), DAY_TIMEOUT);
+    expect(planNames()).toEqual(repicked);
+
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("taken"), DAY_TIMEOUT);
+    // The day before's morning stands in the slip; every row outside it is where it was.
+    const slip = planList().querySelector("[data-slip]")?.textContent ?? "";
+    const outside = repicked.filter((name) => !slip.includes(name ?? ""));
+    await waitFor(() => expect(planNames()).toEqual(expect.arrayContaining(outside)), DAY_TIMEOUT);
+
+    await user.click(slipRadio("early start, the day before"));
+    await waitFor(() => expect(planNames()).toEqual(repicked), DAY_TIMEOUT);
+  });
+
+  it("says an ending without a proposal once, at the first part, and lets its slip go", async () => {
+    replanReplies.push({ cut: KYOTO_SLOW_MORNING, at: 0.62 });
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "early start", "slow morning");
+
+    await waitFor(() => expect(day.current?.replan().status).toBe("failed"), DAY_TIMEOUT);
+    const fork = within(planList()).getByRole("radiogroup");
+    expect(within(fork).getAllByRole("radio")).toHaveLength(1);
+    expect(within(fork).getByRole("button", { name: "Ask again" })).toBeInTheDocument();
+    await waitFor(() => expect(planList().querySelector("[data-slip]")).toBeNull(), DAY_TIMEOUT);
+  });
 });

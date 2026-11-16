@@ -153,6 +153,12 @@ interface FoldProps {
   onGlide?: (isGliding: boolean) => void;
   /** A span, set as a block, where only phrasing content may go, such as in a heading. */
   as?: "div" | "span";
+  /**
+   * Clips only above and below, only while it folds, and feathers no edge: the feather is a
+   * mask, which hides all it holds outside its box, as a part's slip set out in the margin beside
+   * the plan from the row it heads. Its opacity alone hides a line its moving edge cuts.
+   */
+  isOpenToTheSide?: boolean;
   /** Classes for the clipping box. */
   className?: string;
   children: ReactNode;
@@ -169,6 +175,7 @@ export function Fold({
   reachPx,
   onGlide,
   as = "div",
+  isOpenToTheSide = false,
   className,
   children,
 }: FoldProps) {
@@ -193,6 +200,8 @@ export function Fold({
       ? "none"
       : `linear-gradient(to bottom, black calc(100% - ${feather}px), transparent)`;
   });
+  // Open to the side, it clips nothing once fully open, and only up and down until then.
+  const overflowY = useTransform(() => (openness.get() >= 1 ? "visible" : "clip"));
 
   useLayoutEffect(() => {
     const element = content.current;
@@ -217,6 +226,16 @@ export function Fold({
           {children}
         </span>
       </motion.span>
+    );
+  }
+  if (isOpenToTheSide) {
+    return (
+      <motion.div
+        style={{ height, opacity, overflowY }}
+        className={cn(className, isGoneAtOnce && "invisible")}
+      >
+        <div ref={setContent}>{children}</div>
+      </motion.div>
     );
   }
   return (

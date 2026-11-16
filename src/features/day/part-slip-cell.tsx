@@ -52,8 +52,10 @@ export function PartSlipCell({
             daylight={daylight}
             // The part's first row stands for the part, not the day's end: no sun trails it.
             isWritten={false}
-            partHeadOf={(id) =>
-              id === first?.id && (
+            parts={{
+              anchors: [first?.id ?? null],
+              isBeside: shownPlacement === "margin",
+              headOf: () => (
                 <PartSlip
                   view={view}
                   shown={shown}
@@ -66,8 +68,8 @@ export function PartSlipCell({
                   onChoose={ignore}
                   onAskAgain={ignore}
                 />
-              )
-            }
+              ),
+            }}
           />
         </div>
       </div>

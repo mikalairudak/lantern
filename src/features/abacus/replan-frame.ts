@@ -372,6 +372,17 @@ export function frameStopsOf(frame: ReplanFrame): StopDraft[] {
   });
 }
 
+/**
+ * The proposal's stops a frame has written so far, in order: a new stop once the stream has moved
+ * past it, so its time, name and kind are final and the merge's rule has kept it, and each of the
+ * day's stops it writes again, as the merged day will keep it.
+ */
+export function writtenStopsOf(frame: ReplanFrame): StopDraft[] {
+  return frame.rows.flatMap((row) =>
+    row.source === "stays" || (row.source === "proposed" && row.isWhole) ? [row.stop] : [],
+  );
+}
+
 /** A stop with its plan alone, as a proposal's stop is drawn. */
 function withoutVersions(stop: StopDraft): StopDraft {
   return stop.alternatives.length === 0

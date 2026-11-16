@@ -10,8 +10,9 @@ import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import { LISBON_DAY } from "@/lib/fixtures/curated/lisbon";
 import { dayText } from "@/lib/stream/simulate-day-stream";
 import { enteredOf, versionsWrittenOf } from "./reading-gates";
+import { PartSlip } from "./part-slip";
+import { SLIP_EXAMPLES, SLIP_MOMENTS, slipStillOf } from "./part-slip-examples";
 import { ReadingList } from "./reading-list";
-import { FORK_EXAMPLES, forkViewAt } from "@/features/abacus/fork-row-examples";
 
 /** Longer than a row's fold takes to open on the layout spring. */
 const GLIDE_SETTLED_MS = 3000;
@@ -29,6 +30,27 @@ function wholeOf(fixture: typeof KYOTO_DAY) {
 }
 
 const KYOTO = wholeOf(KYOTO_DAY);
+
+/** Elche's lunch, the first of its fork's two parts, as its slip stands at a moment. */
+function slipOf(moment: "whole" | "taken", { onChoose = vi.fn() } = {}) {
+  const lunch = SLIP_EXAMPLES.find(({ label }) => label.startsWith("one stop"))!.example;
+  const at = SLIP_MOMENTS.find(({ label }) => label.startsWith(moment))!.moment;
+  const { view, shown, other } = slipStillOf(lunch, at);
+  return (
+    <PartSlip
+      view={view}
+      shown={shown}
+      other={other}
+      opens={lunch.opens}
+      index={0}
+      count={2}
+      reach="part"
+      placement="column"
+      onChoose={onChoose}
+      onAskAgain={vi.fn()}
+    />
+  );
+}
 
 /** Kyoto's list at the first frame of its stream that meets `isReached`, let in as the day lets it. */
 async function kyotoAt(isReached: Parameters<typeof firstAt>[1]) {
@@ -187,43 +209,31 @@ describe("ReadingList", () => {
     );
   });
 
-  it("draws a proposal's stops in blue, said proposed under their time, with nothing to swap", () => {
-    const proposed = new Set([KYOTO.stops[1]!.id]);
-    render(<ReadingList {...KYOTO} proposed={proposed} onChoose={vi.fn()} />);
+  it("lists the day alone: a fork's other version stands in no row of it", () => {
+    const other = new Set([KYOTO.stops[1]!.id]);
+    render(<ReadingList {...KYOTO} hidden={other} onChoose={vi.fn()} />);
 
-    const row = rowsOf()[1]!;
-    const word = within(row).getByText("proposed");
-    expect(word).toHaveClass("text-ink-soft");
-    // In the gutter under its time, so its line wraps as it would without it.
-    expect(word.parentElement).toHaveTextContent(/^08:25proposed$/);
-    expect(within(row).getByRole("heading")).toHaveTextContent("Philosopher's Path");
-    expect(within(row).queryByRole("button")).not.toBeInTheDocument();
-    // The day's own stops stay the day's: their versions offered, nothing said under them.
-    expect(within(rowsOf()[0]!).getAllByRole("button").length).toBeGreaterThan(0);
-    expect(within(rowsOf()[0]!).queryByText("proposed")).toBeNull();
+    const rows = rowsOf();
+    expect(rows).toHaveLength(KYOTO.stops.length - 1);
+    expect(screen.queryByText("Philosopher's Path")).toBeNull();
+    expect(screen.queryByText("proposed")).toBeNull();
+    // The day's own stops stay the day's, their versions offered.
+    expect(within(rows[0]!).getAllByRole("button").length).toBeGreaterThan(0);
   });
 
-  it("stands a fork's row over the stop it forks, its answers a group of two", () => {
-    const view = forkViewAt(FORK_EXAMPLES[2]!.example, { status: "proposed" });
+  it("stands each part's slip over the stop it heads, its answers a group of two", async () => {
+    const user = userEvent.setup();
     const onChoose = vi.fn();
     render(
       <ReadingList
         {...KYOTO}
-        fork={{
-          view,
-          anchors: [KYOTO.stops[1]!.id],
-          onChoose,
-          onCompare: vi.fn(),
-          onAskAgain: vi.fn(),
-        }}
+        parts={{ anchors: [KYOTO.stops[1]!.id], headOf: () => slipOf("whole", { onChoose }) }}
       />,
     );
 
     const group = within(rowsOf()[1]!).getByRole("radiogroup");
-    expect(group).toHaveAccessibleName("early dinner or eating late");
-    within(group)
-      .getByRole("radio", { name: /eating late/ })
-      .click();
+    expect(group).toHaveAccessibleName("early dinner or eating late, 1 of 2");
+    await user.click(within(group).getByRole("radio", { name: "eating late, proposed" }));
     expect(onChoose).toHaveBeenCalledWith("to");
     expect(within(rowsOf()[0]!).queryByRole("radiogroup")).toBeNull();
   });
@@ -231,35 +241,53 @@ describe("ReadingList", () => {
   it("stands what a caller gives over a stop's row, outside its fold, and nothing elsewhere", () => {
     const second = KYOTO.stops[1]!.id;
     const head = "the part's head";
-    render(<ReadingList {...KYOTO} partHeadOf={(id) => id === second && <p>{head}</p>} />);
+    render(<ReadingList {...KYOTO} parts={{ anchors: [second], headOf: () => <p>{head}</p> }} />);
 
-    expect(within(rowsOf()[1]!).getByText(head)).toBeInTheDocument();
+    const row = rowsOf()[1]!;
+    expect(within(row).getByText(head)).toBeInTheDocument();
+    // Before the row's own fold: a fold clips, and a slip in the margin stands out of it.
+    expect(row.firstElementChild).toHaveTextContent(head);
     expect(screen.getAllByText(head)).toHaveLength(1);
   });
 
-  it("keeps the focus on a fork row's answer as the row moves to another stop", async () => {
-    const proposed = forkViewAt(FORK_EXAMPLES[2]!.example, { status: "proposed" });
-    const taken = forkViewAt(FORK_EXAMPLES[2]!.example, { status: "taken" });
-    const forkOf = (view: typeof proposed, anchor: string) => ({
-      view,
-      anchors: [anchor],
-      onChoose: vi.fn(),
-      onCompare: vi.fn(),
-      onAskAgain: vi.fn(),
-    });
-    const { rerender } = render(
-      <ReadingList {...KYOTO} fork={forkOf(proposed, KYOTO.stops[1]!.id)} />,
-    );
-    within(rowsOf()[1]!)
-      .getByRole("radio", { name: /eating late/ })
-      .focus();
+  it("folds a head beside the list with no feather, and one in the column with it", () => {
+    const head = (part: number) => <p>{`head ${part}`}</p>;
+    const anchors = [KYOTO.stops[1]!.id];
+    const { rerender } = render(<ReadingList {...KYOTO} parts={{ anchors, headOf: head }} />);
+    const fold = () => screen.getByText("head 0").parentElement?.parentElement;
+    expect(fold()).toHaveClass("overflow-hidden");
 
-    // Taken, the old part's stop folds away and the row stands over the next one.
+    rerender(<ReadingList {...KYOTO} parts={{ anchors, headOf: head, isBeside: true }} />);
+
+    // Its row stands it beside the list, from the row's own top, outside the fold.
+    expect(fold()).not.toHaveClass("overflow-hidden");
+    expect(rowsOf()[1]).toHaveClass("relative");
+  });
+
+  it("stands the head of a part with no stop on the list under the last row", () => {
+    const head = "a part past the day's last stop";
+    render(<ReadingList {...KYOTO} parts={{ anchors: [null], headOf: () => <p>{head}</p> }} />);
+
+    const rows = rowsOf();
+    expect(rows).toHaveLength(KYOTO.stops.length + 1);
+    expect(rows.at(-1)).toHaveTextContent(head);
+  });
+
+  it("keeps the focus on a part's answer as a take moves its slip to another stop", async () => {
+    const { rerender } = render(
+      <ReadingList
+        {...KYOTO}
+        parts={{ anchors: [KYOTO.stops[1]!.id], headOf: () => slipOf("whole") }}
+      />,
+    );
+    within(rowsOf()[1]!).getByRole("radio", { name: "eating late, proposed" }).focus();
+
+    // Taken, the old part's stop folds away and the slip stands over the version taken.
     rerender(
       <ReadingList
         {...KYOTO}
-        fork={forkOf(taken, KYOTO.stops[2]!.id)}
-        fading={new Set([KYOTO.stops[1]!.id])}
+        hidden={new Set([KYOTO.stops[1]!.id])}
+        parts={{ anchors: [KYOTO.stops[2]!.id], headOf: () => slipOf("taken") }}
       />,
     );
 
@@ -267,12 +295,24 @@ describe("ReadingList", () => {
       .getAllByRole("listitem")
       .find((item) => item.getAttribute("data-stop") === KYOTO.stops[2]!.id)!;
     await waitFor(() =>
-      expect(within(row).getByRole("radio", { name: /eating late/ })).toHaveFocus(),
+      expect(within(row).getByRole("radio", { name: "eating late, your day" })).toHaveFocus(),
     );
   });
 
-  it("folds a version the fork folds away out of the list", async () => {
-    render(<ReadingList {...KYOTO} fading={new Set([KYOTO.stops[1]!.id])} />);
+  it("brings a version taken in whole, its words not written in again", () => {
+    const other = new Set([KYOTO.stops[1]!.id]);
+    const { rerender } = render(<ReadingList {...KYOTO} hidden={other} />);
+
+    rerender(<ReadingList {...KYOTO} />);
+
+    const taken = within(rowsOf()[1]!).getByRole("heading", { name: "Philosopher's Path" });
+    expect(taken.querySelector(".invisible")).toBeNull();
+  });
+
+  it("folds the version a take leaves out of the list", async () => {
+    const { rerender } = render(<ReadingList {...KYOTO} />);
+
+    rerender(<ReadingList {...KYOTO} hidden={new Set([KYOTO.stops[1]!.id])} />);
 
     await waitFor(() => expect(rowsOf()).toHaveLength(KYOTO.stops.length - 1));
     expect(screen.queryByText(KYOTO.stops[1]!.primary.name!)).toBeNull();

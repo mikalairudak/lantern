@@ -126,6 +126,10 @@ export const CONTAINER_TOKENS = [
   { name: "abacus", role: "The day as rows of the abacus on a wide screen" },
   { name: "margin", role: "The margin beside the plan, where a part's other version stands" },
   {
+    name: "day-column",
+    role: "The day's column whole, the plan and its margin: a part's slip stands in the margin from it",
+  },
+  {
     name: "masthead",
     role: "The shortest masthead row that holds the day's menu, the new day and the theme",
   },

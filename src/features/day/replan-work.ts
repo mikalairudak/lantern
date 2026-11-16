@@ -1,4 +1,4 @@
-import { placedStopsOf } from "@/features/abacus/day-draft";
+import { draftDayOf, placedStopsOf, type StopDraft } from "@/features/abacus/day-draft";
 import type { ReplanFrame } from "@/features/abacus/replan-frame";
 import {
   partMomentOf,
@@ -10,6 +10,7 @@ import {
 import { isSameSpelling } from "@/lib/places/match";
 import type { Stop } from "@/lib/schema/itinerary.schema";
 import type { PartialDay } from "@/lib/stream/outcome";
+import { revealedOf } from "@/features/itinerary/revealed";
 import { ASKED_LABELS, FACT_OPTIONS } from "./facts";
 import { replanEndedOf } from "./not-yet";
 import type {
@@ -155,6 +156,16 @@ export function writtenOf(partial: PartialDay | null): ReplanWritten {
   // The set being written counts, so the last is said, "8 of 8".
   const versioning = Math.min(stops, partial?.alternatives?.length ?? 0);
   return { stops, versioning };
+}
+
+/**
+ * A whole day's stops its stream has finished, in order: each once the next is placed, so its
+ * time, name and kind are final, and all once the stream has moved on to their versions.
+ */
+export function wholeDayWrittenOf(partial: PartialDay | null): StopDraft[] {
+  if (partial === null) return [];
+  const stops = draftDayOf(revealedOf(partial, null)).stops;
+  return partial.alternatives === undefined ? stops.slice(0, -1) : stops;
 }
 
 /**

@@ -40,8 +40,8 @@ export const READING_DAYS: readonly { label: string; fixture: ExampleDay }[] = [
 
 /**
  * The moments a day's list lives through, from its real stream: a stop waiting while its
- * line is written, a row the pen writes as it comes in, the versions' second pass, a version
- * swapped, and a changed word's proposal beside the day, its fork row over it.
+ * line is written, a row the pen writes as it comes in, the versions' second pass, and a
+ * version swapped. A changed word's fork on the plan is the part slip's matrix.
  */
 export const READING_STATES = [
   { key: "whole", label: "whole" },
@@ -49,7 +49,6 @@ export const READING_STATES = [
   { key: "pen", label: "the last row let in, being written" },
   { key: "versions", label: "versions written for the first stops" },
   { key: "swapped", label: "the first stop swapped to its next version" },
-  { key: "proposed", label: "two stops a changed word proposes, its fork row over them" },
 ] as const;
 
 export type ReadingState = (typeof READING_STATES)[number]["key"];
@@ -60,10 +59,6 @@ export interface ReadingStill {
   versionsShown: ReadonlySet<string>;
   picks: readonly number[];
   daylight: DayContext;
-  /** A changed word's proposal beside the day, by id, blue and "proposed". */
-  proposed?: ReadonlySet<string>;
-  /** The stop its fork row stands over. */
-  forkAnchor?: string;
   heldPen?: { id: string; written: number };
 }
 
@@ -115,16 +110,6 @@ export function readingStillOf(day: number, state: ReadingState): Promise<Readin
           ...wholeStill,
           picks: whole.map((stop, index) => (index === 0 && stop.alternatives.length > 0 ? 1 : 0)),
         };
-      case "proposed": {
-        // The day's second and third stops drawn as a proposal beside the rest, the fork's row
-        // over the first of them.
-        const proposed = whole.slice(1, 3);
-        return {
-          ...wholeStill,
-          proposed: new Set(proposed.map((stop) => stop.id)),
-          forkAnchor: proposed[0]?.id,
-        };
-      }
       case "waiting":
       case "pen": {
         // Mid-word in the subject stop's one line, which its row waits for.

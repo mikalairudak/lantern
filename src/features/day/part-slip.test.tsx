@@ -277,7 +277,9 @@ describe("PartSlip", () => {
   it("once taken, names the hour the day now gives a moved place, not the one it had", () => {
     const { container } = renderSlip(exampleOf("a part past midnight"), momentOf("taken"));
 
-    expect(linesOf(container)).toEqual(["01:00Late drinks on the river\u00a0· now\u00a001:30"]);
+    expect(linesOf(container)).toEqual([
+      "01:00Late drinks on the river\u00a0· now\u00a0at\u00a001:30",
+    ]);
     expect(slipOf(container)).toHaveTextContent("in place of 00:50 and 01:30");
   });
 

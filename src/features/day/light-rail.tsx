@@ -118,7 +118,6 @@ export function LightRail({
   from,
   to,
   hasBead,
-  isProposed = false,
   className,
 }: {
   daylight: DayContext;
@@ -126,14 +125,12 @@ export function LightRail({
   to: number;
   /** A stop's bead stands on the rail at its time. */
   hasBead: boolean;
-  /** A proposal's stop: its bead stays ink whatever its hour, as its row carries no light. */
-  isProposed?: boolean;
   className?: string;
 }) {
   const length = Math.max(1, to - from);
   const spans = spansOf(daylight, from, to);
   // The bead reads the very spans the rail is drawn from, so the two never disagree.
-  const isLit = !isProposed && spans[0] !== undefined && isDotted(spans[0].quality);
+  const isLit = spans[0] !== undefined && isDotted(spans[0].quality);
   return (
     <span
       aria-hidden
