@@ -255,9 +255,11 @@ describe("normalizeIntake", () => {
     expect(result.kind === "request" && result.unplaced).toEqual(["by bike", "vegetarian"]);
   });
 
-  it("answers as a failed intake when the city found makes no valid request", () => {
+  it("throws, naming what is wrong, when the city found makes no valid request", () => {
     const nowhere: CityReading = { ...KYOTO, timezone: "Japan" };
 
-    expect(normalizeIntake(intakeOf(), [nowhere], NOW)).toEqual({ kind: "unavailable" });
+    expect(() => normalizeIntake(intakeOf(), [nowhere], NOW)).toThrow(
+      /^The city found.*timezone: /,
+    );
   });
 });

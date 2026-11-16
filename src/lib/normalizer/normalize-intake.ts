@@ -142,8 +142,7 @@ function unplacedOf(intake: GeneratedIntake): string[] {
  * answer offers beside it. With no city named the answer is the question, the words already
  * read waiting for its answer, with whatever cities were found to pick from, one included:
  * the intake asked, so the visitor answers, and no day is planned for a city they did not
- * name (`docs/decisions.md`, "The start screen reads free text through an intake call"). A request
- * that is still not a valid one is answered as an intake that failed.
+ * name (`docs/decisions.md`, "The start screen reads free text through an intake call").
  *
  * Two rules the intake's prompt could not hold Haiku to are kept here, from the visitor's
  * `text` when the route gives it (`docs/decisions.md`, "The start screen reads free text through an
@@ -152,6 +151,9 @@ function unplacedOf(intake: GeneratedIntake): string[] {
  * not ask for, as Porto beside "surprise me in Lisbon", and is dropped. And a question of cities
  * Lantern suggested says nothing back: the cities answer the words that asked, which the intake
  * kept saying back as a wish it could not plan around.
+ *
+ * Throws when the city found makes no valid request, as with a time zone the runtime does not
+ * know or one that is no city's: a failure of ours, which the caller names.
  */
 export function normalizeIntake(
   intake: GeneratedIntake,
@@ -172,7 +174,12 @@ export function normalizeIntake(
   const request = DayRequestSchema.safeParse(
     requestOf(words, city, now, isAssumed ? "assumed" : "chosen"),
   );
-  if (!request.success) return { kind: "unavailable" };
+  if (!request.success) {
+    const issues = request.error.issues
+      .map((issue) => `${issue.path.join(".") || "request"}: ${issue.message}`)
+      .join("; ");
+    throw new Error(`The city found makes no request a day can be written for: ${issues}`);
+  }
   return {
     kind: "request",
     request: request.data,
