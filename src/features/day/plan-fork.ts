@@ -1,6 +1,7 @@
 import { useLayoutEffect, useState } from "react";
 import type { ShownPlaces } from "@/features/abacus/curve";
 import type { StopDraft } from "@/features/abacus/day-draft";
+import type { Arrivals } from "@/features/abacus/use-arrivals";
 import { replanForEnergy } from "@/features/abacus/replan";
 import type { ReplanWindow } from "@/features/abacus/replan-frame";
 import { ENERGY_LEVELS, type EnergyLevel } from "@/lib/schema/itinerary.schema";
@@ -25,8 +26,9 @@ export interface ForkOther {
   energy: EnergyLevel;
   /**
    * The visitor's picks on it where it is drawn as a day of its own, as a whole day taken or
-   * taken back is, by stop id: those kept for that day. Left out for a part's, which is drawn
-   * in the day on screen's place, with the picks made there.
+   * taken back is, by stop id: those kept for that day, and none while it is being written.
+   * Left out for a part's, which is drawn in the day on screen's place, with the picks made
+   * there.
    */
   picks?: ShownPlaces;
 }
@@ -81,6 +83,16 @@ export function proposedAtOf(
     if (place === undefined || place.id === stop.primary.id) return stop;
     return { ...stop, primary: place, alternatives: [], selectedPlaceId: place.id };
   });
+}
+
+/**
+ * The arrivals of the chart's rows, as `proposedAtOf` draws them: a proposal's row re-picked to
+ * another of its places arrives as its stop does. Arrivals are kept by the place written into a
+ * stop, and the re-picked place was never written in, so read by its own its bead never filled.
+ */
+export function chartArrivalsOf(arrivals: Arrivals, stops: readonly StopDraft[]): Arrivals {
+  const own = new Map(stops.map((stop) => [stop.id, stop]));
+  return { ...arrivals, of: (row) => arrivals.of(own.get(row.id) ?? row) };
 }
 
 /** A fork's parts as the plan draws them. */

@@ -279,7 +279,7 @@ describe("ReadingList", () => {
     ) {
       if (this.hasAttribute(BESIDE_ATTRIBUTE)) return 300;
       if (this.hasAttribute("data-part-head")) return 49;
-      if (this.hasAttribute("data-row-words")) return 100;
+      if (this.hasAttribute("data-row-at-rest")) return 100;
       return 0;
     });
     const head = () => (
@@ -312,6 +312,91 @@ describe("ReadingList", () => {
     expect(document.querySelector(`li[data-stop="${third!.id}"] [data-room-beside]`)).toBeNull();
     // Under the last row, the slip less its fork line.
     expect(roomOf("1")).toBe("251px");
+    vi.restoreAllMocks();
+  });
+
+  it("lets the room beside a part go by the same glide as the fork goes, never at once", async () => {
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.hasAttribute(BESIDE_ATTRIBUTE)) return 300;
+      if (this.hasAttribute("data-part-head")) return 49;
+      if (this.hasAttribute("data-row-at-rest") || this.hasAttribute("data-row-words")) return 100;
+      return 0;
+    });
+    const head = () => <div {...{ [BESIDE_ATTRIBUTE]: "" }}>the slip</div>;
+    const parts = { anchors: [KYOTO.stops[1]!.id], headOf: head, isBeside: true };
+    const { rerender } = render(<ReadingList {...KYOTO} parts={parts} />);
+    const room = () => document.querySelector('[data-room-beside="0"]');
+    expect(room()).not.toBeNull();
+
+    // The fork settled: its heads fold away, and the room under its part with them.
+    rerender(<ReadingList {...KYOTO} parts={null} />);
+
+    expect(room()).not.toBeNull();
+    await waitFor(() => expect(room()).toBeNull(), { timeout: GLIDE_SETTLED_MS });
+    vi.restoreAllMocks();
+  });
+
+  it("holds the room beside a part by its rows at rest, not as they glide", () => {
+    // Each row's words glide to a new height, 60 px drawn this frame, 100 at rest.
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.hasAttribute(BESIDE_ATTRIBUTE)) return 300;
+      if (this.hasAttribute("data-part-head")) return 49;
+      if (this.hasAttribute("data-row-at-rest")) return 100;
+      if (this.hasAttribute("data-row-words")) return 60;
+      return 0;
+    });
+    const head = () => <div {...{ [BESIDE_ATTRIBUTE]: "" }}>the slip</div>;
+    const [, first, second] = KYOTO.stops;
+    const parts = { anchors: [first!.id], ends: [second!.id], headOf: head, isBeside: true };
+
+    render(<ReadingList {...KYOTO} parts={parts} />);
+
+    // 300 less the fork line and the part's two rows as they will rest.
+    const room = document.querySelector<HTMLElement>('[data-room-beside="0"] > div > div > div');
+    expect(room?.style.height).toBe("51px");
+    vi.restoreAllMocks();
+  });
+
+  it("holds the room beside a part by the slip that stands, not the one leaving as a take moves it", () => {
+    // The slip leaving is 500 px tall, the one that stands 300.
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.hasAttribute(BESIDE_ATTRIBUTE)) return this.textContent === "leaving" ? 500 : 300;
+      if (this.hasAttribute("data-part-head")) return 49;
+      if (this.hasAttribute("data-row-at-rest") || this.hasAttribute("data-row-words")) return 100;
+      return 0;
+    });
+    const slipSaying = (words: string) =>
+      function SlipSaying() {
+        return <div {...{ [BESIDE_ATTRIBUTE]: "" }}>{words}</div>;
+      };
+    const [, first, second] = KYOTO.stops;
+    const { rerender } = render(
+      <ReadingList
+        {...KYOTO}
+        parts={{ anchors: [first!.id], headOf: slipSaying("leaving"), isBeside: true }}
+      />,
+    );
+
+    // Taken: the head moves to the next stop, the one over the first folding away.
+    rerender(
+      <ReadingList
+        {...KYOTO}
+        parts={{ anchors: [second!.id], headOf: slipSaying("standing"), isBeside: true }}
+      />,
+    );
+
+    expect(screen.getByText("leaving")).toBeInTheDocument();
+    const room = document.querySelector<HTMLElement>(
+      `li[data-stop="${second!.id}"] [data-room-beside="0"] > div > div > div`,
+    );
+    // 300 less the fork line and the part's one row.
+    expect(room?.style.height).toBe("151px");
     vi.restoreAllMocks();
   });
 

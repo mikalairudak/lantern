@@ -309,13 +309,13 @@ function withoutOverlaps<Timed extends Timing>(
 }
 
 /** A stop's time as a draft of a day holds it while it streams. */
-export interface DraftTiming {
+interface DraftTiming {
   startTime: string;
   durationMinutes: number;
 }
 
 /** A draft stop's time as the finished day keeps it: its place among the stops given. */
-export interface KeptTiming {
+interface KeptTiming {
   index: number;
   /** On the day's count of minutes, running on past midnight. */
   start: number;

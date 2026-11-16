@@ -72,11 +72,11 @@ const RAIL_ROOM_CLASSES = "w-2 shrink-0";
  * The slip's answer: the fork row's pill without its pull to the bead's column, so its edge
  * stands on the slip's wire.
  */
-const SLIP_PILL_CLASSES = "rounded-full px-2";
+const SLIP_PILL_CLASSES = "px-2";
 
 /** In the margin: out of flow at the top of the row it heads, the fork's hairline carried over it. */
 const MARGIN_CLASSES =
-  "absolute -top-px left-full w-margin border-t border-line pt-3 pl-4 group-first:border-t-0";
+  "absolute top-0 left-full w-margin border-t border-line pt-3 pl-4 group-first:border-t-0";
 
 /** The slip's body on its wire: the receipt or the work line, its lines, its foot. */
 const BODY_CLASSES = "relative mt-1.5 pl-3";
@@ -85,7 +85,7 @@ const LINE_CLASSES = "flex gap-2";
 /** A line's time: wide enough for "23:45", in figures of one width. */
 const TIME_CLASSES = "w-10 shrink-0 tabular-nums";
 
-/** A line's room held unseen, and a word tied to the next: a space no line breaks at. */
+/** A word tied to the next: a space no line breaks at. */
 const NO_BREAK = "\u00a0";
 
 /**
@@ -363,11 +363,14 @@ function Slip({ view, shown, other, opens, isFirst, reach, isInColumn, side, onP
     setPenned(new Map(lines.map(({ id }) => [id, penned.get(id) ?? view.isWriting])));
   }
   const foot = view.isWriting ? null : slipFootOf(shown, other, reach, opens);
-  // From the press the slip holds the room it will take, in the column and the margin alike,
-  // so what stands under or beside it is moved once: the part's own lines as new stops' lines
-  // wrap at its width (`heldLinesOf`), the foot they would have, and in the first part the work
-  // line and the line where the day's end would move. Lines that arrive take their room; room
-  // not used is given back once, as the proposal is whole.
+  // From the press the slip holds room for the lines the version most often has, in the column
+  // and the margin alike, so what stands under or beside it is most often moved once: a part's
+  // own stops and one more, the longest, or a whole day's own stops alone, each set as a new
+  // stop's line wrapping at the slip's width (`heldLinesOf`), the foot they would have, and in
+  // the first part the work line and the line where the day's end would move. Each line that
+  // arrives takes a held line's room. A proposal with more stops than the lines held, or a line
+  // that wraps onto more lines than the one whose room it takes, grows the slip again as it
+  // arrives; room not used is given back once, as the proposal is whole.
   const held = view.isWriting ? heldLinesOf(shown, opens, reach).slice(lines.length) : [];
   const heldFoot = view.isWriting ? slipFootOf(shown, [], reach, opens) : null;
   // The work line, then the receipt, is said once, in the fork's first part. A receipt with
@@ -585,7 +588,8 @@ function SlipLineItem({ line, movedWord, isPenned, isHeld = false }: SlipLineIte
       : mark.kind === "stays"
         ? "stays"
         : `${movedWord}${NO_BREAK}${mark.hour}`;
-  const after = `${SEPARATOR}${tail}`;
+  // The mark never parts from its dot: a line breaks in its name, or after a later dot.
+  const after = `${NO_BREAK}·${NO_BREAK}${tail}`;
   // One pen through the line, in the order it reads, as a row's words are written in.
   const written = useEntryPen(time.length + name.length + after.length, isPenned);
   const afterTime = written - time.length;

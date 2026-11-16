@@ -400,6 +400,9 @@ interface RunSetAside extends SetAside {
 /** No fork on screen: no parts to stand over. */
 const NO_WINDOWS: readonly ReplanWindow[] = [];
 
+/** A day no visitor has picked a version on. */
+const NO_PICKS: ShownPlaces = {};
+
 /** A city named whole: no other city it could mean. */
 const NO_READINGS: readonly CityReading[] = [];
 
@@ -1694,8 +1697,11 @@ export function Day({
       if (replanFrame !== null && targetedShown !== null) {
         return { stops: writtenVersionOf(replanFrame), energy: targetedShown.request.energy };
       }
+      // A whole day being written has no picks yet: the visitor's on the day on screen belong to
+      // that generation alone, whose stops' and versions' ids the new one shares.
       if (replanned !== null && replanning !== null) {
-        return { stops: wholeDayWrittenOf(replanned.partial), energy: replanning.request.energy };
+        const stops = wholeDayWrittenOf(replanned.partial);
+        return { stops, energy: replanning.request.energy, picks: NO_PICKS };
       }
       return null;
     }

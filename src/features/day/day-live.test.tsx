@@ -2855,11 +2855,13 @@ describe("a changed word's fork on the plan, with live generation on", () => {
       .getAllByRole("heading", { level: 2 })
       .map((heading) => heading.textContent);
   const slipRadio = (name: string) => within(planList()).getByRole("radio", { name });
-  /** The names the slip lists, a line each. */
+  /** The names the slip lists, a line each, without the unseen lines holding its room. */
   const slipNames = () =>
-    [...planList().querySelectorAll("[data-slip] ol li span.min-w-0 > span:first-child")].map(
-      (name) => name.textContent,
-    );
+    [
+      ...planList().querySelectorAll(
+        "[data-slip] ol li:not([aria-hidden]) span.min-w-0 > span:first-child",
+      ),
+    ].map((name) => name.textContent);
   /** A moment later than any press a test has made, for presses whose clock the test sets. */
   const FIRST_PRESS_AT = 1e9;
   /** A press whose event says when it was made, as the double-press guard reads it. */
@@ -2975,15 +2977,29 @@ describe("a changed word's fork on the plan, with live generation on", () => {
 
   it("lists a whole day written again as taking it draws it, with none of the day before's picks", async () => {
     const user = await landOnMadrid();
-    // A pick on a stop of the day before; then a word that writes the whole day again, the
-    // new day's stops numbered from the start as the day before's are.
+    // A pick on the first stop of the day before; then a word that writes the whole day again,
+    // the new day's stops and their versions numbered from the start as the day before's are.
     await user.click(
       within(planList()).getAllByRole("button", { name: /^(Quieter|Livelier): / })[0]!,
     );
     dayReplies.push(KANAZAWA_START_REQUEST);
+    // Every name each of the slip's lines says from the press to the proposal whole, a line a
+    // stop: a name the pen is writing grows to the one it ends on, and is never another place's.
+    const said = new Set<string>();
+    const watch = new MutationObserver(() => {
+      slipNames().forEach((name, line) => said.add(`${line}|${name}`));
+    });
+    watch.observe(document.body, { subtree: true, childList: true, characterData: true });
+    onTestFinished(() => watch.disconnect());
     await changeWord(user, "with friends", "with family");
     const take = await waitFor(() => slipRadio("with family, proposed"), DAY_TIMEOUT);
+    watch.disconnect();
     const listed = slipNames();
+    const strays = [...said].filter((each) => {
+      const [line, name] = each.split("|");
+      return !(listed[Number(line)] ?? "").startsWith(name ?? "");
+    });
+    expect(strays).toEqual([]);
 
     await pastADoublePress();
     await user.click(take);
@@ -3029,19 +3045,26 @@ describe("a changed word's fork on the plan, with live generation on", () => {
     await takeProposal(user, "slow morning");
     await waitFor(() => expect(day.current?.replan().status).toBe("taken"), DAY_TIMEOUT);
     await waitForTheDay();
-    const listed = slipNames();
+    // Each line of the slip: the stop's time and the place it names.
+    const listed = [...planList().querySelectorAll("[data-slip] ol li:not([aria-hidden])")].map(
+      (line) => ({
+        time: line.querySelector(":scope > span")?.textContent ?? "",
+        name: line.querySelector("span.min-w-0 > span:first-child")?.textContent ?? "",
+      }),
+    );
+    expect(listed.length).toBeGreaterThan(0);
 
     await user.click(screen.getAllByRole("button", { name: "Compare" })[0]!);
 
-    const chartNames = () =>
+    // The chart's row of each stop, at its time, names the place its line does.
+    const namesAt = (time: string) =>
       within(dayList())
         .getAllByRole("listitem")
-        .map((row) => row.textContent ?? "");
-    await waitFor(() =>
-      expect(listed.every((name) => chartNames().some((row) => row.includes(name ?? "")))).toBe(
-        true,
-      ),
-    );
+        .filter((row) => row.querySelector(`[data-start-time="${time}"]`) !== null)
+        .flatMap((row) => listed.filter(({ name }) => within(row).queryByText(name) !== null));
+    await waitFor(() => {
+      for (const line of listed) expect(namesAt(line.time)).toContainEqual(line);
+    });
   });
 
   it("re-picks the day from its own plan when an energy is pressed again with a proposal standing", async () => {

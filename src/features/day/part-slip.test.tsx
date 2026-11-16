@@ -87,7 +87,7 @@ describe("PartSlip", () => {
     expect(slipOf(container)).toHaveTextContent("Dinner 21:00, not 18:15 · 3 new stops");
     expect(slipOf(container)).toHaveTextContent("ends 23:45, not 20:45");
     expect(linesOf(container)).toEqual([
-      "13:15Arròs on Passeig de l'Estació\u00a0· lunch\u00a0· until\u00a014:45",
+      "13:15Arròs on Passeig de l'Estació\u00a0·\u00a0lunch\u00a0· until\u00a014:45",
     ]);
     expect(slipOf(container)).toHaveTextContent("in place of 13:15");
     expect(screen.getByRole("status")).toHaveTextContent("eating late is ready beside your day");
@@ -98,12 +98,19 @@ describe("PartSlip", () => {
 
     expect(slipOf(container)).not.toHaveTextContent("Dinner 21:00");
     expect(linesOf(container)).toEqual([
-      "16:30Huerto del Cura\u00a0· stays",
-      "21:00Tapas along Carrer Major de la Vila\u00a0· dinner\u00a0· until\u00a022:45",
-      "23:15Plaça de Baix at night\u00a0· walk\u00a0· until\u00a023:45",
+      "16:30Huerto del Cura\u00a0·\u00a0stays",
+      "21:00Tapas along Carrer Major de la Vila\u00a0·\u00a0dinner\u00a0· until\u00a022:45",
+      "23:15Plaça de Baix at night\u00a0·\u00a0walk\u00a0· until\u00a023:45",
     ]);
     expect(slipOf(container)).toHaveTextContent("in place of 18:15 and 20:00");
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("keeps a line's mark on the line of its dot, so a line never ends on the dot alone", () => {
+    const { container } = renderSlip(EVENING, momentOf("whole"));
+
+    // Every break a line may take falls in its name or after a later dot, never after the first.
+    for (const line of linesOf(container)) expect(line).toMatch(/ · /);
   });
 
   it("takes the proposal at its answer, and keeps the day at the fork line's", async () => {
@@ -184,8 +191,8 @@ describe("PartSlip", () => {
     // The lunch's one stop and one more, held as they would wrap.
     const held = [...(slipOf(container)?.querySelectorAll("li[aria-hidden]") ?? [])];
     expect(held.map((line) => line.textContent)).toEqual([
-      "13:15Menú del día on Carrer Major de la Vila\u00a0· lunch\u00a0· until\u00a014:30",
-      "13:15Menú del día on Carrer Major de la Vila\u00a0· lunch\u00a0· until\u00a014:30",
+      "13:15Menú del día on Carrer Major de la Vila\u00a0·\u00a0lunch\u00a0· until\u00a014:30",
+      "13:15Menú del día on Carrer Major de la Vila\u00a0·\u00a0lunch\u00a0· until\u00a014:30",
     ]);
   });
 
@@ -198,7 +205,7 @@ describe("PartSlip", () => {
 
   it("lets each line in once its stop is finished, into a line of room held for each stop", async () => {
     const { container, rerender, props } = renderSlip(EVENING, momentOf("writing: its first"));
-    expect(linesOf(container)).toEqual(["16:30Huerto del Cura\u00a0· stays"]);
+    expect(linesOf(container)).toEqual(["16:30Huerto del Cura\u00a0·\u00a0stays"]);
     // Three stops and one more, the first of them filled.
     expect(slipOf(container)?.querySelectorAll("li[aria-hidden]")).toHaveLength(3);
 
@@ -207,7 +214,7 @@ describe("PartSlip", () => {
 
     await waitFor(() =>
       expect(linesOf(container)[1]).toBe(
-        "21:00Tapas along Carrer Major de la Vila\u00a0· dinner\u00a0· until\u00a022:45",
+        "21:00Tapas along Carrer Major de la Vila\u00a0·\u00a0dinner\u00a0· until\u00a022:45",
       ),
     );
     expect(slipOf(container)?.querySelectorAll("li[aria-hidden]")).toHaveLength(1);
@@ -261,9 +268,9 @@ describe("PartSlip", () => {
     await user.click(screen.getByRole("radio", { name: "early dinner, the day before" }));
     expect(onChoose).toHaveBeenCalledWith("from");
     expect(linesOf(container)).toEqual([
-      "16:30Huerto del Cura\u00a0· stays",
-      "18:15Rice dinner on Passeig de l'Estació\u00a0· dinner\u00a0· until\u00a019:45",
-      "20:00Plaça de Baix at dusk\u00a0· walk\u00a0· until\u00a020:45",
+      "16:30Huerto del Cura\u00a0·\u00a0stays",
+      "18:15Rice dinner on Passeig de l'Estació\u00a0·\u00a0dinner\u00a0· until\u00a019:45",
+      "20:00Plaça de Baix at dusk\u00a0·\u00a0walk\u00a0· until\u00a020:45",
     ]);
     expect(slipOf(container)).toHaveTextContent("in place of 21:00 and 23:15");
   });
@@ -317,8 +324,8 @@ describe("PartSlip", () => {
     const { container } = renderSlip(exampleOf("a part past midnight"), momentOf("whole"));
 
     expect(linesOf(container)).toEqual([
-      "00:50Tinned fish on Pink Street\u00a0· late supper\u00a0· until\u00a001:30",
-      "01:30Late drinks on the river\u00a0· was\u00a001:00",
+      "00:50Tinned fish on Pink Street\u00a0·\u00a0late supper\u00a0· until\u00a001:30",
+      "01:30Late drinks on the river\u00a0·\u00a0was\u00a001:00",
     ]);
     expect(slipOf(container)).toHaveTextContent("in place of 01:00");
   });
@@ -335,9 +342,9 @@ describe("PartSlip", () => {
     const { container } = renderSlip(exampleOf("two of the day's"), momentOf("whole"));
 
     expect(linesOf(container)).toEqual([
-      "07:30Coffee on the Oudegracht\u00a0· was\u00a010:00",
-      "08:30Domtoren\u00a0· was\u00a011:15",
-      "10:00Park Lepelenburg\u00a0· garden\u00a0· until\u00a011:30",
+      "07:30Coffee on the Oudegracht\u00a0·\u00a0was\u00a010:00",
+      "08:30Domtoren\u00a0·\u00a0was\u00a011:15",
+      "10:00Park Lepelenburg\u00a0·\u00a0garden\u00a0· until\u00a011:30",
     ]);
   });
 
@@ -345,7 +352,7 @@ describe("PartSlip", () => {
     const { container } = renderSlip(exampleOf("a part past midnight"), momentOf("taken"));
 
     expect(linesOf(container)).toEqual([
-      "01:00Late drinks on the river\u00a0· now\u00a0at\u00a001:30",
+      "01:00Late drinks on the river\u00a0·\u00a0now\u00a0at\u00a001:30",
     ]);
     expect(slipOf(container)).toHaveTextContent("in place of 00:50 and 01:30");
   });

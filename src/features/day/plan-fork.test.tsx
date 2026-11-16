@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, renderHook, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { completeDraftOf, type StopDraft } from "@/features/abacus/day-draft";
@@ -10,12 +10,21 @@ import {
   writtenVersionOf,
 } from "@/features/abacus/replan-frame";
 import { itineraryOf } from "@/features/abacus/stop-row-examples";
+import { useArrivals } from "@/features/abacus/use-arrivals";
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import { LISBON_DAY } from "@/lib/fixtures/curated/lisbon";
 import { KYOTO_ITINERARY, KYOTO_MORNING_BASIS } from "@/lib/fixtures/replan/kyoto-morning";
 import type { ReplanBasis } from "@/lib/replan/merge";
 import { ENERGY_LEVELS } from "@/lib/schema/itinerary.schema";
-import { asShownOf, forkOtherAt, planForkOf, slipPlacementOf, useSlipPlacement } from "./plan-fork";
+import {
+  asShownOf,
+  chartArrivalsOf,
+  forkOtherAt,
+  planForkOf,
+  proposedAtOf,
+  slipPlacementOf,
+  useSlipPlacement,
+} from "./plan-fork";
 
 /** A stop at a place, as far as the plan's fork reads it. */
 function stopAt(id: string, startTime: string, durationMinutes: number, name: string): StopDraft {
@@ -155,6 +164,24 @@ describe("asShownOf", () => {
 
     expect(shown?.selectedPlaceId).toBe(version);
     expect(tower).toBe(TOWER);
+  });
+});
+
+describe("chartArrivalsOf", () => {
+  it("has a proposal's row the chart draws re-picked arrive as its stop has, its bead filled", () => {
+    // Kyoto's day on the chart, there from its first render, with motion: each stop settled.
+    const { stops } = completeDraftOf(itineraryOf(KYOTO_DAY));
+    const { result } = renderHook(() => useArrivals(stops, 1));
+    const stop = stops.find(({ alternatives }) => alternatives.length > 0)!;
+    // Its other version re-picks it to a version: the chart draws that place alone.
+    const repicked = { ...stop, selectedPlaceId: stop.alternatives[0]!.id };
+    const [row] = proposedAtOf([stop], new Set([stop.id]), [repicked]);
+    expect(row!.primary.id).not.toBe(stop.primary.id);
+
+    const arrival = chartArrivalsOf(result.current, stops).of(row!);
+
+    expect(arrival).toEqual(result.current.of(stop));
+    expect(arrival.isReady).toBe(true);
   });
 });
 

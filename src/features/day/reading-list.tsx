@@ -188,11 +188,25 @@ export function ReadingList({
   const isBeside = parts?.isBeside ?? false;
   const ends = parts?.ends ?? NO_ANCHORS;
   const rooms = useRoomsBeside(list, isBeside, anchors, ends);
-  /** The parts whose room stands after this row, or under the last. */
-  const roomsAfter = (place: string | null) =>
-    isBeside
-      ? anchors.flatMap((anchor, part) => ((ends[part] ?? anchor) === place ? [part] : []))
-      : [];
+  /**
+   * The room of each part whose last row this is, or under the last: it glides to each new
+   * height as the rows do, and folds away at their pace as its part goes, as an answered fork's
+   * heads do, so the rows under it never jump by it.
+   */
+  const roomsAt = (place: string | null) => (
+    <AnimatePresence initial={false}>
+      {isBeside &&
+        anchors.flatMap((anchor, part) =>
+          (ends[part] ?? anchor) === place
+            ? [
+                <Fold key={part} isAppearing={false} reachPx={ROW_REACH_PX}>
+                  <RoomBeside part={part} room={rooms[part] ?? 0} isPainted={isPainted} />
+                </Fold>,
+              ]
+            : [],
+        )}
+    </AnimatePresence>
+  );
   /**
    * The heads of the parts that stand over a row, or under the last: each folds in and out as
    * its part comes and goes, and with its row as the row comes and goes. One over a row let in
@@ -266,19 +280,15 @@ export function ReadingList({
                   <SunLine key={sun.word} daylight={daylight} sun={sun} to={to} />
                 ))}
               </div>
-              {roomsAfter(stop.id).map((part) => (
-                <RoomBeside key={part} part={part} room={rooms[part] ?? 0} isPainted={isPainted} />
-              ))}
+              {roomsAt(stop.id)}
             </Fold>
           </li>
         ))}
         {anchors.includes(null) && (
           <li key={TAIL_KEY} className={cn("group relative", rowClassName)}>
             {headsAt(null, TAIL_KEY, isPainted)}
-            <Fold isAppearing={isPainted}>
-              {roomsAfter(null).map((part) => (
-                <RoomBeside key={part} part={part} room={rooms[part] ?? 0} isPainted={isPainted} />
-              ))}
+            <Fold isAppearing={isPainted} reachPx={ROW_REACH_PX}>
+              {roomsAt(null)}
             </Fold>
           </li>
         )}
@@ -289,6 +299,11 @@ export function ReadingList({
 
 /** Marks a row's words, by its stop, which a part's room is measured against. */
 const ROW_WORDS_ATTRIBUTE = "data-row-words";
+/**
+ * Marks a row's words inside the box that glides to their height: as tall as they will rest,
+ * whatever the box is drawn at this frame.
+ */
+const ROW_AT_REST_ATTRIBUTE = "data-row-at-rest";
 /** Marks a part's head, by its part. */
 const PART_HEAD_ATTRIBUTE = "data-part-head";
 /** Marks the room a part holds after its last row for its slip beside the list, by its part. */
@@ -311,9 +326,12 @@ function RoomBeside({ part, room, isPainted }: { part: number; room: number; isP
 
 /**
  * The room each part holds after its last row, by its part: how much taller what its head
- * stands beside the list is than the head and the part's rows, each read at its height at rest,
- * so a head or a row folding in or out never reads short. Read after each render and as any of
- * them is resized; none while nothing stands beside the list.
+ * stands beside the list is than the head and the part's rows. Each is read as it will rest:
+ * the head and the rows inside their folds, so one folding in or out never reads short, and a
+ * row's words inside the box that glides to them, so a swap or a re-pick moves no room while
+ * the rows glide. The head is the part's that stands, never one folding away as a take moves
+ * it. Read after each render and as any of them is resized; none while nothing stands beside
+ * the list.
  */
 function useRoomsBeside(
   list: RefObject<HTMLOListElement | null>,
@@ -329,7 +347,9 @@ function useRoomsBeside(
       const rows = [...element.querySelectorAll<HTMLElement>(`[${ROW_WORDS_ATTRIBUTE}]`)];
       const next: Record<number, number> = {};
       anchors.forEach((anchor, part) => {
-        const head = element.querySelector<HTMLElement>(`[${PART_HEAD_ATTRIBUTE}="${part}"]`);
+        const head = element.querySelector<HTMLElement>(
+          `[${PART_HEAD_ATTRIBUTE}="${part}"]:not([inert])`,
+        );
         const beside = head?.querySelector<HTMLElement>(`[${BESIDE_ATTRIBUTE}]`);
         if (!head || !beside) return;
         const first = rows.findIndex((row) => row.getAttribute(ROW_WORDS_ATTRIBUTE) === anchor);
@@ -338,18 +358,26 @@ function useRoomsBeside(
         const words =
           first === -1 || last === -1
             ? 0
-            : rows.slice(first, last + 1).reduce((sum, row) => sum + row.offsetHeight, 0);
+            : rows.slice(first, last + 1).reduce((sum, row) => sum + atRestOf(row), 0);
         next[part] = Math.ceil(Math.max(0, beside.offsetHeight - head.offsetHeight - words));
       });
       setRooms((current) => (isSameRooms(current, next) ? current : next));
     };
     measure();
     const observer = new ResizeObserver(measure);
-    const measured = `[${BESIDE_ATTRIBUTE}], [${PART_HEAD_ATTRIBUTE}], [${ROW_WORDS_ATTRIBUTE}]`;
+    const measured = `[${BESIDE_ATTRIBUTE}], [${PART_HEAD_ATTRIBUTE}], [${ROW_AT_REST_ATTRIBUTE}]`;
     for (const box of element.querySelectorAll(measured)) observer.observe(box);
     return () => observer.disconnect();
   });
   return rooms;
+}
+
+/** A row's words as tall as they will rest: the sun's lines as drawn, its words at rest. */
+function atRestOf(row: HTMLElement): number {
+  return [...row.children].reduce((sum, child) => {
+    const box = child.querySelector<HTMLElement>(`[${ROW_AT_REST_ATTRIBUTE}]`) ?? child;
+    return sum + (box instanceof HTMLElement ? box.offsetHeight : 0);
+  }, 0);
 }
 
 function isSameRooms(a: Readonly<Record<number, number>>, b: Readonly<Record<number, number>>) {
@@ -554,7 +582,7 @@ function ReadingRow({
       // view; only those in view glide.
       shouldHoldTheView
     >
-      <div className={cn(ROW_CLASSES, "text-ink")}>
+      <div {...{ [ROW_AT_REST_ATTRIBUTE]: "" }} className={cn(ROW_CLASSES, "text-ink")}>
         <span
           className={cn(
             GUTTER_CLASSES,

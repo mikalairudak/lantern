@@ -123,6 +123,7 @@ import { ReadingList, type PlanParts } from "./reading-list";
 import { PartSlip, type ForkPresses } from "./part-slip";
 import {
   asShownOf,
+  chartArrivalsOf,
   forkOtherAt,
   planForkOf,
   proposedAtOf,
@@ -681,9 +682,12 @@ export function DayStage({
       isReducedMotion ? new Set([...whole].filter((id) => listVersions.has(id))) : whole,
     );
   }, [frameStops, isRepicked, draft, revealed.day, stops, isReducedMotion, listVersions]);
-  // A day that ends without one keeps the rows it showed while its chart fades.
-  const [listEntered, setListEntered] = useState(isDrawnWhole ? listWhole : 0);
-  if (!isChartLeaving && listEntered !== listWhole) setListEntered(listWhole);
+  // A day that ends without one keeps the rows it showed while its chart fades. The rest of
+  // this render reads the rows as the render it sets will, so nothing in it, as the line under
+  // the list, reads the list short of rows a fork's take has just drawn in.
+  const [heldEntered, setListEntered] = useState(isDrawnWhole ? listWhole : 0);
+  if (!isChartLeaving && heldEntered !== listWhole) setListEntered(listWhole);
+  const listEntered = isChartLeaving ? heldEntered : listWhole;
   // The plan is written once each of the day's rows says its versions: a fork's other version
   // stands in its slips, not in the list.
   const isListWritten =
@@ -959,6 +963,7 @@ export function DayStage({
   );
   // The chart's rows of the version beside the day, drawn with one place alone, show the place
   // its slip lists and taking it shows: re-picked for the energy, with the visitor's picks on it.
+  // Each arrives as its stop does (`chartArrivalsOf`).
   const chartStops = useMemo(
     () => (replanProposed.size === 0 ? stops : proposedAtOf(stops, replanProposed, forkOtherShown)),
     [stops, replanProposed, forkOtherShown],
@@ -1604,7 +1609,7 @@ export function DayStage({
                     densityOverride={null}
                     picks={energy.committed}
                     energy={energy}
-                    arrivals={frozen?.arrivals ?? arrivals}
+                    arrivals={chartArrivalsOf(frozen?.arrivals ?? arrivals, stops)}
                     requestedEnergy={requestedEnergy}
                     light={light}
                     daylight={daylight}
