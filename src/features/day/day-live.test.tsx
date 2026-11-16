@@ -36,7 +36,7 @@ import { NOT_LIVE_NOTE } from "./start-header";
 import { StartDay } from "./start-day";
 import { writtenPool } from "./written-pool";
 import { INDEX_LABEL } from "./start-index";
-import { YOUR_DAYS_HEADING } from "./your-days-list";
+import { YOUR_DAYS_HEADING } from "./your-days-ledger-words";
 import { TAKE_THIS_DAY } from "./day-menu";
 import { ONE_CHANGE_AT_A_TIME } from "./day-stage-header";
 import { sendProductEvent } from "@/lib/events/send-event";
@@ -2720,8 +2720,8 @@ describe("one of the visitor's days pressed while a day asked on the start scree
   async function yourDay(name: RegExp): Promise<HTMLElement> {
     const yours = await screen.findByRole("list", { name: YOUR_DAYS_HEADING });
     const [row, ...others] = within(yours)
-      .getAllByRole("button")
-      .filter((button) => name.test(button.textContent ?? ""));
+      .getAllByRole("link")
+      .filter((link) => name.test(link.textContent ?? ""));
     expect(others).toEqual([]);
     return row!;
   }

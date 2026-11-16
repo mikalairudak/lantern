@@ -18,9 +18,6 @@ import {
   DAYS_SHOWN_AT_FIRST,
   FORGET_YOUR_DAYS,
   YOUR_DAYS_HEADING,
-  type YourDaysListProps,
-} from "./your-days-list";
-import {
   hasNoDayBehind,
   ledgerDateOf,
   ledgerEndingOf,
@@ -55,7 +52,26 @@ export interface LedgerStill {
   isMotionReduced?: boolean;
 }
 
-export interface YourDaysLedgerProps extends YourDaysListProps {
+/** The visitor's days as the start screen hands them over, and what a press on them does. */
+export interface YourDaysProps {
+  days: readonly YourDay[];
+  /**
+   * Now: the browser's clock unless given, as a bench gives it. Read only once there is a day,
+   * so a page the server prerenders never reads a clock.
+   */
+  now?: Date;
+  /** A row pressed plainly: the page opens the day, from memory where it still holds it. */
+  onOpen: (day: YourDay) => void;
+  onForget: () => void;
+}
+
+/**
+ * The ledger's own form, which the start screen takes as it stands. The lab's concept page sets
+ * the other answers to the form's questions, so they can be seen beside it.
+ */
+export interface YourDaysLedgerProps extends YourDaysProps {
+  /** Every day shown from the first frame, as a bench sets the list once "All" is pressed. */
+  isAllShownAtFirst?: boolean;
   /** The energy's scale, its five places, at the head of each row beside the city. */
   hasEnergyWire?: boolean;
   rowsAtRest?: RowsAtRest;

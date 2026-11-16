@@ -2,7 +2,7 @@ import { ENERGY_LEVELS, type DayRequest, type EnergyLevel } from "@/lib/schema/i
 import type { YourDay } from "./your-days";
 
 /**
- * The visitor's own days for the ledger's matrix and its comparison in the lab: days of cities
+ * The visitor's own days for the ledger's matrix and its concept page in the lab: days of cities
  * across time zones, read at one fixed moment, so every date a row says is the same on any
  * machine. A plain module, so the server reads the matrix's axes.
  */
@@ -35,7 +35,7 @@ const SHAPE_STEPS = [-1, 0, 1, 0, -1, -2] as const;
 /** The stops a day being written has so far. */
 const STOPS_SO_FAR = 2;
 
-/** A day's stops at its energy, as today's list draws them; the ledger does not read them. */
+/** A day's stops at its energy, as a kept day holds them; the ledger does not read them. */
 function shapeOf(energy: EnergyLevel): EnergyLevel[] {
   const at = ENERGY_LEVELS.indexOf(energy);
   return SHAPE_STEPS.map(

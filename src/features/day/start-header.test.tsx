@@ -12,7 +12,8 @@ import { INDEX_LABEL } from "./start-index";
 import { startOffersOf } from "./start-offers";
 import { writtenPool } from "./written-pool";
 import type { YourDay } from "./your-days";
-import { FORGET_YOUR_DAYS } from "./your-days-list";
+import { FORGET_ANSWER } from "./your-days-ledger";
+import { FORGET_YOUR_DAYS } from "./your-days-ledger-words";
 
 /** The written days as the index offers them. */
 const STARTS = startOffersOf(writtenPool());
@@ -450,6 +451,8 @@ describe("the visitor's days over the starts", () => {
     render(<StartHeader {...props} yourDays={yourDays(onForget)} />);
 
     await user.click(screen.getByRole("button", { name: FORGET_YOUR_DAYS }));
+    expect(onForget).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: FORGET_ANSWER }));
 
     expect(onForget).toHaveBeenCalledOnce();
     await waitFor(() => expect(within(writtenDays()).getAllByRole("button")[0]).toHaveFocus());

@@ -23,7 +23,7 @@ const YourDaySchema = z.strictObject({
   request: DayRequestSchema,
   /** When it was asked for, as ISO 8601: a day not found three minutes on did not finish. */
   startedAt: z.string(),
-  /** Each stop's energy as the day showed it, so far: the beads of its shape. */
+  /** Each stop's energy as the day showed it, so far. Kept with the day; no row draws it. */
   energies: z.array(EnergyLevelSchema),
   /** How it stands: still written, written, cut short with its stops kept, or no day. */
   ending: z.enum(["writing", "written", "cut", "failed"]),

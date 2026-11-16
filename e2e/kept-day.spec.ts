@@ -1,6 +1,7 @@
 import { expect, test, type Page, waitMs, chooseTheChart } from "./fixtures";
 import { writtenDayAt } from "../src/lib/days/written/days";
 import { YOUR_DAYS_KEY, type YourDay } from "../src/features/day/your-days";
+import { ledgerDateOf } from "../src/features/day/your-days-ledger-words";
 import { BROWSER_STORAGE } from "../src/lib/browser-storage";
 import { writtenVersionOf } from "../src/lib/days/written/version";
 import type { StoredDay } from "../src/lib/days/stored-day";
@@ -31,6 +32,8 @@ const WRITTEN: StoredDay = {
 };
 /** The page asks every three seconds; a cold server adds a few to the first. */
 const LANDED_TIMEOUT_MS = waitMs(20_000);
+/** A town of 58 letters with no break in it: the longest city a row has to hold. */
+const LONGEST_TOWN = "Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch";
 
 test.use({ reducedMotion: "reduce" });
 
@@ -97,8 +100,10 @@ test("the start screen says how a day left while it was written ended", async ({
   await answerTheLog(page, WRITTEN);
   await page.goto("/");
 
+  // Written, the row says the day's own date where it said "writing".
+  const date = ledgerDateOf({ ...day, ending: "written" }, new Date());
   const yours = page.getByRole("list", { name: "Your days" });
-  await expect(yours.getByRole("button")).toHaveText(/\. today$/);
+  await expect(yours.getByRole("link")).toHaveAccessibleName(new RegExp(`^Kyoto\\b.*\\b${date}$`));
 });
 
 test("forgetting the visitor's days forgets what the browser kept of every kept day, and no written one", async ({
@@ -138,6 +143,10 @@ test("forgetting the visitor's days forgets what the browser kept of every kept 
   await page.goto("/");
 
   await page.getByRole("button", { name: "Forget these days" }).click();
+  // Asked once: the focus waits on "Keep", and nothing is forgotten until "Forget".
+  await expect(page.getByRole("button", { name: "Keep", exact: true })).toBeFocused();
+  await expect(page.getByRole("list", { name: "Your days" })).toBeVisible();
+  await page.getByRole("button", { name: "Forget", exact: true }).click();
   await expect(page.getByRole("list", { name: "Your days" })).toHaveCount(0);
 
   const kept = await page.evaluate(
@@ -145,6 +154,68 @@ test("forgetting the visitor's days forgets what the browser kept of every kept 
     [YOUR_DAYS_KEY, BROWSER_STORAGE.seen.key, BROWSER_STORAGE.picks.key],
   );
   expect(kept).toEqual([null, [written], [{ day: written, places: chosen }]]);
+});
+
+test("on a 320 px phone the visitor's days stay inside the column, the longest city and every word among them", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  const today = new Date().toISOString().slice(0, 10);
+  const dayOf = (id: string, city: string, ending: YourDay["ending"]): YourDay => ({
+    id,
+    request: {
+      ...KANAZAWA.request,
+      city,
+      date: today,
+      timezone: "Europe/London",
+      energy: "balanced",
+      travel: "transit",
+      start: "slow",
+      dinner: "early",
+      end: "early",
+      company: "partner",
+    },
+    startedAt: new Date().toISOString(),
+    energies: [],
+    ending,
+    seconds: null,
+  });
+  const days = [
+    dayOf(ID, "Elche", "writing"),
+    dayOf("a-day-of-the-longest-town", LONGEST_TOWN, "written"),
+    dayOf("a-day-cut-short", "Alicante", "cut"),
+  ];
+  await page.addInitScript(([key, kept]) => localStorage.setItem(key, kept), [
+    YOUR_DAYS_KEY,
+    JSON.stringify(days),
+  ] as const);
+  // Still being written, so its row says so while the page is measured.
+  await answerTheLog(page, { status: "unknown" });
+  await page.goto("/");
+
+  const yours = page.getByRole("list", { name: "Your days" });
+  await expect(yours.getByRole("link")).toHaveCount(days.length);
+  await expect(yours.getByRole("link").first()).toHaveAccessibleName(/\. writing$/);
+  const isInsideTheScreen = async () => {
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    const boxes = await yours
+      .getByRole("link")
+      .evaluateAll((links) => links.map((link) => link.getBoundingClientRect().toJSON()));
+    return {
+      overflow,
+      isEachRowInside: boxes.every(({ left, right }) => left >= 0 && right <= 320),
+    };
+  };
+  expect(await isInsideTheScreen()).toEqual({ overflow: 0, isEachRowInside: true });
+
+  // The question to forget wraps under its line, and still nothing leaves the screen.
+  await page.getByRole("button", { name: "Forget these days" }).click();
+  await expect(
+    page.getByRole("group", { name: "Forget these days in this browser?" }),
+  ).toBeVisible();
+  expect(await isInsideTheScreen()).toEqual({ overflow: 0, isEachRowInside: true });
 });
 
 test.describe("with motion, a day opened by a device that has seen it", { tag: "@frame" }, () => {

@@ -5,12 +5,23 @@ import { chosenLabelsOf, energyLabelOf, weekdayOf } from "./sentence";
 import type { YourDay } from "./your-days";
 
 /**
- * What a ledger's row says of one of the visitor's days, beside its city: the date's place, the
- * day in the visitor's words, and how it ended when it did not end written. A plain module, so
- * tests and the lab read it without a browser.
+ * What the ledger of the visitor's days says: its label and its controls' words, and of each
+ * day, beside its city, the date's place, the day in the visitor's words, and how it ended when
+ * it did not end written. A plain module, so tests and the lab read it without a browser.
  */
 
 const MS_PER_DAY = 86_400_000;
+
+/** Over the visitor's own days, above the index; it names their list. */
+export const YOUR_DAYS_HEADING = "Your days";
+/** Forgets the list in this browser; the days stay in the log until their link expires. */
+export const FORGET_YOUR_DAYS = "Forget these days";
+
+/**
+ * The days shown before the visitor asks for all of them: the newest few, so the index stays
+ * near the question on a phone however many days the visitor has.
+ */
+export const DAYS_SHOWN_AT_FIRST = 3;
 
 /** The date's place while Lantern writes the day: as narrow as a date, so nothing moves. */
 export const WRITING_SAID = "writing";

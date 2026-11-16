@@ -18,7 +18,8 @@ import { keepYourDay, readYourDays } from "./your-days";
 import { INTAKE_ROUTE } from "./intake-route";
 import { INDEX_LABEL } from "./start-index";
 import { StartDay } from "./start-day";
-import { FORGET_YOUR_DAYS, YOUR_DAYS_HEADING } from "./your-days-list";
+import { FORGET_ANSWER } from "./your-days-ledger";
+import { FORGET_YOUR_DAYS, YOUR_DAYS_HEADING } from "./your-days-ledger-words";
 import { writtenPool } from "./written-pool";
 
 /**
@@ -374,9 +375,12 @@ describe("a live day pending on the start screen, among the visitor's days", () 
     const user = renderLive();
     await askKyotoPendingWithItsId(user, { reply: "gated" });
     await waitFor(() => expect(keptDays().map(([id]) => id)).toContain(KYOTO_DAY_ID));
-    expect(within(yourDaysList() as HTMLElement).getAllByRole("button")).toHaveLength(1);
+    expect(within(yourDaysList() as HTMLElement).getAllByRole("link")).toHaveLength(1);
 
     await user.click(screen.getByRole("button", { name: FORGET_YOUR_DAYS }));
+    // Asked once: nothing is forgotten until the answer.
+    expect(yourDaysList()).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: FORGET_ANSWER }));
     expect(yourDaysList()).not.toBeInTheDocument();
     act(() => openGate());
     await waitFor(() => expect(headline()).toHaveTextContent(/in Kyoto/), DAY_TIMEOUT);

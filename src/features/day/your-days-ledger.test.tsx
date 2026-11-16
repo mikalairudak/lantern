@@ -8,7 +8,7 @@ import {
   YourDaysLedger,
   type YourDaysLedgerProps,
 } from "./your-days-ledger";
-import { FORGET_YOUR_DAYS, YOUR_DAYS_HEADING } from "./your-days-list";
+import { FORGET_YOUR_DAYS, YOUR_DAYS_HEADING } from "./your-days-ledger-words";
 
 /** Sunday 15 November 2026, six in the evening in Alicante. */
 const NOW = new Date("2026-11-15T17:00:00Z");

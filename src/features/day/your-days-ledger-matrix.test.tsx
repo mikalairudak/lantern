@@ -1,7 +1,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { YOUR_DAYS_HEADING } from "./your-days-list";
+import { YOUR_DAYS_HEADING } from "./your-days-ledger-words";
 import { YOUR_DAYS_LEDGER_MATRIX } from "./your-days-ledger-matrix";
 
 const DAYS_AXIS = 0;
@@ -23,7 +23,7 @@ describe("YOUR_DAYS_LEDGER_MATRIX", () => {
     expect(counts).toEqual([1, 1, 2, 3, 3, 12, 1, 3, 3, 3, 3]);
   });
 
-  it("holds the cells the list lacked: a later date, a link past its days, one word apart", () => {
+  it("holds a day asked for a later date and a link past its days, each saying so", () => {
     const labels = labelsOf(DAYS_AXIS);
     render(
       <>

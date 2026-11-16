@@ -12,7 +12,8 @@ import { WRITE_IT_AGAIN } from "./not-yet";
 import { writtenPool } from "./written-pool";
 import { INDEX_LABEL } from "./start-index";
 import { readYourDays } from "./your-days";
-import { FORGET_YOUR_DAYS, YOUR_DAYS_HEADING } from "./your-days-list";
+import { FORGET_ANSWER } from "./your-days-ledger";
+import { FORGET_YOUR_DAYS, YOUR_DAYS_HEADING } from "./your-days-ledger-words";
 import { isKeptSeen } from "./seen-days";
 
 /**
@@ -176,9 +177,10 @@ async function forgetWhileWritten(
   act(() => window.history.back());
   await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
   const yours = await screen.findByRole("list", { name: YOUR_DAYS_HEADING });
-  expect(within(yours).getByRole("button")).toHaveTextContent(/Rome/);
+  expect(within(yours).getByRole("link")).toHaveTextContent(/Rome/);
 
   await user.click(screen.getByRole("button", { name: FORGET_YOUR_DAYS }));
+  await user.click(screen.getByRole("button", { name: FORGET_ANSWER }));
   expect(screen.queryByRole("list", { name: YOUR_DAYS_HEADING })).not.toBeInTheDocument();
   expect(readYourDays(window.localStorage)).toEqual([]);
   return { release, user };

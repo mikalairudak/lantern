@@ -28,7 +28,7 @@ import { LINK_CLASSES } from "./link-classes";
 import { AskedSentence } from "./asked-sentence";
 import { Masthead } from "./masthead";
 import { StartIndex } from "./start-index";
-import { YourDaysList, type YourDaysListProps } from "./your-days-list";
+import { YourDaysLedger, type YourDaysProps } from "./your-days-ledger";
 import type { StartOffer } from "./start-offers";
 
 /** What Lantern is, in one line: the first thing the start screen says, as its previews do. */
@@ -95,10 +95,10 @@ export interface StartHeaderProps {
   /** One of the cities a shared name could be, chosen as the answer to "in …?". */
   onChooseReading: (reading: CityReading) => void;
   /**
-   * The visitor's own days, listed over the index once there is one. The browser alone keeps
-   * them, so the index waits for the list to be read rather than be pushed down by it.
+   * The visitor's own days, a line each over the index once there is one. The browser alone
+   * keeps them, so the index waits for the list to be read rather than be pushed down by it.
    */
-  yourDays?: YourDaysListProps;
+  yourDays?: YourDaysProps;
   /** Shown again by Back from a day: its headline takes the focus the day had. */
   isReturnedTo?: boolean;
   /**
@@ -139,7 +139,7 @@ export function StartHeader({
   }, [isFocusedOnMount]);
   const isHydrated = useHydrated();
   const areStartsDrawn = yourDays === undefined || isHydrated;
-  // Forgotten, the list goes with the control pressed: the first start takes the focus.
+  // Forgotten, the list goes with the answer pressed: the first start takes the focus.
   const forget = () => {
     yourDays?.onForget();
     requestAnimationFrame(() => startsList.current?.querySelector("button")?.focus());
@@ -178,7 +178,7 @@ export function StartHeader({
           drawnAsPointed={drawnAsPointed}
         />
       </div>
-      {yourDays && areStartsDrawn && <YourDaysList {...yourDays} onForget={forget} />}
+      {yourDays && areStartsDrawn && <YourDaysLedger {...yourDays} onForget={forget} />}
       {areStartsDrawn && (
         <StartIndex starts={starts} onChoose={onChooseWritten} listRef={startsList} />
       )}

@@ -44,7 +44,7 @@ const PAGES = [
   {
     href: "/lab/concepts/your-days",
     title: "Concept · Your days",
-    note: "The visitor's own days as listed today, beside the same days as a ledger",
+    note: "The visitor's own days as the start screen's ledger, with switches for the other answers to its form",
   },
   {
     href: "/lab/concepts/invitation",
