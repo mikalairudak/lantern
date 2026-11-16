@@ -110,7 +110,8 @@ let forgets = 0;
 
 /**
  * How many times this page has forgotten the visitor's days: none on the server and in the
- * first frame. The day on screen keeps nothing it was asked with before the last of them.
+ * first frame. A day on screen or on its way keeps nothing it was asked with before the last
+ * of them.
  */
 export function useForgetCount(): number {
   return useSyncExternalStore(
@@ -120,7 +121,15 @@ export function useForgetCount(): number {
   );
 }
 
-/** Forgets one day of the list, a re-plan let go, and tells every list on the page. */
+/** The same count as it stands this moment, for an effect that runs after a forgetting it did not render. */
+export function forgetCount(): number {
+  return forgets;
+}
+
+/**
+ * Forgets one day of the list, a re-plan let go or an empty answer asked again, and tells every
+ * list on the page.
+ */
 export function forgetDay(id: string): void {
   forgetYourDay(browserStorage(), id);
   told();

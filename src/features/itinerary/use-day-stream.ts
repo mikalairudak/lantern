@@ -77,7 +77,8 @@ export interface DayStream {
   /**
    * The day's id in the generation log, as its answer names it (`DAY_ID_HEADER`), once the
    * answer has arrived: a live day's or a re-plan's, for its own address. Null for a day
-   * played from its file, and until the answer comes.
+   * played from its file, and until the answer comes. A day that came back empty is asked for
+   * again under a new id, so its own goes as it is asked again: the log holds no day under it.
    */
   dayId: string | null;
   /**
@@ -242,6 +243,7 @@ export function useDayStream(): DayStream {
                 current.checks = NO_CHECKS;
                 setChecks(NO_CHECKS);
                 setPartial(null);
+                setDayId(null);
                 setAttempt(current.attempt);
                 read();
                 return;

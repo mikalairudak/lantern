@@ -74,6 +74,7 @@ import {
   forgetDays,
   keepDay,
   useDaysAskedAgain,
+  forgetCount,
   useForgetCount,
   useYourDays,
 } from "./use-your-days";
@@ -737,15 +738,34 @@ export function Day({
   // none, so nothing chosen on it is taken for the written day it came from.
   const picksKey =
     shownDayId !== null ? keptSeenKeyOf(shownDayId) : mergedShown === null ? writtenKey : null;
+  // A day or a re-plan asked before the visitor's days were last forgotten keeps no row and no
+  // watched-to-the-end mark on this device, though it writes on behind the start screen: each
+  // request is noted with the count of forgets it was first asked under.
+  const forgets = useForgetCount();
+  const askedUnder = useRef(new WeakMap<DayRequest, number>());
+  const noteAsked = useCallback(
+    (request: DayRequest | undefined) => {
+      if (request !== undefined && !askedUnder.current.has(request)) {
+        askedUnder.current.set(request, forgets);
+      }
+    },
+    [forgets],
+  );
+  // Read against the count as it stands, which an effect of an earlier render may run after.
+  const isAskedBeforeForget = useCallback(
+    (request: DayRequest) => (askedUnder.current.get(request) ?? forgets) < forgetCount(),
+    [forgets],
+  );
   const notePlayedThrough = useCallback(() => {
     // A day the log keeps, watched to its end here, opens whole at its address next time: one
     // written here, a re-plan's, or one from someone's link, by its id (`docs/decisions.md`,
     // "A written day's page is built whole, and plays only for a visitor who has not seen it").
     // Only an end the visitor saw counts: the list of days says how a day ended, read from the log,
-    // whether or not anyone watched it.
-    if (shownDayId !== null) markSeen(keptSeenKeyOf(shownDayId));
+    // whether or not anyone watched it. Lantern's own written days stay seen through a forget.
+    const isForgotten = asked !== null && isAskedBeforeForget(asked.request);
+    if (shownDayId !== null && !isForgotten) markSeen(keptSeenKeyOf(shownDayId));
     if (writtenKey !== null) markSeen(writtenKey);
-  }, [writtenKey, shownDayId]);
+  }, [writtenKey, shownDayId, asked, isAskedBeforeForget]);
   // The day entries this page has written, by key: a day after one of them, or after the start
   // screen's own entry, takes an entry of its own; on any other, as the page lands, it takes the
   // entry it landed on.
@@ -809,7 +829,6 @@ export function Day({
   // let go, never on screen, keeps none.
   // Once the visitor's days are forgotten, phrases said back before it are never kept again: each
   // set of phrases is noted with the count of forgets it was first said under.
-  const forgets = useForgetCount();
   const saidUnder = useRef(new WeakMap<readonly string[], number>());
   useEffect(() => {
     const under = saidUnder.current.get(saidBack) ?? forgets;
@@ -817,10 +836,9 @@ export function Day({
     if (shownDayId === null || saidBack.length === 0 || under < forgets) return;
     keepCaveats(browserStorage(), shownDayId, saidBack);
   }, [shownDayId, saidBack, forgets]);
-  // Each day with an id is the visitor's own, kept in this browser as it is written.
+  // Each day with an id is the visitor's own, kept in this browser as it is written, unless the
+  // visitor's days were forgotten after it was asked.
   const yourDays = useYourDays();
-  // The start screen lists them, so it asks how a day left while it was written ended.
-  useDaysAskedAgain(start ? yourDays : NO_YOUR_DAYS, shownDayId);
   const startedAt = useRef<{ id: string; at: number } | null>(null);
   const shownStops = energiesSoFarOf(stream.partial).length;
   useEffect(() => {
@@ -834,7 +852,8 @@ export function Day({
       asked.kept !== null ||
       asked.isFromMemory ||
       mergedShown !== null ||
-      !hasStreamTaken(stream, asked.request)
+      !hasStreamTaken(stream, asked.request) ||
+      isAskedBeforeForget(asked.request)
     )
       return;
     if (startedAt.current?.id !== shownDayId)
@@ -852,11 +871,54 @@ export function Day({
     // Kept again as each stop arrives and as the day ends, not on every frame of its text.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownDayId, asked, shownStops, stream.outcome]);
+  // A day that came back empty is asked for again under a new id, and the empty one's row goes:
+  // the log holds no day under it to open. A day stopped and played again keeps both rows, since
+  // the server writes each on to its end.
+  const named = useRef<{ request: DayRequest | null; id: string | null; attempt: number }>(null);
+  useEffect(() => {
+    const last = named.current;
+    const isAskedAgain = last?.request === stream.request && stream.attempt > last.attempt;
+    if (isAskedAgain && last.id !== null) forgetDay(last.id);
+    named.current = { request: stream.request, id: stream.dayId, attempt: stream.attempt };
+  }, [stream.request, stream.dayId, stream.attempt]);
   // Before the effects that play a day: an outcome that arrives as another day is played is
   // this day's ending, not its leaving.
   const events = useDayEvents(stream, isCounted);
   const { open: openDay, leave: leaveDay } = events;
   const [pending, setPending] = useState<Pending | null>(null);
+  // Noted as it is first asked, pending or on screen, before its answer can name an id.
+  useEffect(() => {
+    noteAsked(pending?.request);
+    noteAsked(asked?.request);
+  }, [pending, asked, noteAsked]);
+  // As soon as a pending day's answer names its id, it is one of the visitor's days, a row of its
+  // own while it is written: a day let go before it takes the page, for another or for the day
+  // Forward brings back, is still written to its end and counted (`docs/decisions.md`, "A day is
+  // written to its end, and kept to be opened again"), so its row is the visitor's way back to it.
+  const pendingId =
+    pending !== null && hasStreamTaken(stream, pending.request) ? stream.dayId : null;
+  useEffect(() => {
+    if (pending === null || pendingId === null || isAskedBeforeForget(pending.request)) return;
+    if (startedAt.current?.id !== pendingId) startedAt.current = { id: pendingId, at: Date.now() };
+    keepDay({
+      id: pendingId,
+      request: pending.request,
+      startedAt: new Date(startedAt.current.at).toISOString(),
+      energies: [],
+      ending: "writing",
+      seconds: null,
+    });
+  }, [pending, pendingId, isAskedBeforeForget]);
+  // The start screen lists every day of the visitor's but the one it is writing: its line already
+  // says that day, and a row arriving while the visitor waits would move the page under them. The
+  // row shows once the day is let go.
+  const listedDays = useMemo(
+    () => (pendingId === null ? yourDays : yourDays.filter(({ id }) => id !== pendingId)),
+    [yourDays, pendingId],
+  );
+  // The start screen lists the visitor's days, so it asks how a day left while it was written
+  // ended: every one but the day this page's stream writes, pending or on screen.
+  useDaysAskedAgain(start ? yourDays : NO_YOUR_DAYS, pendingId ?? shownDayId);
   const [isHoldOver, setIsHoldOver] = useState(false);
   // Where the next day streams from: a lab that changes the pace changes the next day's,
   // never restarts the one on screen.
@@ -1007,6 +1069,12 @@ export function Day({
   const [targeted, setTargeted] = useState<Targeted | null>(null);
   // A part's proposal once whole, held beside the day until it is taken, and after.
   const [partFork, setPartFork] = useState<PartFork | null>(null);
+  // A re-plan's request is noted as a day's is, when it is first asked: a part's proposal keeps
+  // the one request from its asking to its row, and a whole day's lands with its own.
+  useEffect(() => {
+    noteAsked(targeted?.request);
+    noteAsked(replanning?.request);
+  }, [targeted, replanning, noteAsked]);
   // A version folding away, held a moment while its rows fade where they stand.
   const [folding, setFolding] = useState<{ run: number; frame: ReplanFrame } | null>(null);
   /**
@@ -1338,6 +1406,7 @@ export function Day({
   }, [dropped]);
   useEffect(() => {
     if (targetedShown === null || targetedId === null) return;
+    if (isAskedBeforeForget(targetedShown.request)) return;
     keepDay({
       id: targetedId,
       request: targetedShown.request,
@@ -1346,7 +1415,7 @@ export function Day({
       ending: "writing",
       seconds: null,
     });
-  }, [targetedShown, targetedId]);
+  }, [targetedShown, targetedId, isAskedBeforeForget]);
   // A proposal is all or nothing: whole, it stands beside the day until the visitor takes it;
   // otherwise the day stays exactly as it was, and its fork row says why.
   const targetedEnding = isTargetedRead ? replanStream.outcome : null;
@@ -1429,6 +1498,7 @@ export function Day({
   useEffect(() => {
     const after = partFork?.after;
     if (after?.dayId == null || after.outcome.kind !== "complete") return;
+    if (isAskedBeforeForget(after.request)) return;
     keepDay({
       id: after.dayId,
       request: after.request,
@@ -1437,7 +1507,7 @@ export function Day({
       ending: "written",
       seconds: Math.round((Date.now() - Date.parse(after.startedAt)) / MS_PER_SECOND),
     });
-  }, [partFork]);
+  }, [partFork, isAskedBeforeForget]);
   // A part's fork once whole: the two versions as the chart draws them, the day's own and the
   // other beside it while it is compared.
   const partForkShown = isThisRun(partFork, asked) ? partFork : null;
@@ -1479,6 +1549,7 @@ export function Day({
   const replannedId = replanned?.dayId ?? null;
   useEffect(() => {
     if (replanning === null || replannedId === null) return;
+    if (isAskedBeforeForget(replanning.request)) return;
     // The row says when it was asked, and keeps saying so once the day is whole.
     startedAt.current = { id: replannedId, at: replanning.at };
     keepDay({
@@ -1489,7 +1560,7 @@ export function Day({
       ending: "writing",
       seconds: null,
     });
-  }, [replanning, replannedId]);
+  }, [replanning, replannedId, isAskedBeforeForget]);
   const replanEnding = replanned?.outcome ?? null;
   // A whole day is proposed only written to its end: one that ends any other way, cut with some
   // of its stops among them, leaves the day as it was, as a part's proposal does.
@@ -1536,7 +1607,7 @@ export function Day({
         entry: asked.entry,
         seenKey: null,
       };
-      if (replannedId !== null) {
+      if (replannedId !== null && !isAskedBeforeForget(replanning.request)) {
         keepDay({
           id: replannedId,
           request: replanning.request,
@@ -1581,7 +1652,15 @@ export function Day({
       );
     });
     return () => cancelAnimationFrame(turn);
-  }, [replanning, isReplanDue, asked, replanEnding, replannedChecks, replannedId]);
+  }, [
+    replanning,
+    isReplanDue,
+    asked,
+    replanEnding,
+    replannedChecks,
+    replannedId,
+    isAskedBeforeForget,
+  ]);
 
   const roomHeight = () => room.current?.getBoundingClientRect().height ?? null;
   /** A frame of the fork's two versions with the other one fading out where it stands. */
@@ -2172,7 +2251,7 @@ export function Day({
               onChooseWritten={(request) => ask(request, { via: "pressed" })}
               onChooseReading={chooseReading}
               yourDays={{
-                days: yourDays,
+                days: listedDays,
                 onOpen: (day) => openYourDay(day.id),
                 onForget: forgetDays,
               }}
