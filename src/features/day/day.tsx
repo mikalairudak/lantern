@@ -951,22 +951,20 @@ export function Day({
       source.current(request, signatures.current.get(signedKeyOf(request)) ?? null),
     [],
   );
-  // The stream as last drawn, for a play asked after it.
-  const streamNow = useRef<Pick<DayStream, "request" | "outcome">>(stream);
-  useLayoutEffect(() => {
-    streamNow.current = stream;
-  });
+  // Every request this page has played, by the object itself.
+  const played = useRef(new WeakSet<DayRequest>());
   /**
-   * Plays a request from where it streams, opened as the visitor reached it. A request the stream
-   * has played to an ending is not asked again: a page hidden while another route shows runs its
-   * effects again as it shows, and the day would be asked of the route a second time and written
-   * over from its empty frame. One that was stopped before its ending, as hiding the page or React's
-   * Strict Mode stops it, plays again.
+   * Plays a request from where it streams, opened as the visitor reached it, once. The effects
+   * that play a day run again with the same request as a page another route hid shows again,
+   * and twice as React's Strict Mode mounts it, while the day is still read or after it ended,
+   * or after a later play took the stream; asked again, it would be a second request, a model
+   * call for a live day, written over from its empty frame. A day asked for again, a replay or
+   * a retry, is a copy of its request (`playDay`), so it plays.
    */
   const playFrom = useCallback(
     (request: DayRequest, via: DayVia) => {
-      const now = streamNow.current;
-      if (now.request === request && now.outcome !== null) return;
+      if (played.current.has(request)) return;
+      played.current.add(request);
       const source = sourceOf(request);
       openDay(source.request, via);
       play(source);

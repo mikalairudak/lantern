@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { Component, StrictMode, useEffect, type ReactNode } from "react";
+import { Activity, Component, StrictMode, useEffect, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import { MINIMAL_DAY, REFUSED_DAY } from "@/lib/fixtures/edge/edge-days";
@@ -17,6 +17,8 @@ const SLOW: Partial<StreamPace> = { deltaChars: 40, deltaDelayMs: 20 };
 const PACED: Partial<StreamPace> = { deltaChars: 20, deltaDelayMs: 5 };
 /** Room for a whole day to stream while coverage instruments the reader. */
 const OUTCOME_WAIT = { timeout: 5000 };
+/** Longer than the shortest day takes to stream at the slow pace. */
+const HIDDEN_PAST_THE_END_MS = 2000;
 /** Inside the stops: the day has begun, but no swap has arrived. */
 const BEFORE_THE_SWAPS = 2000;
 
@@ -182,10 +184,15 @@ describe("useDayStream", () => {
     expect(signals[0]?.aborted).toBe(true);
   });
 
-  it("stops reading when the page goes", async () => {
+  it("reads a day on while another route hides its page, and holds its ending once shown", async () => {
     const signals: AbortSignal[] = [];
-    const { result, unmount } = renderStream();
-    const source = sourceOf(KYOTO_DAY, { kind: "finished" }, SLOW);
+    let mode: "visible" | "hidden" = "visible";
+    const { result, rerender } = renderHook(() => useDayStream(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <Activity mode={mode}>{children}</Activity>
+      ),
+    });
+    const source = sourceOf(MINIMAL_DAY, FINISHED, SLOW);
 
     act(() =>
       result.current.play({
@@ -197,9 +204,48 @@ describe("useDayStream", () => {
       }),
     );
     await waitFor(() => expect(signals).toHaveLength(1));
-    unmount();
+    expect(result.current.isStreaming).toBe(true);
+    mode = "hidden";
+    rerender();
+    await act(() => new Promise((resolve) => setTimeout(resolve, HIDDEN_PAST_THE_END_MS)));
+    mode = "visible";
+    rerender();
 
-    expect(signals[0]?.aborted).toBe(true);
+    expect(result.current.outcome?.kind).toBe("complete");
+    expect(result.current.partial?.stops).toHaveLength(MINIMAL_DAY.day.stops.length);
+    expect(signals.map((signal) => signal.aborted)).toEqual([false]);
+  });
+
+  it("reads a day to its end after its page is gone, and sets or throws nothing", async () => {
+    const errors = vi.spyOn(console, "error");
+    const signals: AbortSignal[] = [];
+    let isReadToEnd = false;
+    const { result, unmount } = renderStream();
+    const source = sourceOf(MINIMAL_DAY, FINISHED, SLOW);
+
+    act(() =>
+      result.current.play({
+        ...source,
+        open: async (signal) => {
+          signals.push(signal);
+          const answer = await source.open(signal);
+          const ended = new TransformStream<Uint8Array, Uint8Array>({
+            flush: () => {
+              isReadToEnd = true;
+            },
+          });
+          return new Response(answer.body?.pipeThrough(ended), { headers: answer.headers });
+        },
+      }),
+    );
+    await waitFor(() => expect(signals).toHaveLength(1));
+    unmount();
+    await waitFor(() => expect(isReadToEnd).toBe(true), OUTCOME_WAIT);
+    // A frame on, where the last partial would have been taken.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    expect(signals.map((signal) => signal.aborted)).toEqual([false]);
+    expect(errors).not.toHaveBeenCalled();
   });
 
   it("never opens a day stopped in the task that played it", async () => {
