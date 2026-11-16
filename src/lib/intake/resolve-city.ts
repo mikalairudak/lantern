@@ -57,6 +57,11 @@ function plain(text: string): string {
     .trim();
 }
 
+/** Its letters and digits alone, so a code written with dots, "D.C.", reads "dc". */
+function compact(text: string): string {
+  return plain(text).replaceAll(" ", "");
+}
+
 function isOneOf(text: string, values: readonly (string | undefined)[]): boolean {
   return values.some((value) => value !== undefined && plain(value) === plain(text));
 }
@@ -80,11 +85,13 @@ function isCalled(result: CityResult, name: string): boolean {
 /**
  * A region or country by its name or code ("Oregon", "OR"), the county a town is known by
  * ("Whitby, North Yorkshire, England", as the intake suggested a coastal town), or the country
- * by a short form.
+ * by a short form. A region's code is read past its dots, as "Washington, D.C." is written; a
+ * name is not, so two words never read as one.
  */
 function isRegionOf(result: CityResult, qualifier: string): boolean {
   return (
     isOneOf(qualifier, [result.state, result.state_code, result.county, result.country]) ||
+    (result.state_code !== undefined && compact(qualifier) === compact(result.state_code)) ||
     (result.country_code !== undefined && isCountryCalled(qualifier, result.country_code))
   );
 }
