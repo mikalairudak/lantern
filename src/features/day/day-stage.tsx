@@ -472,6 +472,13 @@ export function DayStage({
   const [repicked, setRepicked] = useState<Repicked | null>(null);
   const replanned = repicked !== null && repicked.day === ended ? repicked.stops : null;
   const [cityOpenAt, setCityOpenAt] = useState<CityFocus | null>(null);
+  // A typed city the page stops reading, as Back to the start screen stops it, closes the city
+  // word's list, as closing the list stops the reading: the list has nothing left to wait for.
+  const [lastTypedCity, setLastTypedCity] = useState(typedCity);
+  if (lastTypedCity !== typedCity) {
+    setLastTypedCity(typedCity);
+    if (typedCity === null && lastTypedCity?.failure === null) setCityOpenAt(null);
+  }
   const words = useMemo(
     (): LocalWords => ({ ...local, confirmed: [...confirmed, ...local.confirmed] }),
     [local, confirmed],

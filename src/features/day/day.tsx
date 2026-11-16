@@ -892,9 +892,10 @@ export function Day({
     noteAsked(asked?.request);
   }, [pending, asked, noteAsked]);
   // As soon as a pending day's answer names its id, it is one of the visitor's days, a row of its
-  // own while it is written: a day let go before it takes the page, for another or for the day
-  // Forward brings back, is still written to its end and counted (`docs/decisions.md`, "A day is
-  // written to its end, and kept to be opened again"), so its row is the visitor's way back to it.
+  // own while it is written: a day let go before it takes the page, for another, for the day
+  // Forward brings back or for one of the visitor's days pressed, is still written to its end and
+  // counted (`docs/decisions.md`, "A day is written to its end, and kept to be opened again"), so
+  // its row is the visitor's way back to it.
   const pendingId =
     pending !== null && hasStreamTaken(stream, pending.request) ? stream.dayId : null;
   useEffect(() => {
@@ -1124,6 +1125,10 @@ export function Day({
     [mergedShown, keptShown, whole, takenStream, held],
   );
   const { partial, outcome, checks, isStreaming } = shown;
+  // The day on screen can be shown again as it stands: drawn from its own stream, or as it is
+  // with nothing to stream. One whose stream a request asked since has taken comes back from
+  // memory instead.
+  const isShownDrawn = shown.isFromStream || !shown.isStreaming;
   // A written day this device has seen comes from the route whole at once: it lands whole,
   // as the page's own does, before a frame of it is drawn played.
   if (
@@ -2034,14 +2039,31 @@ export function Day({
   };
 
   /**
-   * One of the visitor's days, pressed on the start screen: the day still in memory comes
-   * back as it stands, as Forward brings it; any other opens at its own address.
+   * One of the visitor's days, pressed on the start screen: the day behind the start screen comes
+   * back as it stands while nothing else has taken its stream. Once a day asked here has, a day
+   * the page still knows by its id, one from memory, from its record or with a re-plan taken,
+   * comes back from memory as Forward brings it, and any other loads its own address, as a day
+   * the page does not hold does. What the start screen had under way gives way to the day
+   * pressed, so nothing takes the page from it later: a reading stops, and a day on its way, one
+   * asked but not yet drawn among them, is let go, which a live day's server writes on to its end.
    */
   const openYourDay = (id: string) => {
-    if (id === shownDayId && asked !== null) {
+    const left = asked === null ? undefined : daysLeft.current.get(asked.entry);
+    const isBehindStart = id === shownDayId && asked !== null;
+    if (isBehindStart && pending === null && isShownDrawn) {
+      stopReading();
+      setPending(null);
+      setLine((now) => (isUnderWayLine(now) ? null : now));
+      // The day pressed is the one told of again, whichever day the start screen last opened.
+      // Its own whole day written again is still on its way beside it, and is not left.
+      if (replanning === null) events.resume(asked.openedAs, asked.via);
       entriesWritten.current.add(asked.entry);
       window.history.pushState(dayEntryOf(asked.entry), "", dayAddress);
       setIsStartShown(false);
+    } else if (isBehindStart && left !== undefined) {
+      entriesWritten.current.add(left.entry);
+      window.history.pushState(dayEntryOf(left.entry), "", dayAddress);
+      returnTo(left);
     } else {
       window.location.assign(dayAddressOfId(id));
     }
@@ -2077,11 +2099,10 @@ export function Day({
   const returnTo = (day: Asked) => {
     stopReading();
     setTypedCity(null);
-    // A day the start screen was writing gives way too, and its line with it.
-    if (pending) {
-      setPending(null);
-      setLine(null);
-    }
+    // A day the start screen was writing gives way too, one asked but not yet drawn among them,
+    // and so does a text it was reading, each with its line.
+    setPending(null);
+    setLine((now) => (pending !== null || isUnderWayLine(now) ? null : now));
     setReplanning(null);
     setReplanLine(null);
     setTargeted(null);
@@ -2103,7 +2124,9 @@ export function Day({
    * its own address in the entry's place: its own page draws it, a kept day from its record. A day
    * at the start screen's address that the page no longer holds has no page of its own, so the
    * start screen stands for it. A day the start screen was asking for gives way to the day Forward
-   * brings back, which is drawn from memory, since that day took the stream.
+   * brings back, which is drawn from memory, since that day took the stream. So the day on screen
+   * whose stream a request asked since has taken, even one let go before it took the page, comes
+   * back from memory too, or from its own address where the page holds none of it.
    */
   const onPopState = (state: unknown) => {
     // A load of another address that this Back or Forward stopped is no longer under way.
@@ -2112,7 +2135,7 @@ export function Day({
     const key = entryKeyOf(state);
     const left = key === null ? undefined : daysLeft.current.get(key);
     const isAtStart = here === START_ADDRESS && start !== undefined;
-    if (key !== null && key === asked?.entry && pending === null) {
+    if (key !== null && key === asked?.entry && pending === null && isShownDrawn) {
       if (isStartShown && reading.current !== null) {
         stopReading();
         setLine(null);
@@ -2121,6 +2144,12 @@ export function Day({
     } else if (left !== undefined) {
       returnTo(left);
     } else if (isAtStart) {
+      // A city the day's city word is reading goes behind the start screen with the day, so no
+      // day is played there that the visitor cannot see.
+      if (typedCity !== null && typedCity.failure === null) {
+        stopReading();
+        setTypedCity(null);
+      }
       setIsStartShown(true);
       document.title = dayTitleOf(null);
     } else {
@@ -2270,6 +2299,11 @@ export function Day({
       )}
     </MotionConfig>
   );
+}
+
+/** The start screen's line says what it has under way: a text read, or a day on its way. */
+function isUnderWayLine(line: StartLine): boolean {
+  return line?.kind === "reading" || line?.kind === "writing";
 }
 
 /**

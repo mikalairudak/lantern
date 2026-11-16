@@ -35,6 +35,8 @@ import { NO_MORE_REPLANS, replanEndedOf, replanningOf, UNFINISHED } from "./not-
 import { NOT_LIVE_NOTE } from "./start-header";
 import { StartDay } from "./start-day";
 import { writtenPool } from "./written-pool";
+import { INDEX_LABEL } from "./start-index";
+import { YOUR_DAYS_HEADING } from "./your-days-list";
 import { TAKE_THIS_DAY } from "./day-menu";
 import { ONE_CHANGE_AT_A_TIME } from "./day-stage-header";
 import { sendProductEvent } from "@/lib/events/send-event";
@@ -2690,4 +2692,120 @@ describe("a day's caveats, kept on this device", () => {
       expect(readCaveats(window.localStorage, REPLAN_ID)).toEqual(["she walks slowly"]),
     );
   });
+});
+
+describe("one of the visitor's days pressed while a day asked on the start screen is on its way, with live generation on", () => {
+  /** A written city pressed on the start screen, held on its way until the page lets it go. */
+  async function pressRomeHeld(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+    vi.mocked(fetch).mockImplementationOnce(
+      (_, init) =>
+        new Promise<Response>((_, reject) =>
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("The day was stopped", "AbortError")),
+          ),
+        ),
+    );
+    const index = screen.getByRole("list", { name: INDEX_LABEL });
+    await user.click(within(index).getByRole("button", { name: /^Rome / }));
+    // On its way: the start screen says it back, and its field waits for it.
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Where, and anything else" })).toHaveAttribute(
+        "readonly",
+      ),
+    );
+    expect(headline()).toHaveTextContent(/^One day in a city/);
+  }
+
+  /** The row in "Your days" whose words match, the only one. */
+  async function yourDay(name: RegExp): Promise<HTMLElement> {
+    const yours = await screen.findByRole("list", { name: YOUR_DAYS_HEADING });
+    const [row, ...others] = within(yours)
+      .getAllByRole("button")
+      .filter((button) => name.test(button.textContent ?? ""));
+    expect(others).toEqual([]);
+    return row!;
+  }
+
+  it("brings back a day held while its whole day was written again, free to change once more", async () => {
+    const day = createRef<DayHandle>();
+    dayIds.push(KYOTO_DAY_ID, NEXT_DAY_ID);
+    const user = await askForKyoto(day);
+    dayReplies.push("held");
+    await changeWord(user, "with anyone", "with family");
+    await waitFor(() => expect(day.current?.replan().status).toBe("writing"), DAY_TIMEOUT);
+    act(() => window.history.back());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+    await pressRomeHeld(user);
+
+    await user.click(await yourDay(/^(?!.*with family).*Kyoto/));
+
+    await waitFor(() => expect(headline()).toHaveTextContent(/Kyoto/));
+    expect(window.location.pathname).toBe(`/day/${KYOTO_DAY_ID}`);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    // The whole day asked again was let go with the day it was asked from: nothing says it is
+    // written, and a word changes again.
+    expect(screen.queryByText(replanningOf("with family"))).not.toBeInTheDocument();
+    expect(factsLineText() ?? "").not.toContain(ONE_CHANGE_AT_A_TIME);
+    await user.click(within(headline()).getByRole("button", { name: "early start" }));
+    expect(screen.getAllByRole("option").length).toBeGreaterThan(0);
+  }, 20_000);
+
+  it("tells nothing of a whole day still written again as its day's row is pressed, nothing else on its way", async () => {
+    const day = createRef<DayHandle>();
+    dayIds.push(KYOTO_DAY_ID, NEXT_DAY_ID);
+    intakeReplies.push(
+      answered({
+        kind: "request",
+        request: KYOTO_REQUEST,
+        readings: [],
+        unplaced: [],
+        signed: [SIGNED_KYOTO],
+      }),
+    );
+    const user = userEvent.setup();
+    render(
+      <Day start={{ pool: POOL, read: readIntakeRoute }} isLive isAddressed isCounted ref={day} />,
+    );
+    await ask(user, "Kyoto");
+    await waitForTheDay();
+    dayReplies.push("held");
+    await changeWord(user, "with anyone", "with family");
+    await waitFor(() => expect(day.current?.replan().status).toBe("writing"), DAY_TIMEOUT);
+    act(() => window.history.back());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+    vi.mocked(sendProductEvent).mockClear();
+
+    await user.click(await yourDay(/^(?!.*with family).*Kyoto/));
+
+    await waitFor(() => expect(headline()).toHaveTextContent(/Kyoto/));
+    // The day written again is still on its way beside the day: it is not left.
+    expect(day.current?.replan().status).toBe("writing");
+    const kinds = vi.mocked(sendProductEvent).mock.calls.map(([event]) => event.kind);
+    expect(kinds).not.toContain("day-left");
+  }, 20_000);
+
+  it("brings back a day with a part's proposal taken as it ended, not as being written", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const user = await askForKyoto(createRef<DayHandle>());
+    await changeWord(user, "early start", "slow morning");
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${REPLAN_ID}`), DAY_TIMEOUT);
+    await waitForTheDay();
+    act(() => window.history.back());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+    await pressRomeHeld(user);
+
+    await user.click(await yourDay(/slow morning/));
+
+    await waitFor(() => expect(headline()).toHaveTextContent(/slow morning/));
+    expect(window.location.pathname).toBe(`/day/${REPLAN_ID}`);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect(screen.queryAllByText(/^Writing the day/)).toEqual([]);
+    expect(within(dayList()).getAllByRole("listitem")[0]).toHaveTextContent(/^09:00\s*Shoren-in/);
+    expect(screen.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+      "aria-busy",
+      "false",
+    );
+  }, 20_000);
 });
