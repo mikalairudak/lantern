@@ -80,6 +80,26 @@ const LONDON_ONTARIO = {
   timezone: { name: "America/Toronto" },
 };
 
+const WASHINGTON_DC = {
+  place_id: "washington-dc",
+  name: "Washington",
+  city: "Washington",
+  state: "District of Columbia",
+  state_code: "DC",
+  country: "United States",
+  country_code: "us",
+  result_type: "city",
+  timezone: { name: "America/New_York" },
+};
+
+/** Washington in Pennsylvania, one of the towns that share the capital's name. */
+const WASHINGTON_PENNSYLVANIA = {
+  ...WASHINGTON_DC,
+  place_id: "washington-pa",
+  state: "Pennsylvania",
+  state_code: "PA",
+};
+
 describe("citySearchParams", () => {
   it("asks the geocoder for cities only, in English", () => {
     expect(citySearchParams("Portland, Oregon")).toEqual({
@@ -129,6 +149,17 @@ describe("citiesIn", () => {
     ]);
     expect(citiesIn(response, "Portland, OR")[0]?.placeId).toBe("fixture-portland-or");
     expect(citiesIn(response, "Portland, Australia")[0]?.placeId).toBe("portland-vic");
+  });
+
+  it("reads a region's code written with dots, as the capital is", () => {
+    const washingtons = { results: [WASHINGTON_PENNSYLVANIA, WASHINGTON_DC] };
+
+    expect(citiesIn(washingtons, "Washington, D.C.").map(({ placeId }) => placeId)).toEqual([
+      "washington-dc",
+    ]);
+    expect(citiesIn(washingtons, "Washington, DC")[0]?.placeId).toBe("washington-dc");
+    expect(citiesIn(washingtons, "Washington, P.A.")[0]?.placeId).toBe("washington-pa");
+    expect(citiesIn({ results: [WASHINGTON_PENNSYLVANIA] }, "Washington, D.C.")).toEqual([]);
   });
 
   it("reads a country by the short forms visitors type", () => {
