@@ -65,7 +65,7 @@ The model never sees a kept stop in its output schema, so it cannot change one: 
 | A new stop that overlaps a kept stop                                             | Shortened to fit (`shortened-at-kept`); dropped if under 15 minutes remain (`dropped-at-kept`), and so is the whole re-plan. A kept stop never moves |
 | A new stop that repeats a kept stop's place, by name as the place match reads it | Dropped (a new repair, `dropped-repeat`), and so is the whole re-plan                                                                                |
 | An alternative set that points at no new stop                                    | Dropped, as the day's normalizer does (`dropped-alternatives`)                                                                                       |
-| A new stop's option past the walk, blank, or at another new stop                 | Dropped, as the day's normalizer does (`dropped-alternative`, `dropped-repeat`); its stop stands, and so does the re-plan                            |
+| A new stop's option past the walk, blank, at another new stop or at a kept place | Dropped, as the day's normalizer does (`dropped-alternative`, `dropped-repeat`); its stop stands, and so does the re-plan                            |
 | **A window left with no stop**                                                   | **The whole re-plan fails**, and the day stays as it was                                                                                             |
 | A stream cut before its end (the token cap, an error)                            | The whole re-plan fails, and the day stays as it was                                                                                                 |
 

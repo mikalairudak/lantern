@@ -351,14 +351,18 @@ function energyRank(place: Pick<GeneratedPlace, "sensory">): number {
   return ENERGY_LEVELS.indexOf(place.sensory.energy);
 }
 
-/** Why an option cannot stand beside its stop: it repeats one of the day's stops, or is too far. */
+/**
+ * Why an option cannot stand beside its stop: it repeats a place the day holds, by its index
+ * among the names it was read against, or is too far.
+ */
 export type SwapRefusal = { kind: "repeat"; stopIndex: number } | { kind: "far"; meters: number };
 
 /**
  * Whether an option can stand beside its stop, by what is known of it once its point is
  * written: its name and its point. The normalizer drops an option it refuses, and the stream's
  * draft never draws one (`alternativesOf`), so a bead the finished day will not keep never
- * shows while the day is written. `dayStopNames` are the day's stops, by their index.
+ * shows while the day is written. `dayStopNames` are the day's stops, by their index, and
+ * after them any place a re-plan keeps beside them.
  */
 export function swapRefusalOf(
   stopPoint: Coordinates,
@@ -386,6 +390,7 @@ function cleanAlternatives(
   stopId: string,
   { setIndex, options }: OptionSet,
   dayStops: readonly TimedStop[],
+  keptPlaces: readonly string[],
   log: RepairLog,
 ): Alternative[] {
   const usable = options.flatMap((option, n): Alternative[] => {
@@ -403,15 +408,16 @@ function cleanAlternatives(
     const refusal = swapRefusalOf(
       stop.place.coordinates,
       { name: cleaned.place.name, coordinates: option.coordinates },
-      dayStops.map((each) => each.place.name),
+      [...dayStops.map((each) => each.place.name), ...keptPlaces],
     );
-    const repeated = refusal?.kind === "repeat" ? dayStops[refusal.stopIndex] : undefined;
-    if (repeated !== undefined) {
-      log.add(
-        "dropped-repeat",
-        path,
-        `${cleaned.place.name} is the day's stop at ${formatClock(repeated.start)}`,
-      );
+    if (refusal?.kind === "repeat") {
+      // Past the stops written here, the name is one of the places kept beside them.
+      const repeated = dayStops[refusal.stopIndex];
+      const where =
+        repeated === undefined
+          ? "a place the day keeps"
+          : `the day's stop at ${formatClock(repeated.start)}`;
+      log.add("dropped-repeat", path, `${cleaned.place.name} is ${where}`);
       return [];
     }
     if (refusal?.kind === "far") {
@@ -449,9 +455,15 @@ function cleanAlternatives(
  * Ids are positions in the generation (`stop-0`, `stop-0:p`, `stop-0:a1`), not in the
  * itinerary: a dropped stop or option leaves a gap, so a card keyed by its index while the
  * day streamed keeps its key once the day is complete. Every stop shows its primary.
- * The request must already have parsed through `DayRequestSchema`.
+ * The request must already have parsed through `DayRequestSchema`. `keptPlaces` are the places
+ * a re-plan's kept stops hold, which its new stops are read beside: an option spelled as one
+ * of them is dropped as one spelled as a stop written here is.
  */
-export function normalizeDay(request: DayRequest, day: GeneratedDay): NormalizeResult {
+export function normalizeDay(
+  request: DayRequest,
+  day: GeneratedDay,
+  keptPlaces: readonly string[] = [],
+): NormalizeResult {
   const log = new RepairLog();
   const refuse = (reason: string): NormalizeResult => ({ ok: false, reason, repairs: log.repairs });
 
@@ -472,7 +484,7 @@ export function normalizeDay(request: DayRequest, day: GeneratedDay): NormalizeR
       startTime: formatClock(stop.start),
       durationMinutes: stop.durationMinutes,
       primary: { id: primaryId, ...stop.place },
-      alternatives: set ? cleanAlternatives(stop, id, set, stops, log) : [],
+      alternatives: set ? cleanAlternatives(stop, id, set, stops, keptPlaces, log) : [],
       selectedPlaceId: primaryId,
       dependsOn: stop.dependsOn,
     };

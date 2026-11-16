@@ -218,7 +218,8 @@ export function versionsOf(
  * stops or past a short walk from its stop (`swapRefusalOf`), nor more than it keeps. A
  * version's name and point come before its energy, so both are final by then, and a bead the
  * finished day does not keep never shows, to leave as the day lands. `dayStops` are the stops
- * written with it, which the normalizer reads it beside. What the draft cannot know so soon
+ * written with it, which the normalizer reads it beside, and `keptPlaces` the places a
+ * re-plan's kept stops hold, which the merge has it read them beside too. What the draft cannot know so soon
  * still shows: a blank reason, or a place that cannot be shown, found once the version is
  * whole; and a stop the normalizer drops from the day, overlapping or unread, whose name the
  * draft still reads, so a version spelled as it is hidden here and kept there.
@@ -227,12 +228,12 @@ export function alternativesOf(
   stop: StopDraft,
   options: readonly (OptionDraft | undefined)[],
   dayStops: readonly StopDraft[],
-  prefix: string = stop.id,
+  keptPlaces: readonly string[] = [],
 ): AlternativeDraft[] {
   const stopPoint = wholePointOf(stop.primary);
   if (stopPoint === null) return [];
-  const dayStopNames = dayStops.map((each) => each.primary.name ?? "");
-  const kept = versionsOf(stop, options, prefix).filter((version) => {
+  const dayStopNames = [...dayStops.map((each) => each.primary.name ?? ""), ...keptPlaces];
+  const kept = versionsOf(stop, options).filter((version) => {
     const point = wholePointOf(version);
     if (point === null || version.name === undefined) return false;
     const option = { name: version.name, coordinates: point };

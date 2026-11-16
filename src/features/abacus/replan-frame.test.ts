@@ -323,6 +323,38 @@ describe("the versions a proposal's stream writes", () => {
     expect([...written].map(([, name]) => name)).toEqual(["Chion-in", "Okazaki Park"]);
     expect([...written].filter(([id]) => !kept.has(id))).toEqual([]);
   });
+
+  it("writes no version at a place the day keeps, as the merged day holds none", async () => {
+    const garden = at(KYOTO_ITINERARY.stops, 2).primary.name;
+    const replan: GeneratedReplan = {
+      ...KYOTO_SLOW_MORNING_WITH_VERSIONS,
+      alternatives: KYOTO_SLOW_MORNING_WITH_VERSIONS.alternatives.map((set) =>
+        set.stopIndex === 1
+          ? { ...set, options: [{ ...at(set.options, 0), name: garden }, ...set.options] }
+          : set,
+      ),
+    };
+    const written = new Map<string, string>();
+
+    const outcome = await readReplanStream({
+      basis: KYOTO_MORNING_BASIS,
+      response: Promise.resolve(streamOf(replan)),
+      onPartial: (partial) => {
+        for (const row of replanFrameOf(KYOTO_MORNING_BASIS, partial).rows) {
+          if (row.source !== "proposed") continue;
+          for (const version of row.stop.alternatives) {
+            written.set(version.id, version.name ?? "");
+          }
+        }
+      },
+    });
+    const day = dayAfterReplan(KYOTO_MORNING_BASIS, outcome);
+    const kept = new Set(day.stops.flatMap((stop) => stop.alternatives.map(({ id }) => id)));
+
+    expect(outcome.kind).toBe("complete");
+    expect([...written.values()]).not.toContain(garden);
+    expect([...written].filter(([id]) => !kept.has(id))).toEqual([]);
+  });
 });
 
 describe("a stop the visitor picked a version of, written again as it at its hour", () => {

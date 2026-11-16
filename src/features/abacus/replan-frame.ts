@@ -196,7 +196,8 @@ function newRowsOf(basis: ReplanBasis, replan: PartialReplanDraft): NewRows {
   const stops = replan.stops ?? [];
   const isPastStops = replan.alternatives !== undefined || replan.dek !== undefined;
   const placed = placedStopsOf(stops, (index) => replannedIdOf(basis.idPrefix, stopIdAt(index)));
-  // The merge normalizes the re-plan's own stops, so an option repeating one of them is dropped.
+  // The merge normalizes the re-plan's own stops beside the places kept, so an option
+  // repeating either is dropped.
   const placedStops = placed.map(({ stop }) => stop);
   const sets = replan.alternatives ?? [];
   const stood = new Set<string>();
@@ -220,7 +221,7 @@ function newRowsOf(basis: ReplanBasis, replan: PartialReplanDraft): NewRows {
     const draft: StopDraft = {
       ...stop,
       durationMinutes: fate.durationMinutes,
-      alternatives: alternativesOf(stop, set?.options ?? [], placedStops),
+      alternatives: alternativesOf(stop, set?.options ?? [], placedStops, keptNames),
     };
     const was = stayingStopOf(basis.itinerary, basis.windows, name, from, stood);
     if (was !== null) {
