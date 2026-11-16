@@ -25,7 +25,13 @@ import {
   type Stop,
 } from "@/lib/schema/itinerary.schema";
 import { isSameSpelling } from "@/lib/places/match";
-import { formatClock, parseClock, runningSpans, runningStart } from "@/lib/time/clock";
+import {
+  formatClock,
+  parseClock,
+  runningSpans,
+  runningStartAfter,
+  type StartReader,
+} from "@/lib/time/clock";
 import { isStopIndexOf, optionIdOf, primaryIdOf, stopIdAt } from "@/lib/schema/positions";
 
 /**
@@ -265,14 +271,21 @@ function timedStops(day: Pick<GeneratedDay, "stops">, log: RepairLog): TimedStop
  * Each stop starts no earlier than the previous one ends. A stop that runs into the next
  * is cut short at the next start; a stop that starts no later than the one before it is
  * out of order and dropped. A start in the small hours after a late evening is after
- * midnight, not out of order (`runningStart`).
+ * midnight, not out of order (`runningStart`); `startOf` reads a re-plan's new stops beside
+ * the stops kept around them.
  */
-function withoutOverlaps<Timed extends Timing>(stops: Timed[], log: RepairLog): Timed[] {
+function withoutOverlaps<Timed extends Timing>(
+  stops: Timed[],
+  log: RepairLog,
+  startOf: StartReader = runningStartAfter,
+): Timed[] {
   const kept: Timed[] = [];
   for (const timed of stops) {
     const previous = kept.at(-1);
-    const previousEnd = previous ? previous.start + previous.durationMinutes : null;
-    const stop = { ...timed, start: runningStart(timed.start, previousEnd) };
+    const before = previous
+      ? { start: previous.start, end: previous.start + previous.durationMinutes }
+      : null;
+    const stop = { ...timed, start: startOf(timed.start, before) };
     if (previous && stop.start <= previous.start) {
       log.add(
         "dropped-stop",
@@ -457,12 +470,14 @@ function cleanAlternatives(
  * day streamed keeps its key once the day is complete. Every stop shows its primary.
  * The request must already have parsed through `DayRequestSchema`. `keptPlaces` are the places
  * a re-plan's kept stops hold, which its new stops are read beside: an option spelled as one
- * of them is dropped as one spelled as a stop written here is.
+ * of them is dropped as one spelled as a stop written here is, and `startOf` how their starts
+ * are read on the day's count of minutes, which a re-plan reads beside its kept stops.
  */
 export function normalizeDay(
   request: DayRequest,
   day: GeneratedDay,
   keptPlaces: readonly string[] = [],
+  startOf: StartReader = runningStartAfter,
 ): NormalizeResult {
   const log = new RepairLog();
   const refuse = (reason: string): NormalizeResult => ({ ok: false, reason, repairs: log.repairs });
@@ -471,7 +486,7 @@ export function normalizeDay(
   const dek = cleanText(day.dek, ["dek"], log);
   if (dek === null) return refuse("the line about the day is blank");
 
-  const stops = withoutOverlaps(timedStops(day, log), log);
+  const stops = withoutOverlaps(timedStops(day, log), log, startOf);
   if (stops.length === 0) return refuse("no stop could be shown");
 
   const byStop = optionsByStop(day, log);

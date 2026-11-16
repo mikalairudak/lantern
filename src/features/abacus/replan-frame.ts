@@ -2,15 +2,17 @@ import type { DeepPartial } from "ai";
 import {
   keptPlaceNamesOf,
   newStopFateOf,
+  newStopStartIn,
   stayingStopOf,
   windowBoundsOf,
   type ReplanBasis,
+  type WindowBound,
 } from "@/lib/replan/merge";
 import type { WindowSpan } from "@/lib/replan/windows";
 import type { Itinerary, Stop } from "@/lib/schema/itinerary.schema";
 import type { GeneratedReplan } from "@/lib/schema/replan.schema";
 import type { DayOutcome } from "@/lib/stream/outcome";
-import { runningSpans } from "@/lib/time/clock";
+import { minutesOf, runningSpans } from "@/lib/time/clock";
 import { alternativesOf, placedStopsOf, type StopDraft } from "./day-draft";
 import { isReplannedBy, replannedIdOf, stopIdAt } from "@/lib/schema/positions";
 
@@ -144,14 +146,21 @@ interface PlacedNew {
 /**
  * The placed new stops as the normalizer orders them before the merge: one that starts no later
  * than the stop before it is dropped, and one that runs into the next is cut at its start
- * (`withoutOverlaps`). Each start is final once its stop is placed.
+ * (`withoutOverlaps`). Each start is final once its stop is placed, and is read on the day's
+ * count of minutes by the reader the normalizer and the merge use (`newStopStartIn`).
  */
-function orderedNew(placed: readonly { index: number; stop: StopDraft }[]): PlacedNew[] {
-  const spans = runningSpans(placed.map(({ stop }) => stop));
+function orderedNew(
+  placed: readonly { index: number; stop: StopDraft }[],
+  bounds: readonly WindowBound[],
+): PlacedNew[] {
+  const startOf = newStopStartIn(bounds);
   const ordered: PlacedNew[] = [];
-  placed.forEach(({ index, stop }, n) => {
-    const from = spans[n]?.from ?? 0;
+  placed.forEach(({ index, stop }) => {
     const previous = ordered.at(-1);
+    const before = previous
+      ? { start: previous.from, end: previous.from + previous.stop.durationMinutes }
+      : null;
+    const from = startOf(minutesOf(stop.startTime), before);
     if (previous && from <= previous.from) return;
     if (previous && from < previous.from + previous.stop.durationMinutes) {
       previous.stop = { ...previous.stop, durationMinutes: from - previous.from };
@@ -204,7 +213,7 @@ function newRowsOf(basis: ReplanBasis, replan: PartialReplanDraft): NewRows {
   // Lost once a whole new stop is one the merge drops, by the merge's rule, never by the
   // normalizer's, which only the stream's end tells for sure.
   let isLost = false;
-  const rows = orderedNew(placed).flatMap(({ index, stop, from }): Timed<ReplanRow>[] => {
+  const rows = orderedNew(placed, bounds).flatMap(({ index, stop, from }): Timed<ReplanRow>[] => {
     const mid = from + stop.durationMinutes / 2;
     const isWhole = isPastStops || index < stops.length - 1;
     if (!isWhole) {

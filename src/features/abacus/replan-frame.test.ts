@@ -235,6 +235,87 @@ describe("replanFrameOf", () => {
     expect(frame.rows.at(-1)?.stop).toMatchObject({ id: "r1-stop-2", durationMinutes: 10 });
   });
 
+  it("reads a new stop written after midnight where its late window holds it, as the merge does", () => {
+    // Kyoto run late: its last three stops at 19:00, 21:30 and midnight, the last one the window.
+    const lateTimes: Readonly<Record<number, [string, number]>> = {
+      5: ["19:00", 120],
+      6: ["21:30", 90],
+      7: ["00:00", 45],
+    };
+    const basis: ReplanBasis = {
+      ...KYOTO_MORNING_BASIS,
+      windows: [{ from: 7, to: 7 }],
+      itinerary: {
+        ...KYOTO_ITINERARY,
+        stops: KYOTO_ITINERARY.stops.map((stop, index) => {
+          const [startTime, durationMinutes] = lateTimes[index] ?? [
+            stop.startTime,
+            stop.durationMinutes,
+          ];
+          return { ...stop, startTime, durationMinutes };
+        }),
+      },
+    };
+    const nightcap = stopAt("Sake along Kiyamachi", "00:10", 40);
+
+    const frame = replanFrameOf(basis, writing([nightcap], { alternatives: [] }));
+
+    expect(frame.isLost).toBe(false);
+    expect(frame.rows.at(-1)?.stop).toMatchObject({ id: "r1-stop-0", startTime: "00:10" });
+    expect(timesOf(frame)).toEqual(timesOfDay(merged(basis, whole([nightcap]))));
+
+    // Where the stop before the window ends before the late evening, the day would read the
+    // same start as its first minute, so the frame knows the re-plan lost, as the merge does.
+    const early: ReplanBasis = {
+      ...basis,
+      windows: [{ from: 6, to: 7 }],
+      itinerary: {
+        ...basis.itinerary,
+        stops: basis.itinerary.stops.map((stop, index) =>
+          index === 5 ? { ...stop, durationMinutes: 90 } : stop,
+        ),
+      },
+    };
+    const lost = replanFrameOf(early, writing([nightcap], { alternatives: [] }));
+
+    expect(lost.isLost).toBe(true);
+    expect(mergeReplan({ ...early, replan: whole([nightcap]) }).ok).toBe(false);
+
+    // A stop written out of order after it is dropped, as the normalizer drops it, so the rows
+    // are the merged day's.
+    const outOfOrder = [nightcap, stopAt("Bar Rocking Chair", "23:30", 20)];
+    const dropped = replanFrameOf(basis, writing(outOfOrder, { alternatives: [] }));
+
+    expect(timesOf(dropped)).toEqual(timesOfDay(merged(basis, whole(outOfOrder))));
+  });
+
+  it("leaves a first stop before six in a morning's window, though a late one would hold it a day on", () => {
+    const basis: ReplanBasis = {
+      ...KYOTO_MORNING_BASIS,
+      windows: [
+        { from: 0, to: 0 },
+        { from: 7, to: 7 },
+      ],
+      itinerary: {
+        ...KYOTO_ITINERARY,
+        stops: KYOTO_ITINERARY.stops.map((stop, index) => {
+          if (index === 0) return { ...stop, startTime: "05:30", durationMinutes: 60 };
+          if (index === 5) return { ...stop, startTime: "19:00", durationMinutes: 120 };
+          if (index === 6) return { ...stop, startTime: "21:30", durationMinutes: 90 };
+          if (index === 7) return { ...stop, startTime: "23:30", durationMinutes: 60 };
+          return stop;
+        }),
+      },
+    };
+    const stops = [stopAt("Fushimi Inari", "05:45", 40), stopAt("Bar Rocking Chair", "23:30", 40)];
+
+    const frame = replanFrameOf(basis, writing(stops, { alternatives: [] }));
+
+    expect(frame.isLost).toBe(false);
+    expect(timesOf(frame)).toEqual(timesOfDay(merged(basis, whole(stops))));
+    expect(timesOf(frame).at(0)).toBe("r1-stop-0 05:45 40");
+  });
+
   it("cuts a new stop at the next new one, as the normalizer will before the merge", () => {
     const temple = stopAt("Shoren-in", "09:00", 40);
     const shrine = stopAt("Awata Shrine", "09:30", 15);

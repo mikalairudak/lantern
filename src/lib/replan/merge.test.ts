@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import { normalizeDay } from "@/lib/normalizer/normalize";
-import type { DayRequest, GeneratedStop } from "@/lib/schema/itinerary.schema";
+import {
+  ItinerarySchema,
+  type DayRequest,
+  type GeneratedStop,
+  type Itinerary,
+} from "@/lib/schema/itinerary.schema";
 import type { GeneratedReplan } from "@/lib/schema/replan.schema";
 import {
   ELCHE_DINNER_BASIS,
@@ -257,6 +262,147 @@ describe("mergeReplan", () => {
       ok: false,
       reason: "the re-plan left window 1 without a stop",
     });
+  });
+});
+
+describe("a window that opens late in the evening", () => {
+  // Kyoto run late: its last three stops at 19:00, 21:30 and midnight, the last one the window.
+  const LATE_TIMES: Readonly<Record<number, [string, number]>> = {
+    5: ["19:00", 120],
+    6: ["21:30", 90],
+    7: ["00:00", 45],
+  };
+  const LATE_KYOTO: Itinerary = {
+    ...KYOTO,
+    stops: KYOTO.stops.map((stop, index) => {
+      const [startTime, durationMinutes] = LATE_TIMES[index] ?? [
+        stop.startTime,
+        stop.durationMinutes,
+      ];
+      return { ...stop, startTime, durationMinutes };
+    }),
+  };
+  const LAST = [{ from: 7, to: 7 }];
+  const late = (replan: GeneratedReplan) => merge(replan, { itinerary: LATE_KYOTO, windows: LAST });
+  const nightcap = (name: string, startTime: string): GeneratedReplan => ({
+    stops: [newStop(FIRST, name, startTime, 40)],
+    alternatives: [],
+    dek: "The day as it was, and a last glass after midnight.",
+  });
+
+  it("is a day the schema reads, its last stop after midnight", () => {
+    expect(ItinerarySchema.safeParse(LATE_KYOTO).success).toBe(true);
+  });
+
+  it("takes a new stop written after midnight, read after the kept stop the window follows", () => {
+    for (const startTime of ["00:00", "00:30", "23:10"]) {
+      const merged = late(nightcap("Bar Rocking Chair", startTime));
+      if (!merged.ok) throw new Error(`${startTime}: ${merged.reason}`);
+
+      expect(merged.mergeRepairs).toEqual([]);
+      expect(merged.itinerary.stops.at(-1)).toMatchObject({
+        startTime,
+        primary: { name: "Bar Rocking Chair" },
+      });
+      expect(merged.itinerary.stops).toHaveLength(LATE_KYOTO.stops.length);
+    }
+  });
+
+  it("keeps the window's own stop written again at midnight: its id and its place", () => {
+    const old = at(LATE_KYOTO.stops, 7);
+
+    const merged = late(nightcap(old.primary.name, "00:00"));
+    if (!merged.ok) throw new Error(merged.reason);
+
+    expect(merged.itinerary.stops.at(-1)).toMatchObject({ id: old.id, primary: old.primary });
+  });
+
+  it("leaves out a new stop after midnight where the stop before the window ends too early", () => {
+    // The day reads a start in the small hours a day on only after a stop that ends at nine
+    // in the evening or later, so the merge reads a new stop by the same rule.
+    const early: Itinerary = {
+      ...LATE_KYOTO,
+      stops: LATE_KYOTO.stops.map((stop, index) =>
+        index === 5 ? { ...stop, durationMinutes: 90 } : stop,
+      ),
+    };
+
+    const merged = merge(nightcap("Bar Rocking Chair", "00:30"), {
+      itinerary: early,
+      windows: [{ from: 6, to: 7 }],
+    });
+
+    expect(merged.ok).toBe(false);
+    expect(merged.mergeRepairs.map(({ kind }) => kind)).toEqual(["outside-windows"]);
+  });
+
+  // A day from a sunrise stop to a bar: its first stop and its last are the two windows.
+  const LONG_KYOTO: Itinerary = {
+    ...LATE_KYOTO,
+    stops: LATE_KYOTO.stops.map((stop, index) => {
+      if (index === 0) return { ...stop, startTime: "05:30", durationMinutes: 60 };
+      if (index === 7) return { ...stop, startTime: "23:30", durationMinutes: 60 };
+      return stop;
+    }),
+  };
+  const ENDS = [
+    { from: 0, to: 0 },
+    { from: 7, to: 7 },
+  ];
+  const two = (first: [string, string], second: [string, string]): GeneratedReplan => ({
+    stops: [newStop(FIRST, first[0], first[1], 40), newStop(FIRST, second[0], second[1], 40)],
+    alternatives: [],
+    dek: "The day as it was, from another morning to another night.",
+  });
+
+  it("leaves a first stop before six in the morning's window, where it stands as written", () => {
+    expect(ItinerarySchema.safeParse(LONG_KYOTO).success).toBe(true);
+
+    const merged = merge(two(["Fushimi Inari", "05:45"], ["Bar Rocking Chair", "23:30"]), {
+      itinerary: LONG_KYOTO,
+      windows: ENDS,
+    });
+    if (!merged.ok) throw new Error(merged.reason);
+
+    expect(merged.mergeRepairs).toEqual([]);
+    expect(merged.itinerary.stops.at(0)).toMatchObject({ startTime: "05:45" });
+    expect(merged.itinerary.stops.at(-1)).toMatchObject({ startTime: "23:30" });
+  });
+
+  it("still loses a stop after midnight written after a morning window's stop, as out of order", () => {
+    // Only the first new stop is read beside a window: one after it follows the stop before
+    // it, as a day's own stops do, and a morning's stop does not end late in the evening.
+    const merged = merge(two(["Fushimi Inari", "05:45"], ["Bar Rocking Chair", "00:15"]), {
+      itinerary: LATE_KYOTO,
+      windows: [{ from: 0, to: 0 }, ...LAST],
+    });
+
+    expect(merged.ok).toBe(false);
+    expect(merged.repairs.map(({ kind }) => kind)).toContain("dropped-stop");
+  });
+
+  it("drops a stop written out of order after one read after midnight, as a day's own is", () => {
+    const merged = merge(two(["Bar Rocking Chair", "00:30"], ["Sake along Kiyamachi", "23:30"]), {
+      itinerary: LATE_KYOTO,
+      windows: LAST,
+    });
+
+    expect(merged.repairs.map(({ kind }) => kind)).toContain("dropped-stop");
+    expect(
+      mergeShownReplan({
+        ...BASIS,
+        itinerary: LATE_KYOTO,
+        windows: LAST,
+        replan: two(["Bar Rocking Chair", "00:30"], ["Sake along Kiyamachi", "23:30"]),
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("still leaves out a new stop written before the window opens", () => {
+    const merged = late(nightcap("Bar Rocking Chair", "22:00"));
+
+    expect(merged.ok).toBe(false);
+    expect(merged.mergeRepairs.map(({ kind }) => kind)).toEqual(["outside-windows"]);
   });
 });
 
