@@ -203,8 +203,9 @@ export function CityWord({
   // A choice made, the list stays as it stands until the day chosen takes this one's place.
   const [isHeld, setIsHeld] = useState(false);
   // A typed city the page reads keeps the list in sight rather than held for a day, and one
-  // it could not play gives the list back to the hand.
-  if (isHeld && typedCity?.failure) setIsHeld(false);
+  // it could not play gives the list back to the hand. A list closed holds no choice, so the
+  // word opens it again at once.
+  if (isHeld && (typedCity?.failure || openAt === null)) setIsHeld(false);
   const isHidden = isHeld && typedCity === null;
 
   const close = (isFocusReturned: boolean, isInstant = false) => {
