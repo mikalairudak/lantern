@@ -116,6 +116,19 @@ describe("PartSlip", () => {
     expect(onChoose.mock.calls).toEqual([["to"], ["from"]]);
   });
 
+  it("takes no second press of a double press on the same control", async () => {
+    const user = userEvent.setup();
+    const { onChoose, rerender, props } = renderSlip(EVENING, momentOf("whole"));
+    const control = screen.getByRole("radio", { name: "eating late, proposed" });
+
+    await user.click(control);
+    // Taken, the same control now offers the day before, where the finger still is.
+    rerender(<PartSlip {...props} {...slipStillOf(EVENING, momentOf("taken"))} />);
+    await user.click(control);
+
+    expect(onChoose.mock.calls).toEqual([["to"]]);
+  });
+
   it("takes the other answer by the arrows, the focus on the checked one as the choice flips", async () => {
     const user = userEvent.setup();
     const { onChoose, rerender, props } = renderSlip(LUNCH, momentOf("whole"));
@@ -181,6 +194,17 @@ describe("PartSlip", () => {
     expect(slipOf(container)?.querySelectorAll("li[aria-hidden]")).toHaveLength(1);
   });
 
+  it("lists a version already written whole on a take, writing none of its lines in again", () => {
+    const { container, rerender, props } = renderSlip(EVENING, momentOf("whole"));
+    const taken = slipStillOf(EVENING, momentOf("taken"));
+
+    rerender(<PartSlip {...props} {...taken} />);
+
+    // The day before's lines are new to this slip, yet whole: nothing is being written.
+    expect(linesOf(container)).toHaveLength(3);
+    expect(slipOf(container)?.querySelectorAll("ol .invisible")).toHaveLength(0);
+  });
+
   it("holds no room in the margin, where nothing it does moves the plan", () => {
     const { container } = renderSlip(LUNCH, momentOf("writing: no line"), "margin");
 
@@ -223,8 +247,10 @@ describe("PartSlip", () => {
     const { container, onAskAgain } = renderSlip(LUNCH, momentOf("an ending: didn't fit"));
 
     expect(slipOf(container)).toBeNull();
-    const group = screen.getByRole("radiogroup", { name: "early dinner or eating late, 1 of 2" });
+    // One line for the whole fork: it counts no part of two.
+    const group = screen.getByRole("radiogroup", { name: "early dinner or eating late" });
     expect(group).toHaveTextContent("The new dinner didn't fit");
+    expect(group).not.toHaveTextContent("1 of 2");
     await user.click(screen.getByRole("button", { name: "Ask again" }));
     expect(onAskAgain).toHaveBeenCalled();
   });

@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
+import { DOUBLE_PRESS_MS } from "../src/features/day/plan-fork";
 
 /**
  * A changed word's fork on the plan (`docs/decisions.md`, "The plan lists the day alone, and a
@@ -82,6 +83,8 @@ test("lists the day alone through the proposal's writing and a take, each part's
   expect(await rowNames(page)).not.toContain(OWN_LUNCH);
   // The day before stands in the slip, under the same control, to take back.
   await expect(slip(page, 0)).toContainText(OWN_LUNCH);
+  // A second press on the same control within a double press's time does nothing.
+  await page.waitForTimeout(DOUBLE_PRESS_MS);
   await plan(page).getByRole("radio", { name: "early dinner, the day before" }).first().click();
   await expect.poll(() => rowNames(page), { timeout: DAY_TIMEOUT_MS }).toEqual(before);
 });
@@ -140,4 +143,78 @@ test("keeps the rule at the widths either side of the column's whole, with no si
     );
     expect(sideways, `at ${width} px`).toBe(0);
   }
+});
+
+/** The time a whole day taken takes to be drawn in the place of the day before: its first frames. */
+const TAKE_DRAWN_MS = 150;
+/** About 3 px a frame: a glide, never a step. */
+const STEP_PX = 3.5;
+
+test.describe("with motion", { tag: "@frame" }, () => {
+  test.use({ reducedMotion: "no-preference" });
+
+  test("takes a whole day's proposal with its slip in the margin from the first frame, no row dropping", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "The margin is a laptop's");
+    test.setTimeout(2 * DAY_TIMEOUT_MS);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await openElche(page);
+    // A word the bench writes again whole: the taken day is a run of its own, drawn anew.
+    await page
+      .locator("h1")
+      .getByRole("button", { name: /^with / })
+      .first()
+      .click();
+    await page
+      .getByRole("option")
+      .filter({ hasText: /friends/ })
+      .first()
+      .click();
+    const take = plan(page).getByRole("radio", { name: "with friends, proposed" });
+    await expect(take).toBeVisible({ timeout: DAY_TIMEOUT_MS });
+    await take.scrollIntoViewIfNeeded();
+
+    // Each frame from the press: the fork line's height, and each row's top by its stop.
+    await page.evaluate(() => {
+      const frames: { t: number; fork: number; tops: Record<string, number> }[] = [];
+      (window as unknown as { frames_: typeof frames }).frames_ = frames;
+      const tick = () => {
+        const list = document.querySelector('ol[aria-label="The day, to read"]');
+        const fork = list?.querySelector('[data-fork-row="0"]')?.getBoundingClientRect().height;
+        const tops: Record<string, number> = {};
+        for (const row of list?.querySelectorAll<HTMLElement>("li[data-stop]") ?? []) {
+          tops[row.dataset.stop ?? ""] = row.getBoundingClientRect().top;
+        }
+        frames.push({ t: performance.now(), fork: fork ?? 0, tops });
+        if (frames.length < 30) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+    const pressedAt = await page.evaluate(() => performance.now());
+    await take.click();
+    await page.waitForTimeout(1000);
+    const frames = await page.evaluate(
+      () =>
+        (
+          window as unknown as {
+            frames_: { t: number; fork: number; tops: Record<string, number> }[];
+          }
+        ).frames_,
+    );
+
+    // The fork line alone holds room in the plan: the slip stands beside it, never in the column.
+    expect(Math.max(...frames.map(({ fork }) => fork))).toBeLessThan(100);
+    // No row of the day moves a step from one frame to the next as the taken day is drawn.
+    let step = 0;
+    for (const [at, frame] of frames.entries()) {
+      const before = frames[at - 1];
+      if (!before || frame.t > pressedAt + TAKE_DRAWN_MS) continue;
+      for (const [id, top] of Object.entries(frame.tops)) {
+        const was = before.tops[id];
+        if (was !== undefined) step = Math.max(step, Math.abs(top - was));
+      }
+    }
+    expect(step).toBeLessThanOrEqual(STEP_PX);
+  });
 });

@@ -6,7 +6,11 @@ import {
 import { replanFrameOf } from "@/features/abacus/replan-frame";
 import { replanEndedOf } from "./not-yet";
 import type { ReplanControls } from "./replan-controls";
-import { forkViewOf, placesKeptOf, writtenOf } from "./replan-work";
+import { forkViewOf, placesKeptOf, wholeDayWrittenOf, writtenOf } from "./replan-work";
+import { firstAt, partialAt } from "@/features/itinerary/stream-frames";
+import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
+import { normalizeDay } from "@/lib/normalizer/normalize";
+import { dayText } from "@/lib/stream/simulate-day-stream";
 
 const ignore = () => undefined;
 
@@ -175,5 +179,27 @@ describe("placesKeptOf", () => {
       later: 0,
       earlier: 0,
     });
+  });
+});
+
+describe("wholeDayWrittenOf", () => {
+  // Kyoto's written day with its second stop run past the third's start, as a model can write
+  // it: the normalizer ends it as the third begins.
+  const day = {
+    ...KYOTO_DAY.day,
+    stops: KYOTO_DAY.day.stops.map((stop, index) =>
+      index === 1 ? { ...stop, durationMinutes: stop.durationMinutes + 60 } : stop,
+    ),
+  };
+  const text = dayText(day);
+
+  it("says each stop written as the finished day will: one run into the next ends as it begins", async () => {
+    // The fourth stop begun: the second's line is due, the third's start final.
+    const at = await firstAt(text, ({ day: partial }) => (partial.stops?.length ?? 0) >= 4);
+    const written = wholeDayWrittenOf(await partialAt(text, at));
+    const finished = normalizeDay(KYOTO_DAY.request, day);
+    if (!finished.ok) throw new Error("Kyoto's day normalizes");
+
+    expect(written[1]?.durationMinutes).toBe(finished.itinerary.stops[1]?.durationMinutes);
   });
 });

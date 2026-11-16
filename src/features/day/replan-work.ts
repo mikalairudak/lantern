@@ -10,6 +10,7 @@ import {
 import { isSameSpelling } from "@/lib/places/match";
 import type { Stop } from "@/lib/schema/itinerary.schema";
 import type { PartialDay } from "@/lib/stream/outcome";
+import { minutesOf, runningStartAfter } from "@/lib/time/clock";
 import { revealedOf } from "@/features/itinerary/revealed";
 import { ASKED_LABELS, FACT_OPTIONS } from "./facts";
 import { replanEndedOf } from "./not-yet";
@@ -159,13 +160,36 @@ export function writtenOf(partial: PartialDay | null): ReplanWritten {
 }
 
 /**
- * A whole day's stops its stream has finished, in order: each once the next is placed, so its
- * time, name and kind are final, and all once the stream has moved on to their versions.
+ * Stops as the normalizer orders them (`withoutOverlaps`): one that starts no later than the
+ * stop before it is dropped, and one run into the next ends as the next begins.
+ */
+function withoutOverlapsOf(stops: readonly StopDraft[]): StopDraft[] {
+  const kept: { stop: StopDraft; from: number }[] = [];
+  for (const stop of stops) {
+    const previous = kept.at(-1);
+    const before = previous
+      ? { start: previous.from, end: previous.from + previous.stop.durationMinutes }
+      : null;
+    const from = runningStartAfter(minutesOf(stop.startTime), before);
+    if (previous && from <= previous.from) continue;
+    if (previous && before && from < before.end) {
+      previous.stop = { ...previous.stop, durationMinutes: from - previous.from };
+    }
+    kept.push({ stop, from });
+  }
+  return kept.map(({ stop }) => stop);
+}
+
+/**
+ * A whole day's stops its stream has finished, in order, as the finished day will keep them:
+ * each once the next is placed, so its time, name and kind are final and the next's start
+ * can end it, and all once the stream has moved on to their versions.
  */
 export function wholeDayWrittenOf(partial: PartialDay | null): StopDraft[] {
   if (partial === null) return [];
-  const stops = draftDayOf(revealedOf(partial, null)).stops;
-  return partial.alternatives === undefined ? stops.slice(0, -1) : stops;
+  const placed = draftDayOf(revealedOf(partial, null)).stops;
+  const writing = partial.alternatives === undefined ? placed.at(-1)?.id : undefined;
+  return withoutOverlapsOf(placed).filter(({ id }) => id !== writing);
 }
 
 /**

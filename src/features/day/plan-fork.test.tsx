@@ -3,9 +3,17 @@ import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { completeDraftOf, type StopDraft } from "@/features/abacus/day-draft";
 import { replanForEnergy } from "@/features/abacus/replan";
-import { WHOLE_DAY_WINDOW } from "@/features/abacus/replan-frame";
+import {
+  WHOLE_DAY_WINDOW,
+  frameStopsOf,
+  replanFrameOf,
+  writtenVersionOf,
+} from "@/features/abacus/replan-frame";
 import { itineraryOf } from "@/features/abacus/stop-row-examples";
+import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import { LISBON_DAY } from "@/lib/fixtures/curated/lisbon";
+import { KYOTO_ITINERARY, KYOTO_MORNING_BASIS } from "@/lib/fixtures/replan/kyoto-morning";
+import type { ReplanBasis } from "@/lib/replan/merge";
 import { ENERGY_LEVELS } from "@/lib/schema/itinerary.schema";
 import { asShownOf, forkOtherAt, planForkOf, slipPlacementOf, useSlipPlacement } from "./plan-fork";
 
@@ -93,6 +101,50 @@ describe("planForkOf", () => {
   });
 });
 
+describe("planForkOf while a part past midnight is written", () => {
+  // Kyoto run late: its last three stops at 19:00, 21:30 and midnight, the last one the window,
+  // which opens at 23:00, as the frame's own test reads it.
+  const lateTimes: Readonly<Record<number, [string, number]>> = {
+    5: ["19:00", 120],
+    6: ["21:30", 90],
+    7: ["00:00", 45],
+  };
+  const basis: ReplanBasis = {
+    ...KYOTO_MORNING_BASIS,
+    windows: [{ from: 7, to: 7 }],
+    itinerary: {
+      ...KYOTO_ITINERARY,
+      stops: KYOTO_ITINERARY.stops.map((stop, index) => {
+        const [startTime, durationMinutes] = lateTimes[index] ?? [
+          stop.startTime,
+          stop.durationMinutes,
+        ];
+        return { ...stop, startTime, durationMinutes };
+      }),
+    },
+  };
+  const template = KYOTO_DAY.day.stops[0]!;
+  const stopAtNight = (name: string, startTime: string, durationMinutes: number) => ({
+    ...template,
+    startTime,
+    durationMinutes,
+    place: { ...template.place, name },
+  });
+
+  it("lists each stop of the part once it is written, on the day's running clock", () => {
+    const sake = stopAtNight("Sake along Kiyamachi", "00:10", 40);
+    const ramen = stopAtNight("Ramen on Kiyamachi", "01:00", 30);
+    // The first written, the second begun: the first's line is due.
+    const frame = replanFrameOf(basis, { stops: [sake, ramen] });
+    const proposed = new Set(frame.proposed);
+    const day = frameStopsOf(frame).filter(({ id }) => !proposed.has(id));
+
+    const fork = planForkOf(day, writtenVersionOf(frame), frame.windows);
+
+    expect(fork.other[0]?.map(({ primary }) => primary.name)).toEqual(["Sake along Kiyamachi"]);
+  });
+});
+
 describe("asShownOf", () => {
   it("shows each stop as the visitor sees it: a version swapped in, the plan elsewhere", () => {
     const [market] = completeDraftOf(itineraryOf(LISBON_DAY)).stops;
@@ -127,15 +179,23 @@ describe("forkOtherAt", () => {
 });
 
 /** A column and the box as wide as it is whole, each at a width the test sets. */
-function Placed({ column, whole }: { column: number; whole: number }) {
+function Placed({
+  column,
+  whole,
+  isWholeDrawn = true,
+}: {
+  column: number;
+  whole: number;
+  isWholeDrawn?: boolean;
+}) {
   const [columnBox, setColumnBox] = useState<HTMLDivElement | null>(null);
   const [wholeBox, setWholeBox] = useState<HTMLDivElement | null>(null);
-  const placement = useSlipPlacement(columnBox, wholeBox);
+  const placement = useSlipPlacement(columnBox, isWholeDrawn ? wholeBox : null);
   return (
     <div>
       <div ref={setColumnBox} data-width={column} />
       <div ref={setWholeBox} data-width={whole} />
-      <p>{placement}</p>
+      <p>{placement ?? "not yet"}</p>
     </div>
   );
 }
@@ -171,7 +231,7 @@ describe("useSlipPlacement", () => {
     vi.restoreAllMocks();
   });
 
-  it("stands the slip in the column until both boxes are measured", () => {
+  it("says no place until both boxes are there to measure", () => {
     vi.stubGlobal(
       "ResizeObserver",
       class {
@@ -179,8 +239,8 @@ describe("useSlipPlacement", () => {
         disconnect() {}
       },
     );
-    render(<Placed column={0} whole={0} />);
+    render(<Placed column={1024} whole={1024} isWholeDrawn={false} />);
 
-    expect(screen.getByText("column")).toBeInTheDocument();
+    expect(screen.getByText("not yet")).toBeInTheDocument();
   });
 });

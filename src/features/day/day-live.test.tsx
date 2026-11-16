@@ -24,11 +24,16 @@ import { keptViewOf } from "./kept-day";
 import { DAY_ID_HEADER } from "@/lib/days/stored-day";
 import { REPLAN_ROUTE } from "@/features/itinerary/replan-route";
 import { CANDIDATE_ATTRIBUTE } from "@/features/abacus/chart-stop";
-import { KYOTO_ITINERARY, KYOTO_SLOW_MORNING } from "@/lib/fixtures/replan/kyoto-morning";
+import {
+  KYOTO_ITINERARY,
+  KYOTO_SLOW_MORNING,
+  KYOTO_SLOW_MORNING_WITH_VERSIONS,
+} from "@/lib/fixtures/replan/kyoto-morning";
 import { KYOTO_LATE_EVENING } from "@/lib/fixtures/replan/kyoto-evening";
 import type { ReplanRequest } from "@/lib/replan/request";
 import type { GeneratedReplan } from "@/lib/schema/replan.schema";
 import { Day, type DayHandle } from "./day";
+import { DOUBLE_PRESS_MS } from "./plan-fork";
 import { isKeptSeen } from "./seen-days";
 import { INTAKE_ROUTE, readIntakeRoute } from "./intake-route";
 import { NO_MORE_REPLANS, replanEndedOf, replanningOf, UNFINISHED } from "./not-yet";
@@ -2842,6 +2847,9 @@ describe("a changed word's fork on the plan, with live generation on", () => {
       .getAllByRole("heading", { level: 2 })
       .map((heading) => heading.textContent);
   const slipRadio = (name: string) => within(planList()).getByRole("radio", { name });
+  /** A press on the same control within a double press's time does nothing: wait it out. */
+  const pastADoublePress = () =>
+    act(() => new Promise((resolve) => setTimeout(resolve, DOUBLE_PRESS_MS)));
 
   it("lists the day alone while a proposal is written, each stop finished standing in its slip", async () => {
     replanReplies.push({ held: KYOTO_SLOW_MORNING, at: 0.62 });
@@ -2885,11 +2893,63 @@ describe("a changed word's fork on the plan, with live generation on", () => {
     const back = slipRadio("early start, the day before");
     expect(back).toHaveTextContent("early start· Take");
 
+    await pastADoublePress();
     await user.click(back);
 
     await waitFor(() => expect(day.current?.replan().status).toBe("left"), DAY_TIMEOUT);
     await waitFor(() => expect(planNames()).toEqual(before), DAY_TIMEOUT);
     expect(slipRadio("slow morning, proposed")).toBeInTheDocument();
+  });
+
+  it("re-picks a proposal standing on the chart as in its slip, and takes it as both say", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING_WITH_VERSIONS);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "early start", "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("proposed"), DAY_TIMEOUT);
+    const slipFirst = () =>
+      planList().querySelector("[data-slip] ol li span.min-w-0 > span")?.textContent ?? "";
+    const before = slipFirst();
+
+    await user.click(
+      within(screen.getByRole("group", { name: "How lively the day is" })).getByRole("button", {
+        name: "social",
+      }),
+    );
+
+    // The slip's first stop re-picked, and the chart's proposal row naming the same place.
+    const repicked = slipFirst();
+    expect(repicked).not.toBe(before);
+    expect(within(dayList()).getByText(repicked)).toBeInTheDocument();
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("taken"), DAY_TIMEOUT);
+    expect(within(dayList()).getByText(repicked)).toBeInTheDocument();
+  });
+
+  it("lists in a taken proposal's slip the day before as taking it back draws it", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    // The morning's first stop swapped to its quieter version, then the word changed.
+    const bar = () => screen.getByRole("group", { name: "How lively the day is" });
+    await user.click(within(planList()).getAllByRole("button", { name: /^Quieter: / })[0]!);
+    await changeWord(user, "early start", "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("proposed"), DAY_TIMEOUT);
+    // Another energy pressed with the proposal standing.
+    await user.click(within(bar()).getByRole("button", { name: "balanced" }));
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("taken"), DAY_TIMEOUT);
+    const listed = [
+      ...planList().querySelectorAll("[data-slip] ol li span.min-w-0 > span:first-child"),
+    ].map((name) => name.textContent);
+
+    await pastADoublePress();
+    await user.click(slipRadio("early start, the day before"));
+
+    await waitFor(() => expect(day.current?.replan().status).toBe("left"), DAY_TIMEOUT);
+    await waitFor(() => expect(planNames().slice(0, listed.length)).toEqual(listed), DAY_TIMEOUT);
   });
 
   it("re-picks the day from its own plan when an energy is pressed again with a proposal standing", async () => {
@@ -2936,6 +2996,7 @@ describe("a changed word's fork on the plan, with live generation on", () => {
     const outside = repicked.filter((name) => !slip.includes(name ?? ""));
     await waitFor(() => expect(planNames()).toEqual(expect.arrayContaining(outside)), DAY_TIMEOUT);
 
+    await pastADoublePress();
     await user.click(slipRadio("early start, the day before"));
     await waitFor(() => expect(planNames()).toEqual(repicked), DAY_TIMEOUT);
   });

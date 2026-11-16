@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import type { ShownPlaces } from "@/features/abacus/curve";
 import type { StopDraft } from "@/features/abacus/day-draft";
 import { replanForEnergy } from "@/features/abacus/replan";
@@ -25,6 +25,13 @@ export interface ForkOther {
   energy: EnergyLevel;
 }
 
+/**
+ * How long after a press a second one on the same control of a fork is taken as the same press:
+ * a take flips the control under the finger to the other version, so a double press would take
+ * it back.
+ */
+export const DOUBLE_PRESS_MS = 600;
+
 /** None of the other version written yet. */
 const NO_STOPS: readonly StopDraft[] = [];
 
@@ -46,6 +53,30 @@ export function forkOtherAt(
   );
 }
 
+/** The place a stop's plan shows: its primary, or the version its plan names. */
+function plannedPlaceOf(stop: StopDraft) {
+  return [stop.primary, ...stop.alternatives].find(({ id }) => id === stop.selectedPlaceId);
+}
+
+/**
+ * A proposal's rows beside the day as the other version re-picked shows them: each drawn with
+ * one place alone, so the visitor's hands never pick among them, that place the one its own
+ * versions re-pick to, as the slip lists it. The day's own rows as they are.
+ */
+export function proposedAtOf(
+  stops: readonly StopDraft[],
+  proposed: ReadonlySet<string>,
+  other: readonly StopDraft[],
+): StopDraft[] {
+  const byId = new Map(other.map((stop) => [stop.id, stop]));
+  return stops.map((stop) => {
+    const version = proposed.has(stop.id) ? byId.get(stop.id) : undefined;
+    const place = version === undefined ? undefined : plannedPlaceOf(version);
+    if (place === undefined || place.id === stop.primary.id) return stop;
+    return { ...stop, primary: place, alternatives: [], selectedPlaceId: place.id };
+  });
+}
+
 /** A fork's parts as the plan draws them. */
 export interface PlanFork {
   /** Each part's stops in the version on screen. */
@@ -60,13 +91,15 @@ export interface PlanFork {
 }
 
 /**
- * The day's stops as the visitor sees them, each showing the place it shows on screen, so a
- * slip says what its version keeps, moves and adds against that.
+ * Stops as the visitor sees them, each showing the place shown or picked for it, where that is
+ * one of its own: a slip says what its version keeps, moves and adds against the day on screen,
+ * and lists the other version with the picks taking it would show.
  */
-export function asShownOf(day: readonly StopDraft[], shown: ShownPlaces): StopDraft[] {
-  return day.map((stop) => {
+export function asShownOf(stops: readonly StopDraft[], shown: ShownPlaces): StopDraft[] {
+  return stops.map((stop) => {
     const placeId = shown[stop.id];
-    return placeId === undefined || placeId === stop.selectedPlaceId
+    const isOwn = [stop.primary, ...stop.alternatives].some(({ id }) => id === placeId);
+    return !isOwn || placeId === undefined || placeId === stop.selectedPlaceId
       ? stop
       : { ...stop, selectedPlaceId: placeId };
   });
@@ -103,14 +136,16 @@ export function slipPlacementOf(columnWidth: number, wholeWidth: number): SlipPl
 
 /**
  * Where the day's slips stand, read from the day's column and an unseen box as wide as the
- * column is whole, kept in step as either is resized; in the column until both are measured.
+ * column is whole, before the first paint, and kept in step as either is resized. Null until
+ * both are measured: a slip waits for it, so a day drawn with a fork standing, as a whole day
+ * taken is, never lays its slips out in the column first.
  */
 export function useSlipPlacement(
   column: HTMLElement | null,
   whole: HTMLElement | null,
-): SlipPlacement {
-  const [placement, setPlacement] = useState<SlipPlacement>("column");
-  useEffect(() => {
+): SlipPlacement | null {
+  const [placement, setPlacement] = useState<SlipPlacement | null>(null);
+  useLayoutEffect(() => {
     if (!column || !whole) return undefined;
     // Only a change of placement draws the day again: the column's height changes as it glides.
     const measure = () =>

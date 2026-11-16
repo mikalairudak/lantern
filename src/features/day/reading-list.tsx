@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, animate, useReducedMotion } from "motion/react";
+import { AnimatePresence, animate, useIsPresent, useReducedMotion } from "motion/react";
 import {
   useEffect,
   useLayoutEffect,
@@ -111,6 +111,9 @@ export const READING_LIST_LABEL = "The day, to read";
 const NO_STOPS: ReadonlySet<string> = new Set();
 /** Marks each row by its stop's id, so a part's head is found by its stop. */
 const STOP_ATTRIBUTE = "data-stop";
+/** Marks what a part's head stands beside the list, out of flow, as a slip in the margin. */
+export const BESIDE_ATTRIBUTE = "data-beside";
+
 /** The heads of the parts no stop of the day follows, under the last row. */
 const TAIL_KEY = "parts-after";
 
@@ -169,6 +172,13 @@ export function ReadingList({
   // A head under the last row, there when the list was first drawn, stands whole with it.
   const [isTailFirst] = useState(() => anchors.includes(null));
   const noteFocus = useForkFocusKept(list, anchors);
+  // A slip beside the list stands out of flow, so the row it heads holds its room: it never
+  // reaches the next part's rule, nor the page's foot under the last row.
+  const rooms = useRoomsBeside(list, parts?.isBeside ?? false);
+  const roomOf = (place: string) =>
+    parts?.isBeside && anchors.includes(place === TAIL_KEY ? null : place)
+      ? rooms[place]
+      : undefined;
   /**
    * The heads of the parts that stand over a row, or under the last: each folds in and out as
    * its part comes and goes, and with its row as the row comes and goes. One over a row let in
@@ -187,7 +197,7 @@ export function ReadingList({
                 isOpenToTheSide={parts?.isBeside}
                 onGlide={glideOf(`${glideKey} head ${part}`)}
               >
-                {head}
+                <PartHead>{head}</PartHead>
               </Fold>,
             ]
           : [];
@@ -218,37 +228,113 @@ export function ReadingList({
               reachPx={at === shown.length - 1 ? undefined : ROW_REACH_PX}
               onGlide={glideOf(`${stop.id} fold`)}
             >
-              {(sunLines[at]?.lead ?? []).map(({ sun, to }) => (
-                <SunLine key={sun.word} daylight={daylight} sun={sun} to={to} />
-              ))}
-              <ReadingRow
-                railTo={sunLines[at]?.railTo ?? 0}
-                onPick={onChoose && ((candidate) => onChoose(index, candidate))}
-                isNudged={isWritten && at === firstSwappable}
-                stop={stop}
-                span={spans[at] ?? { from: 0, to: 0 }}
-                pick={picks[index] ?? 0}
-                daylight={daylight}
-                isPenned={!wholeIds.has(stop.id)}
-                heldWritten={heldPen?.id === stop.id ? heldPen.written : undefined}
-                glideGroup={glideGroup}
-                isVersionsShown={versionsShown.has(stop.id)}
-                onGlide={glideOf(`${stop.id} row`)}
-              />
-              {(sunLines[at]?.trail ?? []).map(({ sun, to }) => (
-                <SunLine key={sun.word} daylight={daylight} sun={sun} to={to} />
-              ))}
+              <RoomBeside place={stop.id} room={roomOf(stop.id)}>
+                {(sunLines[at]?.lead ?? []).map(({ sun, to }) => (
+                  <SunLine key={sun.word} daylight={daylight} sun={sun} to={to} />
+                ))}
+                <ReadingRow
+                  railTo={sunLines[at]?.railTo ?? 0}
+                  onPick={onChoose && ((candidate) => onChoose(index, candidate))}
+                  isNudged={isWritten && at === firstSwappable}
+                  stop={stop}
+                  span={spans[at] ?? { from: 0, to: 0 }}
+                  pick={picks[index] ?? 0}
+                  daylight={daylight}
+                  isPenned={!wholeIds.has(stop.id)}
+                  heldWritten={heldPen?.id === stop.id ? heldPen.written : undefined}
+                  glideGroup={glideGroup}
+                  isVersionsShown={versionsShown.has(stop.id)}
+                  onGlide={glideOf(`${stop.id} row`)}
+                />
+                {(sunLines[at]?.trail ?? []).map(({ sun, to }) => (
+                  <SunLine key={sun.word} daylight={daylight} sun={sun} to={to} />
+                ))}
+              </RoomBeside>
             </Fold>
           </li>
         ))}
         {anchors.includes(null) && (
           <li key={TAIL_KEY} className={cn("group relative", rowClassName)}>
             {headsAt(null, TAIL_KEY, !isTailFirst)}
+            <Fold isAppearing={!isTailFirst || undefined}>
+              <RoomBeside place={TAIL_KEY} room={roomOf(TAIL_KEY)} />
+            </Fold>
           </li>
         )}
       </AnimatePresence>
     </ol>
   );
+}
+
+/** Marks the room a row holds for what its head stands beside the list, by the row's place. */
+const ROOM_ATTRIBUTE = "data-room-beside";
+
+/** A row's words, at least as tall as what its head stands beside the list. */
+function RoomBeside({
+  place,
+  room,
+  children,
+}: {
+  place: string;
+  room: number | undefined;
+  children?: ReactNode;
+}) {
+  return (
+    <div
+      {...{ [ROOM_ATTRIBUTE]: place }}
+      style={room === undefined ? undefined : { minHeight: room }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * How far below each row's top what its head stands beside the list reaches, by the row's
+ * place, read after each render and as it is resized; none while nothing stands beside it.
+ */
+function useRoomsBeside(
+  list: RefObject<HTMLOListElement | null>,
+  isBeside: boolean,
+): Readonly<Record<string, number>> {
+  const [rooms, setRooms] = useState<Readonly<Record<string, number>>>({});
+  useLayoutEffect(() => {
+    const element = list.current;
+    if (!element || !isBeside) return undefined;
+    const measure = () => {
+      const next: Record<string, number> = {};
+      for (const room of element.querySelectorAll<HTMLElement>(`[${ROOM_ATTRIBUTE}]`)) {
+        const row = room.closest("li");
+        const top = room.getBoundingClientRect().top;
+        const reaches = [...(row?.querySelectorAll(`[${BESIDE_ATTRIBUTE}]`) ?? [])].map(
+          (beside) => beside.getBoundingClientRect().bottom - top,
+        );
+        const place = room.getAttribute(ROOM_ATTRIBUTE) ?? "";
+        if (reaches.length > 0) next[place] = Math.ceil(Math.max(0, ...reaches));
+      }
+      setRooms((last) => (isSameRooms(last, next) ? last : next));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    for (const beside of element.querySelectorAll(`[${BESIDE_ATTRIBUTE}]`))
+      observer.observe(beside);
+    return () => observer.disconnect();
+  });
+  return rooms;
+}
+
+function isSameRooms(a: Readonly<Record<string, number>>, b: Readonly<Record<string, number>>) {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key]);
+}
+
+/**
+ * A part's head, which takes no press and no focus once it folds away: it still says the fork
+ * as it stood before, as a version taken moves the head to its own first stop.
+ */
+function PartHead({ children }: { children: ReactNode }) {
+  const isPresent = useIsPresent();
+  return <div inert={!isPresent}>{children}</div>;
 }
 
 /** No fork: one array for every list without one. */

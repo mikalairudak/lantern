@@ -120,8 +120,15 @@ import { progressOf, progressWordsOf } from "./progress";
 import { readDayView, serverDayView, subscribeDayView } from "./view-choice";
 import { enteredOf, versionsWrittenOf } from "./reading-gates";
 import { ReadingList, type PlanParts } from "./reading-list";
-import { PartSlip } from "./part-slip";
-import { asShownOf, forkOtherAt, planForkOf, useSlipPlacement, type ForkOther } from "./plan-fork";
+import { PartSlip, type ForkPresses } from "./part-slip";
+import {
+  asShownOf,
+  forkOtherAt,
+  planForkOf,
+  proposedAtOf,
+  useSlipPlacement,
+  type ForkOther,
+} from "./plan-fork";
 import { SILENCE_SECONDS, WHOLE_ROWS_SILENCE_SECONDS, useSilence } from "./use-silence";
 import { DayStageHeader, type HeaderNotice } from "./day-stage-header";
 import { usePickedPlaces } from "./use-picked-places";
@@ -610,20 +617,27 @@ export function DayStage({
     () => new Set([...replanProposed, ...replanFading]),
     [replanProposed, replanFading],
   );
-  // The stops as written, the fork's rows among them, before an energy re-picks them. A fork's
-  // frame holds the day's own stops as they showed at the press, an energy re-picked before it
-  // among them (`withPicks`), so the day's are read as the day wrote them: re-picked again from
-  // what they showed, they moved a second step.
+  // The stops as written, the fork's rows among them, before an energy re-picks them. The day's
+  // own are read as the day wrote them, not as a fork's frame holds them, as they showed at the
+  // press (`withPicks`): a re-pick reads a day's plan, and an energy re-picks it from there.
   const writtenStops = useMemo(() => {
     if (frameStops === null) return draft.stops;
     const own = new Map(draft.stops.map((stop) => [stop.id, stop]));
     return frameStops.map((stop) => own.get(stop.id) ?? stop);
   }, [frameStops, draft.stops]);
-  /** The stops as written, re-picked for an energy level from the versions already written. */
+  /**
+   * The stops as written, re-picked for an energy level from the versions already written: a
+   * proposal's rows beside the day, drawn with their plan alone, show the place its own versions
+   * re-pick to, as its slip lists it, so taking it shows what both said.
+   */
   const repickedFor = useCallback(
     (level: EnergyLevel) =>
-      replanForEnergy(writtenStops, requestedEnergy, ENERGY_LEVELS.indexOf(level)),
-    [writtenStops, requestedEnergy],
+      proposedAtOf(
+        replanForEnergy(writtenStops, requestedEnergy, ENERGY_LEVELS.indexOf(level)),
+        replanProposed,
+        forkOtherAt(forkOther, level),
+      ),
+    [writtenStops, requestedEnergy, replanProposed, forkOther],
   );
   const isRepicked = repickedLevel !== null;
   const shownStops = useMemo(
@@ -936,10 +950,12 @@ export function DayStage({
       ? forkViewOf({ replan: { ...replan, isCompared: true }, frame: replanFrame, isLookingDue })
       : null;
   const isPlanForkShown = planView !== null && !(planView.isFailed && isActedOn);
-  // The other version, re-picked for the energy the headline says, from the one it was planned for.
+  // The other version as taking it draws it: re-picked for the energy the headline says, from
+  // the one it was planned for, with the visitor's own picks on its stops.
+  const committedPicks = curve.committedPicks;
   const forkOtherShown = useMemo(
-    () => forkOtherAt(forkOther, repickedLevel),
-    [forkOther, repickedLevel],
+    () => asShownOf(forkOtherAt(forkOther, repickedLevel), committedPicks),
+    [forkOther, repickedLevel, committedPicks],
   );
   const planFork =
     replan && planView && isPlanForkShown
@@ -955,8 +971,11 @@ export function DayStage({
   const [planColumn, setPlanColumn] = useState<HTMLElement | null>(null);
   const [wholeColumn, setWholeColumn] = useState<HTMLDivElement | null>(null);
   const slipPlacement = useSlipPlacement(planColumn, wholeColumn);
+  // The fork's presses, kept across its slips: one drawn anew over a version taken knows a
+  // press made a moment before on the slip it replaces.
+  const [forkPresses] = useState<ForkPresses>(() => new Map());
   const planParts: PlanParts | null =
-    replan && planView && planFork
+    replan && planView && planFork && slipPlacement !== null
       ? {
           anchors: planFork.anchors,
           isBeside: slipPlacement === "margin",
@@ -976,6 +995,7 @@ export function DayStage({
                   replan.choose(side);
                 }}
                 onAskAgain={askAgainFromFork}
+                presses={forkPresses}
               />
             ),
         }

@@ -28,6 +28,11 @@ export interface EnergyCurve {
   selected: number[];
   /** What the list shows: catches up when the drag ends. */
   committed: number[];
+  /**
+   * The visitor's picks the list shows, by stop id, those of stops not on screen too: a version
+   * of a stop taken back shows the pick it had.
+   */
+  committedPicks: Picks;
   isDragging: boolean;
   startDrag: (centerMinutes: number) => void;
   /** Moves the grabbed point of the curve by this many levels from where it was grabbed. */
@@ -343,6 +348,7 @@ export function useEnergyCurve(stops: readonly StopDraft[]): EnergyCurve {
     }),
     selected: stops.map((stop) => shownIndex(stop, selected)),
     committed: stops.map((stop) => shownIndex(stop, committed)),
+    committedPicks: committed,
     isDragging,
     startDrag,
     drag,

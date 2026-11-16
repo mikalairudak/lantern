@@ -246,6 +246,42 @@ function pastMidnightOf(): SlipExample {
 }
 
 /**
+ * Elche's evening run on past its last stop, its end changed to "out late": a drink on the
+ * square after the walk at dusk. The day has no stop in the part, nor any after it, so the
+ * slip stands under the day's last row.
+ */
+function pastTheLastStopOf(): SlipExample {
+  const before = ELCHE_DINNER_BASIS.itinerary.stops;
+  const last = before.at(-1);
+  const drink = before
+    .flatMap(({ alternatives }) => alternatives)
+    .find(({ name }) => name === "Gin tonic in Plaça de Baix");
+  if (!last || !drink) throw new Error("Elche's day has its walk at dusk and its gin tonic");
+  const opens = runningSpans(before).at(-1)?.to ?? null;
+  const late = stopAt("r1-stop-0", "21:00", 90, drink);
+  const after = [...before, late];
+  const change: Change = { word: "end", from: "home by eleven", to: "out late" };
+  const counts = { added: 1, same: null, later: 0, earlier: 0 };
+  return {
+    fork: {
+      change,
+      reach: "part",
+      receipts: {
+        proposal: receiptOf(change, "part", before, after, counts),
+        before: receiptOf({ word: change.word, to: change.from }, "part", after, before, null),
+      },
+      index: 0,
+      count: 1,
+    },
+    before: [],
+    after: [late],
+    opens,
+    lead: last,
+    daylight: dayContextOf(ELCHE_DINNER_BASIS.itinerary),
+  };
+}
+
+/**
  * The examples the matrix sets each moment on, the axis across. Utrecht's morning stands first:
  * the visual baseline holds each axis but the moments at its first value, and this part has a
  * new stop and two moved, and draws every ending.
@@ -287,6 +323,7 @@ export const SLIP_EXAMPLES: readonly { label: string; example: SlipExample }[] =
     label: "a part that ends the day: Kanazawa's evening",
     example: partOf(kanazawaBasis(), KANAZAWA_LATE_DINNER, LATE_DINNER, 0),
   },
+  { label: "a part past the day's last stop: under the last row", example: pastTheLastStopOf() },
 ];
 
 /** How many of the proposal's stops are drawn while it is written: none, the first, or all. */

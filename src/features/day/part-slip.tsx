@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type MouseEvent,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -30,7 +31,8 @@ import { HAIRLINE, PROPOSED_WIRE_DASH } from "@/features/abacus/geometry";
 import type { WorkLine, WorkReach } from "@/features/abacus/work-line";
 import { ROW_REACH_PX, SPRINGS } from "@/lib/tokens/motion";
 import { heldLinesOf, SEPARATOR, slipFootOf, slipLinesOf, type SlipLine } from "./part-slip-lines";
-import { useEntryPen } from "./reading-list";
+import { DOUBLE_PRESS_MS } from "./plan-fork";
+import { BESIDE_ATTRIBUTE, useEntryPen } from "./reading-list";
 import type { ForkSide } from "./replan-controls";
 import type { ForkView } from "./replan-work";
 
@@ -95,6 +97,16 @@ export const MOVED_WORDS: Readonly<Record<ForkSide, string>> = {
   from: `now${NO_BREAK}at`,
 };
 
+/** Where a control stands in the fork: its part, and the fork line's answer or the slip's. */
+type ControlPlace = `${number}:${"line" | "slip"}`;
+
+/**
+ * When each of the fork's controls was last pressed, on the clock its events carry, by its
+ * place: the page keeps one for all its slips, so a slip drawn anew over a version taken knows
+ * a press made on the one before it.
+ */
+export type ForkPresses = Map<ControlPlace, number>;
+
 /** How far faded in a milestone's words come in, so a change of words reads as one. */
 const NOTE_COMES_FROM = 0.3;
 
@@ -120,6 +132,8 @@ export interface PartSlipProps {
   placement: SlipPlacement;
   onChoose: (side: ForkSide) => void;
   onAskAgain: () => void;
+  /** The page's record of presses (`ForkPresses`); left out, the slip keeps its own. */
+  presses?: ForkPresses;
 }
 
 /** A part's fork on the plan: its fork line, and the other version beside it as a slip. */
@@ -134,8 +148,10 @@ export function PartSlip({
   placement,
   onChoose,
   onAskAgain,
+  presses,
 }: PartSlipProps) {
   const group = useRef<HTMLDivElement>(null);
+  const ownPresses = useRef<ForkPresses>(new Map());
   useFocusOnChecked(group, view.chosen);
   // An ending without a proposal is said once, at the fork's first part.
   if (view.isFailed && index > 0) return null;
@@ -145,6 +161,15 @@ export function PartSlip({
     if (side === otherSide && !isOtherEnabled) return;
     onChoose(side);
   };
+  /** A press on a control: the second of a double press on it does nothing. */
+  const press = (side: ForkSide, at: "line" | "slip", event: MouseEvent<HTMLButtonElement>) => {
+    const pressed = presses ?? ownPresses.current;
+    const place: ControlPlace = `${index}:${at}`;
+    const last = pressed.get(place);
+    if (last !== undefined && event.timeStamp - last < DOUBLE_PRESS_MS) return;
+    pressed.set(place, event.timeStamp);
+    choose(side);
+  };
   // Arrows take the other answer, as a radio group does; the focus follows the checked one.
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const isArrow = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key);
@@ -153,7 +178,8 @@ export function PartSlip({
     choose(otherSide);
   };
   const label = `${view.from} or ${view.to}`;
-  const isCounted = count > 1;
+  // An ending is said on one line for the whole fork, so it counts no part of it.
+  const isCounted = count > 1 && !view.isFailed;
   const slip = !view.isFailed && (
     <Slip
       view={view}
@@ -164,7 +190,7 @@ export function PartSlip({
       reach={reach}
       isInColumn={placement === "column"}
       side={otherSide}
-      onChoose={choose}
+      onPress={(side, event) => press(side, "slip", event)}
     />
   );
   return (
@@ -184,14 +210,20 @@ export function PartSlip({
           </span>
           <span aria-hidden className={RAIL_ROOM_CLASSES} />
           <div className="min-w-0 grow">
-            <ShownAnswer view={view} onChoose={choose} />
+            <ShownAnswer view={view} onPress={(side, event) => press(side, "line", event)} />
             {view.isFailed && <Ending view={view} onAskAgain={onAskAgain} />}
             {placement === "column" && <SlipPresence>{slip}</SlipPresence>}
           </div>
         </div>
       </GlidingHeight>
       {placement === "margin" && (
-        <SlipPresence>{slip && <div className={MARGIN_CLASSES}>{slip}</div>}</SlipPresence>
+        <SlipPresence>
+          {slip && (
+            <div {...{ [BESIDE_ATTRIBUTE]: "" }} className={MARGIN_CLASSES}>
+              {slip}
+            </div>
+          )}
+        </SlipPresence>
       )}
       {index === 0 && <ForkStatus view={view} />}
     </div>
@@ -239,13 +271,16 @@ function SlipPresence({ children }: { children: ReactNode }) {
   );
 }
 
+/** A press on one of the fork's answers, with the event that made it. */
+type AnswerPress = (side: ForkSide, event: MouseEvent<HTMLButtonElement>) => void;
+
 interface ShownAnswerProps {
   view: ForkView;
-  onChoose: (side: ForkSide) => void;
+  onPress: AnswerPress;
 }
 
 /** The fork line's answer: the version on screen, its bead filled in ink. A press keeps it. */
-function ShownAnswer({ view, onChoose }: ShownAnswerProps) {
+function ShownAnswer({ view, onPress }: ShownAnswerProps) {
   const drawing = useDrawing();
   const side = view.chosen;
   const label = side === "to" ? view.to : view.from;
@@ -259,7 +294,7 @@ function ShownAnswer({ view, onChoose }: ShownAnswerProps) {
       // The checked answer is the group's stop in the tab order, which the sentence's pointer
       // finds by it.
       tabIndex={0}
-      onClick={() => onChoose(side)}
+      onClick={(event) => onPress(side, event)}
       className={ANSWER_CLASSES}
     >
       <AnswerBead isFilled isDashed={false} drawing={drawing} />
@@ -306,24 +341,25 @@ interface SlipProps {
   isInColumn: boolean;
   /** The other version's answer. */
   side: ForkSide;
-  onChoose: (side: ForkSide) => void;
+  onPress: AnswerPress;
 }
 
 /** The other version of the part: its answer, then on its wire its note, lines and foot. */
-function Slip({
-  view,
-  shown,
-  other,
-  opens,
-  isFirst,
-  reach,
-  isInColumn,
-  side,
-  onChoose,
-}: SlipProps) {
+function Slip({ view, shown, other, opens, isFirst, reach, isInColumn, side, onPress }: SlipProps) {
   const lines = slipLinesOf(shown, other, opens);
-  // Lines on the slip when it is first drawn stand whole; those that arrive after are penned.
-  const [firstIds] = useState(() => new Set(lines.map(({ id }) => id)));
+  // Lines on the slip when it is first drawn stand whole, and so does every line of a version
+  // already written, as the day before is on a take: only a line that arrives while the
+  // proposal is written is penned in. Each is set as it arrives, so a line's pen never stops
+  // midway when the proposal becomes whole.
+  const [penned, setPenned] = useState<ReadonlyMap<string, boolean>>(
+    () => new Map(lines.map(({ id }) => [id, false])),
+  );
+  const arrived = lines.filter(({ id }) => !penned.has(id));
+  if (arrived.length > 0) {
+    setPenned(
+      new Map([...penned, ...arrived.map(({ id }): [string, boolean] => [id, view.isWriting])]),
+    );
+  }
   const foot = view.isWriting ? null : slipFootOf(shown, other, reach, opens);
   const held = view.isWriting && isInColumn ? heldLinesOf(shown.length, reach) - lines.length : 0;
   // The work line, then the receipt, is said once, in the fork's first part; the work line holds
@@ -333,7 +369,7 @@ function Slip({
   const isNoteSaid = isFirst && ((view.line?.words ?? "") !== "" || end !== null || isLineHeld);
   return (
     <div {...{ [SLIP_ATTRIBUTE]: "" }} className={cn(isInColumn && "mt-2")}>
-      <SlipAnswer view={view} side={side} onChoose={onChoose} />
+      <SlipAnswer view={view} side={side} onPress={onPress} />
       <div className={BODY_CLASSES}>
         <Wire />
         {isNoteSaid && <SlipNote line={view.line} end={end} isLineHeld={isLineHeld} />}
@@ -344,7 +380,7 @@ function Slip({
                 key={line.id}
                 line={line}
                 movedWord={MOVED_WORDS[side]}
-                isPenned={!firstIds.has(line.id)}
+                isPenned={penned.get(line.id) ?? false}
               />
             ))}
             {Array.from({ length: Math.max(0, held) }, (_, at) => (
@@ -364,7 +400,7 @@ function Slip({
 interface SlipAnswerProps {
   view: ForkView;
   side: ForkSide;
-  onChoose: (side: ForkSide) => void;
+  onPress: AnswerPress;
 }
 
 /**
@@ -373,7 +409,7 @@ interface SlipAnswerProps {
  * while the fork waits on the visitor, through a take too; once they keep their own day it
  * goes. It keeps its place, shape and word whichever version is the day.
  */
-function SlipAnswer({ view, side, onChoose }: SlipAnswerProps) {
+function SlipAnswer({ view, side, onPress }: SlipAnswerProps) {
   const drawing = useDrawing();
   const label = side === "to" ? view.to : view.from;
   const isWriting = view.isWriting;
@@ -388,7 +424,7 @@ function SlipAnswer({ view, side, onChoose }: SlipAnswerProps) {
       aria-disabled={isWriting || undefined}
       aria-label={`${label}, ${description}`}
       tabIndex={-1}
-      onClick={() => onChoose(side)}
+      onClick={(event) => onPress(side, event)}
       className={cn(
         ANSWER_CLASSES,
         SLIP_PILL_CLASSES,

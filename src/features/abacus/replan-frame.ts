@@ -383,6 +383,20 @@ export function writtenStopsOf(frame: ReplanFrame): StopDraft[] {
   );
 }
 
+/**
+ * The proposal's version of the day as far as it is written: the stops the day keeps, and the
+ * proposal's own once written (`writtenStopsOf`), in time order. Its stops are read on the day's
+ * running clock from its first, so a part that opens after midnight is the night's, as the merge
+ * reads it, and never a morning.
+ */
+export function writtenVersionOf(frame: ReplanFrame): StopDraft[] {
+  return frame.rows.flatMap((row) =>
+    row.source === "kept" || row.source === "stays" || (row.source === "proposed" && row.isWhole)
+      ? [row.stop]
+      : [],
+  );
+}
+
 /** A stop with its plan alone, as a proposal's stop is drawn. */
 function withoutVersions(stop: StopDraft): StopDraft {
   return stop.alternatives.length === 0

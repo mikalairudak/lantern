@@ -12,7 +12,7 @@ import { dayText } from "@/lib/stream/simulate-day-stream";
 import { enteredOf, versionsWrittenOf } from "./reading-gates";
 import { PartSlip } from "./part-slip";
 import { SLIP_EXAMPLES, SLIP_MOMENTS, slipStillOf } from "./part-slip-examples";
-import { ReadingList } from "./reading-list";
+import { BESIDE_ATTRIBUTE, ReadingList } from "./reading-list";
 
 /** Longer than a row's fold takes to open on the layout spring. */
 const GLIDE_SETTLED_MS = 3000;
@@ -254,7 +254,8 @@ describe("ReadingList", () => {
     const head = (part: number) => <p>{`head ${part}`}</p>;
     const anchors = [KYOTO.stops[1]!.id];
     const { rerender } = render(<ReadingList {...KYOTO} parts={{ anchors, headOf: head }} />);
-    const fold = () => screen.getByText("head 0").parentElement?.parentElement;
+    // The head, its press guard, the fold's content box, the fold.
+    const fold = () => screen.getByText("head 0").parentElement?.parentElement?.parentElement;
     expect(fold()).toHaveClass("overflow-hidden");
 
     rerender(<ReadingList {...KYOTO} parts={{ anchors, headOf: head, isBeside: true }} />);
@@ -262,6 +263,45 @@ describe("ReadingList", () => {
     // Its row stands it beside the list, from the row's own top, outside the fold.
     expect(fold()).not.toHaveClass("overflow-hidden");
     expect(rowsOf()[1]).toHaveClass("relative");
+
+    // The page narrowed: back in the column, the fold clips as it did, nothing left open.
+    rerender(<ReadingList {...KYOTO} parts={{ anchors, headOf: head }} />);
+    expect(fold()).toHaveClass("overflow-hidden");
+    expect(fold()?.style.overflowY).toBe("");
+  });
+
+  it("holds a row as tall as the slip beside it, so a slip never reaches the next part", () => {
+    // jsdom lays nothing out: the slip beside the list reaches 300 px under its row's top, and
+    // the row's own words 120.
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const isBeside = this.hasAttribute(BESIDE_ATTRIBUTE);
+      return {
+        top: isBeside ? 0 : 0,
+        bottom: isBeside ? 300 : 120,
+        height: isBeside ? 300 : 120,
+      } as DOMRect;
+    });
+    const head = () => (
+      <div>
+        <p>fork line</p>
+        <div {...{ [BESIDE_ATTRIBUTE]: "" }}>the slip</div>
+      </div>
+    );
+    const anchors = [KYOTO.stops[1]!.id, null];
+
+    render(<ReadingList {...KYOTO} parts={{ anchors, headOf: head, isBeside: true }} />);
+
+    // The part's row, and the tail under the last row, each hold the slip's 300 px.
+    const rooms = [...document.querySelectorAll<HTMLElement>("[data-room-beside]")];
+    const held = rooms.filter((room) => room.style.minHeight !== "");
+    expect(held.map((room) => room.getAttribute("data-room-beside"))).toEqual([
+      KYOTO.stops[1]!.id,
+      "parts-after",
+    ]);
+    expect(held.map((room) => room.style.minHeight)).toEqual(["300px", "300px"]);
+    vi.restoreAllMocks();
   });
 
   it("stands the head of a part with no stop on the list under the last row", () => {
@@ -297,6 +337,27 @@ describe("ReadingList", () => {
     await waitFor(() =>
       expect(within(row).getByRole("radio", { name: "eating late, your day" })).toHaveFocus(),
     );
+  });
+
+  it("takes no press on a slip whose row is folding away", () => {
+    const { rerender } = render(
+      <ReadingList
+        {...KYOTO}
+        parts={{ anchors: [KYOTO.stops[1]!.id], headOf: () => slipOf("whole") }}
+      />,
+    );
+
+    rerender(
+      <ReadingList
+        {...KYOTO}
+        hidden={new Set([KYOTO.stops[1]!.id])}
+        parts={{ anchors: [KYOTO.stops[2]!.id], headOf: () => slipOf("taken") }}
+      />,
+    );
+
+    // The old slip still stands as its row folds out, its closures those of the proposal.
+    const leaving = screen.getByRole("radio", { name: "eating late, proposed", hidden: true });
+    expect(leaving.closest("[inert]")).not.toBeNull();
   });
 
   it("brings a version taken in whole, its words not written in again", () => {

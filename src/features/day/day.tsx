@@ -20,7 +20,7 @@ import {
   forkFrameOf,
   newStopsOf,
   replanFrameOf,
-  writtenStopsOf,
+  writtenVersionOf,
   windowsOf,
   type ReplanFrame,
   type ReplanWindow,
@@ -377,6 +377,11 @@ interface PartFork {
   basis: ReplanBasis;
   before: Merged | null;
   after: Merged;
+  /**
+   * The day before as taking it back draws it: its stops as written and the energy they were
+   * planned for, before any pick the visitor made on it, which the page keeps by stop.
+   */
+  beforeDay: ForkOther;
 }
 
 /** What the facts line of a run says of a re-plan asked from it. */
@@ -1446,6 +1451,10 @@ export function Day({
         basis: targetedShown.basis,
         before: targetedShown.merged,
         after,
+        beforeDay: {
+          stops: endedDayOf(outcome)?.stops ?? targetedShown.basis.itinerary.stops,
+          energy: (targetedShown.merged?.request ?? asked?.request ?? targetedShown.request).energy,
+        },
       });
       // Its new stops counted now, by the re-plan's ids: those at the part's own places at
       // another hour by which way they moved, the rest as new.
@@ -1670,14 +1679,15 @@ export function Day({
   // The fork's other version, as the plan's slips list it beside the day's parts, as far as it
   // is written: the proposal until it is taken, the day before once it is. A part's is read
   // from its frame while written and from memory once whole; a whole day's from its stream,
-  // then from memory. A part's two versions are both at the energy its re-plan was asked at:
-  // the day before as it showed at the press (`withPicks`), the proposal as it was written for.
+  // then from memory: the proposal as it was written for, and the day before as taking it back
+  // draws it, its own stops as written; the page re-picks either for the energy chosen since
+  // and shows the visitor's own picks on it, as it does the day on screen.
   const forkOther = useMemo((): ForkOther | null => {
     if (changeShown === null || changeShown.status === "failed") return null;
     const isTaken = changeShown.status === "taken";
     if (changeShown.status === "writing") {
       if (replanFrame !== null && targetedShown !== null) {
-        return { stops: writtenStopsOf(replanFrame), energy: targetedShown.request.energy };
+        return { stops: writtenVersionOf(replanFrame), energy: targetedShown.request.energy };
       }
       if (replanned !== null && replanning !== null) {
         return { stops: wholeDayWrittenOf(replanned.partial), energy: replanning.request.energy };
@@ -1685,8 +1695,8 @@ export function Day({
       return null;
     }
     if (partForkShown !== null) {
-      const { before, after } = versionsOf(partForkShown);
-      return { stops: isTaken ? before : after, energy: partForkShown.after.request.energy };
+      if (isTaken) return partForkShown.beforeDay;
+      return { stops: versionsOf(partForkShown).after, energy: partForkShown.after.request.energy };
     }
     if (wholeTurn === null) return null;
     const other = isTaken ? wholeTurn.before : wholeTurn.after;

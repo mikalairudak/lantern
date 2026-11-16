@@ -6,6 +6,7 @@ import {
   replanFrameOf,
   windowsOf,
   writtenStopsOf,
+  writtenVersionOf,
   WHOLE_DAY_WINDOW,
   type PartialReplanDraft,
   type ReplanFrame,
@@ -57,7 +58,7 @@ export interface WritingStep {
   frame: ReplanFrame | null;
   /** How far a whole day's stream is written; null for a part's. */
   written: ReplanWritten | null;
-  /** The proposal's stops the stream has finished, in order. */
+  /** The proposal's version of the day as far as the stream has finished it, in order. */
   finished: StopDraft[];
 }
 
@@ -108,7 +109,7 @@ async function partStepsOf(basis: ReplanBasis, replan: GeneratedReplan): Promise
   const text = JSON.stringify(replan);
   const stepOf = (label: string, partial: PartialReplanDraft): WritingStep => {
     const frame = replanFrameOf(basis, partial);
-    return { label, isLookingDue: true, frame, written: null, finished: writtenStopsOf(frame) };
+    return { label, isLookingDue: true, frame, written: null, finished: writtenVersionOf(frame) };
   };
   const steps = [PRESSED, stepOf("looking", {})];
   for (let count = 1; count <= replan.stops.length; count += 1) {
