@@ -339,6 +339,35 @@ describe("POST /api/intake with live generation on", () => {
     });
   });
 
+  // A zone the runtime does not know, in which the day's date cannot be read; and one it
+  // knows that is no city's, which the request's schema refuses.
+  it.each(["Mars/Olympus_Mons", "UTC"])(
+    "records a failure of ours when no answer can be built on the city found, in %s",
+    async (zone) => {
+      const lisbon = await searchWrittenPlaces("Lisbon");
+      const [first] = (lisbon as { results: object[] }).results;
+      const { deps, afterResponse, lines, generationLog } = bench({
+        search: () => Promise.resolve({ results: [{ ...first, timezone: { name: zone } }] }),
+      });
+
+      const response = await answerIntakeRequest(post({ text: "Lisbon" }), deps);
+      await afterResponse();
+
+      expect(await answerOf(response)).toEqual({ kind: "unavailable" });
+      expect(lines).toEqual([
+        {
+          event: "intake-reading-failed",
+          fields: expect.objectContaining({ role: "intake", type: "intake-reading-failed" }),
+        },
+      ]);
+      expect(generationLog.records[0]).toMatchObject({
+        outcome: "unavailable",
+        error: { status: null, errorCode: null, type: "intake-reading-failed" },
+      });
+      expect(generationLog.records[0]?.error?.message).toMatch(/zone/i);
+    },
+  );
+
   it("keeps Claude's own error in the record as Claude sent it", async () => {
     const { deps, afterResponse, generationLog } = bench({
       answer: { kind: "failure", failure: rejectionNamed("overloaded") },

@@ -83,6 +83,23 @@ describe("readIntake", () => {
     expect(reading).toMatchObject({ kind: "answered", result: { kind: "request" } });
   });
 
+  it("names an answer it cannot build as a failure of its own, never a throw", async () => {
+    const lisbon = await searchWrittenPlaces("Lisbon");
+    const [first] = (lisbon as { results: object[] }).results;
+    const unknownZone = () =>
+      Promise.resolve({ results: [{ ...first, timezone: { name: "Mars/Olympus_Mons" } }] });
+
+    const reading = await readIntake(LISBON_INTAKE, unknownZone, GOLDEN_NOW);
+
+    expect(reading).toEqual({
+      kind: "failed",
+      failure: {
+        type: "intake-reading-failed",
+        message: expect.stringContaining("Mars/Olympus_Mons") as string,
+      },
+    });
+  });
+
   it("gives no answer once the caller has walked away", async () => {
     const controller = new AbortController();
     const aborted = new DOMException("The visitor left", "AbortError");

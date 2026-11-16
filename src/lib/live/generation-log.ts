@@ -88,7 +88,8 @@ export interface GenerationRecord {
   /**
    * Claude's error, or for an intake Claude answered that still went `unavailable`, ours in
    * the same shape with no status and a type of our own: `intake-output-unparsable` when the
-   * output was not an intake, `city-lookup-failed` when Geoapify could not look its cities up.
+   * output was not an intake, `city-lookup-failed` when Geoapify could not look its cities up,
+   * `intake-reading-failed` when the answer could not be built from the two.
    */
   error: ProviderErrorDescription | null;
   /**

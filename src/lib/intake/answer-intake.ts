@@ -10,9 +10,10 @@ import { resolveCities, type TextSearch } from "./resolve-city";
 /**
  * Why an intake the model wrote could not be answered, named as the server's log line and the
  * record's `error.type` name it, apart from Claude's own errors: its output was not an intake,
- * or Geoapify could not look its cities up.
+ * Geoapify could not look its cities up, or the answer could not be built from the two.
  */
-export type IntakeFailureType = "intake-output-unparsable" | "city-lookup-failed";
+export type IntakeFailureType =
+  "intake-output-unparsable" | "city-lookup-failed" | "intake-reading-failed";
 
 export interface IntakeFailure {
   type: IntakeFailureType;
@@ -53,12 +54,21 @@ export async function readIntake(
     if (signal?.aborted) throw error;
     return { kind: "failed", failure: { type: "city-lookup-failed", message: messageOf(error) } };
   }
-  return { kind: "answered", result: normalizeIntake(intake.data, cities, now, text) };
+  try {
+    return { kind: "answered", result: normalizeIntake(intake.data, cities, now, text) };
+  } catch (error) {
+    // A city the lookup gave that no request can be built on, such as one in a time zone the
+    // runtime does not know or the request's schema refuses: a failure of ours, said as one.
+    return {
+      kind: "failed",
+      failure: { type: "intake-reading-failed", message: messageOf(error) },
+    };
+  }
 }
 
 /**
- * The same, as the start screen reads it: an output that is not an intake, or a lookup that
- * fails, is answered as an intake that could not run.
+ * The same, as the start screen reads it: an output that is not an intake, a lookup that
+ * fails, or an answer that cannot be built is answered as an intake that could not run.
  */
 export async function answerIntake(
   output: unknown,
