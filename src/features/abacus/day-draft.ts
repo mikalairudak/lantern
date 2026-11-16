@@ -145,24 +145,24 @@ export const NO_STOPS_OPEN: ReadonlySet<string> = new Set();
  * normalizer exactly as written, their hours too, so nothing a sheet says changes when the
  * day completes and the chart takes the normalized itinerary. A stop the finished day will
  * cut short, clamp, trim or drop opens only once it is complete. Every stop of a complete
- * day opens. Ids, as the normalizer keeps them whatever it drops.
+ * day opens. Ids, as the normalizer keeps them whatever it drops. Each stop is judged by
+ * its position in the generation, since a stop the draft leaves out still holds its place there.
  */
 export function openableStopsOf(
   day: DeepPartial<GeneratedDay>,
   draft: Pick<DayDraft, "stops" | "isComplete">,
 ): ReadonlySet<string> {
   if (draft.isComplete) return new Set(draft.stops.map(({ id }) => id));
-  const whole = wholeStopsOf(draft);
+  const placed = placedStopsOf(day.stops);
+  const whole = placed.slice(0, wholeStopsOf(draft));
   const written = (day.stops ?? [])
-    .slice(0, whole)
+    .slice(0, (whole.at(-1)?.index ?? -1) + 1)
     .map((stop) => GeneratedStopSchema.safeParse(stop));
   const stops = written.flatMap((parsed) => (parsed.success ? [parsed.data] : []));
   // A stop the stream has not written as the schema has it is never shown as final.
-  const parsedWhole = stops.length === written.length ? whole : 0;
-  const kept = keptAsWrittenOf(stops.slice(0, parsedWhole), draft.stops[whole]?.startTime ?? null);
-  return new Set(
-    draft.stops.slice(0, parsedWhole).flatMap(({ id }, index) => (kept[index] ? [id] : [])),
-  );
+  if (stops.length < written.length) return NO_STOPS_OPEN;
+  const kept = keptAsWrittenOf(stops, placed[whole.length]?.stop.startTime ?? null);
+  return new Set(whole.flatMap(({ index, stop }) => (kept[index] ? [stop.id] : [])));
 }
 
 /**

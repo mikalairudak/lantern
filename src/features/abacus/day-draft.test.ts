@@ -397,6 +397,43 @@ describe("openableStopsOf", () => {
     expect([...openableStopsOf(revealed.day, draft)]).toEqual(draft.stops.map(({ id }) => id));
   });
 
+  /** The curated day's first stops, each at the start and for the minutes given. */
+  const kyotoStopsAt = (times: readonly (readonly [string, number])[]): GeneratedDay["stops"] =>
+    times.map(([startTime, durationMinutes], index) => {
+      const stop = FIXTURES[0]?.day.stops[index];
+      if (!stop) throw new Error(`The curated day has no stop ${index}`);
+      return { ...stop, startTime, durationMinutes };
+    });
+
+  it("judges each stop past one the clock does not read by its own hours, and keeps one the next cuts short shut", () => {
+    const kyoto = FIXTURES[0];
+    if (!kyoto) throw new Error("No curated day to stream");
+    // The second stop is dropped; the fourth runs into the fifth, which is still written.
+    const stops = kyotoStopsAt([
+      ["09:00", 60],
+      ["24:30", 60],
+      ["11:00", 60],
+      ["12:00", 60],
+      ["12:30", 60],
+    ]);
+    const revealed = revealedOf({ stops }, null);
+    const finished = itineraryOf({ ...kyoto, day: { ...kyoto.day, stops, alternatives: [] } });
+
+    expect(finished.stops.find(({ id }) => id === "stop-3")?.durationMinutes).toBe(30);
+    expect([...openableStopsOf(revealed.day, draftDayOf(revealed))]).toEqual(["stop-0", "stop-2"]);
+  });
+
+  it("opens the stops before the last placed while the next one's time is still written", () => {
+    const written = kyotoStopsAt([
+      ["09:00", 60],
+      ["11:00", 60],
+      ["12:00", 60],
+    ]);
+    const revealed = revealedOf({ stops: [...written, { startTime: "13:" }] }, null);
+
+    expect([...openableStopsOf(revealed.day, draftDayOf(revealed))]).toEqual(["stop-0", "stop-1"]);
+  });
+
   it("keeps a stop the finished day repairs shut until it is complete", async () => {
     const text = dayText(REPAIRED_DAY.day);
     const revealed = await revealedAt(text, text.indexOf('"alternatives"') + 300);
