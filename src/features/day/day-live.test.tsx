@@ -1229,6 +1229,26 @@ describe("a changed time word with live generation on", () => {
     );
   });
 
+  it("keeps no row of a proposal asked before the visitor's days were forgotten, though it lands after", async () => {
+    window.localStorage.clear();
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const user = await askForKyoto();
+
+    await changeWord(user, "early start", "slow morning");
+    // Asked, and not yet written: its answer names it and ends after the forgetting.
+    await waitFor(() => expect(replanPosts).toHaveLength(1), DAY_TIMEOUT);
+    act(() => forgetDays());
+    expect(readYourDays(window.localStorage)).toEqual([]);
+
+    await waitFor(
+      () =>
+        expect(screen.getAllByRole("radio", { name: "slow morning, proposed" })[0]).toBeDefined(),
+      DAY_TIMEOUT,
+    );
+    expect(readYourDays(window.localStorage)).toEqual([]);
+  });
+
   it("sends the place a stop shows in place of its plan, by id, so the re-plan is written around it", async () => {
     const user = await landOnKanazawa();
     // A version of the day's last stop, which a slow morning keeps.

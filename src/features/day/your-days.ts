@@ -72,7 +72,9 @@ export function restateYourDay(storage: DayStorage | null, day: YourDay): YourDa
 }
 
 /**
- * Forgets one day of the list: a re-plan that ended without a day, which is no day of theirs. A list that does not hold it is left as it is.
+ * Forgets one day of the list: a re-plan that ended without a day, or an answer that came back
+ * empty and was asked again, which is no day of theirs. A list that does not hold it is left as
+ * it is.
  */
 export function forgetYourDay(storage: DayStorage | null, id: string): YourDay[] {
   const kept = readYourDays(storage);
