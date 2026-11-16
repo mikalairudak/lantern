@@ -23,6 +23,12 @@ import { partsOf } from "./part-slip-lines";
 export interface ForkOther {
   stops: readonly StopDraft[];
   energy: EnergyLevel;
+  /**
+   * The visitor's picks on it where it is drawn as a day of its own, as a whole day taken or
+   * taken back is, by stop id: those kept for that day. Left out for a part's, which is drawn
+   * in the day on screen's place, with the picks made there.
+   */
+  picks?: ShownPlaces;
 }
 
 /**

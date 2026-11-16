@@ -42,7 +42,8 @@ import type { ForkView } from "./replan-work";
  * stop, time and name, in the versions' blue on the versions' dashed wire, headed by its answer
  * and "Take". The plan's rows stay the day's alone; the slip is the comparison, open while the
  * fork stands. In the column it stands under the fork line, at the head of its part; in the
- * margin, out of flow beside the plan, so the plan gains only the fork line.
+ * margin, out of flow beside the plan, so the plan gains the fork line, and after the part's
+ * last row only the room the slip takes beyond the part (`ReadingList`).
  */
 
 /** Marks a slip, so what holds room for it, or measures it, finds it. */
@@ -157,18 +158,22 @@ export function PartSlip({
   if (view.isFailed && index > 0) return null;
   const isOtherEnabled = !view.isWriting && !view.isFailed;
   const otherSide: ForkSide = view.chosen === "to" ? "from" : "to";
-  const choose = (side: ForkSide) => {
-    if (side === otherSide && !isOtherEnabled) return;
+  /** Chooses an answer, unless its version cannot be taken yet; whether it was chosen. */
+  const choose = (side: ForkSide): boolean => {
+    if (side === otherSide && !isOtherEnabled) return false;
     onChoose(side);
+    return true;
   };
-  /** A press on a control: the second of a double press on it does nothing. */
+  /**
+   * A press on a control: the second of a double press on it does nothing. Only a press that
+   * chose is remembered, so one on a version still being written takes nothing from the next.
+   */
   const press = (side: ForkSide, at: "line" | "slip", event: MouseEvent<HTMLButtonElement>) => {
     const pressed = presses ?? ownPresses.current;
     const place: ControlPlace = `${index}:${at}`;
     const last = pressed.get(place);
     if (last !== undefined && event.timeStamp - last < DOUBLE_PRESS_MS) return;
-    pressed.set(place, event.timeStamp);
-    choose(side);
+    if (choose(side)) pressed.set(place, event.timeStamp);
   };
   // Arrows take the other answer, as a radio group does; the focus follows the checked one.
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -333,11 +338,7 @@ interface SlipProps {
   /** The fork's first part, which says the work line or the receipt. */
   isFirst: boolean;
   reach: WorkReach;
-  /**
-   * Stands in the column, under the fork line, where it holds a line a stop from the press for
-   * the lines to come, and a line that wraps takes the rest by a glide; the margin holds none,
-   * since nothing there moves the plan.
-   */
+  /** Stands in the column, under the fork line, rather than in the margin beside the plan. */
   isInColumn: boolean;
   /** The other version's answer. */
   side: ForkSide;
@@ -348,32 +349,46 @@ interface SlipProps {
 function Slip({ view, shown, other, opens, isFirst, reach, isInColumn, side, onPress }: SlipProps) {
   const lines = slipLinesOf(shown, other, opens);
   // Lines on the slip when it is first drawn stand whole, and so does every line of a version
-  // already written, as the day before is on a take: only a line that arrives while the
-  // proposal is written is penned in. Each is set as it arrives, so a line's pen never stops
-  // midway when the proposal becomes whole.
+  // already written, as the day before is on a take and a proposal taken back is: only a line
+  // that arrives while the proposal is written is penned in. Each is marked as it arrives, so a
+  // line's pen never stops midway when the proposal becomes whole, and its mark goes with it,
+  // so a line that comes back stands whole.
   const [penned, setPenned] = useState<ReadonlyMap<string, boolean>>(
     () => new Map(lines.map(({ id }) => [id, false])),
   );
-  const arrived = lines.filter(({ id }) => !penned.has(id));
-  if (arrived.length > 0) {
-    setPenned(
-      new Map([...penned, ...arrived.map(({ id }): [string, boolean] => [id, view.isWriting])]),
-    );
+  const listed = new Set(lines.map(({ id }) => id));
+  const isMarkChanged =
+    lines.some(({ id }) => !penned.has(id)) || [...penned.keys()].some((id) => !listed.has(id));
+  if (isMarkChanged) {
+    setPenned(new Map(lines.map(({ id }) => [id, penned.get(id) ?? view.isWriting])));
   }
   const foot = view.isWriting ? null : slipFootOf(shown, other, reach, opens);
-  const held = view.isWriting && isInColumn ? heldLinesOf(shown.length, reach) - lines.length : 0;
-  // The work line, then the receipt, is said once, in the fork's first part; the work line holds
-  // its line there from the press in the column. A receipt with nothing to say takes no line.
-  const isLineHeld = view.isWriting && isInColumn;
+  // From the press the slip holds the room it will take, in the column and the margin alike,
+  // so what stands under or beside it is moved once: the part's own lines as new stops' lines
+  // wrap at its width (`heldLinesOf`), the foot they would have, and in the first part the work
+  // line and the line where the day's end would move. Lines that arrive take their room; room
+  // not used is given back once, as the proposal is whole.
+  const held = view.isWriting ? heldLinesOf(shown, opens, reach).slice(lines.length) : [];
+  const heldFoot = view.isWriting ? slipFootOf(shown, [], reach, opens) : null;
+  // The work line, then the receipt, is said once, in the fork's first part. A receipt with
+  // nothing to say takes no line.
+  const isLineHeld = view.isWriting;
   const end = view.isWriting ? null : view.end;
   const isNoteSaid = isFirst && ((view.line?.words ?? "") !== "" || end !== null || isLineHeld);
+  const [slip, setSlip] = useState<HTMLDivElement | null>(null);
+  const heldHeight = useHeightHeld(slip, view.isWriting);
   return (
-    <div {...{ [SLIP_ATTRIBUTE]: "" }} className={cn(isInColumn && "mt-2")}>
+    <div
+      ref={setSlip}
+      {...{ [SLIP_ATTRIBUTE]: "" }}
+      className={cn(isInColumn && "mt-2")}
+      style={{ minHeight: heldHeight }}
+    >
       <SlipAnswer view={view} side={side} onPress={onPress} />
       <div className={BODY_CLASSES}>
         <Wire />
         {isNoteSaid && <SlipNote line={view.line} end={end} isLineHeld={isLineHeld} />}
-        {(lines.length > 0 || held > 0) && (
+        {(lines.length > 0 || held.length > 0) && (
           <ol className={LINES_CLASSES}>
             {lines.map((line) => (
               <SlipLineItem
@@ -383,15 +398,31 @@ function Slip({ view, shown, other, opens, isFirst, reach, isInColumn, side, onP
                 isPenned={penned.get(line.id) ?? false}
               />
             ))}
-            {Array.from({ length: Math.max(0, held) }, (_, at) => (
+            {held.map((line) => (
               // A line's room, unseen, until a stop arrives to fill it.
-              <li key={`held-${at}`} aria-hidden className="invisible">
-                {NO_BREAK}
-              </li>
+              <SlipLineItem
+                key={`held-${line.id}`}
+                line={line}
+                movedWord={MOVED_WORDS[side]}
+                isPenned={false}
+                isHeld
+              />
             ))}
           </ol>
         )}
         {foot !== null && <p className="mt-1.5 text-muted">{foot}</p>}
+        {heldFoot !== null && (
+          <p aria-hidden className="invisible mt-1.5">
+            {heldFoot}
+          </p>
+        )}
+        {isFirst && view.isWriting && (
+          // The line where the day's end would move in the receipt, held unseen under the rest,
+          // so the room held stands below what is said.
+          <p aria-hidden className="invisible">
+            {END_HELD}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -514,15 +545,38 @@ function SlipNote({
   );
 }
 
+/** A receipt's line where the day's end moves, as long as it is said: its room while written. */
+const END_HELD = "ends 00:00, not 00:00";
+
+/**
+ * The tallest a slip has stood while `isHolding`, which it keeps as its least height so a line
+ * that arrives shorter than the room held for it moves nothing; none once it no longer holds.
+ */
+function useHeightHeld(slip: HTMLElement | null, isHolding: boolean): number {
+  const [height, setHeight] = useState(0);
+  if (!isHolding && height !== 0) setHeight(0);
+  useLayoutEffect(() => {
+    if (!slip || !isHolding) return undefined;
+    const measure = () => setHeight((last) => Math.max(last, slip.offsetHeight));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(slip);
+    return () => observer.disconnect();
+  }, [slip, isHolding]);
+  return height;
+}
+
 interface SlipLineItemProps {
   line: SlipLine;
   /** How a moved line names the hour the day on screen gives it (`MOVED_WORDS`). */
   movedWord: string;
   isPenned: boolean;
+  /** Only its room, unseen and unheard, until a stop arrives to fill it. */
+  isHeld?: boolean;
 }
 
 /** One stop of the other version: its time, then its name and what it is, or how it stands. */
-function SlipLineItem({ line, movedWord, isPenned }: SlipLineItemProps) {
+function SlipLineItem({ line, movedWord, isPenned, isHeld = false }: SlipLineItemProps) {
   const { time, name, mark } = line;
   const isNew = mark.kind === "new";
   const tail =
@@ -537,7 +591,7 @@ function SlipLineItem({ line, movedWord, isPenned }: SlipLineItemProps) {
   const afterTime = written - time.length;
   const afterName = afterTime - name.length;
   return (
-    <li className={LINE_CLASSES}>
+    <li aria-hidden={isHeld || undefined} className={cn(LINE_CLASSES, isHeld && "invisible")}>
       <span className={cn(TIME_CLASSES, isNew ? "text-swap" : "text-muted")}>
         <PennedText text={time} written={written} isActive={false} />
       </span>

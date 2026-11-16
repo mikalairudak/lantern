@@ -80,6 +80,7 @@ import {
   useYourDays,
 } from "./use-your-days";
 import { browserStorage, type YourDay } from "./your-days";
+import { picksWithin, readPickedPlaces } from "./picked-places";
 import { keepCaveats } from "./caveats";
 import { useKeptCaveats } from "./use-caveats";
 import type {
@@ -92,6 +93,7 @@ import type {
 } from "./replan-controls";
 import { placesKeptOf, wholeDayWrittenOf, writtenOf } from "./replan-work";
 import type { ForkOther } from "./plan-fork";
+import type { ForkPresses } from "./part-slip";
 import { shownEnergiesOf } from "./day-shape";
 import { endedDayOf, phaseOf } from "./stream-ending";
 import { isSentenceStreamed } from "./header-ready";
@@ -1676,6 +1678,9 @@ export function Day({
     isAskedBeforeForget,
   ]);
 
+  // The presses on a fork's controls, kept across runs: a whole day taken is drawn as a run of
+  // its own, and a double press's second must find the first.
+  const [forkPresses] = useState<ForkPresses>(() => new Map());
   // The fork's other version, as the plan's slips list it beside the day's parts, as far as it
   // is written: the proposal until it is taken, the day before once it is. A part's is read
   // from its frame while written and from memory once whole; a whole day's from its stream,
@@ -1699,8 +1704,15 @@ export function Day({
       return { stops: versionsOf(partForkShown).after, energy: partForkShown.after.request.energy };
     }
     if (wholeTurn === null) return null;
+    // A whole day is drawn as a run of its own, its picks those kept for it on this device: the
+    // visitor's picks on the day on screen belong to that generation alone, whose stops' ids
+    // the other shares.
     const other = isTaken ? wholeTurn.before : wholeTurn.after;
-    return { stops: other.whole?.itinerary.stops ?? [], energy: other.request.energy };
+    const stops = other.whole?.itinerary.stops ?? [];
+    const id = other.record?.id ?? null;
+    const key = id !== null ? keptSeenKeyOf(id) : other.seenKey;
+    const picks = key === null ? {} : picksWithin(stops, readPickedPlaces(browserStorage(), key));
+    return { stops, energy: other.request.energy, picks };
   }, [changeShown, replanFrame, targetedShown, replanned, replanning, partForkShown, wholeTurn]);
 
   const roomHeight = () => room.current?.getBoundingClientRect().height ?? null;
@@ -2242,6 +2254,7 @@ export function Day({
             replanFrame={replanFrame ?? forkFrameShown ?? foldingShown}
             onReplanFaded={letFoldingGo}
             forkOther={forkOther}
+            forkPresses={forkPresses}
             replanRoom={targetedShown?.room ?? null}
             heldRoom={asked.heldRoom}
             roomRef={room}

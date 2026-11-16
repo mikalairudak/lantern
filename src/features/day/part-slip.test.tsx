@@ -129,6 +129,17 @@ describe("PartSlip", () => {
     expect(onChoose.mock.calls).toEqual([["to"]]);
   });
 
+  it("remembers no press that did nothing, as on a proposal still being written", async () => {
+    const user = userEvent.setup();
+    const { onChoose, rerender, props } = renderSlip(LUNCH, momentOf("writing: every"));
+
+    await user.click(screen.getByRole("radio", { name: "eating late, being written" }));
+    rerender(<PartSlip {...props} {...slipStillOf(LUNCH, momentOf("whole"))} />);
+    await user.click(screen.getByRole("radio", { name: "eating late, proposed" }));
+
+    expect(onChoose.mock.calls).toEqual([["to"]]);
+  });
+
   it("takes the other answer by the arrows, the focus on the checked one as the choice flips", async () => {
     const user = userEvent.setup();
     const { onChoose, rerender, props } = renderSlip(LUNCH, momentOf("whole"));
@@ -165,9 +176,17 @@ describe("PartSlip", () => {
     await user.keyboard("{ArrowRight}");
     expect(onChoose).not.toHaveBeenCalled();
     expect(slipOf(container)).toHaveTextContent("Looking for a dinner after nine");
-    expect(slipOf(container)).not.toHaveTextContent("in place of");
-    // The lunch's one stop and one more.
-    expect(slipOf(container)?.querySelectorAll("li[aria-hidden]")).toHaveLength(2);
+    // Its foot's room is held unseen and unheard, its words said once the proposal is whole.
+    const said = [...(slipOf(container)?.querySelectorAll("p") ?? [])].filter(
+      (line) => line.closest("[aria-hidden]") === null,
+    );
+    expect(said.some((line) => line.textContent?.includes("in place of"))).toBe(false);
+    // The lunch's one stop and one more, held as they would wrap.
+    const held = [...(slipOf(container)?.querySelectorAll("li[aria-hidden]") ?? [])];
+    expect(held.map((line) => line.textContent)).toEqual([
+      "13:15Menú del día on Carrer Major de la Vila\u00a0· lunch\u00a0· until\u00a014:30",
+      "13:15Menú del día on Carrer Major de la Vila\u00a0· lunch\u00a0· until\u00a014:30",
+    ]);
   });
 
   it("says nothing of the search before it is due, its room still held", () => {
@@ -205,11 +224,33 @@ describe("PartSlip", () => {
     expect(slipOf(container)?.querySelectorAll("ol .invisible")).toHaveLength(0);
   });
 
-  it("holds no room in the margin, where nothing it does moves the plan", () => {
+  it("lists a version taken back whole, though its lines were written in as it arrived", async () => {
+    const { container, rerender, props } = renderSlip(EVENING, momentOf("writing: no line"));
+    const at = (moment: string) => ({ ...props, ...slipStillOf(EVENING, momentOf(moment)) });
+    // Its lines written in as the proposal arrives, then whole, taken and taken back: the
+    // garden that stays keeps the slip in its place throughout.
+    rerender(<PartSlip {...at("writing: every")} />);
+    await waitFor(() =>
+      expect(
+        slipOf(container)?.querySelectorAll("ol li:not([aria-hidden]) .invisible"),
+      ).toHaveLength(0),
+    );
+    rerender(<PartSlip {...at("whole")} />);
+    rerender(<PartSlip {...at("taken")} />);
+
+    rerender(<PartSlip {...at("kept")} />);
+
+    expect(linesOf(container)).toHaveLength(3);
+    expect(slipOf(container)?.querySelectorAll("ol li:not([aria-hidden]) .invisible")).toHaveLength(
+      0,
+    );
+  });
+
+  it("holds the room it will take in the margin too, so the row beside it holds it once", () => {
     const { container } = renderSlip(LUNCH, momentOf("writing: no line"), "margin");
 
     expect(slipOf(container)).toBeInTheDocument();
-    expect(slipOf(container)?.querySelectorAll("li[aria-hidden]")).toHaveLength(0);
+    expect(slipOf(container)?.querySelectorAll("li[aria-hidden]")).toHaveLength(2);
   });
 
   it("once taken, lists the day before under its answer, its receipt and foot turned", async () => {

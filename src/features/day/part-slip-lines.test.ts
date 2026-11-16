@@ -149,9 +149,20 @@ describe("slipFootOf", () => {
 });
 
 describe("heldLinesOf", () => {
-  it("holds a line for each of the part's stops and one more, and one each for a whole day", () => {
-    expect(heldLinesOf(1, "part")).toBe(2);
-    expect(heldLinesOf(9, "whole")).toBe(9);
+  it("holds a new stop's line for each of the part's stops and one more, the longest", () => {
+    const held = heldLinesOf([COFFEE, TOWER], null, "part");
+
+    expect(held.map(({ name }) => name)).toEqual([
+      "Coffee on the Oudegracht",
+      "Domtoren",
+      "Coffee on the Oudegracht",
+    ]);
+    expect(held.every(({ mark }) => mark.kind === "new")).toBe(true);
+    expect(new Set(held.map(({ id }) => id)).size).toBe(3);
+  });
+
+  it("holds a whole day's own stops alone", () => {
+    expect(heldLinesOf([COFFEE, TOWER], null, "whole")).toHaveLength(2);
   });
 });
 

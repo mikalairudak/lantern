@@ -143,13 +143,29 @@ export function slipFootOf(
 }
 
 /**
- * The lines a slip holds room for in the column from the press, before the other version is
- * known: a line a stop, one for each of the part's stops on screen and one more, as a part's
- * proposal is often a stop longer; one each for a whole day. A stop whose line wraps takes the
- * rest of its room by a glide.
+ * The lines a slip holds room for from the press, before the other version is known: the
+ * part's own stops on screen, each as a new stop's line, so it wraps as such a line does at the
+ * width the slip stands in, and for a part one more, the longest of them, as a part's proposal
+ * is often a stop longer. A whole day's holds its own stops alone.
  */
-export function heldLinesOf(shownCount: number, reach: WorkReach): number {
-  return reach === "whole" ? shownCount : shownCount + 1;
+export function heldLinesOf(
+  shown: readonly StopDraft[],
+  opens: number | null,
+  reach: WorkReach,
+): SlipLine[] {
+  const own = slipLinesOf([], shown, opens);
+  const longest = own.reduce<SlipLine | null>(
+    (most, line) => (most === null || lengthOf(line) > lengthOf(most) ? line : most),
+    null,
+  );
+  return reach === "whole" || longest === null
+    ? own
+    : [...own, { ...longest, id: `${longest.id}:more` }];
+}
+
+/** How many letters a line sets. */
+function lengthOf({ time, name, mark }: SlipLine): number {
+  return time.length + name.length + (mark.kind === "new" ? mark.what.length : 0);
 }
 
 /**

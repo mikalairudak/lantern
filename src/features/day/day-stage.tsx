@@ -266,6 +266,12 @@ interface DayStageProps {
    */
   forkOther?: ForkOther | null;
   /**
+   * The presses on the fork's controls (`ForkPresses`), kept by the page across its runs, so a
+   * double press on a whole day's "Take" never takes the day before back on the run it draws.
+   * Left out, the day keeps its own.
+   */
+  forkPresses?: ForkPresses;
+  /**
    * The header's room as a re-plan of this day began, its floor while the re-plan streams, so
    * a shorter line about the day on its way never lifts the chart; lifted as the merged day
    * takes the page, the room glides to its own height at the reach's pace. Null otherwise.
@@ -394,6 +400,7 @@ export function DayStage({
   replanFrame = null,
   onReplanFaded,
   forkOther = null,
+  forkPresses,
   replanRoom = null,
   onPlay,
   onOpenWritten = onPlay,
@@ -625,19 +632,11 @@ export function DayStage({
     const own = new Map(draft.stops.map((stop) => [stop.id, stop]));
     return frameStops.map((stop) => own.get(stop.id) ?? stop);
   }, [frameStops, draft.stops]);
-  /**
-   * The stops as written, re-picked for an energy level from the versions already written: a
-   * proposal's rows beside the day, drawn with their plan alone, show the place its own versions
-   * re-pick to, as its slip lists it, so taking it shows what both said.
-   */
+  /** The stops as written, re-picked for an energy level from the versions already written. */
   const repickedFor = useCallback(
     (level: EnergyLevel) =>
-      proposedAtOf(
-        replanForEnergy(writtenStops, requestedEnergy, ENERGY_LEVELS.indexOf(level)),
-        replanProposed,
-        forkOtherAt(forkOther, level),
-      ),
-    [writtenStops, requestedEnergy, replanProposed, forkOther],
+      replanForEnergy(writtenStops, requestedEnergy, ENERGY_LEVELS.indexOf(level)),
+    [writtenStops, requestedEnergy],
   );
   const isRepicked = repickedLevel !== null;
   const shownStops = useMemo(
@@ -951,11 +950,18 @@ export function DayStage({
       : null;
   const isPlanForkShown = planView !== null && !(planView.isFailed && isActedOn);
   // The other version as taking it draws it: re-picked for the energy the headline says, from
-  // the one it was planned for, with the visitor's own picks on its stops.
+  // the one it was planned for, with the visitor's picks on it: a part's those made on this day,
+  // a whole day's those kept for that day (`ForkOther.picks`).
   const committedPicks = curve.committedPicks;
   const forkOtherShown = useMemo(
-    () => asShownOf(forkOtherAt(forkOther, repickedLevel), committedPicks),
+    () => asShownOf(forkOtherAt(forkOther, repickedLevel), forkOther?.picks ?? committedPicks),
     [forkOther, repickedLevel, committedPicks],
+  );
+  // The chart's rows of the version beside the day, drawn with one place alone, show the place
+  // its slip lists and taking it shows: re-picked for the energy, with the visitor's picks on it.
+  const chartStops = useMemo(
+    () => (replanProposed.size === 0 ? stops : proposedAtOf(stops, replanProposed, forkOtherShown)),
+    [stops, replanProposed, forkOtherShown],
   );
   const planFork =
     replan && planView && isPlanForkShown
@@ -971,13 +977,15 @@ export function DayStage({
   const [planColumn, setPlanColumn] = useState<HTMLElement | null>(null);
   const [wholeColumn, setWholeColumn] = useState<HTMLDivElement | null>(null);
   const slipPlacement = useSlipPlacement(planColumn, wholeColumn);
-  // The fork's presses, kept across its slips: one drawn anew over a version taken knows a
+  // The fork's presses, kept across its slips, by the page where it keeps them: a slip drawn
+  // anew over a version taken, in this day or in a whole day taken as a run of its own, knows a
   // press made a moment before on the slip it replaces.
-  const [forkPresses] = useState<ForkPresses>(() => new Map());
+  const [ownPresses] = useState<ForkPresses>(() => new Map());
   const planParts: PlanParts | null =
     replan && planView && planFork && slipPlacement !== null
       ? {
           anchors: planFork.anchors,
+          ends: planFork.shown.map((part) => part.at(-1)?.id ?? null),
           isBeside: slipPlacement === "margin",
           // An ending without a proposal is said once, at the fork's first part.
           headOf: (part) =>
@@ -995,7 +1003,7 @@ export function DayStage({
                   replan.choose(side);
                 }}
                 onAskAgain={askAgainFromFork}
-                presses={forkPresses}
+                presses={forkPresses ?? ownPresses}
               />
             ),
         }
@@ -1592,7 +1600,7 @@ export function DayStage({
                     basisHeight={basisHeight}
                     dayStart={dayStart}
                     dayEnd={dayEnd}
-                    stops={stops}
+                    stops={chartStops}
                     densityOverride={null}
                     picks={energy.committed}
                     energy={energy}

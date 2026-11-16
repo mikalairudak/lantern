@@ -1,4 +1,12 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRef, type Ref } from "react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
@@ -2847,6 +2855,19 @@ describe("a changed word's fork on the plan, with live generation on", () => {
       .getAllByRole("heading", { level: 2 })
       .map((heading) => heading.textContent);
   const slipRadio = (name: string) => within(planList()).getByRole("radio", { name });
+  /** The names the slip lists, a line each. */
+  const slipNames = () =>
+    [...planList().querySelectorAll("[data-slip] ol li span.min-w-0 > span:first-child")].map(
+      (name) => name.textContent,
+    );
+  /** A moment later than any press a test has made, for presses whose clock the test sets. */
+  const FIRST_PRESS_AT = 1e9;
+  /** A press whose event says when it was made, as the double-press guard reads it. */
+  const pressAt = (control: HTMLElement, timeStamp: number) => {
+    const click = createEvent.click(control);
+    Object.defineProperty(click, "timeStamp", { value: timeStamp });
+    fireEvent(control, click);
+  };
   /** A press on the same control within a double press's time does nothing: wait it out. */
   const pastADoublePress = () =>
     act(() => new Promise((resolve) => setTimeout(resolve, DOUBLE_PRESS_MS)));
@@ -2950,6 +2971,77 @@ describe("a changed word's fork on the plan, with live generation on", () => {
 
     await waitFor(() => expect(day.current?.replan().status).toBe("left"), DAY_TIMEOUT);
     await waitFor(() => expect(planNames().slice(0, listed.length)).toEqual(listed), DAY_TIMEOUT);
+  });
+
+  it("lists a whole day written again as taking it draws it, with none of the day before's picks", async () => {
+    const user = await landOnMadrid();
+    // A pick on a stop of the day before; then a word that writes the whole day again, the
+    // new day's stops numbered from the start as the day before's are.
+    await user.click(
+      within(planList()).getAllByRole("button", { name: /^(Quieter|Livelier): / })[0]!,
+    );
+    dayReplies.push(KANAZAWA_START_REQUEST);
+    await changeWord(user, "with friends", "with family");
+    const take = await waitFor(() => slipRadio("with family, proposed"), DAY_TIMEOUT);
+    const listed = slipNames();
+
+    await pastADoublePress();
+    await user.click(take);
+
+    await waitFor(() => expect(headline()).toHaveTextContent(/with family$/), DAY_TIMEOUT);
+    await waitForTheDay();
+    expect(planNames()).toEqual(listed);
+
+    // Taken, the slip lists the day before as taking it back draws it.
+    const before = slipNames();
+    await pastADoublePress();
+    await user.click(slipRadio("with friends, the day before"));
+    await waitFor(() => expect(headline()).toHaveTextContent(/with friends$/), DAY_TIMEOUT);
+    await waitForTheDay();
+    expect(planNames()).toEqual(before);
+  });
+
+  it("takes no second press of a double press on a whole day's slip, drawn anew as its own run", async () => {
+    const user = await landOnMadrid();
+    dayReplies.push(KANAZAWA_START_REQUEST);
+    await changeWord(user, "with friends", "with family");
+    const take = await waitFor(() => slipRadio("with family, proposed"), DAY_TIMEOUT);
+
+    // The two presses of a double press, 300 ms apart on the clock their events carry, however
+    // long the day between them takes to be drawn anew.
+    pressAt(take, FIRST_PRESS_AT);
+    // The day taken is drawn anew, its slip in the same place; the finger presses again.
+    const back = await waitFor(() => slipRadio("with friends, the day before"), DAY_TIMEOUT);
+    pressAt(back, FIRST_PRESS_AT + 300);
+
+    await waitForTheDay();
+    expect(headline()).toHaveTextContent(/with family$/);
+  });
+
+  it("names on the chart's compared day before the place its slip and a take-back name", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    // A stop of the morning swapped, no energy chosen; the proposal taken, then compared.
+    await user.click(within(planList()).getAllByRole("button", { name: /^Quieter: / })[0]!);
+    await changeWord(user, "early start", "slow morning");
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("taken"), DAY_TIMEOUT);
+    await waitForTheDay();
+    const listed = slipNames();
+
+    await user.click(screen.getAllByRole("button", { name: "Compare" })[0]!);
+
+    const chartNames = () =>
+      within(dayList())
+        .getAllByRole("listitem")
+        .map((row) => row.textContent ?? "");
+    await waitFor(() =>
+      expect(listed.every((name) => chartNames().some((row) => row.includes(name ?? "")))).toBe(
+        true,
+      ),
+    );
   });
 
   it("re-picks the day from its own plan when an energy is pressed again with a proposal standing", async () => {

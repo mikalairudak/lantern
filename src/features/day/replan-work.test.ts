@@ -193,6 +193,22 @@ describe("wholeDayWrittenOf", () => {
   };
   const text = dayText(day);
 
+  it("says a stay as the finished day keeps it, rounded to the minute", async () => {
+    const rounded = {
+      ...KYOTO_DAY.day,
+      stops: KYOTO_DAY.day.stops.map((stop, index) =>
+        index === 0 ? { ...stop, durationMinutes: stop.durationMinutes - 0.4 } : stop,
+      ),
+    };
+    const roundedText = dayText(rounded);
+    const at = await firstAt(roundedText, ({ day: partial }) => (partial.stops?.length ?? 0) >= 3);
+    const written = wholeDayWrittenOf(await partialAt(roundedText, at));
+    const finished = normalizeDay(KYOTO_DAY.request, rounded);
+    if (!finished.ok) throw new Error("Kyoto's day normalizes");
+
+    expect(written[0]?.durationMinutes).toBe(finished.itinerary.stops[0]?.durationMinutes);
+  });
+
   it("says each stop written as the finished day will: one run into the next ends as it begins", async () => {
     // The fourth stop begun: the second's line is due, the third's start final.
     const at = await firstAt(text, ({ day: partial }) => (partial.stops?.length ?? 0) >= 4);

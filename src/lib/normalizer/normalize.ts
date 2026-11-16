@@ -308,6 +308,48 @@ function withoutOverlaps<Timed extends Timing>(
   return kept;
 }
 
+/** A stop's time as a draft of a day holds it while it streams. */
+export interface DraftTiming {
+  startTime: string;
+  durationMinutes: number;
+}
+
+/** A draft stop's time as the finished day keeps it: its place among the stops given. */
+export interface KeptTiming {
+  index: number;
+  /** On the day's count of minutes, running on past midnight. */
+  start: number;
+  durationMinutes: number;
+}
+
+/**
+ * The times the finished day keeps of stops still being written, by the normalizer's own rules:
+ * each stay rounded to the minute and held to the longest a stop may last, a stop with no time
+ * or no stay dropped, then each out of order dropped and each run into the next cut short where
+ * it begins (`withoutOverlaps`), its start read by `startOf`, as a re-plan reads its new stops
+ * beside the kept ones. What a stop's place is, which the finished day may also refuse, a draft
+ * does not hold yet, so it is not judged here.
+ */
+export function keptTimingsOf(
+  stops: readonly DraftTiming[],
+  startOf: StartReader = runningStartAfter,
+): KeptTiming[] {
+  const log = new RepairLog();
+  const timed = stops.flatMap((stop, generatedIndex): Timing[] => {
+    const start = parseClock(stop.startTime);
+    const path: Path = ["stops", generatedIndex, "durationMinutes"];
+    const durationMinutes = cleanDuration(stop.durationMinutes, path, log);
+    return start === null || durationMinutes === null
+      ? []
+      : [{ generatedIndex, start, durationMinutes }];
+  });
+  return withoutOverlaps(timed, log, startOf).map(({ generatedIndex, start, durationMinutes }) => ({
+    index: generatedIndex,
+    start,
+    durationMinutes,
+  }));
+}
+
 /**
  * Which of a day's first stops, while it streams, the finished day will show exactly as they
  * were written: nothing of them repaired, trimmed or dropped, their time included. A stop's

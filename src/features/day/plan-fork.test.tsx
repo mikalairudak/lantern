@@ -231,6 +231,19 @@ describe("useSlipPlacement", () => {
     vi.restoreAllMocks();
   });
 
+  it("stands the slip in the column where both boxes measure nothing", () => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
+    render(<Placed column={0} whole={0} />);
+
+    expect(screen.getByText("column")).toBeInTheDocument();
+  });
+
   it("says no place until both boxes are there to measure", () => {
     vi.stubGlobal(
       "ResizeObserver",

@@ -9,10 +9,11 @@ import {
   type WindowBound,
 } from "@/lib/replan/merge";
 import type { WindowSpan } from "@/lib/replan/windows";
+import { keptTimingsOf } from "@/lib/normalizer/normalize";
 import type { Itinerary, Stop } from "@/lib/schema/itinerary.schema";
 import type { GeneratedReplan } from "@/lib/schema/replan.schema";
 import type { DayOutcome } from "@/lib/stream/outcome";
-import { minutesOf, runningSpans } from "@/lib/time/clock";
+import { runningSpans } from "@/lib/time/clock";
 import { alternativesOf, placedStopsOf, type StopDraft } from "./day-draft";
 import { isReplannedBy, replannedIdOf, stopIdAt } from "@/lib/schema/positions";
 
@@ -144,30 +145,26 @@ interface PlacedNew {
 }
 
 /**
- * The placed new stops as the normalizer orders them before the merge: one that starts no later
- * than the stop before it is dropped, and one that runs into the next is cut at its start
- * (`withoutOverlaps`). Each start is final once its stop is placed, and is read on the day's
- * count of minutes by the reader the normalizer and the merge use (`newStopStartIn`).
+ * The placed new stops as the normalizer orders them before the merge, by its own rule
+ * (`keptTimingsOf`): each stay rounded and held to the longest, one that starts no later than
+ * the stop before it dropped, and one that runs into the next cut at its start. Each start is
+ * final once its stop is placed, and is read on the day's count of minutes by the reader the
+ * normalizer and the merge use (`newStopStartIn`).
  */
 function orderedNew(
   placed: readonly { index: number; stop: StopDraft }[],
   bounds: readonly WindowBound[],
 ): PlacedNew[] {
-  const startOf = newStopStartIn(bounds);
-  const ordered: PlacedNew[] = [];
-  placed.forEach(({ index, stop }) => {
-    const previous = ordered.at(-1);
-    const before = previous
-      ? { start: previous.from, end: previous.from + previous.stop.durationMinutes }
-      : null;
-    const from = startOf(minutesOf(stop.startTime), before);
-    if (previous && from <= previous.from) return;
-    if (previous && from < previous.from + previous.stop.durationMinutes) {
-      previous.stop = { ...previous.stop, durationMinutes: from - previous.from };
-    }
-    ordered.push({ index, stop, from });
+  const timings = keptTimingsOf(
+    placed.map(({ stop }) => stop),
+    newStopStartIn(bounds),
+  );
+  return timings.flatMap(({ index, start, durationMinutes }) => {
+    const placedNew = placed[index];
+    return placedNew === undefined
+      ? []
+      : [{ index: placedNew.index, stop: { ...placedNew.stop, durationMinutes }, from: start }];
   });
-  return ordered;
 }
 
 /**

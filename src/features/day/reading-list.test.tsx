@@ -1,5 +1,6 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useLayoutEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { completeDraftOf, draftDayOf, openableStopsOf } from "@/features/abacus/day-draft";
 import { dayContextOf } from "@/features/abacus/light";
@@ -12,7 +13,7 @@ import { dayText } from "@/lib/stream/simulate-day-stream";
 import { enteredOf, versionsWrittenOf } from "./reading-gates";
 import { PartSlip } from "./part-slip";
 import { SLIP_EXAMPLES, SLIP_MOMENTS, slipStillOf } from "./part-slip-examples";
-import { BESIDE_ATTRIBUTE, ReadingList } from "./reading-list";
+import { BESIDE_ATTRIBUTE, ReadingList, type PlanParts } from "./reading-list";
 
 /** Longer than a row's fold takes to open on the layout spring. */
 const GLIDE_SETTLED_MS = 3000;
@@ -270,18 +271,16 @@ describe("ReadingList", () => {
     expect(fold()?.style.overflowY).toBe("");
   });
 
-  it("holds a row as tall as the slip beside it, so a slip never reaches the next part", () => {
-    // jsdom lays nothing out: the slip beside the list reaches 300 px under its row's top, and
-    // the row's own words 120.
-    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+  it("holds the room a slip beside it takes after its part's last row, its rows together", () => {
+    // jsdom lays nothing out: the slip beside the list is 300 px tall, its fork line 49, and each
+    // row's words 100, as each stands at rest, whatever its fold is doing.
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
       this: HTMLElement,
     ) {
-      const isBeside = this.hasAttribute(BESIDE_ATTRIBUTE);
-      return {
-        top: isBeside ? 0 : 0,
-        bottom: isBeside ? 300 : 120,
-        height: isBeside ? 300 : 120,
-      } as DOMRect;
+      if (this.hasAttribute(BESIDE_ATTRIBUTE)) return 300;
+      if (this.hasAttribute("data-part-head")) return 49;
+      if (this.hasAttribute("data-row-words")) return 100;
+      return 0;
     });
     const head = () => (
       <div>
@@ -289,19 +288,54 @@ describe("ReadingList", () => {
         <div {...{ [BESIDE_ATTRIBUTE]: "" }}>the slip</div>
       </div>
     );
-    const anchors = [KYOTO.stops[1]!.id, null];
+    const [, first, second, third] = KYOTO.stops;
+    // A part of two rows, and one under the last row.
+    const parts = {
+      anchors: [first!.id, null],
+      ends: [second!.id, null],
+      headOf: head,
+      isBeside: true,
+    };
 
-    render(<ReadingList {...KYOTO} parts={{ anchors, headOf: head, isBeside: true }} />);
+    render(<ReadingList {...KYOTO} parts={parts} />);
 
-    // The part's row, and the tail under the last row, each hold the slip's 300 px.
-    const rooms = [...document.querySelectorAll<HTMLElement>("[data-room-beside]")];
-    const held = rooms.filter((room) => room.style.minHeight !== "");
-    expect(held.map((room) => room.getAttribute("data-room-beside"))).toEqual([
-      KYOTO.stops[1]!.id,
-      "parts-after",
-    ]);
-    expect(held.map((room) => room.style.minHeight)).toEqual(["300px", "300px"]);
+    const roomOf = (place: string) =>
+      document.querySelector<HTMLElement>(`[data-room-beside="${place}"] > div > div > div`)?.style
+        .height;
+    // 300 less the fork line and the part's two rows: 51 px, under its second row.
+    expect(roomOf("0")).toBe("51px");
+    expect(
+      document
+        .querySelector(`li[data-stop="${second!.id}"]`)
+        ?.contains(document.querySelector('[data-room-beside="0"]')),
+    ).toBe(true);
+    expect(document.querySelector(`li[data-stop="${third!.id}"] [data-room-beside]`)).toBeNull();
+    // Under the last row, the slip less its fork line.
+    expect(roomOf("1")).toBe("251px");
     vi.restoreAllMocks();
+  });
+
+  it("stands whole the heads of a fork already there when the list is first painted", () => {
+    // The page knows where its slips stand only once it has measured its column, in the render
+    // before the first paint: the heads arrive then, as a day taken whole is drawn.
+    function Remounted() {
+      const [parts, setParts] = useState<PlanParts | null>(null);
+      useLayoutEffect(() => {
+        setParts({
+          anchors: [KYOTO.stops[1]!.id, null],
+          headOf: (part) => <p>{`head ${part}`}</p>,
+        });
+      }, []);
+      return <ReadingList {...KYOTO} parts={parts} />;
+    }
+
+    render(<Remounted />);
+
+    // The head, its press guard, the fold's content box, the fold: open from the first frame.
+    for (const part of [0, 1]) {
+      const fold = screen.getByText(`head ${part}`).parentElement?.parentElement?.parentElement;
+      expect(fold?.style.height).not.toBe("0px");
+    }
   });
 
   it("stands the head of a part with no stop on the list under the last row", () => {
