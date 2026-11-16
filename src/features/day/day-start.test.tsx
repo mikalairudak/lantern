@@ -24,7 +24,7 @@ import { writtenPool } from "./written-pool";
 import { INDEX_LABEL } from "./start-index";
 import { keepYourDay, readYourDays } from "./your-days";
 import { shownEnergiesOf } from "./day-shape";
-import { FORGET_ANSWER } from "./your-days-ledger";
+import { FORGET_ANSWER, FORGET_ANSWER_WAIT_MS } from "./your-days-ledger";
 import {
   FORGET_YOUR_DAYS,
   YOUR_DAYS_HEADING,
@@ -37,6 +37,9 @@ import type { DaySource } from "@/features/itinerary/use-day-stream";
 import { ENERGY_LEVELS, type DayRequest, type EnergyLevel } from "@/lib/schema/itinerary.schema";
 import type { IntakeReader, IntakeResult, IntakeWords } from "@/lib/schema/intake.schema";
 import { TAKE_THIS_DAY } from "./day-menu";
+
+/** "Forget" takes a press only once a double press on "Forget these days" is over. */
+const waitOutADoublePress = () => new Promise((done) => setTimeout(done, FORGET_ANSWER_WAIT_MS));
 
 /** The start's own status: the theme's button in the masthead says its look in one too. */
 function startStatus(): HTMLElement {
@@ -1220,6 +1223,7 @@ describe("the visitor's own days", () => {
 
     act(() => window.history.back());
     await user.click(await screen.findByRole("button", { name: FORGET_YOUR_DAYS }));
+    await waitOutADoublePress();
     await user.click(screen.getByRole("button", { name: FORGET_ANSWER }));
     expect(screen.queryByRole("list", { name: YOUR_DAYS_HEADING })).not.toBeInTheDocument();
     expect(readYourDays(window.localStorage)).toEqual([]);

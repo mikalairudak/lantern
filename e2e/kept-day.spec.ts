@@ -146,8 +146,12 @@ test("forgetting the visitor's days forgets what the browser kept of every kept 
   // Asked once: the focus waits on "Keep", and nothing is forgotten until "Forget".
   await expect(page.getByRole("button", { name: "Keep", exact: true })).toBeFocused();
   await expect(page.getByRole("list", { name: "Your days" })).toBeVisible();
-  await page.getByRole("button", { name: "Forget", exact: true }).click();
-  await expect(page.getByRole("list", { name: "Your days" })).toHaveCount(0);
+  // "Forget" takes a press a moment after the question stands, so it is pressed until it does.
+  const forget = page.getByRole("button", { name: "Forget", exact: true });
+  await expect(async () => {
+    if (await forget.isVisible()) await forget.click({ timeout: 1_000 });
+    await expect(page.getByRole("list", { name: "Your days" })).toHaveCount(0, { timeout: 500 });
+  }).toPass();
 
   const kept = await page.evaluate(
     (keys) => keys.map((key) => JSON.parse(localStorage.getItem(key) ?? "null") as unknown),

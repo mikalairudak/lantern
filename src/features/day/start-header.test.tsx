@@ -12,8 +12,11 @@ import { INDEX_LABEL } from "./start-index";
 import { startOffersOf } from "./start-offers";
 import { writtenPool } from "./written-pool";
 import type { YourDay } from "./your-days";
-import { FORGET_ANSWER } from "./your-days-ledger";
+import { FORGET_ANSWER, FORGET_ANSWER_WAIT_MS } from "./your-days-ledger";
 import { FORGET_YOUR_DAYS } from "./your-days-ledger-words";
+
+/** "Forget" takes a press only once a double press on "Forget these days" is over. */
+const waitOutADoublePress = () => new Promise((done) => setTimeout(done, FORGET_ANSWER_WAIT_MS));
 
 /** The written days as the index offers them. */
 const STARTS = startOffersOf(writtenPool());
@@ -452,6 +455,7 @@ describe("the visitor's days over the starts", () => {
 
     await user.click(screen.getByRole("button", { name: FORGET_YOUR_DAYS }));
     expect(onForget).not.toHaveBeenCalled();
+    await waitOutADoublePress();
     await user.click(screen.getByRole("button", { name: FORGET_ANSWER }));
 
     expect(onForget).toHaveBeenCalledOnce();
