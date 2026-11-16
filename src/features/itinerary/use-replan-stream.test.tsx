@@ -102,6 +102,41 @@ describe("useReplanStream", () => {
     expect(result.current.outcome).toBeNull();
   });
 
+  it("reads a re-plan to its end after its page is gone, and sets or throws nothing", async () => {
+    const errors = vi.spyOn(console, "error");
+    const signals: AbortSignal[] = [];
+    let isReadToEnd = false;
+    const { result, unmount } = renderHook(() => useReplanStream());
+    const ended = new TransformStream<Uint8Array, Uint8Array>({
+      flush: () => {
+        isReadToEnd = true;
+      },
+    });
+    const writer = ended.writable.getWriter();
+    const whole = new Uint8Array(await streamOf(true).arrayBuffer());
+    const half = Math.floor(whole.length / 2);
+
+    act(() =>
+      result.current.play({
+        basis: KYOTO_MORNING_BASIS,
+        open: (signal) => {
+          signals.push(signal);
+          return Promise.resolve(new Response(ended.readable));
+        },
+      }),
+    );
+    await waitFor(() => expect(signals).toHaveLength(1));
+    void writer.write(whole.slice(0, half));
+    unmount();
+    void writer.write(whole.slice(half));
+    void writer.close();
+    await waitFor(() => expect(isReadToEnd).toBe(true), OUTCOME_WAIT);
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    expect(signals.map((signal) => signal.aborted)).toEqual([false]);
+    expect(errors).not.toHaveBeenCalled();
+  });
+
   it("keeps nothing of a re-plan cut short: the day stays as it was", async () => {
     const { result } = renderHook(() => useReplanStream());
 

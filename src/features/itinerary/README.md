@@ -5,8 +5,8 @@ The stream on the client: how a page plays a day or a re-plan from the app's rou
 ## Read first
 
 1. `revealed.ts`. `revealedOf` keeps only what the stream will not change: a value is final once the field after it has started, and free text shows as it grows. Which fields grow is read from the schema, so a new text field needs no edit here.
-2. `use-day-stream.ts`. `useDayStream` reads a day's stream into React state, at most one new partial a frame. It loads the reader (`src/lib/stream/read-day-stream.ts`) on the first play, not with the page; opens the stream a microtask late, so React's Strict Mode never sends the route two requests; asks once more for a day that came back empty; and throws a bug to the error boundary. Every stream ends in exactly one `DayOutcome` (`src/lib/stream/outcome.ts`).
-3. `use-replan-stream.ts`. `useReplanStream`, the same for a targeted re-plan, which is all or nothing: any ending but a whole re-plan leaves the day as it was.
+2. `use-day-stream.ts`. `useDayStream` reads a day's stream into React state, at most one new partial a frame. It loads the reader (`src/lib/stream/read-day-stream.ts`) on the first play, not with the page; opens the stream a microtask late, so React's Strict Mode never sends the route two requests; asks once more for a day that came back empty; reads on while another page of the site hides its own, stopped only by `stop` and the next `play` (`docs/decisions.md`, "A day reads on while its page is hidden"); and throws a bug to the error boundary. Every stream ends in exactly one `DayOutcome` (`src/lib/stream/outcome.ts`).
+3. `use-replan-stream.ts`. `useReplanStream`, the same for a targeted re-plan, which is all or nothing: any ending but a whole re-plan leaves the day as it was. It reads on while its page is hidden, as a day does.
 
 ## Entry points
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { DAY_ID_HEADER, isDayId } from "@/lib/days/stored-day";
 import type { ReplanBasis } from "@/lib/replan/merge";
 import { REPLAN_WHOLE_DAY_STATUS } from "@/lib/replan/request";
@@ -64,6 +64,8 @@ interface Run {
  * Reads a targeted re-plan's stream into React state, a frame at a time as the day's stream
  * is read (`useDayStream`): its partial re-plans, its place checks and its outcome, the merged
  * day when it completes. A re-plan is all or nothing: any other ending leaves the day as it was.
+ * Like a day, it reads on while another route hides its page, and only `stop` and the next
+ * `play` stop it.
  */
 export function useReplanStream(): ReplanStream {
   const [basis, setBasis] = useState<ReplanBasis | null>(null);
@@ -170,9 +172,6 @@ export function useReplanStream(): ReplanStream {
     },
     [stop],
   );
-
-  // Leaving the page stops its re-plan.
-  useEffect(() => stop, [stop]);
 
   if (bug) throw bug.error;
   return {

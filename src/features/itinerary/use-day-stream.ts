@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { DAY_ID_HEADER, isDayId } from "@/lib/days/stored-day";
 import {
   DAY_VERSION_HEADER,
@@ -95,7 +95,7 @@ export interface DayStream {
   isStreaming: boolean;
   /** Starts a day, stopping any day still streaming. */
   play: (source: DaySource) => void;
-  /** Stops the day without an outcome, as when the visitor leaves it. */
+  /** Stops the day without an outcome, as when the visitor lets it go for another. */
   stop: () => void;
 }
 
@@ -123,7 +123,10 @@ function isAskedAgain(ended: DayOutcome, attempt: number): boolean {
 /**
  * Reads a day's stream into React state (`docs/harness.md`, "The outcome protocol"). The
  * reader parses every delta; the page takes the latest partial once a frame, because a
- * day of a few thousand deltas would otherwise render a few thousand times.
+ * day of a few thousand deltas would otherwise render a few thousand times. Only `stop` and
+ * the next `play` stop a day: a page another route hides reads on, so shown again it holds
+ * the day as far as it has been written (`docs/decisions.md`, "A day reads on while its page
+ * is hidden").
  */
 export function useDayStream(): DayStream {
   const [request, setRequest] = useState<DayRequest | null>(null);
@@ -178,8 +181,8 @@ export function useDayStream(): DayStream {
       const read = () => {
         // Opened in the same task, so the reader loads while the stream connects, but after
         // the code that played it has finished: a day stopped by then is never opened. React's
-        // Strict Mode mounts a component, unmounts it and mounts it again at once in
-        // development, so a day played on mount is stopped and played again in one task, and
+        // Strict Mode runs a component's effects twice as it mounts in development, so a day
+        // played from an effect can be played again in one task, which stops the first, and
         // opening at once would send the route two requests, the first a model call and a
         // visitor's limit spent on a day nobody reads.
         const response = Promise.resolve().then(() => {
@@ -265,9 +268,6 @@ export function useDayStream(): DayStream {
     },
     [stop],
   );
-
-  // Leaving the page stops its day, so nothing reads a stream nobody sees.
-  useEffect(() => stop, [stop]);
 
   if (bug) throw bug.error;
   return {
