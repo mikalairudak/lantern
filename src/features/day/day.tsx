@@ -52,7 +52,7 @@ import type { DayOutcome, PartialDay } from "@/lib/stream/outcome";
 import { signedKeyOf } from "@/lib/intake/signed-city";
 import { writtenRequestFor } from "@/lib/intake/written-intake";
 import { SPRINGS } from "@/lib/tokens/motion";
-import { dateInZone, requestOf } from "@/lib/normalizer/normalize-intake";
+import { dateInZone, plannedDateOf, requestOf } from "@/lib/normalizer/normalize-intake";
 import type { CityReading } from "@/lib/schema/intake.schema";
 import { useLiveNow } from "./live-flag";
 import {
@@ -1938,7 +1938,10 @@ export function Day({
     if (read.kind === "request") {
       const { date, ...words } = question.words;
       const { city, citySource, timezone } = read.request;
-      const request = { ...words, city, citySource, timezone, date: date ?? read.request.date };
+      // A day the question's text named is dated where the city now is; with none named, the
+      // answer's own date stands, which the intake set on its clock.
+      const planned = date === null ? read.request.date : plannedDateOf(date, timezone, new Date());
+      const request = { ...words, city, citySource, timezone, date: planned };
       const playedReading = read.readings[0]?.placeId ?? null;
       return ask(request, {
         via: "typed",

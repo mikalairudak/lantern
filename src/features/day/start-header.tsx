@@ -634,7 +634,11 @@ function QuestionLine({ line, text, isLive, isExampleShown, onChooseReading }: Q
       return (
         <QuestionLines
           question={line.answering}
-          answer={{ city: text, said }}
+          answer={{
+            city: text,
+            said,
+            date: line.kind === "writing" ? line.request.date : null,
+          }}
           onChooseReading={onChooseReading}
           isLit
         />
@@ -671,9 +675,10 @@ interface QuestionLinesProps {
   question: CityQuestion;
   /**
    * The city answered, while it is read and its day sets off, with what screen readers hear
-   * of that; null while the question waits for it.
+   * of that, and the date its day is planned for once the city's zone is known; null while
+   * the question waits for it.
    */
-  answer: { city: string; said: ReactNode } | null;
+  answer: { city: string; said: ReactNode; date: string | null } | null;
   onChooseReading: (reading: CityReading) => void;
   /** The sentence, its city answered, carries the waiting line's light while the day is written. */
   isLit?: boolean;
@@ -691,7 +696,12 @@ function QuestionLines({ question, answer, onChooseReading, isLit = false }: Que
   return (
     <div role="status" className="mt-1 flex flex-col gap-1">
       {answer && <span className="sr-only">{answer.said}</span>}
-      <QuestionSentence words={question.words} city={answer?.city ?? null} isLit={isLit} />
+      <QuestionSentence
+        words={question.words}
+        city={answer?.city ?? null}
+        planned={answer?.date ?? null}
+        isLit={isLit}
+      />
       <div
         aria-hidden={isReading || undefined}
         inert={isReading}
@@ -736,16 +746,25 @@ function QuestionLines({ question, answer, onChooseReading, isLit = false }: Que
  * morning, with family". Energy is in its own colour, and dotted when Lantern took it because
  * the text named none. A weekday is said only when the text named the date: otherwise the
  * day is today in the city's zone, which no one knows until the city is named, so the
- * sentence says "day".
+ * sentence says "day". A named day already over in the city answered is planned for today
+ * there (`plannedDateOf`), and the sentence then says that weekday, the one the day is
+ * written for.
  */
 interface QuestionSentenceProps {
   words: IntakeWords;
   city?: string | null;
+  /** The date the day is planned for, once the city answered has given its zone. */
+  planned?: string | null;
   /** Lit, its words take the light with the rest, and only the energy word keeps its colour. */
   isLit?: boolean;
 }
 
-function QuestionSentence({ words, city = null, isLit = false }: QuestionSentenceProps) {
+function QuestionSentence({
+  words,
+  city = null,
+  planned = null,
+  isLit = false,
+}: QuestionSentenceProps) {
   const rest = ASSUMABLE_FACT_KEYS.flatMap((key) => {
     const label = optionOf({ options: FACT_OPTIONS[key] }, words[key])?.label;
     return label === undefined ? [] : [label];
@@ -763,7 +782,10 @@ function QuestionSentence({ words, city = null, isLit = false }: QuestionSentenc
       <span className={cn("text-energy", words.energySource === "assumed" && ASSUMED_CLASSES)}>
         {energyLabelOf(words.energy)}
       </span>{" "}
-      <span className={wordClasses}>{words.date === null ? "day" : weekdayOf(words.date)}</span> in{" "}
+      <span className={wordClasses}>
+        {words.date === null ? "day" : weekdayOf(planned ?? words.date)}
+      </span>{" "}
+      in{" "}
       {city ? <span className={wordClasses}>{city}</span> : <span className="text-muted">…?</span>}
       {rest.map((label) => (
         <span key={label}>

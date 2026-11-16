@@ -1,5 +1,5 @@
 import { writtenRequestFor } from "@/lib/intake/written-intake";
-import { todayIn } from "@/lib/normalizer/normalize-intake";
+import { plannedDateOf } from "@/lib/normalizer/normalize-intake";
 import {
   ASSUMABLE_FACT_KEYS,
   isCityTimeZone,
@@ -25,10 +25,10 @@ function isCityAlone(words: IntakeWords): boolean {
 /**
  * The request for a city typed in answer to "in …?", with the words already read. Before
  * launch the resolver is the written days: a written city named alone is its whole written
- * day. Otherwise the day is the text's, or today in the city's zone, as for a city chosen
- * from its readings (`requestOf`); `standInZone` stands in for a city the resolver does not
- * know yet, and the route says what it can write. The question names no weekday until the
- * city does, so none of these can contradict it.
+ * day. Otherwise the day is the one the words are planned for in the city's zone
+ * (`plannedDateOf`), as for a city chosen from its readings; `standInZone` stands in for a city the resolver does not
+ * know yet, and the route says what it can write. The question's sentence says the weekday
+ * the text named until the city is known, and the one the day is planned for from then on.
  */
 export function requestFor(
   city: string,
@@ -45,7 +45,7 @@ export function requestFor(
     city: written?.city ?? city.trim(),
     citySource: "chosen",
     timezone,
-    date: date ?? todayIn(timezone, now),
+    date: plannedDateOf(date, timezone, now),
   };
 }
 

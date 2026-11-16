@@ -84,6 +84,7 @@ Fifteen entries, in reading order, that cover the product's core ideas.
 
 - [2026-10-24 — The start screen reads free text through an intake call](#2026-10-24--the-start-screen-reads-free-text-through-an-intake-call)
 - [2026-10-25 — The intake's expected answers are product calls: a shared name plays its likeliest city, and a harmful phrase is dropped unsaid](#2026-10-25--the-intakes-expected-answers-are-product-calls-a-shared-name-plays-its-likeliest-city-and-a-harmful-phrase-is-dropped-unsaid)
+- [2026-11-16 — A named day already over in the city is planned for today there](#2026-11-16--a-named-day-already-over-in-the-city-is-planned-for-today-there)
 
 **What the model writes**
 
@@ -864,3 +865,11 @@ Each plate is three grey images in `public/pictures/`: the scene, and two shapes
 **Why.** Tests hold what someone thought to test, and the fresh read of a branch looks at what its text makes public, not at whether its code is right. A fault can sit between the two: a value kept while it is still being streamed passes every test that feeds a whole day, though the rule on streamed values is written down. A reader who holds the code against its own rules is the check for that kind. Choosing by path keeps the step from being skipped for a change that looks small, which is how such a fault gets in.
 
 **Cost.** One more reviewer's run on each branch of logic, and the time to reproduce what it finds: a reviewer reports a suspicion as readily as a fault, so none is fixed or stated as fact before a test shows it. A branch of docs, tests or CI alone is not read this way.
+
+## 2026-11-16 — A named day already over in the city is planned for today there
+
+**Decision.** The day a text's words are planned for is the one the text names, unless that day is already over where the city is: then it is today there (`plannedDateOf` in `src/lib/normalizer/normalize-intake.ts`). The rule holds on every way a city first reaches the words: read with the text, chosen from the cities a name could be, or typed in answer to the question. On the start screen the question's sentence says the weekday the text named until the city is known, and the weekday the day is planned for from then on.
+
+**Why.** The intake reads "today", or a weekday, against the visitor's own date, which comes with the text. A city to the east may already be on the next day: from London in the evening, a day asked for "today" in Tokyo was dated the city's yesterday, so its weekday was wrong and its stops were saved to a calendar in the past. No day can be planned for a date that is over, and the sentence names the day the plan is for, so the two never disagree once the city is known.
+
+**Cost.** The rule cannot tell "today" from a weekday the visitor named, since both arrive as the same date: late on a Friday in New York, "a calm Friday in Tokyo" is planned for Tokyo's Saturday, and the sentence says so. A written day keeps its weekday and moves a week on instead ("A written day is shown on the next date of its weekday"); a text's day does not, because a visitor who says "today" means now. A city to the west is left as it is: from Tokyo in the morning, "today" in Lisbon is dated the visitor's today, which is tomorrow there. A city typed in answer is dated on the browser's clock, and one read with the text on the server's.

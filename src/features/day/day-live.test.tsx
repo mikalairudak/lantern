@@ -633,6 +633,10 @@ describe("the start screen with live generation on", () => {
   });
 
   it("reads a city typed for the question through the intake, keeping the words it read", async () => {
+    // The Saturday the intake's answer is dated on: a day already over would be planned for today.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00Z"));
+    onTestFinished(() => void vi.useRealTimers());
     const user = renderLive(
       answered({
         kind: "question",
@@ -662,6 +666,72 @@ describe("the start screen with live generation on", () => {
         signature: "lisbon-signed",
       },
     ]);
+  });
+
+  it("plans a day the question's text named, already over in the city typed, for today there", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-14T12:00:00Z"));
+    onTestFinished(() => void vi.useRealTimers());
+    const user = renderLive(
+      answered({
+        kind: "question",
+        key: "city",
+        readings: [],
+        // "Today", read against a visitor's own date that the city is already past.
+        words: { ...NO_WORDS, date: "2020-01-01" },
+        unplaced: [],
+      }),
+      answered({
+        kind: "request",
+        request: LISBON,
+        readings: [],
+        unplaced: [],
+        signed: [SIGNED_LISBON],
+      }),
+    );
+
+    await ask(user, "a day today");
+    await user.type(await screen.findByRole("textbox", { name: "Which city?" }), "Lisbon{Enter}");
+
+    await waitFor(() => expect(dayPosts).toHaveLength(1), DAY_TIMEOUT);
+    expect(dayPosts[0]?.request).toMatchObject({ city: "Lisbon", date: "2026-11-14" });
+  });
+
+  it("names the weekday the day is planned for in the question's sentence once its city is answered", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    // A Saturday.
+    vi.setSystemTime(new Date("2026-11-14T12:00:00Z"));
+    onTestFinished(() => void vi.useRealTimers());
+    // The day stays on its way, so the sentence stands with its answer.
+    dayReplies.push("pending");
+    const user = renderLive(
+      answered({
+        kind: "question",
+        key: "city",
+        readings: [],
+        // A Friday, already over in the city.
+        words: { ...NO_WORDS, date: "2026-11-13" },
+        unplaced: [],
+      }),
+      answered({
+        kind: "request",
+        request: LISBON,
+        readings: [],
+        unplaced: [],
+        signed: [SIGNED_LISBON],
+      }),
+    );
+
+    await ask(user, "a day today");
+    const field = await screen.findByRole("textbox", { name: "Which city?" });
+    // Until the city is known, the sentence says the day the text named.
+    expect(screen.getAllByText("Friday").length).toBeGreaterThan(0);
+    await user.type(field, "Lisbon{Enter}");
+
+    await waitFor(() => expect(dayPosts).toHaveLength(1), DAY_TIMEOUT);
+    expect(dayPosts[0]?.request).toMatchObject({ date: "2026-11-14" });
+    expect(screen.queryByText("Friday")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Saturday").length).toBeGreaterThan(0);
   });
 
   it("reads the answer to the question in the city's own field, under the question", async () => {
