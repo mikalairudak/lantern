@@ -211,6 +211,38 @@ async function sampledRows(page: Page): Promise<RowFrame[]> {
   return page.evaluate(() => (window as unknown as { rows_: RowFrame[] }).rows_);
 }
 
+/**
+ * The most the view may move between two frames as a part is taken: it measures 1 px, and 4 px
+ * where a frame comes late, over twenty runs. A view moved at once moves by what the page lost
+ * under it, tens of pixels, so the bound tells the two apart with room for a later frame.
+ */
+const TAKE_VIEW_STEP_PX = 10;
+/** A second of frames from the press: a take that moved the view at once would do it in the first. */
+const VIEW_FRAMES = 60;
+
+/** Samples how far the page is scrolled each frame from now, `VIEW_FRAMES` of them. */
+async function sampleView(page: Page): Promise<void> {
+  await page.evaluate((count) => {
+    const view: number[] = [window.scrollY];
+    (window as unknown as { view_: number[] }).view_ = view;
+    const tick = () => {
+      view.push(window.scrollY);
+      if (view.length <= count) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, VIEW_FRAMES);
+}
+
+/** The most the view moved between two of the frames sampled, once there are all of them. */
+async function viewStepOf(page: Page): Promise<number> {
+  await page.waitForFunction(
+    (count) => ((window as unknown as { view_?: number[] }).view_?.length ?? 0) > count,
+    VIEW_FRAMES,
+  );
+  const view = await page.evaluate(() => (window as unknown as { view_: number[] }).view_);
+  return Math.max(...view.slice(1).map((y, at) => Math.abs(y - (view[at] ?? y))));
+}
+
 /** How fast the rows on screen moved. */
 interface RowMotion {
   /** The most a row moved in a 60 Hz frame's time, a late frame's move read as a pace. */
@@ -318,6 +350,20 @@ async function movesOf(page: Page, id: string): Promise<RowMoves> {
   return { moves, isWholeSeen: wholeAt !== -1 && places.length - wholeAt >= AFTER_WHOLE_FRAMES };
 }
 
+/**
+ * A press of the pointer where a control stands. A locator's click scrolls a control it finds
+ * still moving into view anew before it presses, which no visitor's pointer does, and a test of
+ * the view's own motion would read that scroll as the page's.
+ */
+async function pressWhereItStands(page: Page, control: Locator): Promise<void> {
+  const box = await control.boundingBox();
+  const height = page.viewportSize()?.height ?? 0;
+  if (!box || box.y < 0 || box.y + box.height > height) {
+    throw new Error("The control is not on screen to be pressed.");
+  }
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+}
+
 test.describe("with motion", { tag: "@frame" }, () => {
   test.use({ reducedMotion: "no-preference" });
 
@@ -415,12 +461,13 @@ test.describe("with motion", { tag: "@frame" }, () => {
       await evening("eating late, proposed").evaluate((element) =>
         window.scrollTo(0, element.getBoundingClientRect().top + window.scrollY - 205),
       );
-      const pressedAt = await page.evaluate(() => window.scrollY);
-      await evening("eating late, proposed").click();
-      // The take moves the view no further at once than a glide's frame: the rows it changes
-      // fold in and out where they stand.
-      const takenAt = await page.evaluate(() => window.scrollY);
-      expect(Math.abs(takenAt - pressedAt), "the view moved at the take").toBeLessThan(10);
+      await sampleView(page);
+      await pressWhereItStands(page, evening("eating late, proposed"));
+      // The take never moves the view at once: the rows it changes fold in and out where they
+      // stand.
+      expect(await viewStepOf(page), "the view stepped at the take").toBeLessThanOrEqual(
+        TAKE_VIEW_STEP_PX,
+      );
       await expect(evening("early dinner, the day before")).toBeVisible();
       await page.waitForTimeout(GESTURE_FRAMES * FRAME_MS);
       // The day taken back where it was taken, or read to its foot: the page scrolled as far as
@@ -430,7 +477,7 @@ test.describe("with motion", { tag: "@frame" }, () => {
       }
 
       await sampleRows(page);
-      await evening("early dinner, the day before").click();
+      await pressWhereItStands(page, evening("early dinner, the day before"));
 
       const frames = await sampledRows(page);
       // Every row on screen: those there at the press, and those the day before draws in.
