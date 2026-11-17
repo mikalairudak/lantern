@@ -453,7 +453,7 @@ Since 2026-11-13 the question is one line, "A day in" and the field, with an arr
 
 **Why.** A day is read in transit, on a small screen, by a screen reader, or by someone who wants the words rather than the shape. The chart is the product's signature and stays the default, but its names are ragged and it folds lively places to two words, which suits a glance, not a read: in the list every stop says its one line. A first list filled in as the stream wrote it, showing lines mid-word and pushing every row down by 25 px a frame when the versions came, so it was rebuilt to follow the same rules as the chart.
 
-**Cost.** The chart runs behind the list while hidden, so the page does the chart's work in either view. A list that shows only what is final trails the chart by a stop while the day is written, and under reduced motion it stays empty until the versions arrive. The switch takes a line of height between the header and the day in both views.
+**Cost.** The chart runs behind the list while hidden, so the page does the chart's work in either view. From there it never moves the page, which is the list's: the chart holds its rows in view as a fork's rows come and go only while it is on show (`isOnShow` in `src/features/abacus/day-rows.tsx`). A list that shows only what is final trails the chart by a stop while the day is written, and under reduced motion it stays empty until the versions arrive. The switch takes a line of height between the header and the day in both views.
 
 ## 2026-11-03 — A written day's page is built whole, and plays only for a visitor who has not seen it
 
