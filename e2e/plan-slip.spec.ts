@@ -152,26 +152,29 @@ test("keeps the rule at the widths either side of the column's whole, with no si
 /**
  * How fast the rows on screen may move as a whole day's proposal is taken at 1280 px, from the
  * press to rest: in a 60 Hz frame's time, and between two frames, however long the one between
- * them took. Over eight runs with the machine to itself the plan measures 2.7 to 3.0 px and 2.8 to
- * 5.2 px; each bound stands 15% over the most, for the frame timing of a busier run. A row that
- * drops by a slip's height in a frame moves tens of pixels.
+ * them took. Over twelve runs with the machine to itself the plan measures 2.7 to 3.0 px a
+ * frame's time, and 3.0 to 3.4 px between two frames; the pace bound stands 15% over the most,
+ * for the frame timing of a busier run. The step bound is three times the pace bound, room for
+ * frames drawn late at that pace. A row that drops by a slip's height in a frame moves tens of
+ * pixels.
  */
-const WHOLE_TAKE: RowMotion = { pace: 3.4, step: 6 };
+const WHOLE_TAKE: RowMotion = { pace: 3.5, step: 10.5 };
 /**
  * The same as the part that ends the day is taken back at 1440 px, for every row on screen: the
- * plan measures 6.4 to 7.5 px where it was pressed, over seven runs, and 7 to 8.9 px with the
- * page at its foot, over eleven, as the day's end glides out under the view, a frame's move and a
- * frame's time alike; each bound stands 15% over the most. A page that shrinks at once under a
- * view at its foot moves its rows by the whole of what it lost in one frame.
+ * plan measures 4.9 to 5.0 px a frame's time, where it was pressed and with the page at its
+ * foot alike, and 7.2 to 10.9 px between two frames, over eight runs; the pace bound stands 15%
+ * over the most, and the step bound, three times it, room for frames drawn late at that pace. A
+ * page that shrinks at once under a view at its foot moves its rows by the whole of what it lost
+ * in one frame, sixty pixels on this bench.
  */
-const TAKE_BACK: RowMotion = { pace: 10.3, step: 10.3 };
+const TAKE_BACK: RowMotion = { pace: 5.7, step: 17.1 };
 /** The day's last stop on the bench, which the evening taken back draws in again. */
 const LAST_STOP = "stop-8";
 /**
  * The most the day's last row moves in a frame's time as it is drawn in again where the part was
- * pressed: it measures 3.2 to 3.7 px over seven runs, and the bound stands 15% over the most.
+ * pressed: it measures 2.5 px over four runs, and the bound stands 15% over the most.
  */
-const LAST_ROW_BACK_PX = 4.3;
+const LAST_ROW_BACK_PX = 2.9;
 /** Long enough for a take's rows to come to rest, about 4.5 s, and more. */
 const GESTURE_FRAMES = 360;
 /** A 60 Hz frame, to which a busy page's longer gaps between samples are scaled. */
@@ -217,30 +220,65 @@ async function sampledRows(page: Page): Promise<RowFrame[]> {
  * under it, tens of pixels, so the bound tells the two apart with room for a later frame.
  */
 const TAKE_VIEW_STEP_PX = 10;
-/** A second of frames from the press: a take that moved the view at once would do it in the first. */
+/**
+ * The most the view may move in all, its moves summed, from a press short of the page's foot
+ * until the plan's rows rest: the unseen chart holds no view while the plan is shown, so the
+ * plan's own glides alone may move it. It measures 0 to 11 px over twelve runs; a view carried
+ * along with a glide moves by what the page lost under it, fifty pixels and more.
+ */
+const VIEW_MOVE_TO_REST_PX = 30;
+/** A second of frames from the press at least: a take that moved the view at once would do it in the first. */
 const VIEW_FRAMES = 60;
 
-/** Samples how far the page is scrolled each frame from now, `VIEW_FRAMES` of them. */
+/**
+ * Samples how far the page is scrolled each frame from now, for a second at least and until the
+ * plan's rows rest: the list says it is no longer busy, and the view and the page's height have
+ * stood for `STILL_FRAMES`. The height stands for the room beside a slip, which glides without
+ * the list saying so.
+ */
 async function sampleView(page: Page): Promise<void> {
-  await page.evaluate((count) => {
-    const view: number[] = [window.scrollY];
-    (window as unknown as { view_: number[] }).view_ = view;
-    const tick = () => {
-      view.push(window.scrollY);
-      if (view.length <= count) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  }, VIEW_FRAMES);
+  await page.evaluate(
+    ([least, still, most]) => {
+      const sample = { view: [window.scrollY], isDone: false };
+      (window as unknown as { view_: typeof sample }).view_ = sample;
+      let stood = 0;
+      let height = document.documentElement.scrollHeight;
+      const tick = () => {
+        const y = window.scrollY;
+        const tall = document.documentElement.scrollHeight;
+        stood = y === sample.view.at(-1) && tall === height ? stood + 1 : 0;
+        height = tall;
+        sample.view.push(y);
+        const list = document.querySelector('ol[aria-label="The day, to read"]');
+        const isAtRest = list?.getAttribute("aria-busy") === "false" && stood >= still;
+        if ((sample.view.length > least && isAtRest) || sample.view.length > most) {
+          sample.isDone = true;
+        } else requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    },
+    [VIEW_FRAMES, STILL_FRAMES, MOST_FRAMES] as const,
+  );
 }
 
-/** The most the view moved between two of the frames sampled, once there are all of them. */
-async function viewStepOf(page: Page): Promise<number> {
+/** How far the page was scrolled in each frame sampled, once the rows have come to rest. */
+async function sampledView(page: Page): Promise<number[]> {
   await page.waitForFunction(
-    (count) => ((window as unknown as { view_?: number[] }).view_?.length ?? 0) > count,
-    VIEW_FRAMES,
+    () => (window as unknown as { view_?: { isDone: boolean } }).view_?.isDone === true,
+    undefined,
+    { timeout: DAY_TIMEOUT_MS },
   );
-  const view = await page.evaluate(() => (window as unknown as { view_: number[] }).view_);
-  return Math.max(...view.slice(1).map((y, at) => Math.abs(y - (view[at] ?? y))));
+  return page.evaluate(() => (window as unknown as { view_: { view: number[] } }).view_.view);
+}
+
+/** The most the view moved between two frames. */
+function viewStepOf(view: readonly number[]): number {
+  return Math.max(0, ...view.slice(1).map((y, at) => Math.abs(y - (view[at] ?? y))));
+}
+
+/** How far the view moved in all, each frame's move counted, so a move and its return add up. */
+function viewMoveOf(view: readonly number[]): number {
+  return view.slice(1).reduce((sum, y, at) => sum + Math.abs(y - (view[at] ?? y)), 0);
 }
 
 /** How fast the rows on screen moved. */
@@ -255,21 +293,23 @@ interface RowMotion {
 }
 
 /**
- * How fast the rows on screen moved over the frames sampled, each row from where it stood in
- * the frame before, while it stood on screen in either; `rows` picks the rows looked at.
+ * How fast the rows on screen moved over the frames sampled, each row from where it was last
+ * seen, however many frames back, so a day drawn anew across a frame with no rows still shows
+ * how far each moved; counted while it stood on screen then or now. `rows` picks the rows looked
+ * at.
  */
 function rowMotionOf(frames: RowFrame[], height: number, rows?: ReadonlySet<string>): RowMotion {
   const isSeen = (y: number) => y > -40 && y < height;
   const motion: RowMotion = { pace: 0, step: 0 };
-  for (const [at, frame] of frames.entries()) {
-    const before = frames[at - 1];
-    if (!before) continue;
-    const frameCount = Math.max(1, (frame.t - before.t) / FRAME_MS);
+  const lastSeen = new Map<string, { top: number; t: number }>();
+  for (const frame of frames) {
     for (const [id, top] of Object.entries(frame.tops)) {
-      const was = before.tops[id];
-      if (was === undefined || (rows && !rows.has(id))) continue;
-      if (!isSeen(top) && !isSeen(was)) continue;
-      const step = Math.abs(top - was);
+      if (rows && !rows.has(id)) continue;
+      const was = lastSeen.get(id);
+      lastSeen.set(id, { top, t: frame.t });
+      if (was === undefined || (!isSeen(top) && !isSeen(was.top))) continue;
+      const frameCount = Math.max(1, (frame.t - was.t) / FRAME_MS);
+      const step = Math.abs(top - was.top);
       motion.step = Math.max(motion.step, step);
       motion.pace = Math.max(motion.pace, step / frameCount);
     }
@@ -299,7 +339,9 @@ interface RowMoves {
 /**
  * Each way a row's place on the page moved from the press until the proposal has been whole for
  * `AFTER_WHOLE_FRAMES`, in order, down and up alike: a run of frames it moved in, over once it
- * has stood within half a pixel for `STILL_FRAMES`.
+ * has stood within half a pixel for `STILL_FRAMES`. It cannot see a bounce that comes back within
+ * `STILL_FRAMES`: that joins the move around it, or nets to none. Nor does it weigh a move: the
+ * push tests read only their directions.
  */
 async function movesOf(page: Page, id: string): Promise<RowMoves> {
   await page.evaluate(
@@ -429,8 +471,10 @@ test.describe("with motion", { tag: "@frame" }, () => {
       requestAnimationFrame(tick);
     });
     await sampleRows(page);
-    await take.click();
+    await pressWhereItStands(page, take);
     const frames = await sampledRows(page);
+    // Taken: a press that missed would leave every row still.
+    await expect(plan(page).getByRole("radio", { name: "with friends, your day" })).toBeChecked();
 
     // The fork line alone holds room in the plan: the slip stands beside it, never in the column.
     const forks = await page.evaluate(() => (window as unknown as { forks_: number[] }).forks_);
@@ -463,13 +507,16 @@ test.describe("with motion", { tag: "@frame" }, () => {
       );
       await sampleView(page);
       await pressWhereItStands(page, evening("eating late, proposed"));
-      // The take never moves the view at once: the rows it changes fold in and out where they
-      // stand.
-      expect(await viewStepOf(page), "the view stepped at the take").toBeLessThanOrEqual(
+      // The take never moves the view at once, and hardly at all until its rows rest: the rows
+      // it changes fold in and out where they stand.
+      const taken = await sampledView(page);
+      expect(viewStepOf(taken), "the view stepped at the take").toBeLessThanOrEqual(
         TAKE_VIEW_STEP_PX,
       );
+      expect(viewMoveOf(taken), "the view moved after the take").toBeLessThanOrEqual(
+        VIEW_MOVE_TO_REST_PX,
+      );
       await expect(evening("early dinner, the day before")).toBeVisible();
-      await page.waitForTimeout(GESTURE_FRAMES * FRAME_MS);
       // The day taken back where it was taken, or read to its foot: the page scrolled as far as
       // it goes, so a page that shrinks under the hand moves the view.
       if (isAtFoot) {
@@ -477,9 +524,19 @@ test.describe("with motion", { tag: "@frame" }, () => {
       }
 
       await sampleRows(page);
+      if (!isAtFoot) await sampleView(page);
       await pressWhereItStands(page, evening("early dinner, the day before"));
 
       const frames = await sampledRows(page);
+      // Taken back: a press that missed would leave every row still.
+      await expect(evening("early dinner, your day")).toBeChecked();
+      // Short of the page's foot, the view hardly moves until the rows rest.
+      if (!isAtFoot) {
+        expect(
+          viewMoveOf(await sampledView(page)),
+          "the view moved after the take-back",
+        ).toBeLessThanOrEqual(VIEW_MOVE_TO_REST_PX);
+      }
       // Every row on screen: those there at the press, and those the day before draws in.
       const motion = rowMotionOf(frames, height);
       expect(motion.pace).toBeLessThanOrEqual(TAKE_BACK.pace);

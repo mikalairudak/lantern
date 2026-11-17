@@ -334,8 +334,8 @@ function RoomBeside({ part, room, isPainted }: { part: number; room: number; isP
  * row's words inside the box that glides to them, so a swap or a re-pick moves no room while
  * the rows glide. A row folding away counts for nothing, its rest, and the head is the part's
  * that stands, never one folding away as a take moves it. Read after each render and as any of
- * them is resized; none while nothing stands beside the list, and those measured go with the
- * fork they were measured for.
+ * them is resized; none while nothing stands beside the list, when those measured are dropped.
+ * Between two forks that stand one after the other, a room is kept by where it stands (`roomOf`).
  */
 function useRoomsBeside(
   list: RefObject<HTMLOListElement | null>,
@@ -344,7 +344,7 @@ function useRoomsBeside(
   ends: readonly (string | null)[],
 ): Rooms {
   const [rooms, setRooms] = useState<Rooms>(NO_ROOMS);
-  // Rooms measured for a fork beside the list go with it, so none stands at once for the next.
+  // Rooms measured beside the list go when nothing stands beside it, so the next open from nothing.
   if (!isBeside && rooms !== NO_ROOMS) setRooms(NO_ROOMS);
   useLayoutEffect(() => {
     const element = list.current;
