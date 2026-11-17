@@ -60,9 +60,12 @@ export type LiveDay = (
  * 1. A request another site's page sent is a 403, before its body is read (`src/lib/same-site.ts`).
  * 2. A body that is not a `DayRequest` is a 400 that lists its issues.
  * 3. A written day's request streams that day through the simulator, with live generation on or
- *    off and against no limit ("Curated days stream from the app's own route"). Its answer says
- *    its version (`DAY_VERSION_HEADER`) and comes whole at once to a browser that says it watched
- *    that version to its end (`SEEN_DAY_HEADER`), which the header reads on nothing else
+ *    off and against no limit ("Curated days stream from the app's own route"): its words on its
+ *    weekday on any date up to a week from today in its city, behind today included, on the date
+ *    asked, since the model is never asked for a day its file holds (`writtenSeasonFor`). Its
+ *    answer says its version (`DAY_VERSION_HEADER`) and comes whole at once to a browser that
+ *    says it watched that version to its end (`SEEN_DAY_HEADER`), which the header reads on
+ *    nothing else
  *    ("A written day's page is built whole, and plays only for a visitor who has not seen it").
  *    Its place checks, recorded with the day, follow each place as a live day's do
  *    (`src/lib/stream/written-place-checks.ts`). The stream stops when the visitor leaves.

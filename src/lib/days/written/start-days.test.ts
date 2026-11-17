@@ -194,8 +194,10 @@ describe("a written day's date", () => {
     expect(shownWrittenDayAt("kyoto", now)).toBeNull();
   });
 
-  it("reads a re-plan's basis on the date its page shows, and on its own date otherwise", () => {
+  it("reads a re-plan's basis on the date asked wherever the route plays its file, and on its own date further out", () => {
     expect(writtenDayOn("kanazawa", "2026-11-14", now)?.itinerary.date).toBe("2026-11-14");
+    // Eleven days behind Wednesday the 11th, on the day's weekday.
+    expect(writtenDayOn("kanazawa", "2026-10-31", now)?.itinerary.date).toBe("2026-10-31");
     expect(writtenDayOn("kanazawa", "2026-12-05", now)?.itinerary.date).toBe(
       KANAZAWA_START_REQUEST.date,
     );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cityClockOf, isOnItsWeekday, isShownNear, shownDateOf } from "./shown-date";
+import { cityClockOf, isAnsweredByFile, isOnItsWeekday, shownDateOf } from "./shown-date";
 import { KANAZAWA_START_REQUEST, PORTO_START_REQUEST, UTRECHT_START_REQUEST } from "./quick-starts";
 
 // Kanazawa's day is a Saturday's in Tokyo, its first stop at half past seven; Porto's a
@@ -104,32 +104,38 @@ describe("isOnItsWeekday", () => {
   });
 });
 
-describe("isShownNear", () => {
-  // Sunday 15 November in Tokyo, the day after a Saturday.
-  const now = at("2026-11-15T03:00:00Z");
+describe("a date in the first century", () => {
+  it("is read on its own weekday, not on that of its twin in the 1900s", () => {
+    // 17 June 50 is a Friday; 17 June 1950 was a Saturday, Kanazawa's weekday.
+    const on = (date: string) => ({ ...KANAZAWA_START_REQUEST, date });
+    expect(isOnItsWeekday(KANAZAWA_START_REQUEST, on("0050-06-17"))).toBe(false);
+    expect(isOnItsWeekday(KANAZAWA_START_REQUEST, on("0050-06-18"))).toBe(true);
+  });
+});
+
+describe("isAnsweredByFile", () => {
+  // Monday 23 November at noon in Tokyo: Kanazawa's Saturday the 21st is two days back.
+  const now = at("2026-11-23T03:00:00Z");
   const on = (date: string) => ({ ...KANAZAWA_START_REQUEST, date });
 
-  it("takes the dates a page shows, from yesterday to a week from today in the city", () => {
-    expect(isShownNear(KANAZAWA_START_REQUEST, on("2026-11-14"), now)).toBe(true);
-    expect(isShownNear(KANAZAWA_START_REQUEST, on("2026-11-21"), now)).toBe(true);
+  it("takes its words on its weekday from any date behind today to a week from today", () => {
+    for (const date of ["2026-10-31", "2026-11-14", "2026-11-21", "2026-11-28"]) {
+      expect(isAnsweredByFile(KANAZAWA_START_REQUEST, on(date), now)).toBe(true);
+    }
+    expect(isAnsweredByFile(KANAZAWA_START_REQUEST, on("2026-12-05"), now)).toBe(false);
   });
 
-  it("takes no date further out, nor one before yesterday", () => {
-    expect(isShownNear(KANAZAWA_START_REQUEST, on("2026-11-28"), now)).toBe(false);
-    expect(isShownNear(KANAZAWA_START_REQUEST, on("2026-11-07"), now)).toBe(false);
-  });
-
-  it("takes no other weekday, and no other word, inside the week", () => {
-    expect(isShownNear(KANAZAWA_START_REQUEST, on("2026-11-20"), now)).toBe(false);
-    expect(
-      isShownNear(KANAZAWA_START_REQUEST, { ...on("2026-11-21"), company: "family" }, now),
-    ).toBe(false);
-  });
-
-  it("takes a week from today on the weekday itself, the date a page shows once the day began", () => {
+  it("takes today and a week from today on the weekday itself, the dates a page shows as the day begins", () => {
     // Saturday 14 November in Tokyo at noon: the page shows the 21st.
     const saturday = at("2026-11-14T03:00:00Z");
-    expect(isShownNear(KANAZAWA_START_REQUEST, on("2026-11-14"), saturday)).toBe(true);
-    expect(isShownNear(KANAZAWA_START_REQUEST, on("2026-11-21"), saturday)).toBe(true);
+    expect(isAnsweredByFile(KANAZAWA_START_REQUEST, on("2026-11-14"), saturday)).toBe(true);
+    expect(isAnsweredByFile(KANAZAWA_START_REQUEST, on("2026-11-21"), saturday)).toBe(true);
+    expect(isAnsweredByFile(KANAZAWA_START_REQUEST, on("2026-11-28"), saturday)).toBe(false);
+  });
+
+  it("takes no other weekday and no other words", () => {
+    expect(isAnsweredByFile(KANAZAWA_START_REQUEST, on("2026-11-20"), now)).toBe(false);
+    const lively = { ...on("2026-11-14"), energy: "lively" as const };
+    expect(isAnsweredByFile(KANAZAWA_START_REQUEST, lively, now)).toBe(false);
   });
 });

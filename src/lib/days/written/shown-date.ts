@@ -13,11 +13,6 @@ import { isSameWords } from "../request";
 const MS_PER_DAY = 86_400_000;
 const DAYS_PER_WEEK = 7;
 const MINUTES_PER_HOUR = 60;
-/**
- * How many days before today in its city a date may stand and still be one a written day is
- * shown on: a page drawn before its date moved on, or a browser whose clock runs a day behind.
- */
-const DAYS_BEHIND = 1;
 
 /** A city's calendar date and minute of the day at an instant. */
 export interface CityClock {
@@ -46,10 +41,13 @@ export function cityClockOf(timezone: string, now: Date): CityClock {
   };
 }
 
-/** A calendar date as days from 1970-01-01. */
+/**
+ * A calendar date as days from 1970-01-01. The year is set by itself: `Date.UTC` reads a year
+ * under 100 as one of the 1900s, and a request may carry any date.
+ */
 function dayNumberOf(date: string): number {
   const [year = Number.NaN, month = Number.NaN, day = Number.NaN] = date.split("-").map(Number);
-  return Date.UTC(year, month - 1, day) / MS_PER_DAY;
+  return new Date(0).setUTCFullYear(year, month - 1, day) / MS_PER_DAY;
 }
 
 function dateOf(dayNumber: number): string {
@@ -91,13 +89,20 @@ export function isOnItsWeekday(written: DayRequest, request: DayRequest): boolea
 }
 
 /**
- * Whether a request asks for a written day on a date it is shown on, give or take: its words,
- * on its weekday, from yesterday to a week from today in its city. Only such a request plays
- * from the day's file; a date further out is a day of its own.
+ * Whether a request asks for a written day its file answers: its words, on its weekday, on any
+ * date up to a week from today in its city. A date behind today is answered too, as a page left
+ * open past its date asks for it, since the file holds the day asked for and the model is never
+ * asked for it; a date further ahead is a day of its own. The route plays the file for such a
+ * request, and a re-plan reads its basis on the same dates, so the two never disagree.
  */
-export function isShownNear(written: DayRequest, request: DayRequest, now: Date): boolean {
-  if (!isOnItsWeekday(written, request)) return false;
-  const today = dayNumberOf(cityClockOf(written.timezone, now).date);
-  const offset = dayNumberOf(request.date) - today;
-  return offset >= -DAYS_BEHIND && offset <= DAYS_PER_WEEK;
+export function isAnsweredByFile(written: DayRequest, request: DayRequest, now: Date): boolean {
+  return (
+    isOnItsWeekday(written, request) &&
+    daysFromToday(request.date, written.timezone, now) <= DAYS_PER_WEEK
+  );
+}
+
+/** How many days a date stands after today in a zone. */
+function daysFromToday(date: string, timezone: string, now: Date): number {
+  return dayNumberOf(date) - dayNumberOf(cityClockOf(timezone, now).date);
 }
