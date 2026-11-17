@@ -18,18 +18,16 @@ import { useReplanStream, type ReplanSource } from "@/features/itinerary/use-rep
 import {
   WHOLE_DAY_WINDOW,
   forkFrameOf,
-  newStopsOf,
   replanFrameOf,
   writtenVersionOf,
   windowsOf,
   type ReplanFrame,
   type ReplanWindow,
 } from "@/features/abacus/replan-frame";
-import { receiptOf } from "@/features/abacus/work-line";
 import type { ShownPlaces } from "@/features/abacus/curve";
 import { PAGE_INVITATION_MEMORY } from "@/features/abacus/use-invitation";
 import type { GeoPoint } from "@/lib/geo/sun";
-import { movedStopsOf, type ReplanBasis } from "@/lib/replan/merge";
+import type { ReplanBasis } from "@/lib/replan/merge";
 import { replanPlanOf } from "@/lib/replan/windows";
 import {
   NO_CHECKS,
@@ -83,15 +81,8 @@ import { browserStorage, type YourDay } from "./your-days";
 import { picksWithin, readPickedPlaces } from "./picked-places";
 import { keepCaveats } from "./caveats";
 import { useKeptCaveats } from "./use-caveats";
-import type {
-  ForkReceipt,
-  ForkSide,
-  ReplanControls,
-  ReplanEnding,
-  ReplanPlaces,
-  ReplanStatus,
-} from "./replan-controls";
-import { placesKeptOf, wholeDayWrittenOf, writtenOf } from "./replan-work";
+import type { ForkSide, ReplanControls, ReplanEnding, ReplanStatus } from "./replan-controls";
+import { wholeDayWrittenOf, writtenOf } from "./replan-work";
 import type { ForkOther } from "./plan-fork";
 import type { ForkPresses } from "./part-slip";
 import { shownEnergiesOf } from "./day-shape";
@@ -343,11 +334,6 @@ interface WordChange {
   isCompared: boolean;
   /** Why it ended without a proposal, once failed. */
   ending?: ReplanEnding;
-  /**
-   * Once whole, what each version would change against the other: the proposal's against the
-   * day before, and the day before's against the proposal, once taken.
-   */
-  receipts?: { proposal: ForkReceipt; before: ForkReceipt };
   /** The change as it was asked, to ask it again after a failure. */
   ask: ChangeAsk;
 }
@@ -1461,35 +1447,8 @@ export function Day({
           energy: (targetedShown.merged?.request ?? asked?.request ?? targetedShown.request).energy,
         },
       });
-      // Its new stops counted now, by the re-plan's ids: those at the part's own places at
-      // another hour by which way they moved, the rest as new.
-      const { stops } = targetedEnding.itinerary;
-      const written = newStopsOf(stops, [targetedShown.basis.idPrefix]).size;
-      const moves = [...movedStopsOf(targetedShown.basis, stops).values()];
-      const later = moves.filter((move) => move === "later").length;
-      const places: ReplanPlaces = {
-        added: written - moves.length,
-        same: null,
-        later,
-        earlier: moves.length - later,
-      };
-      const beforeStops = targetedShown.basis.itinerary.stops;
       if (changeShown !== null) {
-        setChange({
-          ...changeShown,
-          status: "proposed",
-          isCompared: true,
-          receipts: {
-            proposal: receiptOf(changeShown, "part", beforeStops, stops, places),
-            before: receiptOf(
-              { word: changeShown.word, to: changeShown.from },
-              "part",
-              stops,
-              beforeStops,
-              null,
-            ),
-          },
-        });
+        setChange({ ...changeShown, status: "proposed", isCompared: true });
       }
     } else {
       failReplan(targetedShown.run, targetedEnding.kind, replanFrame);
@@ -1647,27 +1606,8 @@ export function Day({
         return;
       }
       setWholeTurn({ before, after: { ...landed, isChosen: false, isFromMemory: true } });
-      const beforeStops = before.whole?.itinerary.stops ?? [];
-      const afterStops = replanEnding.itinerary.stops;
-      const places = placesKeptOf(beforeStops, afterStops);
       setChange((last) =>
-        last === null
-          ? null
-          : {
-              ...last,
-              status: "proposed",
-              isCompared: false,
-              receipts: {
-                proposal: receiptOf(last, "whole", beforeStops, afterStops, places),
-                before: receiptOf(
-                  { word: last.word, to: last.from },
-                  "whole",
-                  afterStops,
-                  beforeStops,
-                  null,
-                ),
-              },
-            },
+        last === null ? null : { ...last, status: "proposed", isCompared: false },
       );
     });
     return () => cancelAnimationFrame(turn);
@@ -1876,12 +1816,6 @@ export function Day({
     reach: changeShown?.reach ?? null,
     ending: changeStatus === "failed" ? (changeShown?.ending ?? "invalid") : null,
     written: changeStatus === "writing" && replanned !== null ? writtenOf(replanned.partial) : null,
-    receipt:
-      changeShown?.receipts === undefined
-        ? null
-        : changeStatus === "taken"
-          ? changeShown.receipts.before
-          : changeShown.receipts.proposal,
     windows: changeShown?.windows ?? NO_WINDOWS,
     isCompared: changeShown?.isCompared ?? false,
     choose: chooseSide,

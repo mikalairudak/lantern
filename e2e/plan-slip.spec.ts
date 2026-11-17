@@ -89,6 +89,39 @@ test("lists the day alone through the proposal's writing and a take, each part's
   await expect.poll(() => rowNames(page), { timeout: DAY_TIMEOUT_MS }).toEqual(before);
 });
 
+test("says in the first slip's head what the slips list once an energy re-picks both versions", async ({
+  page,
+}) => {
+  test.setTimeout(2 * DAY_TIMEOUT_MS);
+  await openElche(page);
+  await eatLate(page);
+  await waitForTheProposal(page);
+
+  // Social re-picks the day and the proposal alike: the late stop is a bar, and the lunch stays.
+  await page
+    .getByRole("group", { name: "How lively the day is" })
+    .getByRole("button", { name: "social" })
+    .click();
+  await expect(page.locator("h1")).toHaveText(/^A social /);
+
+  // The receipt's first line is the first words under the slip's answer.
+  const head = (await slip(page, 0).locator("p").first().textContent()) ?? "";
+  const said = /(\d+) new stops?/.exec(head);
+  const lines = plan(page).locator("[data-slip] li:not([aria-hidden])");
+  await expect(lines).toHaveCount(4);
+  // A new stop's line says until when; a stop kept says it stays, or the hour it had.
+  const marked = await lines.filter({ hasText: "until" }).count();
+  expect(Number(said?.[1] ?? 0), `"${head}"`).toBe(marked);
+  // The chart's fork row, laid out unseen under the plan, says the same.
+  const chartRow = page.locator('[data-fork-row="0"]:not([aria-label="The day, to read"] *)');
+  await expect(chartRow).toContainText(head);
+  // An hour it names as dinner is a dinner among the lines.
+  const dinner = /Dinner (?:at )?(\d\d:\d\d)/.exec(head)?.[1];
+  if (dinner !== undefined) {
+    await expect(lines.filter({ hasText: dinner }).filter({ hasText: "dinner" })).toHaveCount(1);
+  }
+});
+
 test("stands each slip in the margin where the day's column is whole, and in the column otherwise, never wider than the page", async ({
   page,
 }) => {

@@ -6,9 +6,9 @@ import {
   type ForkMoment,
 } from "@/features/abacus/fork-row-examples";
 import { dayContextOf } from "@/features/abacus/light";
-import { newStopsOf, windowsOf } from "@/features/abacus/replan-frame";
+import { WHOLE_DAY_WINDOW, windowsOf, type ReplanWindow } from "@/features/abacus/replan-frame";
 import { itineraryOf } from "@/features/abacus/stop-row-examples";
-import { receiptOf, type WorkMoment } from "@/features/abacus/work-line";
+import type { WorkMoment } from "@/features/abacus/work-line";
 import { writtenDayAt } from "@/lib/days/written/days";
 import { LISBON_DAY } from "@/lib/fixtures/curated/lisbon";
 import { CROWDED_DAY, LATE_NIGHT_DAY } from "@/lib/fixtures/edge/edge-days";
@@ -23,13 +23,13 @@ import {
   UTRECHT_MORNING_BASIS,
 } from "@/lib/fixtures/replan/utrecht-morning";
 import type { DayContext } from "@/lib/geo/sun";
-import { mergeShownReplan, movedStopsOf, type ReplanBasis } from "@/lib/replan/merge";
+import { mergeShownReplan, type ReplanBasis } from "@/lib/replan/merge";
 import type { Itinerary, Place, Stop } from "@/lib/schema/itinerary.schema";
 import type { GeneratedReplan } from "@/lib/schema/replan.schema";
 import { formatClock, runningSpans } from "@/lib/time/clock";
 import type { ReplanEnding } from "./replan-controls";
-import { placesKeptOf, type ForkView } from "./replan-work";
-import { partsOf } from "./part-slip-lines";
+import type { ForkView } from "./replan-work";
+import { forkReceiptOf, partsOf } from "./part-slip-lines";
 
 /**
  * The part slip's examples for its matrix and its tests (`part-slip-matrix.tsx`): a part's two
@@ -64,7 +64,22 @@ function mergedOf(basis: ReplanBasis, replan: GeneratedReplan): Itinerary {
 
 type Change = ForkExample["change"];
 
-/** A part of a re-planned day, its receipts counted as the page counts them once whole. */
+/**
+ * What a proposal would change against its day, and the day before once it is taken, as the
+ * page works them out from the two versions drawn (`forkReceiptOf`).
+ */
+function receiptsOf(
+  fork: Pick<ForkExample, "change" | "reach"> & { windows: readonly ReplanWindow[] },
+  before: readonly StopDraft[],
+  after: readonly StopDraft[],
+): ForkExample["receipts"] {
+  return {
+    proposal: forkReceiptOf({ ...fork, side: "to", day: before, other: after }),
+    before: forkReceiptOf({ ...fork, side: "from", day: after, other: before }),
+  };
+}
+
+/** A part of a re-planned day, its receipts worked out as the page works them out once whole. */
 function partOf(
   basis: ReplanBasis,
   replan: GeneratedReplan,
@@ -73,14 +88,6 @@ function partOf(
 ): SlipExample {
   const after = mergedOf(basis, replan);
   const windows = windowsOf(basis.itinerary, basis.windows);
-  const moves = [...movedStopsOf(basis, after.stops).values()];
-  const later = moves.filter((move) => move === "later").length;
-  const counts = {
-    added: newStopsOf(after.stops, [basis.idPrefix]).size - moves.length,
-    same: null,
-    later,
-    earlier: moves.length - later,
-  };
   const before = basis.itinerary.stops;
   const part = partsOf(before, windows)[index] ?? [];
   const first = part[0];
@@ -88,16 +95,7 @@ function partOf(
     fork: {
       change,
       reach: "part",
-      receipts: {
-        proposal: receiptOf(change, "part", before, after.stops, counts),
-        before: receiptOf(
-          { word: change.word, to: change.from },
-          "part",
-          after.stops,
-          before,
-          null,
-        ),
-      },
+      receipts: receiptsOf({ change, reach: "part", windows }, before, after.stops),
       index,
       count: windows.length,
     },
@@ -176,10 +174,7 @@ function sixteenStopsOf(): SlipExample {
     fork: {
       change,
       reach: "whole",
-      receipts: {
-        proposal: receiptOf(change, "whole", before, after, placesKeptOf(before, after)),
-        before: receiptOf({ word: change.word, to: change.from }, "whole", after, before, null),
-      },
+      receipts: receiptsOf({ change, reach: "whole", windows: [WHOLE_DAY_WINDOW] }, before, after),
       index: 0,
       count: 1,
     },
@@ -225,22 +220,20 @@ function pastMidnightOf(): SlipExample {
   const later = stopAt("r1-stop-1", "01:30", 150, river.primary);
   const after = [shellfish, cocktails, supper, later];
   const change: Change = { word: "company", from: "with a partner", to: "with friends" };
-  const counts = { added: 1, same: null, later: 1, earlier: 0 };
+  const opens = runningSpans(before)[1]?.to ?? null;
+  const windows = [{ opens, closes: null }];
   return {
     fork: {
       change,
       reach: "part",
-      receipts: {
-        proposal: receiptOf(change, "part", before, after, counts),
-        before: receiptOf({ word: change.word, to: change.from }, "part", after, before, null),
-      },
+      receipts: receiptsOf({ change, reach: "part", windows }, before, after),
       index: 0,
       count: 1,
     },
     before: [river],
     lead: cocktails,
     after: [supper, later],
-    opens: runningSpans(before)[1]?.to ?? null,
+    opens,
     daylight: dayContextOf(itinerary),
   };
 }
@@ -261,15 +254,15 @@ function pastTheLastStopOf(): SlipExample {
   const late = stopAt("r1-stop-0", "21:00", 90, drink);
   const after = [...before, late];
   const change: Change = { word: "end", from: "home by eleven", to: "out late" };
-  const counts = { added: 1, same: null, later: 0, earlier: 0 };
   return {
     fork: {
       change,
       reach: "part",
-      receipts: {
-        proposal: receiptOf(change, "part", before, after, counts),
-        before: receiptOf({ word: change.word, to: change.from }, "part", after, before, null),
-      },
+      receipts: receiptsOf(
+        { change, reach: "part", windows: [{ opens, closes: null }] },
+        before,
+        after,
+      ),
       index: 0,
       count: 1,
     },

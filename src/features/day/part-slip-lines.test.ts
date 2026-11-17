@@ -52,7 +52,7 @@ describe("slipLinesOf", () => {
     const same = stopAt("stop-1", "11:15", 60, "Domtoren", "viewpoint");
 
     expect(slipLinesOf([COFFEE, TOWER], [earlier, same], null).map(({ mark }) => mark)).toEqual([
-      { kind: "moved", hour: "10:00" },
+      { kind: "moved", hour: "10:00", way: "earlier" },
       { kind: "stays" },
     ]);
   });
@@ -120,7 +120,7 @@ describe("slipLinesOf as the stream writes", () => {
     const drawn = slipLinesOf([square], [earlier], null)[0]?.mark;
     const after = slipLinesOf([square], [earlier, atItsHour], null).map(({ mark }) => mark);
 
-    expect(drawn).toEqual({ kind: "moved", hour: "15:00" });
+    expect(drawn).toEqual({ kind: "moved", hour: "15:00", way: "earlier" });
     expect(after).toEqual([drawn, { kind: "new", what: "walk\u00a0· until\u00a015:30" }]);
   });
 });

@@ -72,7 +72,6 @@ function viewOf(bench: ForkBench, { status, step }: ForkAt): ForkView {
     reach: bench.reach,
     ending: status === "failed" ? "invalid" : null,
     written: step?.written ?? null,
-    receipt,
     windows: bench.windows,
     isCompared: true,
     choose: () => false,
@@ -83,6 +82,7 @@ function viewOf(bench: ForkBench, { status, step }: ForkAt): ForkView {
     replan: controls,
     frame: step?.frame ?? null,
     isLookingDue: step?.isLookingDue ?? true,
+    receipt,
   });
   if (view === null) throw new Error("A fork on the bench has no view");
   return view;

@@ -6,21 +6,14 @@ import {
   type WorkChange,
   type WorkLine,
   type WorkMoment,
+  type WorkReceipt,
 } from "@/features/abacus/work-line";
-import { isSameSpelling } from "@/lib/places/match";
-import type { Stop } from "@/lib/schema/itinerary.schema";
 import type { PartialDay } from "@/lib/stream/outcome";
 import { keptTimingsOf } from "@/lib/normalizer/normalize";
 import { revealedOf } from "@/features/itinerary/revealed";
 import { ASKED_LABELS, FACT_OPTIONS } from "./facts";
 import { replanEndedOf } from "./not-yet";
-import type {
-  ForkSide,
-  ReplanControls,
-  ReplanEnding,
-  ReplanPlaces,
-  ReplanWritten,
-} from "./replan-controls";
+import type { ForkSide, ReplanControls, ReplanEnding, ReplanWritten } from "./replan-controls";
 
 /**
  * A fork as its rows show it over the parts a changed word rewrites (`docs/decisions.md`, "A
@@ -65,6 +58,13 @@ export interface ForkViewInput {
   frame: ReplanFrame | null;
   /** A beat has passed since the press: until then the search is not said. */
   isLookingDue: boolean;
+  /**
+   * What the version not on screen would change against the day that is, once the proposal is
+   * whole, as the two are drawn (`forkReceiptOf`): the proposal's while the day is the
+   * visitor's, the day before's once the proposal is taken. Null before then, and after a
+   * failure.
+   */
+  receipt: WorkReceipt | null;
 }
 
 /** Failures another try will meet again: our limit, and a refusal. */
@@ -97,7 +97,12 @@ function wholeMomentOf(written: ReplanWritten | null): WorkMoment {
  * receipt of the version beside the day; folded once a version is chosen, until compared; and
  * why it ended without a proposal. None at rest.
  */
-export function forkViewOf({ replan, frame, isLookingDue }: ForkViewInput): ForkView | null {
+export function forkViewOf({
+  replan,
+  frame,
+  isLookingDue,
+  receipt,
+}: ForkViewInput): ForkView | null {
   const { status, change, reach } = replan;
   if (status === "idle" || change === null || reach === null) return null;
   const work: WorkChange = {
@@ -142,7 +147,6 @@ export function forkViewOf({ replan, frame, isLookingDue }: ForkViewInput): Fork
       canAskAgain: !ASKED_IN_VAIN.has(ending),
     };
   }
-  const receipt = replan.receipt;
   const isReceiptSaid = receipt !== null && (status === "proposed" || replan.isCompared);
   return {
     ...base,
@@ -173,18 +177,4 @@ export function wholeDayWrittenOf(partial: PartialDay | null): StopDraft[] {
     return stop === undefined ? [] : [{ ...stop, durationMinutes }];
   });
   return kept.filter(({ id }) => id !== writing);
-}
-
-/**
- * What a whole day written again kept of the day before: its stops at places the day before
- * did not have, and those at the same places, by spelling.
- */
-export function placesKeptOf(
-  before: readonly { primary: Pick<Stop["primary"], "name"> }[],
-  after: readonly { primary: Pick<Stop["primary"], "name"> }[],
-): ReplanPlaces {
-  const same = after.filter((stop) =>
-    before.some((old) => isSameSpelling(old.primary.name, stop.primary.name)),
-  ).length;
-  return { added: after.length - same, same, later: 0, earlier: 0 };
 }

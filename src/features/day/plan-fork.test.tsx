@@ -7,15 +7,22 @@ import {
   WHOLE_DAY_WINDOW,
   frameStopsOf,
   replanFrameOf,
+  windowsOf,
   writtenVersionOf,
 } from "@/features/abacus/replan-frame";
 import { itineraryOf } from "@/features/abacus/stop-row-examples";
 import { useArrivals } from "@/features/abacus/use-arrivals";
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import { LISBON_DAY } from "@/lib/fixtures/curated/lisbon";
+import {
+  ELCHE_DINNER_BASIS,
+  ELCHE_LATE_DINNER_UNREPEATED,
+  ELCHE_REQUEST,
+} from "@/lib/fixtures/replan/elche-dinner";
 import { KYOTO_ITINERARY, KYOTO_MORNING_BASIS } from "@/lib/fixtures/replan/kyoto-morning";
-import type { ReplanBasis } from "@/lib/replan/merge";
-import { ENERGY_LEVELS } from "@/lib/schema/itinerary.schema";
+import { mergeShownReplan, type ReplanBasis } from "@/lib/replan/merge";
+import { ENERGY_LEVELS, type EnergyLevel } from "@/lib/schema/itinerary.schema";
+import { forkReceiptOf, slipLinesOf } from "./part-slip-lines";
 import {
   asShownOf,
   chartArrivalsOf,
@@ -241,6 +248,91 @@ describe("forkOtherAt", () => {
     expect(forkOtherAt({ stops: LISBON, energy: "lively" }, "lively")).toEqual(LISBON);
     expect(forkOtherAt({ stops: LISBON, energy: "calm" }, null)).toBe(LISBON);
     expect(forkOtherAt(null, "lively")).toEqual([]);
+  });
+});
+
+describe("forkReceiptOf", () => {
+  // Elche's dinner eaten late, which rewrites its lunch and its evening: the day before and the
+  // proposal, each re-picked as the page draws it at an energy.
+  const merged = mergeShownReplan({ ...ELCHE_DINNER_BASIS, replan: ELCHE_LATE_DINNER_UNREPEATED });
+  if (!merged.ok) throw new Error("Elche's proposal merges");
+  const windows = windowsOf(ELCHE_DINNER_BASIS.itinerary, ELCHE_DINNER_BASIS.windows);
+  const change = { word: "dinner", from: "early dinner", to: "eating late" } as const;
+  const drawnAt = (stops: StopDraft[], level: EnergyLevel | null) =>
+    forkOtherAt({ stops, energy: ELCHE_REQUEST.energy }, level);
+  const before = completeDraftOf(ELCHE_DINNER_BASIS.itinerary).stops;
+  const after = completeDraftOf(merged.itinerary).stops;
+  const forkAt = (level: EnergyLevel | null) => ({
+    change,
+    reach: "part" as const,
+    windows,
+    day: drawnAt(before, level),
+    other: drawnAt(after, level),
+  });
+  /** The lines the slips list, every part's. */
+  const linesAt = (level: EnergyLevel | null) => {
+    const { day, other } = forkAt(level);
+    const fork = planForkOf(day, other, windows);
+    return fork.other.flatMap((part, at) =>
+      slipLinesOf(fork.shown[at] ?? [], part, windows[at]?.opens ?? null),
+    );
+  };
+
+  it("says the proposal as written: its hour, and the new stops its slips list", () => {
+    expect(forkReceiptOf({ ...forkAt(null), side: "to" })).toEqual({
+      words: "Dinner 21:00, not 18:15 · 3 new stops",
+      end: "ends 23:45, not 20:45",
+    });
+  });
+
+  it("counts what the slips list at the energy chosen, and names the meal the place drawn is", () => {
+    // Social, the lunch and the afternoon stay, the night's walk moves from 20:00, and the late
+    // stop is a bar, no dinner.
+    expect(forkReceiptOf({ ...forkAt("social"), side: "to" })).toEqual({
+      words: "1 new stop, 1 later",
+      end: "ends 23:45, not 20:45",
+    });
+    expect(linesAt("social").map(({ mark }) => mark.kind)).toEqual([
+      "stays",
+      "stays",
+      "new",
+      "moved",
+    ]);
+  });
+
+  it("counts as many new stops as its slips mark new, at every energy", () => {
+    for (const level of [null, ...ENERGY_LEVELS]) {
+      const words = forkReceiptOf({ ...forkAt(level), side: "to" }).words;
+      const added = linesAt(level).filter(({ mark }) => mark.kind === "new").length;
+      expect(words, `at ${level}`).toContain(added === 1 ? "1 new stop" : `${added} new stops`);
+    }
+  });
+
+  it("says the day before's hour alone once the proposal is taken, by the place each shows", () => {
+    const taken = (level: EnergyLevel | null) => {
+      const { day, other } = forkAt(level);
+      return forkReceiptOf({ ...forkAt(level), side: "from", day: other, other: day }).words;
+    };
+
+    expect(taken(null)).toBe("Dinner 18:15, not 21:00");
+    // The proposal's late stop a bar, the day before's dinner is said at its own hour.
+    expect(taken("social")).toBe("Dinner at 18:15");
+  });
+
+  it("counts a whole day's places kept, staying or moved, as the same", () => {
+    const park = stopAt("stop-0", "09:00", 60, "Park Lepelenburg");
+    const tower = { ...TOWER, startTime: "12:00" };
+
+    const receipt = forkReceiptOf({
+      change: { word: "company", from: "with anyone", to: "with friends" },
+      reach: "whole",
+      side: "to",
+      day: [COFFEE, TOWER, LUNCH],
+      other: [park, tower, LUNCH],
+      windows: [WHOLE_DAY_WINDOW],
+    });
+
+    expect(receipt.words).toBe("With friends · 1 new stop, 2 the same");
   });
 });
 

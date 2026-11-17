@@ -121,6 +121,7 @@ import { readDayView, serverDayView, subscribeDayView } from "./view-choice";
 import { enteredOf, versionsWrittenOf } from "./reading-gates";
 import { ReadingList, type PlanParts } from "./reading-list";
 import { PartSlip, type ForkPresses } from "./part-slip";
+import { forkReceiptOf } from "./part-slip-lines";
 import {
   asShownOf,
   chartArrivalsOf,
@@ -722,7 +723,44 @@ export function DayStage({
     setActedKey(changeKey);
     setIsActedOn(false);
   }
-  const forkView = replan ? forkViewOf({ replan, frame: replanFrame, isLookingDue }) : null;
+  const curve = useEnergyCurve(stops);
+  // The places the line about the day was written around: what each stop showed when the line
+  // last changed. A re-plan writes the line again around the day as it then stands, so a
+  // version the visitor kept through it is the line's own.
+  const shownPlaces = shownPlacesOf(stops, curve.committed);
+  // The other version as taking it draws it: re-picked for the energy the headline says, from
+  // the one it was planned for, with the visitor's picks on it: a part's those made on this day,
+  // a whole day's those kept for that day (`ForkOther.picks`).
+  const committedPicks = curve.committedPicks;
+  const forkOtherShown = useMemo(
+    () => asShownOf(forkOtherAt(forkOther, repickedLevel), forkOther?.picks ?? committedPicks),
+    [forkOther, repickedLevel, committedPicks],
+  );
+  // The day as the plan lists it, each stop showing the place shown or picked for it: what the
+  // slips set the other version against.
+  const planDay = asShownOf(
+    stops.slice(0, listEntered).filter((stop) => !planHidden.has(stop.id)),
+    shownPlaces,
+  );
+  // What the version beside the day would change, once whole, worked out from the two as they
+  // are drawn at the energy chosen, so the chart's fork row and the slip's head say what the
+  // slips list.
+  const isForkWhole =
+    replan?.status === "proposed" || replan?.status === "taken" || replan?.status === "left";
+  const receipt =
+    replan?.change && replan.reach && forkOther !== null && isForkWhole
+      ? forkReceiptOf({
+          change: replan.change,
+          reach: replan.reach,
+          side: replan.status === "taken" ? "from" : "to",
+          day: planDay,
+          other: forkOtherShown,
+          windows: replan.windows,
+        })
+      : null;
+  const forkView = replan
+    ? forkViewOf({ replan, frame: replanFrame, isLookingDue, receipt })
+    : null;
   const isForkShown = forkView !== null && !(forkView.isFailed && isActedOn);
   /**
    * "Ask again" goes from under the focus as the fork writes anew: the changed word in the
@@ -867,7 +905,6 @@ export function DayStage({
     if (kind === "curve-dragged") noteCurveDragged();
     onDayAct?.(kind);
   };
-  const curve = useEnergyCurve(stops);
   const energy: EnergyCurve = {
     ...curve,
     // Called only once a press has become a drag; let go, the curve was dragged.
@@ -933,10 +970,6 @@ export function DayStage({
   // Under the chart they wait for it, whose drawing would push them down.
   const isFootDrawn = (basis !== null && isFrameDrawn) || (isDrawnWhole && view === "read");
   const clause = clauseOf(changesOf(stops, energy.committed));
-  // The places the line about the day was written around: what each stop showed when the line
-  // last changed. A re-plan writes the line again around the day as it then stands, so a
-  // version the visitor kept through it is the line's own.
-  const shownPlaces = shownPlacesOf(stops, energy.committed);
   const [writtenFor, setWrittenFor] = useState({ dek, places: shownPlaces });
   if (writtenFor.dek !== dek) setWrittenFor({ dek, places: shownPlaces });
   // What each energy answer would change on screen, counted from the re-pick its press makes,
@@ -950,17 +983,14 @@ export function DayStage({
   // chart's row folds it away until compared.
   const planView =
     replan && replan.windows.length > 0
-      ? forkViewOf({ replan: { ...replan, isCompared: true }, frame: replanFrame, isLookingDue })
+      ? forkViewOf({
+          replan: { ...replan, isCompared: true },
+          frame: replanFrame,
+          isLookingDue,
+          receipt,
+        })
       : null;
   const isPlanForkShown = planView !== null && !(planView.isFailed && isActedOn);
-  // The other version as taking it draws it: re-picked for the energy the headline says, from
-  // the one it was planned for, with the visitor's picks on it: a part's those made on this day,
-  // a whole day's those kept for that day (`ForkOther.picks`).
-  const committedPicks = curve.committedPicks;
-  const forkOtherShown = useMemo(
-    () => asShownOf(forkOtherAt(forkOther, repickedLevel), forkOther?.picks ?? committedPicks),
-    [forkOther, repickedLevel, committedPicks],
-  );
   // The chart's rows of the version beside the day, drawn with one place alone, show the place
   // its slip lists and taking it shows: re-picked for the energy, with the visitor's picks on it.
   // Each arrives as its stop does, its bead sliding to the place it draws (`chartArrivalsOf`).
@@ -970,14 +1000,7 @@ export function DayStage({
   );
   const planFork =
     replan && planView && isPlanForkShown
-      ? planForkOf(
-          asShownOf(
-            stops.slice(0, listEntered).filter((stop) => !planHidden.has(stop.id)),
-            shownPlaces,
-          ),
-          planView.isFailed ? NO_STOPS : forkOtherShown,
-          replan.windows,
-        )
+      ? planForkOf(planDay, planView.isFailed ? NO_STOPS : forkOtherShown, replan.windows)
       : null;
   const [planColumn, setPlanColumn] = useState<HTMLElement | null>(null);
   const [wholeColumn, setWholeColumn] = useState<HTMLDivElement | null>(null);

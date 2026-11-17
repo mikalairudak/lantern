@@ -116,7 +116,6 @@ function headerAt({
     reach: null,
     ending: null,
     written: null,
-    receipt: null,
     windows: [],
     isCompared: false,
     choose: () => false,
