@@ -588,7 +588,8 @@ function SlipLineItem({ line, movedWord, isPenned, isHeld = false }: SlipLineIte
       : mark.kind === "stays"
         ? "stays"
         : `${movedWord}${NO_BREAK}${mark.hour}`;
-  // The mark never parts from its dot: a line breaks in its name, or after a later dot.
+  // The mark's first word never parts from its dot: a line breaks in the name, inside a mark of
+  // more than one word, as "late supper", or after a later dot, never after the first.
   const after = `${NO_BREAK}·${NO_BREAK}${tail}`;
   // One pen through the line, in the order it reads, as a row's words are written in.
   const written = useEntryPen(time.length + name.length + after.length, isPenned);

@@ -2,7 +2,12 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLayoutEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { completeDraftOf, draftDayOf, openableStopsOf } from "@/features/abacus/day-draft";
+import {
+  completeDraftOf,
+  draftDayOf,
+  openableStopsOf,
+  type StopDraft,
+} from "@/features/abacus/day-draft";
 import { dayContextOf } from "@/features/abacus/light";
 import { itineraryOf } from "@/features/abacus/stop-row-examples";
 import { revealedOf } from "@/features/itinerary/revealed";
@@ -396,6 +401,69 @@ describe("ReadingList", () => {
       `li[data-stop="${second!.id}"] [data-room-beside="0"] > div > div > div`,
     );
     // 300 less the fork line and the part's one row.
+    expect(room?.style.height).toBe("151px");
+    vi.restoreAllMocks();
+  });
+
+  it("opens a room that comes to another row from nothing, never at the height the fork before it measured", async () => {
+    // Each slip beside the list 300 px tall, its fork line 49, each row's words 100.
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.hasAttribute(BESIDE_ATTRIBUTE)) return 300;
+      if (this.hasAttribute("data-part-head")) return 49;
+      if (this.hasAttribute("data-row-at-rest")) return 100;
+      return 0;
+    });
+    // A room's box as tall as the room it holds, as a page lays it out.
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const room = [this, ...this.querySelectorAll<HTMLElement>("div")].find((each) =>
+        each.parentElement?.parentElement?.parentElement?.hasAttribute("data-room-beside"),
+      );
+      return DOMRect.fromRect({ height: Number.parseFloat(room?.style.height ?? "") || 0 });
+    });
+    const slip = () => <div {...{ [BESIDE_ATTRIBUTE]: "" }}>the slip</div>;
+    const [, first, second] = KYOTO.stops;
+    const forkOver = (stop: StopDraft) => ({ anchors: [stop.id], headOf: slip, isBeside: true });
+    const { rerender } = render(<ReadingList {...KYOTO} parts={forkOver(first!)} />);
+    // Painted, as the page is before a visitor changes another word.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    // Another word: the fork's one part now ends at the next row.
+    rerender(<ReadingList {...KYOTO} parts={forkOver(second!)} />);
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    // The room glides from nothing to the 151 px it holds there, a frame or two in.
+    const box = document.querySelector<HTMLElement>(
+      `li[data-stop="${second!.id}"] [data-room-beside="0"] > div`,
+    );
+    expect(Number.parseFloat(box?.style.height ?? "")).toBeLessThan(151);
+    vi.restoreAllMocks();
+  });
+
+  it("counts a row folding away as nothing in the room beside its part", () => {
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.hasAttribute(BESIDE_ATTRIBUTE)) return 400;
+      if (this.hasAttribute("data-part-head")) return 49;
+      if (this.hasAttribute("data-row-at-rest")) return 100;
+      return 0;
+    });
+    const slip = () => <div {...{ [BESIDE_ATTRIBUTE]: "" }}>the slip</div>;
+    const [, first, second, third] = KYOTO.stops;
+    // A part of three rows, its slip beside them.
+    const parts = { anchors: [first!.id], ends: [third!.id], headOf: slip, isBeside: true };
+    const { rerender } = render(<ReadingList {...KYOTO} parts={parts} />);
+
+    // Its middle row taken away: it folds away where it stands, its rest nothing.
+    rerender(<ReadingList {...KYOTO} parts={parts} hidden={new Set([second!.id])} />);
+
+    expect(document.querySelector(`li[data-stop="${second!.id}"]`)).not.toBeNull();
+    // 400 less the fork line and the two rows that stay.
+    const room = document.querySelector<HTMLElement>('[data-room-beside="0"] > div > div > div');
     expect(room?.style.height).toBe("151px");
     vi.restoreAllMocks();
   });

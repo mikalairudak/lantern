@@ -963,7 +963,7 @@ export function DayStage({
   );
   // The chart's rows of the version beside the day, drawn with one place alone, show the place
   // its slip lists and taking it shows: re-picked for the energy, with the visitor's picks on it.
-  // Each arrives as its stop does (`chartArrivalsOf`).
+  // Each arrives as its stop does, its bead sliding to the place it draws (`chartArrivalsOf`).
   const chartStops = useMemo(
     () => (replanProposed.size === 0 ? stops : proposedAtOf(stops, replanProposed, forkOtherShown)),
     [stops, replanProposed, forkOtherShown],

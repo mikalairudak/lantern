@@ -3,7 +3,7 @@
 import { animate, useReducedMotion, type AnimationPlaybackControls } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SPRINGS } from "@/lib/tokens/motion";
-import { energyOf, midOf, plannedPlace } from "./curve";
+import { energyOf, midOf, plannedPlace, writtenEnergyOf } from "./curve";
 import { hasEnergy, type StopDraft } from "./day-draft";
 
 /** Where a stop is in its arrival. A stop that does not arrive is settled from the start. */
@@ -50,7 +50,11 @@ export interface ArrivalOrigin {
 }
 
 export interface Arrivals {
-  of: (stop: StopDraft) => StopArrival;
+  /**
+   * Where a stop is in its arrival. Given `shownAs`, the stop as a row draws it with another of its
+   * places, its bead slides to that place's energy: the arrival is still the stop's.
+   */
+  of: (stop: StopDraft, shownAs?: StopDraft) => StopArrival;
   /** No bead is sliding or waiting to slide, and the curve has reached every stop. */
   isSettled: boolean;
   /**
@@ -328,7 +332,7 @@ export function useArrivals(
     };
   }, []);
 
-  const rewrittenOf = (stop: StopDraft, origin: ArrivalOrigin): StopArrival => {
+  const rewrittenOf = (stop: StopDraft, origin: ArrivalOrigin, shownAs: StopDraft): StopArrival => {
     const key = keyOf(stop);
     const mid = isAtItsTime(stop, origin) ? null : glideMid(glides[key], origin);
     const value = progress[key] ?? (isSlideDue(stop) ? 0 : undefined);
@@ -342,11 +346,11 @@ export function useArrivals(
       isRewritten: true,
     };
     if (value === undefined || !hasEnergy(stop)) return waiting;
-    const to = energyOf(plannedPlace(stop));
+    const to = writtenEnergyOf(plannedPlace(shownAs)) ?? energyOf(plannedPlace(stop));
     return { ...waiting, isReady: true, slide: origin.energy + (to - origin.energy) * value };
   };
 
-  const arrivalOf = (stop: StopDraft): StopArrival => {
+  const arrivalOf = (stop: StopDraft, shownAs: StopDraft = stop): StopArrival => {
     const key = keyOf(stop);
     const origin = originOf(stop);
     const isEnergetic = hasEnergy(stop);
@@ -365,7 +369,7 @@ export function useArrivals(
         isRewritten: origin !== undefined,
       };
     }
-    if (origin) return rewrittenOf(stop, origin);
+    if (origin) return rewrittenOf(stop, origin, shownAs);
     // A bead due in this frame fills in it, before its slide's first step.
     const value = progress[key] ?? (isSlideDue(stop) ? 0 : undefined);
     if (!isEnergetic || (value === undefined && !isSlid)) {
@@ -380,7 +384,7 @@ export function useArrivals(
         isOnCurve: false,
       };
     }
-    const target = energyOf(plannedPlace(stop));
+    const target = writtenEnergyOf(plannedPlace(shownAs)) ?? energyOf(plannedPlace(stop));
     const stretch = reach[key] ?? (isStretchDue(stop, true) ? 0 : undefined);
     return {
       ...SETTLED,
@@ -394,8 +398,8 @@ export function useArrivals(
     };
   };
 
-  const of = (stop: StopDraft): StopArrival => ({
-    ...arrivalOf(stop),
+  const of = (stop: StopDraft, shownAs?: StopDraft): StopArrival => ({
+    ...arrivalOf(stop, shownAs !== undefined && hasEnergy(shownAs) ? shownAs : stop),
     hasLandedWeighed: landings[keyOf(stop)] ?? hasEnergy(stop),
   });
 

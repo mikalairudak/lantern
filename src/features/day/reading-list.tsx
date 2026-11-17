@@ -189,9 +189,10 @@ export function ReadingList({
   const ends = parts?.ends ?? NO_ANCHORS;
   const rooms = useRoomsBeside(list, isBeside, anchors, ends);
   /**
-   * The room of each part whose last row this is, or under the last: it glides to each new
-   * height as the rows do, and folds away at their pace as its part goes, as an answered fork's
-   * heads do, so the rows under it never jump by it.
+   * The room of each part whose last row this is, or under the last: it opens from nothing where
+   * it comes to stand, glides to each new height, and folds away as its part goes, as an
+   * answered fork's heads do, each on its own spring kept to a row's reach (`ROW_REACH_PX`), not
+   * timed with the rows a new energy changes together: so the rows under it glide, never jump.
    */
   const roomsAt = (place: string | null) => (
     <AnimatePresence initial={false}>
@@ -200,7 +201,7 @@ export function ReadingList({
           (ends[part] ?? anchor) === place
             ? [
                 <Fold key={part} isAppearing={false} reachPx={ROW_REACH_PX}>
-                  <RoomBeside part={part} room={rooms[part] ?? 0} isPainted={isPainted} />
+                  <RoomBeside part={part} room={roomOf(rooms, part, place)} isPainted={isPainted} />
                 </Fold>,
               ]
             : [],
@@ -258,7 +259,7 @@ export function ReadingList({
               reachPx={at === shown.length - 1 && !isWritten ? undefined : ROW_REACH_PX}
               onGlide={glideOf(`${stop.id} fold`)}
             >
-              <div {...{ [ROW_WORDS_ATTRIBUTE]: stop.id }}>
+              <RowWords stop={stop.id}>
                 {(sunLines[at]?.lead ?? []).map(({ sun, to }) => (
                   <SunLine key={sun.word} daylight={daylight} sun={sun} to={to} />
                 ))}
@@ -279,7 +280,7 @@ export function ReadingList({
                 {(sunLines[at]?.trail ?? []).map(({ sun, to }) => (
                   <SunLine key={sun.word} daylight={daylight} sun={sun} to={to} />
                 ))}
-              </div>
+              </RowWords>
               {roomsAt(stop.id)}
             </Fold>
           </li>
@@ -299,6 +300,8 @@ export function ReadingList({
 
 /** Marks a row's words, by its stop, which a part's room is measured against. */
 const ROW_WORDS_ATTRIBUTE = "data-row-words";
+/** Marks the words of a row folding away, whose rest is nothing. */
+const ROW_LEAVING_ATTRIBUTE = "data-row-leaving";
 /**
  * Marks a row's words inside the box that glides to their height: as tall as they will rest,
  * whatever the box is drawn at this frame.
@@ -311,7 +314,7 @@ const ROOM_ATTRIBUTE = "data-room-beside";
 
 /**
  * The room a part holds after its last row for what its head stands beside the list, gliding
- * to each new height as the rows do, so the rows under it are moved by the plan's own glide; at
+ * to each new height on its own spring, kept to a row's reach, so the rows under it glide; at
  * once before the list is first painted, where it stands whole with the fork.
  */
 function RoomBeside({ part, room, isPainted }: { part: number; room: number; isPainted: boolean }) {
@@ -329,23 +332,30 @@ function RoomBeside({ part, room, isPainted }: { part: number; room: number; isP
  * stands beside the list is than the head and the part's rows. Each is read as it will rest:
  * the head and the rows inside their folds, so one folding in or out never reads short, and a
  * row's words inside the box that glides to them, so a swap or a re-pick moves no room while
- * the rows glide. The head is the part's that stands, never one folding away as a take moves
- * it. Read after each render and as any of them is resized; none while nothing stands beside
- * the list.
+ * the rows glide. A row folding away counts for nothing, its rest, and the head is the part's
+ * that stands, never one folding away as a take moves it. Read after each render and as any of
+ * them is resized; none while nothing stands beside the list, and those measured go with the
+ * fork they were measured for.
  */
 function useRoomsBeside(
   list: RefObject<HTMLOListElement | null>,
   isBeside: boolean,
   anchors: readonly (string | null)[],
   ends: readonly (string | null)[],
-): Readonly<Record<number, number>> {
-  const [rooms, setRooms] = useState<Readonly<Record<number, number>>>({});
+): Rooms {
+  const [rooms, setRooms] = useState<Rooms>(NO_ROOMS);
+  // Rooms measured for a fork beside the list go with it, so none stands at once for the next.
+  if (!isBeside && rooms !== NO_ROOMS) setRooms(NO_ROOMS);
   useLayoutEffect(() => {
     const element = list.current;
     if (!element || !isBeside) return undefined;
     const measure = () => {
-      const rows = [...element.querySelectorAll<HTMLElement>(`[${ROW_WORDS_ATTRIBUTE}]`)];
-      const next: Record<number, number> = {};
+      const rows = [
+        ...element.querySelectorAll<HTMLElement>(
+          `[${ROW_WORDS_ATTRIBUTE}]:not([${ROW_LEAVING_ATTRIBUTE}])`,
+        ),
+      ];
+      const next: Record<number, Room> = {};
       anchors.forEach((anchor, part) => {
         const head = element.querySelector<HTMLElement>(
           `[${PART_HEAD_ATTRIBUTE}="${part}"]:not([inert])`,
@@ -359,7 +369,8 @@ function useRoomsBeside(
           first === -1 || last === -1
             ? 0
             : rows.slice(first, last + 1).reduce((sum, row) => sum + atRestOf(row), 0);
-        next[part] = Math.ceil(Math.max(0, beside.offsetHeight - head.offsetHeight - words));
+        const height = Math.ceil(Math.max(0, beside.offsetHeight - head.offsetHeight - words));
+        next[part] = { at: end, height };
       });
       setRooms((current) => (isSameRooms(current, next) ? current : next));
     };
@@ -380,10 +391,47 @@ function atRestOf(row: HTMLElement): number {
   }, 0);
 }
 
-function isSameRooms(a: Readonly<Record<number, number>>, b: Readonly<Record<number, number>>) {
+/** The room a part holds, and after which row it was measured to stand: null under the last. */
+interface Room {
+  at: string | null;
+  height: number;
+}
+
+/** Each part's room, by its part. */
+type Rooms = Readonly<Record<number, Room>>;
+
+const NO_ROOMS: Rooms = {};
+
+/**
+ * The room a part holds after a row, or under the last: what was measured for it there, and
+ * nothing where it has just come to stand, so it opens from nothing to what is measured for it.
+ */
+function roomOf(rooms: Rooms, part: number, place: string | null): number {
+  const room = rooms[part];
+  return room?.at === place ? room.height : 0;
+}
+
+function isSameRooms(a: Rooms, b: Rooms) {
   const keys = Object.keys(a);
   return (
-    keys.length === Object.keys(b).length && keys.every((key) => a[Number(key)] === b[Number(key)])
+    keys.length === Object.keys(b).length &&
+    keys.every((key) => {
+      const [one, other] = [a[Number(key)], b[Number(key)]];
+      return one?.at === other?.at && one?.height === other?.height;
+    })
+  );
+}
+
+/**
+ * A row's words, marked by its stop for the room beside its part, and as leaving while the row
+ * folds away: it still stands in the list, but its rest is nothing.
+ */
+function RowWords({ stop, children }: { stop: string; children: ReactNode }) {
+  const isPresent = useIsPresent();
+  return (
+    <div {...{ [ROW_WORDS_ATTRIBUTE]: stop, [ROW_LEAVING_ATTRIBUTE]: isPresent ? undefined : "" }}>
+      {children}
+    </div>
   );
 }
 

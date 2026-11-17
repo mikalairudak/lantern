@@ -1,4 +1,4 @@
-import { act, render, renderHook, screen } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { completeDraftOf, type StopDraft } from "@/features/abacus/day-draft";
@@ -182,6 +182,45 @@ describe("chartArrivalsOf", () => {
 
     expect(arrival).toEqual(result.current.of(stop));
     expect(arrival.isReady).toBe(true);
+  });
+
+  it("slides a proposal's row re-picked as it arrives towards the place it draws, not the one written", async () => {
+    // A stop written reflective, its version social, arriving on a chart asked balanced.
+    const [base] = completeDraftOf(itineraryOf(KYOTO_DAY)).stops.filter(
+      ({ alternatives }) => alternatives.length > 0,
+    );
+    const written = {
+      ...base!.primary,
+      sensory: { ...base!.primary.sensory!, energy: "reflective" },
+    };
+    const version = {
+      ...base!.alternatives[0]!,
+      sensory: { ...base!.alternatives[0]!.sensory, energy: "social" },
+    };
+    const stop: StopDraft = {
+      ...base!,
+      primary: written,
+      alternatives: [version],
+      selectedPlaceId: written.id,
+    } as StopDraft;
+    const balanced = ENERGY_LEVELS.indexOf("balanced");
+    const { result, rerender } = renderHook(({ day }) => useArrivals(day, balanced), {
+      initialProps: { day: [] as StopDraft[] },
+    });
+    rerender({ day: [stop] });
+    // Re-picked to its social version while its bead slides in.
+    const [row] = proposedAtOf([stop], new Set([stop.id]), [
+      { ...stop, selectedPlaceId: version.id },
+    ]);
+
+    const slide = await waitFor(() => {
+      const now = result.current.of(stop).slide;
+      if (now === null || now === balanced) throw new Error("Not sliding yet");
+      return chartArrivalsOf(result.current, [stop]).of(row!).slide;
+    });
+
+    // On its way up, to the social place the row draws, never down to the written one.
+    expect(slide).toBeGreaterThan(balanced);
   });
 });
 

@@ -106,11 +106,12 @@ describe("PartSlip", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("keeps a line's mark on the line of its dot, so a line never ends on the dot alone", () => {
+  it("binds a line's first dot to the words either side with no-break spaces, so a line never ends on it", () => {
     const { container } = renderSlip(EVENING, momentOf("whole"));
 
-    // Every break a line may take falls in its name or after a later dot, never after the first.
-    for (const line of linesOf(container)) expect(line).toMatch(/ · /);
+    // The first dot alone, its spaces both U+00A0: where else a line may break, in its name or
+    // inside a mark of two words, is the browser's to choose.
+    for (const line of linesOf(container)) expect(line).toMatch(/\u00a0·\u00a0/);
   });
 
   it("takes the proposal at its answer, and keeps the day at the fork line's", async () => {

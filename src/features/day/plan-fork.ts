@@ -87,12 +87,19 @@ export function proposedAtOf(
 
 /**
  * The arrivals of the chart's rows, as `proposedAtOf` draws them: a proposal's row re-picked to
- * another of its places arrives as its stop does. Arrivals are kept by the place written into a
- * stop, and the re-picked place was never written in, so read by its own its bead never filled.
+ * another of its places arrives as its stop does, its bead sliding to the place the row draws.
+ * Arrivals are kept by the place written into a stop, and the re-picked place was never written
+ * in, so read by its own its bead never filled.
  */
 export function chartArrivalsOf(arrivals: Arrivals, stops: readonly StopDraft[]): Arrivals {
   const own = new Map(stops.map((stop) => [stop.id, stop]));
-  return { ...arrivals, of: (row) => arrivals.of(own.get(row.id) ?? row) };
+  return {
+    ...arrivals,
+    of: (row) => {
+      const stop = own.get(row.id);
+      return stop === undefined ? arrivals.of(row) : arrivals.of(stop, row);
+    },
+  };
 }
 
 /** A fork's parts as the plan draws them. */
