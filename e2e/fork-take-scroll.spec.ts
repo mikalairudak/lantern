@@ -16,11 +16,11 @@ const DAY_TIMEOUT_MS = waitMs(45_000);
 /** Where on the screen the control is pressed, its middle this far under the screen's top. */
 const PRESSED_AT_PX = 205;
 /** From the press until the rows the take moves have come to rest, with a margin. */
-const WATCHED_MS = 4500;
+const WATCHED_MS = waitMs(4500);
 /**
  * The most the plan's fork row may move on the screen after a take, its answer pressed where it
  * stood. While the chart, unseen, held its own first row in view, it scrolled the plan's page,
- * and the row with it, by 88 px on a phone and 56 px on a laptop.
+ * and the row with it, by 88 to 114 px on a phone and 56 to 59 px on a laptop.
  */
 const PLAN_ROW_PX = 2;
 /** Room added under the page, a screen's height and more. */
@@ -46,7 +46,7 @@ function shownForkRow(page: Page, part: number): Locator {
   return page.locator(`[data-fork-row="${part}"]`).filter({ visible: true });
 }
 
-/** The day's energy, whose chart says it is busy while rows move or a proposal is written. */
+/** The day's energy, whose chart says it is busy while a day or a proposal is written. */
 function theDay(page: Page): Locator {
   return page.locator('[aria-label^="The day\'s energy"]');
 }
@@ -60,7 +60,7 @@ async function eatLateInElche(page: Page): Promise<void> {
   await page.getByRole("option", { name: "eating late" }).click();
 }
 
-/** Waits for the proposal to stand whole beside the day, the day at rest around it. */
+/** Waits for the proposal to stand whole beside the day. */
 async function waitForTheProposal(page: Page): Promise<void> {
   await expect(
     shownForkRow(page, 0).getByRole("radio", { name: "eating late, proposed" }),
@@ -70,7 +70,7 @@ async function waitForTheProposal(page: Page): Promise<void> {
 
 /**
  * Scrolls at once so `control`'s middle stands `PRESSED_AT_PX` down the screen, and waits until
- * the page stays there.
+ * the page and the control stay there.
  */
 async function bringToPress(page: Page, control: Locator): Promise<void> {
   await control.evaluate((element, at) => {
@@ -79,11 +79,16 @@ async function bringToPress(page: Page, control: Locator): Promise<void> {
   }, PRESSED_AT_PX);
   await expect
     .poll(() =>
-      page.evaluate(
-        () =>
+      control.evaluate(
+        (element) =>
           new Promise<boolean>((settled) => {
             const from = scrollY;
-            requestAnimationFrame(() => requestAnimationFrame(() => settled(scrollY === from)));
+            const top = element.getBoundingClientRect().top;
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() =>
+                settled(scrollY === from && element.getBoundingClientRect().top === top),
+              ),
+            );
           }),
       ),
     )
@@ -107,8 +112,11 @@ async function startWatching(page: Page, selector: string): Promise<void> {
     state.watchedFrames = [];
     state.isWatching = true;
     const sample = () => {
-      const shown = [...document.querySelectorAll(watched)].find((element) =>
-        element.checkVisibility({ visibilityProperty: true }),
+      // A row folded away to no height is still in the page while it leaves: not that one.
+      const shown = [...document.querySelectorAll(watched)].find(
+        (element) =>
+          element.checkVisibility({ visibilityProperty: true }) &&
+          element.getBoundingClientRect().height > 0,
       );
       state.watchedFrames.push({ scrollY, y: shown?.getBoundingClientRect().top ?? null });
       if (state.isWatching) requestAnimationFrame(sample);

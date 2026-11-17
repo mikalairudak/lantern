@@ -10,7 +10,7 @@ const PROPOSED = { example: 0, state: "proposed", density: null } as const;
 const CHART_TOP_PX = -50;
 /** How far down the page the chart moves, as something above it grows. */
 const CHART_MOVED_PX = 20;
-/** A pen, Motion's frames and the rows' first places, well within this. */
+/** How long the rows are given to be placed: a pen, Motion's frames and the rows' first places take well under it. */
 const SPRINGS_TIMEOUT = { timeout: 3000 };
 
 /** Whether the lab's rows are told they are on show; left out, as a lab cell leaves it. */
