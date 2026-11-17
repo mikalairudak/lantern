@@ -123,6 +123,11 @@ interface DayRowsProps extends ChartPassThrough {
    */
   isReplanning?: boolean;
   /**
+   * The day is on show as its chart: false while it is laid out unseen behind the plan, where
+   * nothing it does may move the page the visitor reads.
+   */
+  isOnShow?: boolean;
+  /**
    * A version's stops fading out where they stand as the fork folds it, a proposal left or
    * failed, or the old part once one is taken: unseen, off the curve, then gone.
    */
@@ -230,6 +235,7 @@ interface MeasuredRoom extends Omit<SheetRoom, "frameHeight"> {
  */
 export function DayRows({
   isReplanning = false,
+  isOnShow = true,
   fading = NO_IDS,
   fork = null,
   width,
@@ -667,11 +673,13 @@ export function DayRows({
   // While a fork's rows come and go, the rows in view stay where the visitor reads them: the
   // first row in view is held, and when rows above the screen make room or give it back, the
   // page scrolls by as much, as the header's glide holds the view after a gesture. Only once
-  // the chart's top is above the screen, so a header in view is never scrolled away from.
+  // the chart's top is above the screen, so a header in view is never scrolled away from, and
+  // only while the chart is on show: behind the plan its rows are laid out unseen, and the page
+  // is the plan's.
   const heldInView = useRef<{ id: string; y: number } | null>(null);
   const isForkMoving = fork !== null || proposed.size > 0 || fading.size > 0;
   useLayoutEffect(() => {
-    if (!outer || !isForkMoving) {
+    if (!outer || !isForkMoving || !isOnShow) {
       heldInView.current = null;
       return;
     }

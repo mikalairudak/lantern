@@ -1519,6 +1519,7 @@ export function DayStage({
                     fork={fork}
                     onFaded={onReplanFaded}
                     isReplanning={replanFrame !== null}
+                    isOnShow={view === "chart"}
                     rewritingStop={null}
                     onPensWriting={setIsRowPenWriting}
                     hoveredPlace={hoveredPlace}
