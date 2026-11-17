@@ -56,7 +56,7 @@ flowchart TD
 | `src/lib/tokens/`            | Motion springs, icon sizes, the root's size, theme colours, the token catalog, and the tests that hold them                                                |
 | `src/lib/http/`              | Security headers and the studio lock                                                                                                                       |
 | `src/lib/analytics/`         | What page views leave out, where they are counted, and the owner's mark that counts a browser out                                                          |
-| `src/lib/brand/`             | The link card's line length and the favicon's ICO writer                                                                                                   |
+| `src/lib/brand/`             | The site's link card laid out, its line's rows, its fonts' measures, its plates' masks and its palette, and the favicon's ICO writer                       |
 | `src/lib/ops/`               | `pnpm prod:read`: production's database through a read-only role                                                                                           |
 | `src/lib/site.ts`            | The public address, the site's description and each page's metadata                                                                                        |
 | `src/lib/same-site.ts`       | The 403 for a post from another site                                                                                                                       |
