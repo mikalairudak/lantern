@@ -214,7 +214,8 @@ export function ReadingList({
    * after the list was drawn folds in with it; one there before the list's first paint stands
    * whole. In the column a head that comes over a row already there, as at a press, comes into
    * full ink on its spring's own time while its room still opens at a row's pace: its fork line
-   * says Lantern has begun, and the room a whole day holds on a phone kept it pale for seconds.
+   * says Lantern has begun, and ink that followed the room a whole day holds on a phone would
+   * leave it pale for seconds.
    * One drawn anew with its row, as on a take, inks with the row. In the margin its room is a
    * line's, and its ink follows it.
    */

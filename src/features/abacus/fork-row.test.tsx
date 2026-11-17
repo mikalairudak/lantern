@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { FORK_ROW_ATTRIBUTE, ForkLine, ForkRow, shownFirstForkRow } from "./fork-row";
+import { FORK_ROW_ATTRIBUTE, ForkLine, ForkRow, ForkStatus, shownFirstForkRow } from "./fork-row";
 import { FORK_EXAMPLES, FORK_MOMENTS, forkViewAt, type ForkMoment } from "./fork-row-examples";
 import { FORK_ROW_MATRIX } from "./fork-row-matrix";
 import { DEFAULT_DRAWING } from "./rows";
@@ -79,6 +79,26 @@ describe("ForkRow", () => {
     expect(acts.onChoose).not.toHaveBeenCalled();
     expect(screen.getByText("Writing the new stops")).toBeInTheDocument();
     expect(screen.getByText("1 so far")).toBeInTheDocument();
+  });
+
+  it("says the proposal is ready once, and not again as its receipt follows an energy", () => {
+    const ready = forkViewAt(ELCHE, momentOf("ready: take it"));
+    const { rerender } = render(<ForkStatus view={ready} />);
+    const said = "eating late is ready beside your day: Dinner 21:00, not 18:15 · 3 new stops";
+    expect(screen.getByRole("status")).toHaveTextContent(said);
+
+    // The same proposal at another energy: what it would change reads otherwise in the row.
+    const line = ready.line === null ? null : { ...ready.line, words: "1 new stop, 1 later" };
+    rerender(<ForkStatus view={{ ...ready, line }} />);
+    expect(screen.getByRole("status")).toHaveTextContent(said);
+
+    // Chosen, nothing is said; ready anew for another answer, it is said for that one.
+    rerender(<ForkStatus view={{ ...ready, isReady: false, isChosen: true, line: null }} />);
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    rerender(<ForkStatus view={{ ...ready, to: "home by eleven", line }} />);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "home by eleven is ready beside your day: 1 new stop, 1 later",
+    );
   });
 
   it("offers the whole proposal to take, with what it would change, in one control", async () => {

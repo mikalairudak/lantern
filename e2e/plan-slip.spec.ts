@@ -185,7 +185,7 @@ test("keeps the rule at the widths either side of the column's whole, with no si
 /**
  * How long a whole day's fork line on a phone may take from the press to full ink, its room
  * still opening under it: it measures 425 to 431 ms, and the bound stands a little over. The
- * line says that work has begun, and read pale it says less: its ink followed its room, and took
+ * line says that work has begun, and read pale it says less: ink that follows its room takes
  * over seven seconds.
  */
 const FORK_LINE_INK_MS = waitMs(600);

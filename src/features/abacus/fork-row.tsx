@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useReducedMotionConfig } from "motion/react";
-import { useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { cn } from "@/components/ui/cn";
 import { SPRINGS } from "@/lib/tokens/motion";
 import type { ForkSide } from "@/features/day/replan-controls";
@@ -427,17 +427,24 @@ function LineWords({ line }: { line: WorkLine }): ReactNode {
 /**
  * What a screen reader hears of the fork once, from a live region on its first row: that the
  * proposal is ready and what it would change, or why it failed. Nothing while it is written,
- * nor once a version is chosen.
+ * nor once a version is chosen. The sentence is the one said as the fork came to that end: what
+ * a proposal would change follows the energy and a swap, and is read in the row, not said as
+ * ready again.
  */
 export function ForkStatus({ view }: { view: ForkView }) {
-  const said = view.isReady
-    ? `${view.to} is ready beside your day: ${view.line?.words ?? ""}`
-    : view.isFailed
-      ? (view.line?.words ?? "")
-      : "";
+  const end = view.isReady ? "ready" : view.isFailed ? "failed" : "none";
+  const words = view.line?.words ?? "";
+  const sentence =
+    end === "ready"
+      ? `${view.to} is ready beside your day: ${words}`
+      : end === "failed"
+        ? words
+        : "";
+  const [said, setSaid] = useState({ end, to: view.to, sentence });
+  if (said.end !== end || said.to !== view.to) setSaid({ end, to: view.to, sentence });
   return (
     <p role="status" className="sr-only">
-      {said}
+      {said.end === end && said.to === view.to ? said.sentence : sentence}
     </p>
   );
 }
