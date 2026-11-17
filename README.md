@@ -1,6 +1,6 @@
 # Lantern
 
-![Lantern: a lively Saturday in Bologna, written and reshaped](docs/media/lantern-day.gif)
+![Lantern: a lively Sunday in Madrid, written and reshaped](docs/media/lantern-day.gif)
 
 One day in a city, planned hour by hour, as quiet or as lively as you want it.
 
