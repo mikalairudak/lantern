@@ -103,8 +103,8 @@ type ControlPlace = `${number}:${"line" | "slip"}`;
 
 /**
  * When each of the fork's controls was last pressed, on the clock its events carry, by its
- * place: the page keeps one for all its slips, so a slip drawn anew over a version taken knows
- * a press made on the one before it.
+ * place: the page keeps one for all its slips, so a slip drawn anew, as a whole day taken is as
+ * a run of its own, knows a press made on the one before it.
  */
 export type ForkPresses = Map<ControlPlace, number>;
 

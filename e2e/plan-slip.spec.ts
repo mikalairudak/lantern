@@ -532,6 +532,223 @@ async function pressWhereItStands(page: Page, control: Locator): Promise<void> {
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 }
 
+/**
+ * How far the fork line pressed may stray on the screen in any frame from the press to rest, its
+ * head standing through the take. Over the fork's first part nothing above it changes: it
+ * measures 0.8 px at most over three runs at 390 px and 1440. Over the second, on a phone, the
+ * first part's rows and slip change height above the screen and the browser's scroll anchoring
+ * holds the view a frame behind them: 4.1 px at most, and 6.1 with the page's CPU twice as slow
+ * (`pnpm e2e:busy`). A head drawn anew over the version taken's first row stood 206 px lower at
+ * 1440 px and 384 px at 390.
+ */
+const FORK_LINE_STRAY_PX = [1, 7];
+/**
+ * The least ink the answer just pressed stands in, its copies' greatest, in every frame from the
+ * press to rest. It measures 1 in every frame; with a head drawn anew that inked with its row,
+ * the answer stood at its palest at 0.14 to 0.18 of its ink, at 390 px and 1440 alike.
+ */
+const PRESSED_ANSWER_INK = 0.99;
+/** Less ink than this, opacities multiplied up the page, and a copy is not seen. */
+const SEEN_INK = 0.05;
+/** A copy clipped to fewer pixels of height than this on the screen is not seen. */
+const SEEN_PX = 2;
+/** Where on the screen the answer pressed stands, its middle this far under the screen's top. */
+const PRESSED_AT_PX = 205;
+
+/** Room added under the page, a screen's height and more. */
+const ROOM_UNDER_PX = 1000;
+/** From the press until a take's rows rest, 3.8 s at most on a phone, with a margin. */
+const TAKE_WATCHED_MS = waitMs(5000);
+
+/** One frame of a fork's part through a take: its fork lines seen, and the answer's ink. */
+interface ForkFrame {
+  t: number;
+  /** The top on the screen of each copy of the part's fork line that is seen. */
+  seen: number[];
+  /** The top of the copy that takes presses, the one not folding away; null if none. */
+  live: number | null;
+  /** The most ink any copy of the pressed answer stands in, seen or not. */
+  answerInk: number;
+}
+
+/**
+ * Samples each frame from now, until `TAKE_WATCHED_MS` after the next click: each copy of the
+ * part's fork line on the plan that is seen, as a hand would see it, with a box of some height left
+ * inside its clipping boxes and the screen, at more than `SEEN_INK` of its ink, opacities
+ * multiplied up the page; and the most ink among the copies of the answer named `answer`, the one
+ * pressed, in the fork line or its slip.
+ */
+async function sampleForkLines(page: Page, part: number, answer: string): Promise<void> {
+  await page.evaluate(
+    ([forkPart, named, watched, seenInk, seenPx]) => {
+      const sample = { pressedAt: null as number | null, frames: [] as ForkFrame[] };
+      (window as unknown as { forks_: typeof sample }).forks_ = sample;
+      document.addEventListener(
+        "click",
+        () => {
+          sample.pressedAt = performance.now();
+        },
+        { capture: true, once: true },
+      );
+      const inkOf = (element: Element) => {
+        let ink = 1;
+        for (let at: Element | null = element; at !== null; at = at.parentElement) {
+          ink *= Number.parseFloat(getComputedStyle(at).opacity);
+        }
+        return ink;
+      };
+      // The box's height left on the screen inside every box above it that clips.
+      const shownHeightOf = (element: Element) => {
+        const box = element.getBoundingClientRect();
+        let top = Math.max(box.top, 0);
+        let bottom = Math.min(box.bottom, innerHeight);
+        for (let at = element.parentElement; at !== null; at = at.parentElement) {
+          if (getComputedStyle(at).overflowY === "visible") continue;
+          const clip = at.getBoundingClientRect();
+          top = Math.max(top, clip.top);
+          bottom = Math.min(bottom, clip.bottom);
+        }
+        return bottom - top;
+      };
+      const tick = () => {
+        const list = document.querySelector('ol[aria-label="The day, to read"]');
+        const lines = [...(list?.querySelectorAll(`[data-fork-row="${forkPart}"]`) ?? [])];
+        const seen = lines.flatMap((line) =>
+          line.checkVisibility({ visibilityProperty: true }) &&
+          inkOf(line) > seenInk &&
+          shownHeightOf(line) > seenPx
+            ? [line.getBoundingClientRect().top]
+            : [],
+        );
+        const live = lines.find((line) => line.closest("[inert]") === null);
+        const answers = lines.flatMap((line) => [
+          ...line.querySelectorAll(`[role="radio"][aria-label^="${named},"]`),
+        ]);
+        const answerInk = Math.max(
+          0,
+          ...answers.map((each) =>
+            each.checkVisibility({ visibilityProperty: true }) && shownHeightOf(each) > 0
+              ? inkOf(each)
+              : 0,
+          ),
+        );
+        sample.frames.push({
+          t: performance.now(),
+          seen,
+          live: live?.getBoundingClientRect().top ?? null,
+          answerInk,
+        });
+        const pressedAt = sample.pressedAt;
+        if (pressedAt === null || performance.now() - pressedAt < watched) {
+          requestAnimationFrame(tick);
+        }
+      };
+      requestAnimationFrame(tick);
+    },
+    [part, answer, TAKE_WATCHED_MS, SEEN_INK, SEEN_PX] as const,
+  );
+}
+
+/** The frames from the press on, once `TAKE_WATCHED_MS` of them are sampled. */
+async function sampledForkLines(page: Page): Promise<ForkFrame[]> {
+  await page.waitForFunction(
+    (watched) => {
+      const { pressedAt, frames } = (
+        window as unknown as { forks_: { pressedAt: number | null; frames: ForkFrame[] } }
+      ).forks_;
+      return pressedAt !== null && (frames.at(-1)?.t ?? 0) - pressedAt >= watched;
+    },
+    TAKE_WATCHED_MS,
+    { timeout: DAY_TIMEOUT_MS },
+  );
+  const { pressedAt, frames } = await page.evaluate(
+    () => (window as unknown as { forks_: { pressedAt: number; frames: ForkFrame[] } }).forks_,
+  );
+  return frames.filter(({ t }) => t >= pressedAt);
+}
+
+/** Where the fork line pressed stood, and the frames after: what they held it to. */
+function forkBarsOf(at: number, frames: readonly ForkFrame[]) {
+  return {
+    mostSeen: Math.max(...frames.map(({ seen }) => seen.length)),
+    mostStray: Math.max(...frames.map(({ live }) => Math.abs((live ?? Infinity) - at))),
+    leastInk: Math.min(...frames.map(({ answerInk }) => answerInk)),
+  };
+}
+
+/**
+ * Presses the part's answer `answer` where it stands, `PRESSED_AT_PX` under the screen's top, or
+ * as near as the page scrolls, and gives each frame from the press until the rows have rested,
+ * with where the fork line stood.
+ */
+async function pressThroughRest(
+  page: Page,
+  part: number,
+  answer: string,
+  description: string,
+): Promise<{ at: number; frames: ForkFrame[] }> {
+  const fork = plan(page).locator(`[data-fork-row="${part}"]:not([inert] *)`);
+  const control = fork.getByRole("radio", { name: `${answer}, ${description}` });
+  await control.evaluate((element, at) => {
+    const box = element.getBoundingClientRect();
+    window.scrollTo({ top: box.top + box.height / 2 + scrollY - at, behavior: "instant" });
+  }, PRESSED_AT_PX);
+  await expect(plan(page)).toHaveAttribute("aria-busy", "false");
+  const at = (await fork.boundingBox())?.y;
+  if (at === undefined) throw new Error("The fork line has no box");
+  await sampleForkLines(page, part, answer);
+  await pressWhereItStands(page, control);
+  return { at, frames: await sampledForkLines(page) };
+}
+
+test.describe("with motion, a part taken and taken back", { tag: "@frame" }, () => {
+  test.use({ reducedMotion: "no-preference" });
+
+  test("keeps one fork line where it was pressed, its answer in ink, from the press to rest", async ({
+    page,
+    isMobile,
+  }) => {
+    test.setTimeout(3 * DAY_TIMEOUT_MS);
+    // A phone's column, where the slip stands under the fork line, and a laptop's margin.
+    await page.setViewportSize(
+      isMobile ? { width: 390, height: 844 } : { width: 1440, height: 900 },
+    );
+    await openElche(page);
+    // Room under the page, so its end never stops the evening short of where it is pressed, nor
+    // moves the view as the page under it changes height.
+    await page.evaluate((room) => {
+      document.body.style.paddingBottom = `${room}px`;
+    }, ROOM_UNDER_PX);
+    await eatLate(page);
+    await waitForTheProposal(page);
+
+    // The lunch, the fork's first part, then the evening that ends the day: each taken, then
+    // taken back, each part pressed where it stands.
+    const gestures = [
+      { part: 0, answer: "eating late", description: "proposed", kept: "early dinner" },
+      { part: 0, answer: "early dinner", description: "the day before", kept: "eating late" },
+      { part: 1, answer: "eating late", description: "proposed", kept: "early dinner" },
+      { part: 1, answer: "early dinner", description: "the day before", kept: "eating late" },
+    ];
+    for (const { part, answer, description, kept } of gestures) {
+      const gesture = `${answer} pressed in part ${part}`;
+      const { at, frames } = await pressThroughRest(page, part, answer, description);
+      // Taken in both parts: a press that missed would leave the fork as it was.
+      const fork = plan(page).getByRole("radiogroup");
+      await expect(fork.getByRole("radio", { name: `${answer}, your day` })).toHaveCount(2);
+      await expect(fork.getByRole("radio", { name: `${kept}, your day` })).toHaveCount(0);
+      const bars = forkBarsOf(at, frames);
+      expect(bars.mostSeen, `fork lines seen at once, ${gesture}`).toBeLessThanOrEqual(1);
+      expect(bars.mostStray, `the fork line's stray, ${gesture}`).toBeLessThanOrEqual(
+        FORK_LINE_STRAY_PX[part] ?? 0,
+      );
+      expect(bars.leastInk, `the pressed answer's ink, ${gesture}`).toBeGreaterThanOrEqual(
+        PRESSED_ANSWER_INK,
+      );
+    }
+  });
+});
+
 test.describe("with motion", { tag: "@frame" }, () => {
   test.use({ reducedMotion: "no-preference" });
 
