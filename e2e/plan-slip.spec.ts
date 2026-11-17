@@ -183,6 +183,96 @@ test("keeps the rule at the widths either side of the column's whole, with no si
 });
 
 /**
+ * How long a whole day's fork line on a phone may take from the press to full ink, its room
+ * still opening under it: it measures 425 to 431 ms, and the bound stands a little over. The
+ * line says that work has begun, and read pale it says less: its ink followed its room, and took
+ * over seven seconds.
+ */
+const FORK_LINE_INK_MS = waitMs(600);
+/** Long enough to see a fork line inked as slowly as its room opens, 6.3 s, and more. */
+const INK_WATCHED_MS = waitMs(8000);
+
+/** A press's moment and, each frame from before it, how opaque the plan's first fork line is. */
+interface InkSample {
+  pressedAt: number | null;
+  frames: { t: number; ink: number | null }[];
+}
+
+/**
+ * Samples each frame, for `INK_WATCHED_MS`, how opaque the plan's first fork line is as drawn,
+ * each opacity it stands in multiplied, null while there is none; and when the next click comes.
+ */
+async function sampleForkInk(page: Page): Promise<void> {
+  await page.evaluate((watched) => {
+    const sample: InkSample = { pressedAt: null, frames: [] };
+    (window as unknown as { ink_: InkSample }).ink_ = sample;
+    document.addEventListener(
+      "click",
+      () => {
+        sample.pressedAt = performance.now();
+      },
+      { capture: true, once: true },
+    );
+    const started = performance.now();
+    const tick = () => {
+      const line = document.querySelector('ol[aria-label="The day, to read"] [data-fork-row="0"]');
+      let ink: number | null = line === null ? null : 1;
+      for (let at: Element | null = line; at !== null; at = at.parentElement) {
+        ink = (ink ?? 1) * Number.parseFloat(getComputedStyle(at).opacity);
+      }
+      sample.frames.push({ t: performance.now(), ink });
+      if (performance.now() - started < watched) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, INK_WATCHED_MS);
+}
+
+/** How long from the press the fork line took to stand in full ink; null if it never did. */
+async function inkedAfterPress(page: Page): Promise<number | null> {
+  await page.waitForFunction(
+    (watched) => {
+      const frames = (window as unknown as { ink_: InkSample }).ink_.frames;
+      return (frames.at(-1)?.t ?? 0) - (frames[0]?.t ?? 0) >= watched - 50;
+    },
+    INK_WATCHED_MS,
+    { timeout: DAY_TIMEOUT_MS },
+  );
+  const { pressedAt, frames } = await page.evaluate(
+    () => (window as unknown as { ink_: InkSample }).ink_,
+  );
+  if (pressedAt === null) throw new Error("No press was seen");
+  const inked = frames.find(({ t, ink }) => t >= pressedAt && ink !== null && ink >= 0.999);
+  return inked === undefined ? null : inked.t - pressedAt;
+}
+
+test.describe("with motion, outside the frame specs", () => {
+  test.use({ reducedMotion: "no-preference" });
+
+  test("inks a whole day's fork line at once on a phone, while its room opens", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "phone", "A phone's column, where the room is tallest");
+    test.setTimeout(2 * DAY_TIMEOUT_MS);
+    await openElche(page);
+    await page
+      .locator("h1")
+      .getByRole("button", { name: /^with / })
+      .first()
+      .click();
+    await sampleForkInk(page);
+    await page
+      .getByRole("option")
+      .filter({ hasText: /friends/ })
+      .first()
+      .click();
+
+    const inkedMs = await inkedAfterPress(page);
+    expect(inkedMs, "the fork line never stood in full ink").not.toBeNull();
+    expect(inkedMs ?? Infinity).toBeLessThanOrEqual(FORK_LINE_INK_MS);
+  });
+});
+
+/**
  * How fast the rows on screen may move as a whole day's proposal is taken at 1280 px, from the
  * press to rest: in a 60 Hz frame's time, and between two frames, however long the one between
  * them took. Over twelve runs with the machine to itself the plan measures 2.7 to 3.0 px a

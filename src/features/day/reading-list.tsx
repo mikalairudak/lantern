@@ -212,7 +212,11 @@ export function ReadingList({
    * The heads of the parts that stand over a row, or under the last: each folds in and out as
    * its part comes and goes, and with its row as the row comes and goes. One over a row let in
    * after the list was drawn folds in with it; one there before the list's first paint stands
-   * whole.
+   * whole. In the column a head that comes over a row already there, as at a press, comes into
+   * full ink on its spring's own time while its room still opens at a row's pace: its fork line
+   * says Lantern has begun, and the room a whole day holds on a phone kept it pale for seconds.
+   * One drawn anew with its row, as on a take, inks with the row. In the margin its room is a
+   * line's, and its ink follows it.
    */
   const headsAt = (anchor: string | null, glideKey: string, isWithItsRow: boolean) => (
     <AnimatePresence initial={false} propagate>
@@ -225,6 +229,7 @@ export function ReadingList({
                 reachPx={ROW_REACH_PX}
                 isAppearing={isPainted ? isWithItsRow || undefined : false}
                 isOpenToTheSide={parts?.isBeside}
+                isInkOnItsSpring={!parts?.isBeside}
                 onGlide={glideOf(`${glideKey} head ${part}`)}
               >
                 <PartHead part={part}>{head}</PartHead>

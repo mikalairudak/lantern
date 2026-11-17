@@ -11,7 +11,7 @@ import {
   useTransform,
   type MotionValue,
 } from "motion/react";
-import { useContext, useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
+import { useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { SPRINGS, springOver, type SpringName } from "@/lib/tokens/motion";
 import { cn } from "./cn";
 
@@ -33,7 +33,8 @@ function clampUnit(value: number): number {
 /**
  * How opaque content is at an openness from 0 to 1, by which way it moves: what leaves
  * fades over the first half of its collapse, what arrives shows from a third open. Both
- * follow the openness, so nothing fades ahead of the height it sits in.
+ * follow the openness, so nothing fades ahead of the height it sits in, unless its ink is on
+ * its spring (`useUnfolding`).
  */
 export function opacityAt(openness: number, isLeaving: boolean): number {
   return isLeaving
@@ -78,21 +79,37 @@ function isInstantExit(data: unknown): boolean {
  * @param reach Given, a fold taller than its pixels takes proportionally longer
  * (`springOver`), so what it moves below never moves faster than over that distance.
  * @param onGlide Told as it sets off to open or close and as it comes to rest, or is stopped.
+ * @param isInkOnItsSpring Arriving among what stands, its ink comes in on the spring's own time,
+ * never stretched by `reach`, while its height still opens over it, its edge's feather alone
+ * hiding a line the edge cuts; leaving, its ink follows its height, from the ink it has, so one
+ * that leaves while still opening fades rather than vanishing in a frame. Read as it mounts: one
+ * drawn with its `AnimatePresence`, as with a row drawn anew, inks with its height, as the row
+ * does.
  */
 function useUnfolding(
   isAppearing?: boolean,
   spring: SpringName = "layout",
   reach?: { px: number; height: MotionValue<number> },
   onGlide?: (isGliding: boolean) => void,
+  isInkOnItsSpring = false,
 ): Unfolding {
   const isReducedMotion = useReducedMotion();
   const [isPresent, safeToRemove] = usePresence();
   const isInstant = isInstantExit(usePresenceData());
   const presence = useContext(PresenceContext);
+  const [isInkOwn] = useState(isInkOnItsSpring && presence?.initial !== false);
   const isUnfolding = (isAppearing ?? presence?.initial !== false) && !isReducedMotion;
   const openness = useMotionValue(isUnfolding ? 0 : 1);
+  // How far its ink has come in, on the spring's own time: read only where it arrives so.
+  const inked = useMotionValue(isUnfolding ? 0 : 1);
   const isLeaving = useMotionValue(false);
-  const opacity = useTransform(() => opacityAt(openness.get(), isLeaving.get()));
+  const opacity = useTransform(() => {
+    const open = openness.get();
+    const ink = inked.get();
+    const leaving = isLeaving.get();
+    if (!isInkOwn) return opacityAt(open, leaving);
+    return opacityAt(leaving ? Math.max(open, ink) : ink, leaving);
+  });
   const remove = useRef(safeToRemove);
   const onGlideNow = useRef(onGlide);
   const reachPx = reach?.px;
@@ -111,6 +128,7 @@ function useUnfolding(
     };
     if (isReducedMotion || (!isPresent && isInstant)) {
       openness.set(target);
+      inked.set(target);
       finish();
       return;
     }
@@ -133,11 +151,24 @@ function useUnfolding(
         finish();
       },
     });
+    const inking = isInkOwn ? animate(inked, target, SPRINGS[spring]) : null;
     return () => {
       controls.stop();
+      inking?.stop();
       rest();
     };
-  }, [isPresent, isInstant, isReducedMotion, openness, isLeaving, spring, reachPx, reachHeight]);
+  }, [
+    isPresent,
+    isInstant,
+    isReducedMotion,
+    openness,
+    inked,
+    isInkOwn,
+    isLeaving,
+    spring,
+    reachPx,
+    reachHeight,
+  ]);
 
   return { openness, opacity, isGoneAtOnce: !isPresent && isInstant };
 }
@@ -151,6 +182,12 @@ interface FoldProps {
   reachPx?: number;
   /** See `useUnfolding`: for what waits on what the fold moves below it, as a day's end does. */
   onGlide?: (isGliding: boolean) => void;
+  /**
+   * See `useUnfolding`: words that say something has begun read in full ink as soon as a short
+   * fold's would, however tall the room it opens. Not for a fold open to the side, which has no
+   * feather.
+   */
+  isInkOnItsSpring?: boolean;
   /** A span, set as a block, where only phrasing content may go, such as in a heading. */
   as?: "div" | "span";
   /**
@@ -174,6 +211,7 @@ export function Fold({
   spring,
   reachPx,
   onGlide,
+  isInkOnItsSpring,
   as = "div",
   isOpenToTheSide = false,
   className,
@@ -185,6 +223,7 @@ export function Fold({
     spring,
     reachPx === undefined ? undefined : { px: reachPx, height: contentHeight },
     onGlide,
+    isInkOnItsSpring,
   );
   const content = useRef<HTMLElement>(null);
 
