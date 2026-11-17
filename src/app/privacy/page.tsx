@@ -8,7 +8,7 @@ import { DAY_LINK_DAYS } from "@/lib/days/stored-day";
 import { VISITOR_DAILY_LIMITS } from "@/lib/live/limits";
 import { isLiveNow } from "@/lib/live/live-now";
 import { VISITOR_TEXT_RETENTION_DAYS } from "@/lib/live/retention";
-import { listedPageMetadata } from "@/lib/site";
+import { listedPageMetadata, SITE_AUTHOR, SITE_AUTHOR_PROFILE } from "@/lib/site";
 import { browserStorageLine } from "@/lib/browser-storage";
 
 const TITLE = "Privacy and terms";
@@ -242,7 +242,20 @@ async function Notice() {
       </Section>
 
       <Section heading="Contact">
-        <p>Lantern is run by Mikalai Rudak. Questions about any of this: {contact}.</p>
+        <p>
+          Lantern is run by {SITE_AUTHOR} (
+          {/* A page of its own, told nothing of the one it was opened from. */}
+          <a
+            href={SITE_AUTHOR_PROFILE}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`${SITE_AUTHOR} on LinkedIn`}
+            className={BODY_LINK_CLASSES}
+          >
+            LinkedIn
+          </a>
+          ). Questions about any of this: {contact}.
+        </p>
       </Section>
     </>
   );
