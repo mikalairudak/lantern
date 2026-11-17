@@ -1,20 +1,20 @@
 import { parsePartialJson } from "ai";
-import { draftDayOf, type StopDraft } from "@/features/abacus/day-draft";
+import type { StopDraft } from "@/features/abacus/day-draft";
 import { dayContextOf } from "@/features/abacus/light";
 import {
-  newStopsOf,
   replanFrameOf,
   windowsOf,
+  writtenStopsOf,
+  writtenVersionOf,
   WHOLE_DAY_WINDOW,
   type PartialReplanDraft,
   type ReplanFrame,
-  type ReplanRow,
   type ReplanWindow,
 } from "@/features/abacus/replan-frame";
-import { receiptOf, type WorkReceipt } from "@/features/abacus/work-line";
+import type { WorkReceipt } from "@/features/abacus/work-line";
+import { forkReceiptOf } from "@/features/day/part-slip-lines";
 import type { ReplanWritten } from "@/features/day/replan-controls";
-import { placesKeptOf, writtenOf } from "@/features/day/replan-work";
-import { revealedOf } from "@/features/itinerary/revealed";
+import { wholeDayWrittenOf, writtenOf } from "@/features/day/replan-work";
 import {
   ELCHE_DINNER_BASIS,
   ELCHE_LATE_DINNER_UNREPEATED,
@@ -26,7 +26,7 @@ import {
 } from "@/lib/fixtures/replan/utrecht-morning";
 import type { DayContext } from "@/lib/geo/sun";
 import { normalizeDay } from "@/lib/normalizer/normalize";
-import { mergeShownReplan, movedStopsOf, type ReplanBasis } from "@/lib/replan/merge";
+import { mergeShownReplan, type ReplanBasis } from "@/lib/replan/merge";
 import type {
   AssumableFactKey,
   DayRequest,
@@ -58,7 +58,7 @@ export interface WritingStep {
   frame: ReplanFrame | null;
   /** How far a whole day's stream is written; null for a part's. */
   written: ReplanWritten | null;
-  /** The proposal's stops the stream has finished, in order. */
+  /** The proposal's version of the day as far as the stream has finished it, in order. */
   finished: StopDraft[];
 }
 
@@ -73,6 +73,21 @@ export interface ForkBench {
   receipts: { proposal: WorkReceipt; before: WorkReceipt };
   /** The frames to step through while the proposal is written. */
   steps: () => Promise<WritingStep[]>;
+}
+
+/**
+ * What the proposal would change against the day, and the day before once it is taken, worked
+ * out from the two versions as the page draws them (`forkReceiptOf`).
+ */
+function receiptsOf(
+  fork: Pick<ForkBench, "change" | "reach" | "windows">,
+  before: readonly Stop[],
+  after: readonly Stop[],
+): ForkBench["receipts"] {
+  return {
+    proposal: forkReceiptOf({ ...fork, side: "to", day: before, other: after }),
+    before: forkReceiptOf({ ...fork, side: "from", day: after, other: before }),
+  };
 }
 
 /** The press, before the route has answered: the fork's head alone. */
@@ -104,25 +119,18 @@ async function firstAt<Value>(
   return { at: low, value: await valueAt(low) };
 }
 
-/** A frame's rows the proposal wrote and the page shows: a whole new stop, or one that stays. */
-function finishedOf(frame: ReplanFrame): StopDraft[] {
-  return frame.rows.flatMap((row: ReplanRow) =>
-    row.source === "stays" || (row.source === "proposed" && row.isWhole) ? [row.stop] : [],
-  );
-}
-
 /** A part's proposal, step by step: each of its stops finished, then its versions, then its line. */
 async function partStepsOf(basis: ReplanBasis, replan: GeneratedReplan): Promise<WritingStep[]> {
   const text = JSON.stringify(replan);
   const stepOf = (label: string, partial: PartialReplanDraft): WritingStep => {
     const frame = replanFrameOf(basis, partial);
-    return { label, isLookingDue: true, frame, written: null, finished: finishedOf(frame) };
+    return { label, isLookingDue: true, frame, written: null, finished: writtenVersionOf(frame) };
   };
   const steps = [PRESSED, stepOf("looking", {})];
   for (let count = 1; count <= replan.stops.length; count += 1) {
     const { value } = await firstAt<PartialReplanDraft>(
       text,
-      (partial) => finishedOf(replanFrameOf(basis, partial)).length >= count,
+      (partial) => writtenStopsOf(replanFrameOf(basis, partial)).length >= count,
     );
     steps.push(stepOf(`${count} of ${replan.stops.length} stops finished`, value));
   }
@@ -136,12 +144,6 @@ async function partStepsOf(basis: ReplanBasis, replan: GeneratedReplan): Promise
   return steps;
 }
 
-/** A whole day's stops the stream has finished: each once the next is placed, all once past them. */
-function finishedDayOf(partial: PartialDay): StopDraft[] {
-  const stops = draftDayOf(revealedOf(partial, null)).stops;
-  return partial.alternatives === undefined ? stops.slice(0, -1) : stops;
-}
-
 /** A whole day's proposal, step by step: each of its stops finished, then its versions. */
 async function wholeStepsOf(day: GeneratedDay): Promise<WritingStep[]> {
   const text = dayText(day);
@@ -150,13 +152,13 @@ async function wholeStepsOf(day: GeneratedDay): Promise<WritingStep[]> {
     isLookingDue: true,
     frame: null,
     written: writtenOf(partial),
-    finished: finishedDayOf(partial),
+    finished: wholeDayWrittenOf(partial),
   });
   const steps = [PRESSED, stepOf("looking", {})];
   for (let count = 1; count <= day.stops.length; count += 1) {
     const { value } = await firstAt<PartialDay>(
       text,
-      (partial) => finishedDayOf(partial).length >= count,
+      (partial) => wholeDayWrittenOf(partial).length >= count,
     );
     steps.push(stepOf(`${count} of ${day.stops.length} stops finished`, value));
   }
@@ -178,26 +180,16 @@ function partBenchOf(
   if (!merged.ok) throw new Error(`The bench's proposal does not merge: ${merged.reason}`);
   const before = basis.itinerary.stops;
   const after = merged.itinerary.stops;
-  const moves = [...movedStopsOf(basis, after).values()];
-  const later = moves.filter((move) => move === "later").length;
-  const counts = {
-    added: newStopsOf(after, [basis.idPrefix]).size - moves.length,
-    same: null,
-    later,
-    earlier: moves.length - later,
-  };
+  const windows = windowsOf(basis.itinerary, basis.windows);
   return {
     change,
     reach: "part",
     idPrefix: basis.idPrefix,
-    windows: windowsOf(basis.itinerary, basis.windows),
+    windows,
     before,
     after,
     daylight: dayContextOf(basis.itinerary),
-    receipts: {
-      proposal: receiptOf(change, "part", before, after, counts),
-      before: receiptOf({ word: change.word, to: change.from }, "part", after, before, null),
-    },
+    receipts: receiptsOf({ change, reach: "part", windows }, before, after),
     steps: () => partStepsOf(basis, replan),
   };
 }
@@ -234,10 +226,7 @@ export function kyotoBenchOf(friends: BenchDay): ForkBench {
     before,
     after,
     daylight: dayContextOf(KYOTO_ITINERARY),
-    receipts: {
-      proposal: receiptOf(change, "whole", before, after, placesKeptOf(before, after)),
-      before: receiptOf({ word: change.word, to: change.from }, "whole", after, before, null),
-    },
+    receipts: receiptsOf({ change, reach: "whole", windows: [WHOLE_DAY_WINDOW] }, before, after),
     steps: () => wholeStepsOf(friends.day),
   };
 }

@@ -19,7 +19,6 @@ import {
   mergeReplan,
   mergeShownReplan,
   MIN_MERGED_STOP_MINUTES,
-  movedStopsOf,
   replannedFactsOf,
   shownPlaceOf,
   type MergeOptions,
@@ -483,111 +482,6 @@ describe("a window stop the visitor picked a version of", () => {
     if (!merged.ok) throw new Error(merged.reason);
 
     expect(merged.itinerary.stops[0]?.id).toBe("r1-stop-0");
-  });
-});
-
-describe("movedStopsOf", () => {
-  const timed = (id: string, name: string, startTime: string) => ({
-    id,
-    startTime,
-    durationMinutes: 30,
-    primary: { name },
-  });
-
-  it("says which way each of a part's own places moved, and nothing of a new place or a kept stop", () => {
-    const stops = [
-      // The path was at 08:25 and the temple at 07:30.
-      timed("r1-stop-0", "Philosopher's Path", "07:00"),
-      timed("r1-stop-1", "Shoren-in", "09:00"),
-      timed("r1-stop-2", "Honen-in", "09:40"),
-      ...KYOTO.stops.slice(2),
-    ];
-
-    expect([...movedStopsOf(BASIS, stops)]).toEqual([
-      ["r1-stop-0", "earlier"],
-      ["r1-stop-2", "later"],
-    ]);
-  });
-
-  it("matches each old stop once, and never one a stop that stays stands for", () => {
-    const stops = [
-      // The path written again at its own hour stays, under its own id.
-      at(KYOTO.stops, 1),
-      timed("r1-stop-0", "Honen-in", "09:00"),
-      timed("r1-stop-1", "Honen-in", "09:30"),
-      timed("r1-stop-2", "Philosopher's Path", "09:50"),
-    ];
-
-    expect([...movedStopsOf(BASIS, stops)]).toEqual([["r1-stop-0", "later"]]);
-  });
-
-  it("lets a stop written at its own hour take its old stop, so one of the same name moves from the other", () => {
-    // Two visits to one temple in the morning, at 07:30 and 08:25.
-    const twice = {
-      ...BASIS,
-      itinerary: {
-        ...KYOTO,
-        stops: KYOTO.stops.map((stop, index) =>
-          index === 1 ? { ...stop, primary: { ...stop.primary, name: "Honen-in" } } : stop,
-        ),
-      },
-    };
-    const rest = KYOTO.stops.slice(2);
-
-    // The one at 08:25 stands where it stood; the other, at 07:30 before, comes at 09:00.
-    expect([
-      ...movedStopsOf(twice, [
-        timed("r1-stop-0", "Honen-in", "08:25"),
-        timed("r1-stop-1", "Honen-in", "09:00"),
-        ...rest,
-      ]),
-    ]).toEqual([["r1-stop-1", "later"]]);
-    // The one at 07:30 stands where it stood; the other, at 08:25 before, comes at 08:00.
-    expect([
-      ...movedStopsOf(twice, [
-        timed("r1-stop-0", "Honen-in", "07:30"),
-        timed("r1-stop-1", "Honen-in", "08:00"),
-        ...rest,
-      ]),
-    ]).toEqual([["r1-stop-1", "earlier"]]);
-  });
-
-  it("reads an old stop as its row showed it: the version picked, not the one written", () => {
-    const first = at(KYOTO.stops, 0);
-    const picked = at(first.alternatives, 0);
-    // The day as the route reads it, with the visitor's pick planned.
-    const swapped = { ...BASIS, itinerary: withPicks(KYOTO, { [first.id]: picked.id }) };
-    const rest = KYOTO.stops.slice(1);
-
-    expect([...movedStopsOf(swapped, [timed("r1-stop-0", picked.name, "09:00"), ...rest])]).toEqual(
-      [["r1-stop-0", "later"]],
-    );
-    // The temple the row no longer showed is a new place to it.
-    expect([
-      ...movedStopsOf(swapped, [timed("r1-stop-0", first.primary.name, "09:00"), ...rest]),
-    ]).toEqual([]);
-  });
-
-  it("agrees with the merge on a pick: written again at its start it stays and says nothing, an hour on it moved", () => {
-    const temple = at(KYOTO.stops, 0);
-    const kept = keptPlaceNamesOf(KYOTO, MORNING);
-    const pick = temple.alternatives.find(({ name }) => !kept.includes(name));
-    if (pick === undefined) throw new Error("Kyoto's temple has a version of its own");
-    const picked = { ...BASIS, itinerary: withPicks(KYOTO, { [temple.id]: pick.id }) };
-    const mergedAt = (startTime: string) => {
-      const replan = slowMorning({
-        stops: [newStop(FIRST, pick.name, startTime, 60)],
-        alternatives: [],
-      });
-      const merged = mergeShownReplan({ ...picked, replan });
-      if (!merged.ok) throw new Error(merged.reason);
-      return merged.itinerary.stops;
-    };
-
-    const again = mergedAt(temple.startTime);
-    expect(again[0]?.id).toBe(temple.id);
-    expect([...movedStopsOf(picked, again)]).toEqual([]);
-    expect([...movedStopsOf(picked, mergedAt("08:30"))]).toEqual([["r1-stop-0", "later"]]);
   });
 });
 

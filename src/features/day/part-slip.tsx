@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type MouseEvent,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -30,7 +31,8 @@ import { HAIRLINE, PROPOSED_WIRE_DASH } from "@/features/abacus/geometry";
 import type { WorkLine, WorkReach } from "@/features/abacus/work-line";
 import { ROW_REACH_PX, SPRINGS } from "@/lib/tokens/motion";
 import { heldLinesOf, SEPARATOR, slipFootOf, slipLinesOf, type SlipLine } from "./part-slip-lines";
-import { useEntryPen } from "./reading-list";
+import { DOUBLE_PRESS_MS } from "./plan-fork";
+import { BESIDE_ATTRIBUTE, useEntryPen } from "./reading-list";
 import type { ForkSide } from "./replan-controls";
 import type { ForkView } from "./replan-work";
 
@@ -40,7 +42,8 @@ import type { ForkView } from "./replan-work";
  * stop, time and name, in the versions' blue on the versions' dashed wire, headed by its answer
  * and "Take". The plan's rows stay the day's alone; the slip is the comparison, open while the
  * fork stands. In the column it stands under the fork line, at the head of its part; in the
- * margin, out of flow beside the plan, so the plan gains only the fork line.
+ * margin, out of flow beside the plan, so the plan gains the fork line, and after the part's
+ * last row only the room the slip takes beyond the part (`ReadingList`).
  */
 
 /** Marks a slip, so what holds room for it, or measures it, finds it. */
@@ -51,9 +54,11 @@ export type SlipPlacement = "column" | "margin";
 
 /**
  * Every word of the fork is a note's size, as a row's second line is. Its hairline goes at the
- * list's first row, as the fork row's does.
+ * list's first row, as the fork row's does. It sets no position of its own: the slip in the
+ * margin stands from the plan's row it heads (`ReadingList`), outside the fold that opens the
+ * fork line's room, which would cut it.
  */
-const FORK_CLASSES = "relative border-t border-line pt-3 pb-3 type-note group-first:border-t-0";
+const FORK_CLASSES = "border-t border-line pt-3 pb-3 type-note group-first:border-t-0";
 
 /** The gutter, the rail's room and the words, as the plan's row lays them out. */
 const LINE_ROW_CLASSES = "flex gap-3";
@@ -67,11 +72,11 @@ const RAIL_ROOM_CLASSES = "w-2 shrink-0";
  * The slip's answer: the fork row's pill without its pull to the bead's column, so its edge
  * stands on the slip's wire.
  */
-const SLIP_PILL_CLASSES = "rounded-full px-2";
+const SLIP_PILL_CLASSES = "px-2";
 
-/** In the margin: out of flow at the fork's top, the fork's hairline carried over it. */
+/** In the margin: out of flow at the top of the row it heads, the fork's hairline carried over it. */
 const MARGIN_CLASSES =
-  "absolute -top-px left-full w-margin border-t border-line pt-3 pl-4 group-first:border-t-0";
+  "absolute top-0 left-full w-margin border-t border-line pt-3 pl-4 group-first:border-t-0";
 
 /** The slip's body on its wire: the receipt or the work line, its lines, its foot. */
 const BODY_CLASSES = "relative mt-1.5 pl-3";
@@ -80,15 +85,28 @@ const LINE_CLASSES = "flex gap-2";
 /** A line's time: wide enough for "23:45", in figures of one width. */
 const TIME_CLASSES = "w-10 shrink-0 tabular-nums";
 
-/** A line's room held unseen, and a word tied to the next: a space no line breaks at. */
+/** A word tied to the next: a space no line breaks at. */
 const NO_BREAK = "\u00a0";
 
 /**
  * How a moved line names the hour the day on screen gives that place, by whose version the slip
  * lists: the proposal's lines say what the hour was; once it is taken, the day before's lines say
- * what it is now.
+ * what it is now, "now at 01:30". The words and their hour never part at a line's end.
  */
-export const MOVED_WORDS: Readonly<Record<ForkSide, string>> = { to: "was", from: "now" };
+export const MOVED_WORDS: Readonly<Record<ForkSide, string>> = {
+  to: "was",
+  from: `now${NO_BREAK}at`,
+};
+
+/** Where a control stands in the fork: its part, and the fork line's answer or the slip's. */
+type ControlPlace = `${number}:${"line" | "slip"}`;
+
+/**
+ * When each of the fork's controls was last pressed, on the clock its events carry, by its
+ * place: the page keeps one for all its slips, so a slip drawn anew over a version taken knows
+ * a press made on the one before it.
+ */
+export type ForkPresses = Map<ControlPlace, number>;
 
 /** How far faded in a milestone's words come in, so a change of words reads as one. */
 const NOTE_COMES_FROM = 0.3;
@@ -115,6 +133,8 @@ export interface PartSlipProps {
   placement: SlipPlacement;
   onChoose: (side: ForkSide) => void;
   onAskAgain: () => void;
+  /** The page's record of presses (`ForkPresses`); left out, the slip keeps its own. */
+  presses?: ForkPresses;
 }
 
 /** A part's fork on the plan: its fork line, and the other version beside it as a slip. */
@@ -129,16 +149,31 @@ export function PartSlip({
   placement,
   onChoose,
   onAskAgain,
+  presses,
 }: PartSlipProps) {
   const group = useRef<HTMLDivElement>(null);
+  const ownPresses = useRef<ForkPresses>(new Map());
   useFocusOnChecked(group, view.chosen);
   // An ending without a proposal is said once, at the fork's first part.
   if (view.isFailed && index > 0) return null;
   const isOtherEnabled = !view.isWriting && !view.isFailed;
   const otherSide: ForkSide = view.chosen === "to" ? "from" : "to";
-  const choose = (side: ForkSide) => {
-    if (side === otherSide && !isOtherEnabled) return;
+  /** Chooses an answer, unless its version cannot be taken yet; whether it was chosen. */
+  const choose = (side: ForkSide): boolean => {
+    if (side === otherSide && !isOtherEnabled) return false;
     onChoose(side);
+    return true;
+  };
+  /**
+   * A press on a control: the second of a double press on it does nothing. Only a press that
+   * chose is remembered, so one on a version still being written takes nothing from the next.
+   */
+  const press = (side: ForkSide, at: "line" | "slip", event: MouseEvent<HTMLButtonElement>) => {
+    const pressed = presses ?? ownPresses.current;
+    const place: ControlPlace = `${index}:${at}`;
+    const last = pressed.get(place);
+    if (last !== undefined && event.timeStamp - last < DOUBLE_PRESS_MS) return;
+    if (choose(side)) pressed.set(place, event.timeStamp);
   };
   // Arrows take the other answer, as a radio group does; the focus follows the checked one.
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -148,7 +183,8 @@ export function PartSlip({
     choose(otherSide);
   };
   const label = `${view.from} or ${view.to}`;
-  const isCounted = count > 1;
+  // An ending is said on one line for the whole fork, so it counts no part of it.
+  const isCounted = count > 1 && !view.isFailed;
   const slip = !view.isFailed && (
     <Slip
       view={view}
@@ -159,7 +195,7 @@ export function PartSlip({
       reach={reach}
       isInColumn={placement === "column"}
       side={otherSide}
-      onChoose={choose}
+      onPress={(side, event) => press(side, "slip", event)}
     />
   );
   return (
@@ -179,14 +215,20 @@ export function PartSlip({
           </span>
           <span aria-hidden className={RAIL_ROOM_CLASSES} />
           <div className="min-w-0 grow">
-            <ShownAnswer view={view} onChoose={choose} />
+            <ShownAnswer view={view} onPress={(side, event) => press(side, "line", event)} />
             {view.isFailed && <Ending view={view} onAskAgain={onAskAgain} />}
             {placement === "column" && <SlipPresence>{slip}</SlipPresence>}
           </div>
         </div>
       </GlidingHeight>
       {placement === "margin" && (
-        <SlipPresence>{slip && <div className={MARGIN_CLASSES}>{slip}</div>}</SlipPresence>
+        <SlipPresence>
+          {slip && (
+            <div {...{ [BESIDE_ATTRIBUTE]: "" }} className={MARGIN_CLASSES}>
+              {slip}
+            </div>
+          )}
+        </SlipPresence>
       )}
       {index === 0 && <ForkStatus view={view} />}
     </div>
@@ -234,13 +276,16 @@ function SlipPresence({ children }: { children: ReactNode }) {
   );
 }
 
+/** A press on one of the fork's answers, with the event that made it. */
+type AnswerPress = (side: ForkSide, event: MouseEvent<HTMLButtonElement>) => void;
+
 interface ShownAnswerProps {
   view: ForkView;
-  onChoose: (side: ForkSide) => void;
+  onPress: AnswerPress;
 }
 
 /** The fork line's answer: the version on screen, its bead filled in ink. A press keeps it. */
-function ShownAnswer({ view, onChoose }: ShownAnswerProps) {
+function ShownAnswer({ view, onPress }: ShownAnswerProps) {
   const drawing = useDrawing();
   const side = view.chosen;
   const label = side === "to" ? view.to : view.from;
@@ -251,7 +296,10 @@ function ShownAnswer({ view, onChoose }: ShownAnswerProps) {
       {...{ [FORK_CONTROL_ATTRIBUTE]: side }}
       aria-checked
       aria-label={`${label}, your day`}
-      onClick={() => onChoose(side)}
+      // The checked answer is the group's stop in the tab order, which the sentence's pointer
+      // finds by it.
+      tabIndex={0}
+      onClick={(event) => onPress(side, event)}
       className={ANSWER_CLASSES}
     >
       <AnswerBead isFilled isDashed={false} drawing={drawing} />
@@ -290,64 +338,94 @@ interface SlipProps {
   /** The fork's first part, which says the work line or the receipt. */
   isFirst: boolean;
   reach: WorkReach;
-  /**
-   * Stands in the column, under the fork line, where it holds a line a stop from the press for
-   * the lines to come, and a line that wraps takes the rest by a glide; the margin holds none,
-   * since nothing there moves the plan.
-   */
+  /** Stands in the column, under the fork line, rather than in the margin beside the plan. */
   isInColumn: boolean;
   /** The other version's answer. */
   side: ForkSide;
-  onChoose: (side: ForkSide) => void;
+  onPress: AnswerPress;
 }
 
 /** The other version of the part: its answer, then on its wire its note, lines and foot. */
-function Slip({
-  view,
-  shown,
-  other,
-  opens,
-  isFirst,
-  reach,
-  isInColumn,
-  side,
-  onChoose,
-}: SlipProps) {
+function Slip({ view, shown, other, opens, isFirst, reach, isInColumn, side, onPress }: SlipProps) {
   const lines = slipLinesOf(shown, other, opens);
-  // Lines on the slip when it is first drawn stand whole; those that arrive after are penned.
-  const [firstIds] = useState(() => new Set(lines.map(({ id }) => id)));
+  // Lines on the slip when it is first drawn stand whole, and so does every line of a version
+  // already written, as the day before is on a take and a proposal taken back is: only a line
+  // that arrives while the proposal is written is penned in. Each is marked as it arrives, so a
+  // line's pen never stops midway when the proposal becomes whole, and its mark goes with it,
+  // so a line that comes back stands whole.
+  const [penned, setPenned] = useState<ReadonlyMap<string, boolean>>(
+    () => new Map(lines.map(({ id }) => [id, false])),
+  );
+  const listed = new Set(lines.map(({ id }) => id));
+  const isMarkChanged =
+    lines.some(({ id }) => !penned.has(id)) || [...penned.keys()].some((id) => !listed.has(id));
+  if (isMarkChanged) {
+    setPenned(new Map(lines.map(({ id }) => [id, penned.get(id) ?? view.isWriting])));
+  }
   const foot = view.isWriting ? null : slipFootOf(shown, other, reach, opens);
-  const held = view.isWriting && isInColumn ? heldLinesOf(shown.length, reach) - lines.length : 0;
-  // The work line, then the receipt, is said once, in the fork's first part; the work line holds
-  // its line there from the press in the column. A receipt with nothing to say takes no line.
-  const isLineHeld = view.isWriting && isInColumn;
+  // From the press the slip holds room for the lines the version most often has, in the column
+  // and the margin alike, so what stands under or beside it is most often moved once: a part's
+  // own stops and one more, the longest, or a whole day's own stops alone, each set as a new
+  // stop's line wrapping at the slip's width (`heldLinesOf`), the foot they would have, and in
+  // the first part the work line and the line where the day's end would move. Each line that
+  // arrives takes a held line's room. A proposal with more stops than the lines held, or a line
+  // that wraps onto more lines than the one whose room it takes, grows the slip again as it
+  // arrives; room not used is given back once, as the proposal is whole.
+  const held = view.isWriting ? heldLinesOf(shown, opens, reach).slice(lines.length) : [];
+  const heldFoot = view.isWriting ? slipFootOf(shown, [], reach, opens) : null;
+  // The work line, then the receipt, is said once, in the fork's first part. A receipt with
+  // nothing to say takes no line.
+  const isLineHeld = view.isWriting;
   const end = view.isWriting ? null : view.end;
   const isNoteSaid = isFirst && ((view.line?.words ?? "") !== "" || end !== null || isLineHeld);
+  const [slip, setSlip] = useState<HTMLDivElement | null>(null);
+  const heldHeight = useHeightHeld(slip, view.isWriting);
   return (
-    <div {...{ [SLIP_ATTRIBUTE]: "" }} className={cn(isInColumn && "mt-2")}>
-      <SlipAnswer view={view} side={side} onChoose={onChoose} />
+    <div
+      ref={setSlip}
+      {...{ [SLIP_ATTRIBUTE]: "" }}
+      className={cn(isInColumn && "mt-2")}
+      style={{ minHeight: heldHeight }}
+    >
+      <SlipAnswer view={view} side={side} onPress={onPress} />
       <div className={BODY_CLASSES}>
         <Wire />
         {isNoteSaid && <SlipNote line={view.line} end={end} isLineHeld={isLineHeld} />}
-        {(lines.length > 0 || held > 0) && (
+        {(lines.length > 0 || held.length > 0) && (
           <ol className={LINES_CLASSES}>
             {lines.map((line) => (
               <SlipLineItem
                 key={line.id}
                 line={line}
                 movedWord={MOVED_WORDS[side]}
-                isPenned={!firstIds.has(line.id)}
+                isPenned={penned.get(line.id) ?? false}
               />
             ))}
-            {Array.from({ length: Math.max(0, held) }, (_, at) => (
+            {held.map((line) => (
               // A line's room, unseen, until a stop arrives to fill it.
-              <li key={`held-${at}`} aria-hidden className="invisible">
-                {NO_BREAK}
-              </li>
+              <SlipLineItem
+                key={`held-${line.id}`}
+                line={line}
+                movedWord={MOVED_WORDS[side]}
+                isPenned={false}
+                isHeld
+              />
             ))}
           </ol>
         )}
         {foot !== null && <p className="mt-1.5 text-muted">{foot}</p>}
+        {heldFoot !== null && (
+          <p aria-hidden className="invisible mt-1.5">
+            {heldFoot}
+          </p>
+        )}
+        {isFirst && view.isWriting && (
+          // The line where the day's end would move in the receipt, held unseen under the rest,
+          // so the room held stands below what is said.
+          <p aria-hidden className="invisible">
+            {END_HELD}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -356,7 +434,7 @@ function Slip({
 interface SlipAnswerProps {
   view: ForkView;
   side: ForkSide;
-  onChoose: (side: ForkSide) => void;
+  onPress: AnswerPress;
 }
 
 /**
@@ -365,7 +443,7 @@ interface SlipAnswerProps {
  * while the fork waits on the visitor, through a take too; once they keep their own day it
  * goes. It keeps its place, shape and word whichever version is the day.
  */
-function SlipAnswer({ view, side, onChoose }: SlipAnswerProps) {
+function SlipAnswer({ view, side, onPress }: SlipAnswerProps) {
   const drawing = useDrawing();
   const label = side === "to" ? view.to : view.from;
   const isWriting = view.isWriting;
@@ -380,7 +458,7 @@ function SlipAnswer({ view, side, onChoose }: SlipAnswerProps) {
       aria-disabled={isWriting || undefined}
       aria-label={`${label}, ${description}`}
       tabIndex={-1}
-      onClick={() => onChoose(side)}
+      onClick={(event) => onPress(side, event)}
       className={cn(
         ANSWER_CLASSES,
         SLIP_PILL_CLASSES,
@@ -470,15 +548,38 @@ function SlipNote({
   );
 }
 
+/** A receipt's line where the day's end moves, as long as it is said: its room while written. */
+const END_HELD = "ends 00:00, not 00:00";
+
+/**
+ * The tallest a slip has stood while `isHolding`, which it keeps as its least height so a line
+ * that arrives shorter than the room held for it moves nothing; none once it no longer holds.
+ */
+function useHeightHeld(slip: HTMLElement | null, isHolding: boolean): number {
+  const [height, setHeight] = useState(0);
+  if (!isHolding && height !== 0) setHeight(0);
+  useLayoutEffect(() => {
+    if (!slip || !isHolding) return undefined;
+    const measure = () => setHeight((last) => Math.max(last, slip.offsetHeight));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(slip);
+    return () => observer.disconnect();
+  }, [slip, isHolding]);
+  return height;
+}
+
 interface SlipLineItemProps {
   line: SlipLine;
   /** How a moved line names the hour the day on screen gives it (`MOVED_WORDS`). */
   movedWord: string;
   isPenned: boolean;
+  /** Only its room, unseen and unheard, until a stop arrives to fill it. */
+  isHeld?: boolean;
 }
 
 /** One stop of the other version: its time, then its name and what it is, or how it stands. */
-function SlipLineItem({ line, movedWord, isPenned }: SlipLineItemProps) {
+function SlipLineItem({ line, movedWord, isPenned, isHeld = false }: SlipLineItemProps) {
   const { time, name, mark } = line;
   const isNew = mark.kind === "new";
   const tail =
@@ -487,13 +588,15 @@ function SlipLineItem({ line, movedWord, isPenned }: SlipLineItemProps) {
       : mark.kind === "stays"
         ? "stays"
         : `${movedWord}${NO_BREAK}${mark.hour}`;
-  const after = `${SEPARATOR}${tail}`;
+  // The mark's first word never parts from its dot: a line breaks in the name, inside a mark of
+  // more than one word, as "late supper", or after a later dot, never after the first.
+  const after = `${NO_BREAK}·${NO_BREAK}${tail}`;
   // One pen through the line, in the order it reads, as a row's words are written in.
   const written = useEntryPen(time.length + name.length + after.length, isPenned);
   const afterTime = written - time.length;
   const afterName = afterTime - name.length;
   return (
-    <li className={LINE_CLASSES}>
+    <li aria-hidden={isHeld || undefined} className={cn(LINE_CLASSES, isHeld && "invisible")}>
       <span className={cn(TIME_CLASSES, isNew ? "text-swap" : "text-muted")}>
         <PennedText text={time} written={written} isActive={false} />
       </span>

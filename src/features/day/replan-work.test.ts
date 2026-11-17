@@ -5,8 +5,13 @@ import {
 } from "@/lib/fixtures/replan/elche-dinner";
 import { replanFrameOf } from "@/features/abacus/replan-frame";
 import { replanEndedOf } from "./not-yet";
+import type { WorkReceipt } from "@/features/abacus/work-line";
 import type { ReplanControls } from "./replan-controls";
-import { forkViewOf, placesKeptOf, writtenOf } from "./replan-work";
+import { forkViewOf, wholeDayWrittenOf, writtenOf } from "./replan-work";
+import { firstAt, partialAt } from "@/features/itinerary/stream-frames";
+import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
+import { normalizeDay } from "@/lib/normalizer/normalize";
+import { dayText } from "@/lib/stream/simulate-day-stream";
 
 const ignore = () => undefined;
 
@@ -22,7 +27,6 @@ function lateDinner(step: Partial<ReplanControls>): ReplanControls {
     reach: "part",
     ending: null,
     written: null,
-    receipt: null,
     windows: [],
     isCompared: false,
     choose: () => false,
@@ -41,8 +45,8 @@ function withFamily(step: Partial<ReplanControls>): ReplanControls {
   });
 }
 
-function viewOf(replan: ReplanControls, isLookingDue = true) {
-  return forkViewOf({ replan, frame: null, isLookingDue });
+function viewOf(replan: ReplanControls, receipt: WorkReceipt | null = null, isLookingDue = true) {
+  return forkViewOf({ replan, frame: null, isLookingDue, receipt });
 }
 
 describe("forkViewOf", () => {
@@ -53,7 +57,7 @@ describe("forkViewOf", () => {
   it("says what it looks for a beat after the press, the visitor's day chosen, the proposal unready", () => {
     const writing = lateDinner({ status: "writing", isCompared: true });
 
-    expect(viewOf(writing, false)).toMatchObject({
+    expect(viewOf(writing, null, false)).toMatchObject({
       from: "early dinner",
       to: "eating late",
       chosen: "from",
@@ -77,6 +81,7 @@ describe("forkViewOf", () => {
       replan: lateDinner({ status: "writing" }),
       frame,
       isLookingDue: true,
+      receipt: null,
     });
 
     expect(view?.line).toEqual({
@@ -96,7 +101,7 @@ describe("forkViewOf", () => {
   });
 
   it("offers the proposal whole, with what it would change, until a version is chosen", () => {
-    const ready = viewOf(lateDinner({ status: "proposed", receipt: RECEIPT, isCompared: true }));
+    const ready = viewOf(lateDinner({ status: "proposed", isCompared: true }), RECEIPT);
 
     expect(ready).toMatchObject({
       chosen: "from",
@@ -109,13 +114,13 @@ describe("forkViewOf", () => {
   });
 
   it("folds to its answers once a version is chosen, the other a tap away and comparable", () => {
-    const taken = viewOf(lateDinner({ status: "taken", receipt: BACK }));
-    const left = viewOf(lateDinner({ status: "left", receipt: RECEIPT }));
+    const taken = viewOf(lateDinner({ status: "taken" }), BACK);
+    const left = viewOf(lateDinner({ status: "left" }), RECEIPT);
 
     expect(taken).toMatchObject({ chosen: "to", isChosen: true, isComparable: true, line: null });
     expect(left).toMatchObject({ chosen: "from", isChosen: true, isComparable: true, line: null });
     // Compared, the other version's receipt is said again, the day before's once taken.
-    expect(viewOf(lateDinner({ status: "taken", receipt: BACK, isCompared: true }))).toMatchObject({
+    expect(viewOf(lateDinner({ status: "taken", isCompared: true }), BACK)).toMatchObject({
       line: { words: BACK.words },
       end: BACK.end,
       isCompared: true,
@@ -125,8 +130,8 @@ describe("forkViewOf", () => {
   it("offers a whole day's proposal to take, but nothing to compare beside the day", () => {
     const receipt = { words: "With family · 3 new stops, 5 the same", end: null };
 
-    expect(viewOf(withFamily({ status: "proposed", receipt }))?.line?.words).toBe(receipt.words);
-    expect(viewOf(withFamily({ status: "taken", receipt }))?.isComparable).toBe(false);
+    expect(viewOf(withFamily({ status: "proposed" }), receipt)?.line?.words).toBe(receipt.words);
+    expect(viewOf(withFamily({ status: "taken" }), receipt)?.isComparable).toBe(false);
   });
 
   it("says why it failed in the reason's own words, and asks again only where it might mend", () => {
@@ -163,17 +168,40 @@ describe("writtenOf", () => {
   });
 });
 
-describe("placesKeptOf", () => {
-  it("counts a whole day's stops new to the day and those at the same places, by spelling", () => {
-    const at = (name: string) => ({ primary: { name } });
+describe("wholeDayWrittenOf", () => {
+  // Kyoto's written day with its second stop run past the third's start, as a model can write
+  // it: the normalizer ends it as the third begins.
+  const day = {
+    ...KYOTO_DAY.day,
+    stops: KYOTO_DAY.day.stops.map((stop, index) =>
+      index === 1 ? { ...stop, durationMinutes: stop.durationMinutes + 60 } : stop,
+    ),
+  };
+  const text = dayText(day);
 
-    expect(
-      placesKeptOf([at("Huerto del Cura"), at("Basilica")], [at("huerto del cura"), at("Museo")]),
-    ).toEqual({
-      added: 1,
-      same: 1,
-      later: 0,
-      earlier: 0,
-    });
+  it("says a stay as the finished day keeps it, rounded to the minute", async () => {
+    const rounded = {
+      ...KYOTO_DAY.day,
+      stops: KYOTO_DAY.day.stops.map((stop, index) =>
+        index === 0 ? { ...stop, durationMinutes: stop.durationMinutes - 0.4 } : stop,
+      ),
+    };
+    const roundedText = dayText(rounded);
+    const at = await firstAt(roundedText, ({ day: partial }) => (partial.stops?.length ?? 0) >= 3);
+    const written = wholeDayWrittenOf(await partialAt(roundedText, at));
+    const finished = normalizeDay(KYOTO_DAY.request, rounded);
+    if (!finished.ok) throw new Error("Kyoto's day normalizes");
+
+    expect(written[0]?.durationMinutes).toBe(finished.itinerary.stops[0]?.durationMinutes);
+  });
+
+  it("says each stop written as the finished day will: one run into the next ends as it begins", async () => {
+    // The fourth stop begun: the second's line is due, the third's start final.
+    const at = await firstAt(text, ({ day: partial }) => (partial.stops?.length ?? 0) >= 4);
+    const written = wholeDayWrittenOf(await partialAt(text, at));
+    const finished = normalizeDay(KYOTO_DAY.request, day);
+    if (!finished.ok) throw new Error("Kyoto's day normalizes");
+
+    expect(written[1]?.durationMinutes).toBe(finished.itinerary.stops[1]?.durationMinutes);
   });
 });

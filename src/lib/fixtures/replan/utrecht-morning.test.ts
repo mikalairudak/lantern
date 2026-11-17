@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { mergeShownReplan, movedStopsOf } from "@/lib/replan/merge";
+import { mergeShownReplan } from "@/lib/replan/merge";
 import { replanPlanOf } from "@/lib/replan/windows";
 import { GeneratedReplanSchema } from "@/lib/schema/replan.schema";
-import { receiptOf } from "@/features/abacus/work-line";
-import { newStopsOf } from "@/features/abacus/replan-frame";
+import { windowsOf } from "@/features/abacus/replan-frame";
+import { forkReceiptOf } from "@/features/day/part-slip-lines";
 import { UTRECHT_EARLY_MORNING, UTRECHT_MORNING_BASIS } from "./utrecht-morning";
 
 describe("Utrecht's morning made early", () => {
@@ -37,18 +37,17 @@ describe("Utrecht's morning made early", () => {
   it("is received as one new stop and two earlier", () => {
     const merged = mergeShownReplan({ ...UTRECHT_MORNING_BASIS, replan: UTRECHT_EARLY_MORNING });
     if (!merged.ok) throw new Error(merged.reason);
-    const after = merged.itinerary.stops;
-    const moves = [...movedStopsOf(UTRECHT_MORNING_BASIS, after).values()];
-    const added = newStopsOf(after, [UTRECHT_MORNING_BASIS.idPrefix]).size - moves.length;
+    const { itinerary, windows } = UTRECHT_MORNING_BASIS;
 
     expect(
-      receiptOf(
-        { word: "start", to: "early start" },
-        "part",
-        UTRECHT_MORNING_BASIS.itinerary.stops,
-        after,
-        { added, same: null, later: 0, earlier: moves.length },
-      ),
+      forkReceiptOf({
+        change: { word: "start", from: "slow morning", to: "early start" },
+        reach: "part",
+        side: "to",
+        day: itinerary.stops,
+        other: merged.itinerary.stops,
+        windows: windowsOf(itinerary, windows),
+      }),
     ).toEqual({ words: "Starts 07:30, not 10:00 · 1 new stop, 2 earlier", end: null });
   });
 });

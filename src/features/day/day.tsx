@@ -18,17 +18,16 @@ import { useReplanStream, type ReplanSource } from "@/features/itinerary/use-rep
 import {
   WHOLE_DAY_WINDOW,
   forkFrameOf,
-  newStopsOf,
   replanFrameOf,
+  writtenVersionOf,
   windowsOf,
   type ReplanFrame,
   type ReplanWindow,
 } from "@/features/abacus/replan-frame";
-import { receiptOf } from "@/features/abacus/work-line";
 import type { ShownPlaces } from "@/features/abacus/curve";
 import { PAGE_INVITATION_MEMORY } from "@/features/abacus/use-invitation";
 import type { GeoPoint } from "@/lib/geo/sun";
-import { movedStopsOf, type ReplanBasis } from "@/lib/replan/merge";
+import type { ReplanBasis } from "@/lib/replan/merge";
 import { replanPlanOf } from "@/lib/replan/windows";
 import {
   NO_CHECKS,
@@ -79,17 +78,13 @@ import {
   useYourDays,
 } from "./use-your-days";
 import { browserStorage, type YourDay } from "./your-days";
+import { picksWithin, readPickedPlaces } from "./picked-places";
 import { keepCaveats } from "./caveats";
 import { useKeptCaveats } from "./use-caveats";
-import type {
-  ForkReceipt,
-  ForkSide,
-  ReplanControls,
-  ReplanEnding,
-  ReplanPlaces,
-  ReplanStatus,
-} from "./replan-controls";
-import { placesKeptOf, writtenOf } from "./replan-work";
+import type { ForkSide, ReplanControls, ReplanEnding, ReplanStatus } from "./replan-controls";
+import { wholeDayWrittenOf, writtenOf } from "./replan-work";
+import type { ForkOther } from "./plan-fork";
+import type { ForkPresses } from "./part-slip";
 import { shownEnergiesOf } from "./day-shape";
 import { endedDayOf, phaseOf } from "./stream-ending";
 import { isSentenceStreamed } from "./header-ready";
@@ -339,11 +334,6 @@ interface WordChange {
   isCompared: boolean;
   /** Why it ended without a proposal, once failed. */
   ending?: ReplanEnding;
-  /**
-   * Once whole, what each version would change against the other: the proposal's against the
-   * day before, and the day before's against the proposal, once taken.
-   */
-  receipts?: { proposal: ForkReceipt; before: ForkReceipt };
   /** The change as it was asked, to ask it again after a failure. */
   ask: ChangeAsk;
 }
@@ -375,6 +365,11 @@ interface PartFork {
   basis: ReplanBasis;
   before: Merged | null;
   after: Merged;
+  /**
+   * The day before as taking it back draws it: its stops as written and the energy they were
+   * planned for, before any pick the visitor made on it, which the page keeps by stop.
+   */
+  beforeDay: ForkOther;
 }
 
 /** What the facts line of a run says of a re-plan asked from it. */
@@ -390,6 +385,9 @@ interface RunSetAside extends SetAside {
 
 /** No fork on screen: no parts to stand over. */
 const NO_WINDOWS: readonly ReplanWindow[] = [];
+
+/** A day no visitor has picked a version on. */
+const NO_PICKS: ShownPlaces = {};
 
 /** A city named whole: no other city it could mean. */
 const NO_READINGS: readonly CityReading[] = [];
@@ -1444,36 +1442,13 @@ export function Day({
         basis: targetedShown.basis,
         before: targetedShown.merged,
         after,
+        beforeDay: {
+          stops: endedDayOf(outcome)?.stops ?? targetedShown.basis.itinerary.stops,
+          energy: (targetedShown.merged?.request ?? asked?.request ?? targetedShown.request).energy,
+        },
       });
-      // Its new stops counted now, by the re-plan's ids: those at the part's own places at
-      // another hour by which way they moved, the rest as new.
-      const { stops } = targetedEnding.itinerary;
-      const written = newStopsOf(stops, [targetedShown.basis.idPrefix]).size;
-      const moves = [...movedStopsOf(targetedShown.basis, stops).values()];
-      const later = moves.filter((move) => move === "later").length;
-      const places: ReplanPlaces = {
-        added: written - moves.length,
-        same: null,
-        later,
-        earlier: moves.length - later,
-      };
-      const beforeStops = targetedShown.basis.itinerary.stops;
       if (changeShown !== null) {
-        setChange({
-          ...changeShown,
-          status: "proposed",
-          isCompared: true,
-          receipts: {
-            proposal: receiptOf(changeShown, "part", beforeStops, stops, places),
-            before: receiptOf(
-              { word: changeShown.word, to: changeShown.from },
-              "part",
-              stops,
-              beforeStops,
-              null,
-            ),
-          },
-        });
+        setChange({ ...changeShown, status: "proposed", isCompared: true });
       }
     } else {
       failReplan(targetedShown.run, targetedEnding.kind, replanFrame);
@@ -1631,27 +1606,8 @@ export function Day({
         return;
       }
       setWholeTurn({ before, after: { ...landed, isChosen: false, isFromMemory: true } });
-      const beforeStops = before.whole?.itinerary.stops ?? [];
-      const afterStops = replanEnding.itinerary.stops;
-      const places = placesKeptOf(beforeStops, afterStops);
       setChange((last) =>
-        last === null
-          ? null
-          : {
-              ...last,
-              status: "proposed",
-              isCompared: false,
-              receipts: {
-                proposal: receiptOf(last, "whole", beforeStops, afterStops, places),
-                before: receiptOf(
-                  { word: last.word, to: last.from },
-                  "whole",
-                  afterStops,
-                  beforeStops,
-                  null,
-                ),
-              },
-            },
+        last === null ? null : { ...last, status: "proposed", isCompared: false },
       );
     });
     return () => cancelAnimationFrame(turn);
@@ -1664,6 +1620,46 @@ export function Day({
     replannedId,
     isAskedBeforeForget,
   ]);
+
+  // The presses on a fork's controls, kept across runs: a whole day taken is drawn as a run of
+  // its own, and a double press's second must find the first.
+  const [forkPresses] = useState<ForkPresses>(() => new Map());
+  // The fork's other version, as the plan's slips list it beside the day's parts, as far as it
+  // is written: the proposal until it is taken, the day before once it is. A part's is read
+  // from its frame while written and from memory once whole; a whole day's from its stream,
+  // then from memory: the proposal as it was written for, and the day before as taking it back
+  // draws it, its own stops as written; the page re-picks either for the energy chosen since
+  // and shows the visitor's own picks on it, as it does the day on screen.
+  const forkOther = useMemo((): ForkOther | null => {
+    if (changeShown === null || changeShown.status === "failed") return null;
+    const isTaken = changeShown.status === "taken";
+    if (changeShown.status === "writing") {
+      if (replanFrame !== null && targetedShown !== null) {
+        return { stops: writtenVersionOf(replanFrame), energy: targetedShown.request.energy };
+      }
+      // A whole day being written has no picks yet: the visitor's on the day on screen belong to
+      // that generation alone, whose stops' and versions' ids the new one shares.
+      if (replanned !== null && replanning !== null) {
+        const stops = wholeDayWrittenOf(replanned.partial);
+        return { stops, energy: replanning.request.energy, picks: NO_PICKS };
+      }
+      return null;
+    }
+    if (partForkShown !== null) {
+      if (isTaken) return partForkShown.beforeDay;
+      return { stops: versionsOf(partForkShown).after, energy: partForkShown.after.request.energy };
+    }
+    if (wholeTurn === null) return null;
+    // A whole day is drawn as a run of its own, its picks those kept for it on this device: the
+    // visitor's picks on the day on screen belong to that generation alone, whose stops' ids
+    // the other shares.
+    const other = isTaken ? wholeTurn.before : wholeTurn.after;
+    const stops = other.whole?.itinerary.stops ?? [];
+    const id = other.record?.id ?? null;
+    const key = id !== null ? keptSeenKeyOf(id) : other.seenKey;
+    const picks = key === null ? {} : picksWithin(stops, readPickedPlaces(browserStorage(), key));
+    return { stops, energy: other.request.energy, picks };
+  }, [changeShown, replanFrame, targetedShown, replanned, replanning, partForkShown, wholeTurn]);
 
   const roomHeight = () => room.current?.getBoundingClientRect().height ?? null;
   /** A frame of the fork's two versions with the other one fading out where it stands. */
@@ -1781,9 +1777,10 @@ export function Day({
    * The fork settles as the next word changes (`docs/decisions.md`, "A changed word proposes its
    * part beside the day, and the visitor takes it"): the version on screen stays the day, the
    * other is set aside, a row of its own among the visitor's days where its answer named an id,
-   * and its rows fold away; the facts line says where it went (`setAsideOf`). A word re-picked
-   * settles it at once, with no fold: the re-picked stops are the ones then shown, as the curve
-   * is told of them, so no row of the other version stands among them meanwhile.
+   * and its rows fold away; the facts line says where it went (`setAsideOf`). An energy that
+   * settles it, as it settles an answered fork or a whole day's, does so at once, with no fold:
+   * the re-picked stops are the ones then shown, as the curve is told of them, so no row of the
+   * other version stands among them meanwhile.
    */
   const settleFork = (isFolded = true) => {
     if (isFolded && changeShown !== null && partFork !== null && changeShown.isCompared) {
@@ -1819,12 +1816,6 @@ export function Day({
     reach: changeShown?.reach ?? null,
     ending: changeStatus === "failed" ? (changeShown?.ending ?? "invalid") : null,
     written: changeStatus === "writing" && replanned !== null ? writtenOf(replanned.partial) : null,
-    receipt:
-      changeShown?.receipts === undefined
-        ? null
-        : changeStatus === "taken"
-          ? changeShown.receipts.before
-          : changeShown.receipts.proposal,
     windows: changeShown?.windows ?? NO_WINDOWS,
     isCompared: changeShown?.isCompared ?? false,
     choose: chooseSide,
@@ -2202,6 +2193,8 @@ export function Day({
             address={dayAddress === START_ADDRESS ? null : dayAddress}
             replanFrame={replanFrame ?? forkFrameShown ?? foldingShown}
             onReplanFaded={letFoldingGo}
+            forkOther={forkOther}
+            forkPresses={forkPresses}
             replanRoom={targetedShown?.room ?? null}
             heldRoom={asked.heldRoom}
             roomRef={room}
@@ -2217,7 +2210,11 @@ export function Day({
             onEnergyPicked={(energy) => {
               setRepicked({ run: asked.run, energy });
               if (!replanning) setReplanLine(null);
-              // A word re-picked settles the fork, as any changed word does, at once.
+              // A part's proposal whole and not yet answered stands through the re-pick: both of
+              // its versions re-pick to the new energy, the slip's names and the chart's rows with
+              // them. Any other fork settles at once, as a changed word settles it: a whole day
+              // taken is a run of its own, drawn as it was written.
+              if (changeShown?.status === "proposed" && partForkShown !== null) return;
               settleFork(false);
             }}
             // Once live, a changed word asks for the day again with it, under the same city's

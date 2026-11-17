@@ -4,8 +4,9 @@ import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
  * One change at a time, the energy's included (`docs/decisions.md`, "One change at a time, the
  * energy's included"): while a changed word's proposal is written, the energy waits, on the
  * plan's bar and in the headline, and a press says why; the proposal still arrives whole, the
- * day's energy as it was. Once the proposal is whole the energy answers again. Played on the
- * re-plan bench's Elche at its live pace, on the plan, where the bar stands.
+ * day's energy as it was. Once the proposal is whole the energy answers again, and the proposal
+ * stands through it. Played on the re-plan bench's Elche at its live pace, on the plan, where
+ * the bar stands.
  */
 
 const BENCH = "/lab/concepts/replan";
@@ -80,7 +81,8 @@ test("the energy waits while a proposal is written, on the plan's bar and in the
   await expect(factsLine(page)).not.toContainText(LOCKED);
   await expect(energyWord).not.toHaveAttribute("aria-disabled");
 
-  // Whole, the proposal waits for its answer, and the energy answers again.
+  // Whole, the proposal waits for its answer, and the energy answers again: the day re-picks,
+  // and the proposal stands beside it, still to take, nothing set aside.
   await expect(lively).not.toHaveAttribute("aria-disabled");
   await lively.click();
   await expect(headline).toHaveText(/^A lively /);
@@ -88,4 +90,9 @@ test("the energy waits while a proposal is written, on the plan's bar and in the
     "aria-pressed",
     "true",
   );
+  await expect(
+    shownForkRow(page).getByRole("radio", { name: "eating late, proposed" }),
+  ).toBeVisible();
+  await expect(factsLine(page)).not.toContainText("set aside");
+  await expect(factsLine(page)).not.toContainText("not kept");
 });

@@ -63,7 +63,7 @@ export interface WorkCounts {
 }
 
 /**
- * What a version would change against the day on screen (`ReplanControls.receipt`): its first
+ * What a version would change against the day on screen (`forkReceiptOf`): its first
  * line, "Dinner 21:00, not 18:15 · 3 new stops", and where the day's end moves and the word is
  * not the end's own, its second, "ends 23:45, not 20:45".
  */

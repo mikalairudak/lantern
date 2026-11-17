@@ -22,7 +22,7 @@ import {
   type TimedVisit,
 } from "@/lib/time/clock";
 import type { WindowSpan } from "./windows";
-import { isReplannedBy, replannedIdOf, stopIndexOfId } from "@/lib/schema/positions";
+import { replannedIdOf, stopIndexOfId } from "@/lib/schema/positions";
 
 /**
  * Merges a targeted re-plan into the day on the visitor's screen (`docs/targeted-replan.md`,
@@ -173,62 +173,6 @@ export function stayingStopOf(
       isSameSpelling(shownPlaceOf(stop).name, name),
   );
   return itinerary.stops[index] ?? null;
-}
-
-/** Which way a re-plan moved a stop it wrote again at its own place: to a later hour or an earlier. */
-export type StopMove = "later" | "earlier";
-
-/** A stop as `movedStopsOf` reads it, whole or still being written. */
-interface TimedStop {
-  id: string;
-  startTime: string;
-  durationMinutes: number;
-  primary: { name?: string };
-}
-
-/**
- * The stops a re-plan added that are its windows' own places at another hour, by id, and which
- * way each moved. A window's old stop is read as its row showed it (`shownPlaceOf`), the
- * visitor's pick where the re-plan was asked with one, and each is matched once, by a new stop
- * spelled as it at another start, which says "later" or "earlier". A stop written again at its
- * own place and start stays (`stayingStopOf`) and keeps its own id, so it is never among them,
- * and its old stop is matched by no other; one under the prefix all the same takes its old stop
- * first and says nothing, so a second visit of the name moves from the other. `stops` are a day
- * in time order: the merged day, or the rows a re-plan's frame shows.
- */
-export function movedStopsOf(
-  { itinerary, windows, idPrefix }: Pick<ReplanBasis, "itinerary" | "windows" | "idPrefix">,
-  stops: readonly TimedStop[],
-): ReadonlyMap<string, StopMove> {
-  const before = runningSpans(itinerary.stops);
-  const ids = new Set(stops.map(({ id }) => id));
-  const left = itinerary.stops.flatMap((stop, index) =>
-    isInWindow(index, windows) && !ids.has(stop.id)
-      ? [{ name: shownPlaceOf(stop).name, from: before[index]?.from ?? 0 }]
-      : [],
-  );
-  const spans = runningSpans(stops);
-  const written = stops.flatMap((stop, index) => {
-    const from = spans[index]?.from;
-    return isReplannedBy(idPrefix, stop.id) && from !== undefined
-      ? [{ id: stop.id, name: stop.primary.name ?? "", from }]
-      : [];
-  });
-  const take = (isMatch: (old: { name: string; from: number }) => boolean) => {
-    const at = left.findIndex(isMatch);
-    return at === -1 ? undefined : left.splice(at, 1)[0];
-  };
-  // At its own hour first, so a stop written again where it stood never takes another's turn.
-  const unmoved = written.filter((stop) =>
-    take((old) => old.from === stop.from && isSameSpelling(old.name, stop.name)),
-  );
-  const moved = new Map<string, StopMove>();
-  for (const stop of written) {
-    if (unmoved.includes(stop)) continue;
-    const old = take(({ name }) => isSameSpelling(name, stop.name));
-    if (old !== undefined) moved.set(stop.id, stop.from > old.from ? "later" : "earlier");
-  }
-  return moved;
 }
 
 /**

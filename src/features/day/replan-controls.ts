@@ -1,5 +1,4 @@
 import type { ReplanWindow } from "@/features/abacus/replan-frame";
-import type { WorkCounts, WorkReceipt } from "@/features/abacus/work-line";
 import type { AssumableFactKey } from "@/lib/schema/itinerary.schema";
 import type { DayOutcome } from "@/lib/stream/outcome";
 
@@ -24,18 +23,6 @@ export type ReplanEnding = Exclude<DayOutcome["kind"], "complete">;
 
 /** One of the fork's two answers: the visitor's day before the change, or the proposal. */
 export type ForkSide = "from" | "to";
-
-/** What a proposal's receipt counts of the day it wrote. */
-/**
- * What a proposal counts of the day it wrote: its stops at places new to the day (a part's by
- * the re-plan's ids, less those at its own places at another hour; a whole day's by spelling),
- * a part's own places moved later or earlier (`movedStopsOf`), and a whole day's stops at the
- * same places as the day before's, by spelling (null for a part).
- */
-export type ReplanPlaces = WorkCounts;
-
-/** What a version would change against the day on screen, read from the two days by code. */
-export type ForkReceipt = WorkReceipt;
 
 /**
  * How far a whole day's stream is written, while the day before stands on screen. A day writes
@@ -64,12 +51,6 @@ export interface ReplanControls {
    * does not show; null for a part, whose proposal's rows show it.
    */
   written: ReplanWritten | null;
-  /**
-   * What the version not on screen would change against the day that is, once the proposal is
-   * whole: the proposal's while the day is the visitor's, the day before's once the proposal is
-   * taken. Null before then, and after a failure.
-   */
-  receipt: ForkReceipt | null;
   /**
    * The word changed and its two answers, as the sentence says them ("early dinner", "eating
    * late"; an open question as its cue, "with anyone"), while status is not idle.

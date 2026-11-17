@@ -426,12 +426,13 @@ function LineWords({ line }: { line: WorkLine }): ReactNode {
 
 /**
  * What a screen reader hears of the fork once, from a live region on its first row: that the
- * proposal is ready and what it would change, or why it failed. Nothing while it is written,
- * nor once a version is chosen.
+ * proposal is ready, or why it failed. Nothing while it is written, nor once a version is
+ * chosen. What a proposal would change is read in the row and never said here: it follows the
+ * energy and a swap, and a region whose words change says "ready" again.
  */
 export function ForkStatus({ view }: { view: ForkView }) {
   const said = view.isReady
-    ? `${view.to} is ready beside your day: ${view.line?.words ?? ""}`
+    ? `${view.to} is ready beside your day`
     : view.isFailed
       ? (view.line?.words ?? "")
       : "";

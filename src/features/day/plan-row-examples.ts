@@ -13,9 +13,9 @@ import { runningSpans } from "@/lib/time/clock";
 import { lightAt } from "./light-rail";
 
 /**
- * One row of the plan in each light its bead answers to, as a proposal's stop and a taken one,
- * and with its versions on one line, on two, on one side alone and with the longest names of
- * the written days, from the fixture days and the days the site serves.
+ * One row of the plan in each light its bead answers to, and with its versions on one line, on
+ * two, on one side alone and with the longest names of the written days, from the fixture days
+ * and the days the site serves.
  */
 
 /** Where a row of each light is looked for, in this order. */
@@ -25,9 +25,6 @@ const DAYLIGHT: readonly LightQuality[] = ["soft", "clear"];
 const GOLDEN: readonly LightQuality[] = ["golden"];
 const AFTER_DARK: readonly LightQuality[] = ["blue", "dark"];
 
-/** How a row stands: the day's own, a proposal beside the day, or a proposal taken as it is shown. */
-export type RowRole = "day" | "proposed" | "taken";
-
 export interface PlanRowStill {
   stop: StopDraft;
   daylight: DayContext;
@@ -35,7 +32,6 @@ export interface PlanRowStill {
 
 export interface PlanRowExample {
   label: string;
-  role: RowRole;
   /** Worked out in the cell, once for each cell drawn. */
   still: () => PlanRowStill;
   /** Set as on a 320 px phone: 288 px inside its gutters, 208 px for a stop's words. */
@@ -101,51 +97,34 @@ const lengthOf = ({ before, after }: Sides) => (before?.length ?? 0) + (after?.l
 const longestOf = ({ before, after }: Sides) => Math.max(before?.length ?? 0, after?.length ?? 0);
 
 export const PLAN_ROW_EXAMPLES: readonly PlanRowExample[] = [
-  { label: "a stop in daylight: an ink bead", role: "day", still: inLight(DAYLIGHT) },
+  { label: "a stop in daylight: an ink bead", still: inLight(DAYLIGHT) },
   {
     label: "golden hour: lamp rail, amber time",
-    role: "day",
     still: inLight(GOLDEN),
   },
-  { label: "after dark: the bead lit", role: "day", still: inLight(AFTER_DARK, true) },
+  { label: "after dark: the bead lit", still: inLight(AFTER_DARK, true) },
   {
     label: "before sunrise: lit too, as the rail is dotted",
-    role: "day",
     still: inLight(AFTER_DARK),
   },
   {
-    label: "a proposal's stop after dark: never lit",
-    role: "proposed",
-    still: inLight(AFTER_DARK, true),
-  },
-  {
-    label: "a proposal taken: its glow grows",
-    role: "taken",
-    still: inLight(AFTER_DARK, true),
-  },
-  {
     label: "a version each side, the shortest pair: one line",
-    role: "day",
     still: writtenStopBy(isBothSides, (sides) => -lengthOf(sides)),
   },
   {
     label: "a version each side, the longest pair: a line each",
-    role: "day",
     still: writtenStopBy(isBothSides, lengthOf),
   },
   {
     label: "one version, on its left",
-    role: "day",
     still: writtenStopBy(({ before, after }) => before !== null && after === null, lengthOf),
   },
   {
     label: "one version, on its right",
-    role: "day",
     still: writtenStopBy(({ before, after }) => before === null && after !== null, lengthOf),
   },
   {
     label: "the longest name of the written days, at 320 px",
-    role: "day",
     still: writtenStopBy(isBothSides, longestOf),
     isNarrow: true,
   },

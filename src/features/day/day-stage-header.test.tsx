@@ -200,7 +200,6 @@ function slowMorning(step: Partial<ReplanControls>): ReplanControls {
     reach: "part",
     ending: null,
     written: null,
-    receipt: null,
     windows: [],
     isCompared: false,
     choose: () => false,

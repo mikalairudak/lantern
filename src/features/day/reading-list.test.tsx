@@ -1,7 +1,13 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useLayoutEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { completeDraftOf, draftDayOf, openableStopsOf } from "@/features/abacus/day-draft";
+import {
+  completeDraftOf,
+  draftDayOf,
+  openableStopsOf,
+  type StopDraft,
+} from "@/features/abacus/day-draft";
 import { dayContextOf } from "@/features/abacus/light";
 import { itineraryOf } from "@/features/abacus/stop-row-examples";
 import { revealedOf } from "@/features/itinerary/revealed";
@@ -10,8 +16,9 @@ import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import { LISBON_DAY } from "@/lib/fixtures/curated/lisbon";
 import { dayText } from "@/lib/stream/simulate-day-stream";
 import { enteredOf, versionsWrittenOf } from "./reading-gates";
-import { ReadingList } from "./reading-list";
-import { FORK_EXAMPLES, forkViewAt } from "@/features/abacus/fork-row-examples";
+import { PartSlip } from "./part-slip";
+import { SLIP_EXAMPLES, SLIP_MOMENTS, slipStillOf } from "./part-slip-examples";
+import { BESIDE_ATTRIBUTE, ReadingList, type PlanParts } from "./reading-list";
 
 /** Longer than a row's fold takes to open on the layout spring. */
 const GLIDE_SETTLED_MS = 3000;
@@ -29,6 +36,27 @@ function wholeOf(fixture: typeof KYOTO_DAY) {
 }
 
 const KYOTO = wholeOf(KYOTO_DAY);
+
+/** Elche's lunch, the first of its fork's two parts, as its slip stands at a moment. */
+function slipOf(moment: "whole" | "taken", { onChoose = vi.fn() } = {}) {
+  const lunch = SLIP_EXAMPLES.find(({ label }) => label.startsWith("one stop"))!.example;
+  const at = SLIP_MOMENTS.find(({ label }) => label.startsWith(moment))!.moment;
+  const { view, shown, other } = slipStillOf(lunch, at);
+  return (
+    <PartSlip
+      view={view}
+      shown={shown}
+      other={other}
+      opens={lunch.opens}
+      index={0}
+      count={2}
+      reach="part"
+      placement="column"
+      onChoose={onChoose}
+      onAskAgain={vi.fn()}
+    />
+  );
+}
 
 /** Kyoto's list at the first frame of its stream that meets `isReached`, let in as the day lets it. */
 async function kyotoAt(isReached: Parameters<typeof firstAt>[1]) {
@@ -187,43 +215,31 @@ describe("ReadingList", () => {
     );
   });
 
-  it("draws a proposal's stops in blue, said proposed under their time, with nothing to swap", () => {
-    const proposed = new Set([KYOTO.stops[1]!.id]);
-    render(<ReadingList {...KYOTO} proposed={proposed} onChoose={vi.fn()} />);
+  it("lists the day alone: a fork's other version stands in no row of it", () => {
+    const other = new Set([KYOTO.stops[1]!.id]);
+    render(<ReadingList {...KYOTO} hidden={other} onChoose={vi.fn()} />);
 
-    const row = rowsOf()[1]!;
-    const word = within(row).getByText("proposed");
-    expect(word).toHaveClass("text-ink-soft");
-    // In the gutter under its time, so its line wraps as it would without it.
-    expect(word.parentElement).toHaveTextContent(/^08:25proposed$/);
-    expect(within(row).getByRole("heading")).toHaveTextContent("Philosopher's Path");
-    expect(within(row).queryByRole("button")).not.toBeInTheDocument();
-    // The day's own stops stay the day's: their versions offered, nothing said under them.
-    expect(within(rowsOf()[0]!).getAllByRole("button").length).toBeGreaterThan(0);
-    expect(within(rowsOf()[0]!).queryByText("proposed")).toBeNull();
+    const rows = rowsOf();
+    expect(rows).toHaveLength(KYOTO.stops.length - 1);
+    expect(screen.queryByText("Philosopher's Path")).toBeNull();
+    expect(screen.queryByText("proposed")).toBeNull();
+    // The day's own stops stay the day's, their versions offered.
+    expect(within(rows[0]!).getAllByRole("button").length).toBeGreaterThan(0);
   });
 
-  it("stands a fork's row over the stop it forks, its answers a group of two", () => {
-    const view = forkViewAt(FORK_EXAMPLES[2]!.example, { status: "proposed" });
+  it("stands each part's slip over the stop it heads, its answers a group of two", async () => {
+    const user = userEvent.setup();
     const onChoose = vi.fn();
     render(
       <ReadingList
         {...KYOTO}
-        fork={{
-          view,
-          anchors: [KYOTO.stops[1]!.id],
-          onChoose,
-          onCompare: vi.fn(),
-          onAskAgain: vi.fn(),
-        }}
+        parts={{ anchors: [KYOTO.stops[1]!.id], headOf: () => slipOf("whole", { onChoose }) }}
       />,
     );
 
     const group = within(rowsOf()[1]!).getByRole("radiogroup");
-    expect(group).toHaveAccessibleName("early dinner or eating late");
-    within(group)
-      .getByRole("radio", { name: /eating late/ })
-      .click();
+    expect(group).toHaveAccessibleName("early dinner or eating late, 1 of 2");
+    await user.click(within(group).getByRole("radio", { name: "eating late, proposed" }));
     expect(onChoose).toHaveBeenCalledWith("to");
     expect(within(rowsOf()[0]!).queryByRole("radiogroup")).toBeNull();
   });
@@ -231,35 +247,274 @@ describe("ReadingList", () => {
   it("stands what a caller gives over a stop's row, outside its fold, and nothing elsewhere", () => {
     const second = KYOTO.stops[1]!.id;
     const head = "the part's head";
-    render(<ReadingList {...KYOTO} partHeadOf={(id) => id === second && <p>{head}</p>} />);
+    render(<ReadingList {...KYOTO} parts={{ anchors: [second], headOf: () => <p>{head}</p> }} />);
 
-    expect(within(rowsOf()[1]!).getByText(head)).toBeInTheDocument();
+    const row = rowsOf()[1]!;
+    expect(within(row).getByText(head)).toBeInTheDocument();
+    // Before the row's own fold: a fold clips, and a slip in the margin stands out of it.
+    expect(row.firstElementChild).toHaveTextContent(head);
     expect(screen.getAllByText(head)).toHaveLength(1);
   });
 
-  it("keeps the focus on a fork row's answer as the row moves to another stop", async () => {
-    const proposed = forkViewAt(FORK_EXAMPLES[2]!.example, { status: "proposed" });
-    const taken = forkViewAt(FORK_EXAMPLES[2]!.example, { status: "taken" });
-    const forkOf = (view: typeof proposed, anchor: string) => ({
-      view,
-      anchors: [anchor],
-      onChoose: vi.fn(),
-      onCompare: vi.fn(),
-      onAskAgain: vi.fn(),
-    });
-    const { rerender } = render(
-      <ReadingList {...KYOTO} fork={forkOf(proposed, KYOTO.stops[1]!.id)} />,
-    );
-    within(rowsOf()[1]!)
-      .getByRole("radio", { name: /eating late/ })
-      .focus();
+  it("folds a head beside the list with no feather, and one in the column with it", () => {
+    const head = (part: number) => <p>{`head ${part}`}</p>;
+    const anchors = [KYOTO.stops[1]!.id];
+    const { rerender } = render(<ReadingList {...KYOTO} parts={{ anchors, headOf: head }} />);
+    // The head, its press guard, the fold's content box, the fold.
+    const fold = () => screen.getByText("head 0").parentElement?.parentElement?.parentElement;
+    expect(fold()).toHaveClass("overflow-hidden");
 
-    // Taken, the old part's stop folds away and the row stands over the next one.
+    rerender(<ReadingList {...KYOTO} parts={{ anchors, headOf: head, isBeside: true }} />);
+
+    // Its row stands it beside the list, from the row's own top, outside the fold.
+    expect(fold()).not.toHaveClass("overflow-hidden");
+    expect(rowsOf()[1]).toHaveClass("relative");
+
+    // The page narrowed: back in the column, the fold clips again, nothing left open.
+    rerender(<ReadingList {...KYOTO} parts={{ anchors, headOf: head }} />);
+    expect(fold()).toHaveClass("overflow-hidden");
+    expect(fold()?.style.overflowY).toBe("");
+  });
+
+  it("holds the room a slip beside it takes after its part's last row, its rows together", () => {
+    // jsdom lays nothing out: the slip beside the list is 300 px tall, its fork line 49, and each
+    // row's words 100, as each stands at rest, whatever its fold is doing.
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.hasAttribute(BESIDE_ATTRIBUTE)) return 300;
+      if (this.hasAttribute("data-part-head")) return 49;
+      if (this.hasAttribute("data-row-at-rest")) return 100;
+      return 0;
+    });
+    const head = () => (
+      <div>
+        <p>fork line</p>
+        <div {...{ [BESIDE_ATTRIBUTE]: "" }}>the slip</div>
+      </div>
+    );
+    const [, first, second, third] = KYOTO.stops;
+    // A part of two rows, and one under the last row.
+    const parts = {
+      anchors: [first!.id, null],
+      ends: [second!.id, null],
+      headOf: head,
+      isBeside: true,
+    };
+
+    render(<ReadingList {...KYOTO} parts={parts} />);
+
+    const roomOf = (place: string) =>
+      document.querySelector<HTMLElement>(`[data-room-beside="${place}"] > div > div > div`)?.style
+        .height;
+    // 300 less the fork line and the part's two rows: 51 px, under its second row.
+    expect(roomOf("0")).toBe("51px");
+    expect(
+      document
+        .querySelector(`li[data-stop="${second!.id}"]`)
+        ?.contains(document.querySelector('[data-room-beside="0"]')),
+    ).toBe(true);
+    expect(document.querySelector(`li[data-stop="${third!.id}"] [data-room-beside]`)).toBeNull();
+    // Under the last row, the slip less its fork line.
+    expect(roomOf("1")).toBe("251px");
+    vi.restoreAllMocks();
+  });
+
+  it("lets the room beside a part go by the same glide as the fork goes, never at once", async () => {
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.hasAttribute(BESIDE_ATTRIBUTE)) return 300;
+      if (this.hasAttribute("data-part-head")) return 49;
+      if (this.hasAttribute("data-row-at-rest") || this.hasAttribute("data-row-words")) return 100;
+      return 0;
+    });
+    const head = () => <div {...{ [BESIDE_ATTRIBUTE]: "" }}>the slip</div>;
+    const parts = { anchors: [KYOTO.stops[1]!.id], headOf: head, isBeside: true };
+    const { rerender } = render(<ReadingList {...KYOTO} parts={parts} />);
+    const room = () => document.querySelector('[data-room-beside="0"]');
+    expect(room()).not.toBeNull();
+
+    // The fork settled: its heads fold away, and the room under its part with them.
+    rerender(<ReadingList {...KYOTO} parts={null} />);
+
+    expect(room()).not.toBeNull();
+    await waitFor(() => expect(room()).toBeNull(), { timeout: GLIDE_SETTLED_MS });
+    vi.restoreAllMocks();
+  });
+
+  it("holds the room beside a part by its rows at rest, not as they glide", () => {
+    // Each row's words glide to a new height, 60 px drawn this frame, 100 at rest.
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.hasAttribute(BESIDE_ATTRIBUTE)) return 300;
+      if (this.hasAttribute("data-part-head")) return 49;
+      if (this.hasAttribute("data-row-at-rest")) return 100;
+      if (this.hasAttribute("data-row-words")) return 60;
+      return 0;
+    });
+    const head = () => <div {...{ [BESIDE_ATTRIBUTE]: "" }}>the slip</div>;
+    const [, first, second] = KYOTO.stops;
+    const parts = { anchors: [first!.id], ends: [second!.id], headOf: head, isBeside: true };
+
+    render(<ReadingList {...KYOTO} parts={parts} />);
+
+    // 300 less the fork line and the part's two rows as they will rest.
+    const room = document.querySelector<HTMLElement>('[data-room-beside="0"] > div > div > div');
+    expect(room?.style.height).toBe("51px");
+    vi.restoreAllMocks();
+  });
+
+  it("holds the room beside a part by the slip that stands, not the one leaving as a take moves it", () => {
+    // The slip leaving is 500 px tall, the one that stands 300.
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.hasAttribute(BESIDE_ATTRIBUTE)) return this.textContent === "leaving" ? 500 : 300;
+      if (this.hasAttribute("data-part-head")) return 49;
+      if (this.hasAttribute("data-row-at-rest") || this.hasAttribute("data-row-words")) return 100;
+      return 0;
+    });
+    const slipSaying = (words: string) =>
+      function SlipSaying() {
+        return <div {...{ [BESIDE_ATTRIBUTE]: "" }}>{words}</div>;
+      };
+    const [, first, second] = KYOTO.stops;
+    const { rerender } = render(
+      <ReadingList
+        {...KYOTO}
+        parts={{ anchors: [first!.id], headOf: slipSaying("leaving"), isBeside: true }}
+      />,
+    );
+
+    // Taken: the head moves to the next stop, the one over the first folding away.
     rerender(
       <ReadingList
         {...KYOTO}
-        fork={forkOf(taken, KYOTO.stops[2]!.id)}
-        fading={new Set([KYOTO.stops[1]!.id])}
+        parts={{ anchors: [second!.id], headOf: slipSaying("standing"), isBeside: true }}
+      />,
+    );
+
+    expect(screen.getByText("leaving")).toBeInTheDocument();
+    const room = document.querySelector<HTMLElement>(
+      `li[data-stop="${second!.id}"] [data-room-beside="0"] > div > div > div`,
+    );
+    // 300 less the fork line and the part's one row.
+    expect(room?.style.height).toBe("151px");
+    vi.restoreAllMocks();
+  });
+
+  it("opens a room that comes to another row from nothing, never at the height the fork before it measured", async () => {
+    // Each slip beside the list 300 px tall, its fork line 49, each row's words 100.
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.hasAttribute(BESIDE_ATTRIBUTE)) return 300;
+      if (this.hasAttribute("data-part-head")) return 49;
+      if (this.hasAttribute("data-row-at-rest")) return 100;
+      return 0;
+    });
+    // A room's box as tall as the room it holds, as a page lays it out.
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const room = [this, ...this.querySelectorAll<HTMLElement>("div")].find((each) =>
+        each.parentElement?.parentElement?.parentElement?.hasAttribute("data-room-beside"),
+      );
+      return DOMRect.fromRect({ height: Number.parseFloat(room?.style.height ?? "") || 0 });
+    });
+    const slip = () => <div {...{ [BESIDE_ATTRIBUTE]: "" }}>the slip</div>;
+    const [, first, second] = KYOTO.stops;
+    const forkOver = (stop: StopDraft) => ({ anchors: [stop.id], headOf: slip, isBeside: true });
+    const { rerender } = render(<ReadingList {...KYOTO} parts={forkOver(first!)} />);
+    // Painted, as the page is before a visitor changes another word.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    // Another word: the fork's one part now ends at the next row.
+    rerender(<ReadingList {...KYOTO} parts={forkOver(second!)} />);
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    // The room glides from nothing to the 151 px it holds there, a frame or two in.
+    const box = document.querySelector<HTMLElement>(
+      `li[data-stop="${second!.id}"] [data-room-beside="0"] > div`,
+    );
+    expect(Number.parseFloat(box?.style.height ?? "")).toBeLessThan(151);
+    vi.restoreAllMocks();
+  });
+
+  it("counts a row folding away as nothing in the room beside its part", () => {
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.hasAttribute(BESIDE_ATTRIBUTE)) return 400;
+      if (this.hasAttribute("data-part-head")) return 49;
+      if (this.hasAttribute("data-row-at-rest")) return 100;
+      return 0;
+    });
+    const slip = () => <div {...{ [BESIDE_ATTRIBUTE]: "" }}>the slip</div>;
+    const [, first, second, third] = KYOTO.stops;
+    // A part of three rows, its slip beside them.
+    const parts = { anchors: [first!.id], ends: [third!.id], headOf: slip, isBeside: true };
+    const { rerender } = render(<ReadingList {...KYOTO} parts={parts} />);
+
+    // Its middle row taken away: it folds away where it stands, its rest nothing.
+    rerender(<ReadingList {...KYOTO} parts={parts} hidden={new Set([second!.id])} />);
+
+    expect(document.querySelector(`li[data-stop="${second!.id}"]`)).not.toBeNull();
+    // 400 less the fork line and the two rows that stay.
+    const room = document.querySelector<HTMLElement>('[data-room-beside="0"] > div > div > div');
+    expect(room?.style.height).toBe("151px");
+    vi.restoreAllMocks();
+  });
+
+  it("stands whole the heads of a fork already there when the list is first painted", () => {
+    // The page knows where its slips stand only once it has measured its column, in the render
+    // before the first paint: the heads arrive then, as a day taken whole is drawn.
+    function Remounted() {
+      const [parts, setParts] = useState<PlanParts | null>(null);
+      useLayoutEffect(() => {
+        setParts({
+          anchors: [KYOTO.stops[1]!.id, null],
+          headOf: (part) => <p>{`head ${part}`}</p>,
+        });
+      }, []);
+      return <ReadingList {...KYOTO} parts={parts} />;
+    }
+
+    render(<Remounted />);
+
+    // The head, its press guard, the fold's content box, the fold: open from the first frame.
+    for (const part of [0, 1]) {
+      const fold = screen.getByText(`head ${part}`).parentElement?.parentElement?.parentElement;
+      expect(fold?.style.height).not.toBe("0px");
+    }
+  });
+
+  it("stands the head of a part with no stop on the list under the last row", () => {
+    const head = "a part past the day's last stop";
+    render(<ReadingList {...KYOTO} parts={{ anchors: [null], headOf: () => <p>{head}</p> }} />);
+
+    const rows = rowsOf();
+    expect(rows).toHaveLength(KYOTO.stops.length + 1);
+    expect(rows.at(-1)).toHaveTextContent(head);
+  });
+
+  it("keeps the focus on a part's answer as a take moves its slip to another stop", async () => {
+    const { rerender } = render(
+      <ReadingList
+        {...KYOTO}
+        parts={{ anchors: [KYOTO.stops[1]!.id], headOf: () => slipOf("whole") }}
+      />,
+    );
+    within(rowsOf()[1]!).getByRole("radio", { name: "eating late, proposed" }).focus();
+
+    // Taken, the old part's stop folds away and the slip stands over the version taken.
+    rerender(
+      <ReadingList
+        {...KYOTO}
+        hidden={new Set([KYOTO.stops[1]!.id])}
+        parts={{ anchors: [KYOTO.stops[2]!.id], headOf: () => slipOf("taken") }}
       />,
     );
 
@@ -267,12 +522,45 @@ describe("ReadingList", () => {
       .getAllByRole("listitem")
       .find((item) => item.getAttribute("data-stop") === KYOTO.stops[2]!.id)!;
     await waitFor(() =>
-      expect(within(row).getByRole("radio", { name: /eating late/ })).toHaveFocus(),
+      expect(within(row).getByRole("radio", { name: "eating late, your day" })).toHaveFocus(),
     );
   });
 
-  it("folds a version the fork folds away out of the list", async () => {
-    render(<ReadingList {...KYOTO} fading={new Set([KYOTO.stops[1]!.id])} />);
+  it("takes no press on a slip whose row is folding away", () => {
+    const { rerender } = render(
+      <ReadingList
+        {...KYOTO}
+        parts={{ anchors: [KYOTO.stops[1]!.id], headOf: () => slipOf("whole") }}
+      />,
+    );
+
+    rerender(
+      <ReadingList
+        {...KYOTO}
+        hidden={new Set([KYOTO.stops[1]!.id])}
+        parts={{ anchors: [KYOTO.stops[2]!.id], headOf: () => slipOf("taken") }}
+      />,
+    );
+
+    // The old slip still stands as its row folds out, its closures those of the proposal.
+    const leaving = screen.getByRole("radio", { name: "eating late, proposed", hidden: true });
+    expect(leaving.closest("[inert]")).not.toBeNull();
+  });
+
+  it("brings a version taken in whole, its words not written in again", () => {
+    const other = new Set([KYOTO.stops[1]!.id]);
+    const { rerender } = render(<ReadingList {...KYOTO} hidden={other} />);
+
+    rerender(<ReadingList {...KYOTO} />);
+
+    const taken = within(rowsOf()[1]!).getByRole("heading", { name: "Philosopher's Path" });
+    expect(taken.querySelector(".invisible")).toBeNull();
+  });
+
+  it("folds the version a take leaves out of the list", async () => {
+    const { rerender } = render(<ReadingList {...KYOTO} />);
+
+    rerender(<ReadingList {...KYOTO} hidden={new Set([KYOTO.stops[1]!.id])} />);
 
     await waitFor(() => expect(rowsOf()).toHaveLength(KYOTO.stops.length - 1));
     expect(screen.queryByText(KYOTO.stops[1]!.primary.name!)).toBeNull();

@@ -1,22 +1,24 @@
 import { FACT_OPTIONS } from "@/features/day/facts";
 import { replanEndedOf } from "@/features/day/not-yet";
-import type {
-  ReplanControls,
-  ReplanEnding,
-  ReplanPlaces,
-  ReplanStatus,
-} from "@/features/day/replan-controls";
-import { forkViewOf, placesKeptOf, type ForkView } from "@/features/day/replan-work";
+import { forkReceiptOf } from "@/features/day/part-slip-lines";
+import type { ReplanControls, ReplanEnding, ReplanStatus } from "@/features/day/replan-controls";
+import { forkViewOf, type ForkView } from "@/features/day/replan-work";
 import {
   ELCHE_DINNER_BASIS,
   ELCHE_LATE_DINNER_UNREPEATED,
 } from "@/lib/fixtures/replan/elche-dinner";
 import { KANAZAWA_LATE_DINNER } from "@/lib/fixtures/replan/kanazawa-dinner";
 import { writtenDayAt } from "@/lib/days/written/days";
-import { mergeShownReplan, movedStopsOf, type ReplanBasis } from "@/lib/replan/merge";
+import { mergeShownReplan, type ReplanBasis } from "@/lib/replan/merge";
 import type { Itinerary } from "@/lib/schema/itinerary.schema";
-import { newStopsOf } from "./replan-frame";
-import { receiptOf, workLineOf, type WorkMoment, type WorkReceipt } from "./work-line";
+import { windowsOf } from "./replan-frame";
+import {
+  receiptOf,
+  workLineOf,
+  type WorkCounts,
+  type WorkMoment,
+  type WorkReceipt,
+} from "./work-line";
 
 /**
  * The fork row's examples for its matrix and its tests (`fork-row-matrix.tsx`): each moment of
@@ -31,12 +33,27 @@ function mergedOf(basis: ReplanBasis, replan: typeof KANAZAWA_LATE_DINNER): Itin
   return merged.itinerary;
 }
 
-/** What a part's proposal counts against its day, as the page counts it once whole. */
-function placesOf(basis: ReplanBasis, after: Itinerary): ReplanPlaces {
-  const written = newStopsOf(after.stops, [basis.idPrefix]).size;
-  const moves = [...movedStopsOf(basis, after.stops).values()];
-  const later = moves.filter((move) => move === "later").length;
-  return { added: written - moves.length, same: null, later, earlier: moves.length - later };
+/** The receipts a fork's two versions give each other, the one taken or the one left. */
+interface Receipts {
+  proposal: WorkReceipt;
+  before: WorkReceipt;
+}
+
+/**
+ * What a part's proposal would change against its day, and its day before once the proposal is
+ * taken, as the page works them out from the two versions drawn (`forkReceiptOf`).
+ */
+function receiptsOf(change: ForkExample["change"], basis: ReplanBasis, after: Itinerary): Receipts {
+  const fork = {
+    change,
+    reach: "part",
+    windows: windowsOf(basis.itinerary, basis.windows),
+  } as const;
+  const before = basis.itinerary.stops;
+  return {
+    proposal: forkReceiptOf({ ...fork, side: "to", day: before, other: after.stops }),
+    before: forkReceiptOf({ ...fork, side: "from", day: after.stops, other: before }),
+  };
 }
 
 const ELCHE_AFTER = mergedOf(ELCHE_DINNER_BASIS, ELCHE_LATE_DINNER_UNREPEATED);
@@ -61,28 +78,13 @@ const KANAZAWA_AFTER = mergedOf(KANAZAWA_BASIS, KANAZAWA_LATE_DINNER);
 const LATE_DINNER = { word: "dinner", from: "early dinner", to: "eating late" } as const;
 
 /** What Elche's proposal would change, and what its day before would once the proposal is taken. */
-export const ELCHE_RECEIPTS: { proposal: WorkReceipt; before: WorkReceipt } = {
-  proposal: receiptOf(
-    LATE_DINNER,
-    "part",
-    ELCHE_BEFORE.stops,
-    ELCHE_AFTER.stops,
-    placesOf(ELCHE_DINNER_BASIS, ELCHE_AFTER),
-  ),
-  before: receiptOf(
-    { word: "dinner", to: LATE_DINNER.from },
-    "part",
-    ELCHE_AFTER.stops,
-    ELCHE_BEFORE.stops,
-    null,
-  ),
-};
+export const ELCHE_RECEIPTS: Receipts = receiptsOf(LATE_DINNER, ELCHE_DINNER_BASIS, ELCHE_AFTER);
 
 /** A changed word's fork as one example draws it: its change, its reach, its receipts, its row. */
 export interface ForkExample {
   change: NonNullable<ReplanControls["change"]>;
   reach: "part" | "whole";
-  receipts: { proposal: WorkReceipt; before: WorkReceipt };
+  receipts: Receipts;
   /** Which of the fork's rows, from 0, and how many there are. */
   index: number;
   count: number;
@@ -90,9 +92,10 @@ export interface ForkExample {
 
 /**
  * A whole day written again for a family, its receipt counted against Elche's day as if the
- * family's day kept five of its places: the count's words, as a whole day's receipt says them.
+ * family's day kept five of its places and wrote three new: the count's words, as a whole day's
+ * receipt says them.
  */
-const FAMILY_PLACES = placesKeptOf(ELCHE_BEFORE.stops, ELCHE_BEFORE.stops.slice(0, 5));
+const FAMILY_PLACES: WorkCounts = { added: 3, same: 5, later: 0, earlier: 0 };
 
 /**
  * A whole day written again for a change of a word no stop's hours name, its receipt counted as
@@ -103,10 +106,7 @@ function wholeChangeOf(change: ForkExample["change"]): ForkExample {
     change,
     reach: "whole",
     receipts: {
-      proposal: receiptOf(change, "whole", ELCHE_BEFORE.stops, ELCHE_BEFORE.stops, {
-        ...FAMILY_PLACES,
-        added: 3,
-      }),
+      proposal: receiptOf(change, "whole", ELCHE_BEFORE.stops, ELCHE_BEFORE.stops, FAMILY_PLACES),
       before: receiptOf(
         { word: change.word, to: change.from },
         "whole",
@@ -138,22 +138,7 @@ export const FORK_EXAMPLES: readonly { label: string; example: ForkExample }[] =
     example: {
       change: LATE_DINNER,
       reach: "part",
-      receipts: {
-        proposal: receiptOf(
-          LATE_DINNER,
-          "part",
-          KANAZAWA_BASIS.itinerary.stops,
-          KANAZAWA_AFTER.stops,
-          placesOf(KANAZAWA_BASIS, KANAZAWA_AFTER),
-        ),
-        before: receiptOf(
-          { word: "dinner", to: LATE_DINNER.from },
-          "part",
-          KANAZAWA_AFTER.stops,
-          KANAZAWA_BASIS.itinerary.stops,
-          null,
-        ),
-      },
+      receipts: receiptsOf(LATE_DINNER, KANAZAWA_BASIS, KANAZAWA_AFTER),
       index: 0,
       count: 1,
     },
@@ -169,7 +154,7 @@ export const FORK_EXAMPLES: readonly { label: string; example: ForkExample }[] =
           "whole",
           ELCHE_BEFORE.stops,
           ELCHE_BEFORE.stops,
-          { ...FAMILY_PLACES, added: 3 },
+          FAMILY_PLACES,
         ),
         before: receiptOf(
           { word: "company", to: "with anyone" },
@@ -251,18 +236,18 @@ export function forkViewAt(example: ForkExample, at: ForkMoment): ForkView {
     reach: example.reach,
     ending: at.status === "failed" ? (at.ending ?? "invalid") : null,
     written: null,
-    receipt: !isWhole
-      ? null
-      : at.status === "taken"
-        ? example.receipts.before
-        : example.receipts.proposal,
     windows: [],
     isCompared: at.isCompared ?? at.status === "proposed",
     choose: () => false,
     compare: ignore,
     askAgain: ignore,
   };
-  const view = forkViewOf({ replan: controls, frame: null, isLookingDue: true });
+  const receipt = !isWhole
+    ? null
+    : at.status === "taken"
+      ? example.receipts.before
+      : example.receipts.proposal;
+  const view = forkViewOf({ replan: controls, frame: null, isLookingDue: true, receipt });
   if (view === null) throw new Error("A fork's example has no view");
   if (at.status !== "writing" || at.moment === undefined) return view;
   const work = {

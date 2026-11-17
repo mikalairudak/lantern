@@ -3,15 +3,8 @@
 import { MotionConfig } from "motion/react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { cn } from "@/components/ui/cn";
-import {
-  forkAnchorsOf,
-  forkFrameOf,
-  frameStopsOf,
-  type ReplanFrame,
-} from "@/features/abacus/replan-frame";
-import type { StopDraft } from "@/features/abacus/day-draft";
 import { PartSlip, type SlipPlacement } from "@/features/day/part-slip";
-import { partsOf } from "@/features/day/part-slip-lines";
+import { planForkOf } from "@/features/day/plan-fork";
 import { ReadingList } from "@/features/day/reading-list";
 import type { ReplanControls, ReplanStatus } from "@/features/day/replan-controls";
 import { forkViewOf, type ForkView } from "@/features/day/replan-work";
@@ -34,7 +27,7 @@ type Width = (typeof WIDTHS)[number];
 const THEMES = ["light", "dark"] as const;
 type Theme = (typeof THEMES)[number];
 
-const VIEWS = ["today beside proposed", "margin or column"] as const;
+const VIEWS = ["at a width", "margin or column"] as const;
 type View = (typeof VIEWS)[number];
 
 const PLACEMENTS = ["margin", "column"] as const;
@@ -63,11 +56,10 @@ function forkAtOf(state: StateName, step: WritingStep | null): ForkAt {
 }
 
 /**
- * The fork rows' view, as the page works it out from its change. `isCompared` is the version
- * not on screen drawn beside the day: the plan as built folds it once a version is chosen; the
- * slip always draws it.
+ * The slip's view, as the page works it out from its change: the version not on screen stands
+ * beside the day while the fork does, so its receipt is said once a version is chosen too.
  */
-function viewOf(bench: ForkBench, { status, step }: ForkAt, isCompared: boolean): ForkView {
+function viewOf(bench: ForkBench, { status, step }: ForkAt): ForkView {
   const receipt =
     status === "taken"
       ? bench.receipts.before
@@ -80,9 +72,8 @@ function viewOf(bench: ForkBench, { status, step }: ForkAt, isCompared: boolean)
     reach: bench.reach,
     ending: status === "failed" ? "invalid" : null,
     written: step?.written ?? null,
-    receipt,
     windows: bench.windows,
-    isCompared,
+    isCompared: true,
     choose: () => false,
     compare: ignore,
     askAgain: ignore,
@@ -91,50 +82,14 @@ function viewOf(bench: ForkBench, { status, step }: ForkAt, isCompared: boolean)
     replan: controls,
     frame: step?.frame ?? null,
     isLookingDue: step?.isLookingDue ?? true,
+    receipt,
   });
   if (view === null) throw new Error("A fork on the bench has no view");
   return view;
 }
 
-/**
- * The plan as built, the bench's "today", at a state: the proposal's rows among the day's, its
- * fork rows over them.
- */
-function TodayPlan({ bench, at }: { bench: ForkBench; at: ForkAt }) {
-  const isChosen = at.status === "taken" || at.status === "left";
-  const view = viewOf(bench, at, !isChosen);
-  const frame: ReplanFrame | null =
-    bench.reach === "whole"
-      ? null
-      : at.status === "writing"
-        ? (at.step?.frame ?? null)
-        : at.status === "proposed"
-          ? forkFrameOf(bench.before, bench.after, bench.idPrefix, bench.windows, "proposed")
-          : null;
-  const stops: readonly StopDraft[] =
-    frame !== null ? frameStopsOf(frame) : at.status === "taken" ? bench.after : bench.before;
-  const proposed = new Set(frame?.proposed ?? []);
-  return (
-    <ReadingList
-      stops={stops}
-      entered={stops.length}
-      versionsShown={new Set(stops.filter(({ id }) => !proposed.has(id)).map(({ id }) => id))}
-      picks={stops.map(() => 0)}
-      daylight={bench.daylight}
-      proposed={proposed}
-      fork={{
-        view,
-        anchors: forkAnchorsOf(stops, bench.windows),
-        onChoose: ignore,
-        onCompare: ignore,
-        onAskAgain: ignore,
-      }}
-    />
-  );
-}
-
-/** The plan as proposed: the day alone, each part's slip at the head of its part. */
-function ProposedPlan({
+/** The plan: the day alone, each part's slip at the head of its part. */
+function SlipPlan({
   bench,
   at,
   placement,
@@ -143,17 +98,17 @@ function ProposedPlan({
   at: ForkAt;
   placement: SlipPlacement;
 }) {
-  const view = viewOf(bench, at, true);
+  const view = viewOf(bench, at);
   const day = at.status === "taken" ? bench.after : bench.before;
   const other =
     at.status === "taken"
       ? bench.before
       : at.status === "writing"
         ? (at.step?.finished ?? [])
-        : bench.after;
-  const shownParts = partsOf(day, bench.windows);
-  const otherParts = partsOf(other, bench.windows);
-  const anchors = shownParts.map((part) => part[0]?.id ?? null);
+        : at.status === "failed"
+          ? []
+          : bench.after;
+  const fork = planForkOf(day, other, bench.windows);
   return (
     <ReadingList
       stops={day}
@@ -161,23 +116,25 @@ function ProposedPlan({
       versionsShown={new Set(day.map(({ id }) => id))}
       picks={day.map(() => 0)}
       daylight={bench.daylight}
-      partHeadOf={(id) => {
-        const index = anchors.indexOf(id);
-        if (index === -1) return null;
-        return (
-          <PartSlip
-            view={view}
-            shown={shownParts[index] ?? []}
-            other={otherParts[index] ?? []}
-            opens={bench.windows[index]?.opens ?? null}
-            index={index}
-            count={bench.windows.length}
-            reach={bench.reach}
-            placement={placement}
-            onChoose={ignore}
-            onAskAgain={ignore}
-          />
-        );
+      parts={{
+        anchors: fork.anchors,
+        isBeside: placement === "margin",
+        // An ending without a proposal is said once, at the fork's first part.
+        headOf: (part) =>
+          view.isFailed && part > 0 ? null : (
+            <PartSlip
+              view={view}
+              shown={fork.shown[part] ?? []}
+              other={fork.other[part] ?? []}
+              opens={bench.windows[part]?.opens ?? null}
+              index={part}
+              count={bench.windows.length}
+              reach={bench.reach}
+              placement={placement}
+              onChoose={ignore}
+              onAskAgain={ignore}
+            />
+          ),
       }}
     />
   );
@@ -218,12 +175,12 @@ function Frame({ label, width, theme, children }: FrameProps) {
 }
 
 /**
- * A changed word's fork on the plan as built beside the slip (`docs/decisions.md`, "A changed word
- * proposes its part beside the day, and the visitor takes it"): the recorded Elche proposal,
- * Utrecht's morning made early and a whole Kyoto day written again for friends, each while
- * written, step by step, whole, taken, taken back and ended without a proposal, at a phone's
- * width and a laptop's, in either theme; and on a laptop, the slip in the margin beside it in
- * the column.
+ * A changed word's fork on the plan, the day alone and each part's other version as a slip
+ * (`docs/decisions.md`, "The plan lists the day alone, and a part's other version stands beside
+ * it as a slip"): the recorded Elche proposal, Utrecht's morning made early and a whole Kyoto day
+ * written again for friends, each while written, step by step, whole, taken, taken back and
+ * ended without a proposal, at a phone's width and a laptop's, in either theme; and on a laptop,
+ * the slip in the margin beside it in the column.
  */
 export function ForkConcept({ kyotoFriends }: { kyotoFriends: BenchDay }) {
   const benches = useMemo(
@@ -240,7 +197,7 @@ export function ForkConcept({ kyotoFriends }: { kyotoFriends: BenchDay }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [width, setWidth] = useState<Width>("phone");
   const [theme, setTheme] = useState<Theme>("dark");
-  const [view, setView] = useState<View>("today beside proposed");
+  const [view, setView] = useState<View>("at a width");
   const [placement, setPlacement] = useState<SlipPlacement>("margin");
   const bench = benches[benchName] ?? ELCHE_BENCH;
   const steps = useSteps(benchName, bench);
@@ -252,7 +209,7 @@ export function ForkConcept({ kyotoFriends }: { kyotoFriends: BenchDay }) {
   return (
     <div className="min-h-dvh bg-surface py-10 text-ink md:px-10">
       <header className="flex max-w-page flex-col gap-4 px-4 md:px-0">
-        <h1 className="type-voice text-title">The fork on the plan: today and the slip</h1>
+        <h1 className="type-voice text-title">The fork on the plan: the slip</h1>
         <div aria-label="Bench controls" className="flex flex-col gap-2">
           <ChoiceGroup label="Day" names={benchNames} chosen={benchName} onChoose={setBenchName} />
           <ChoiceGroup label="State" names={STATES} chosen={state} onChoose={setState} />
@@ -282,10 +239,10 @@ export function ForkConcept({ kyotoFriends }: { kyotoFriends: BenchDay }) {
             </div>
           )}
           <ChoiceGroup label="View" names={VIEWS} chosen={view} onChoose={setView} />
-          {view === "today beside proposed" && (
+          {view === "at a width" && (
             <ChoiceGroup label="Width" names={WIDTHS} chosen={width} onChoose={setWidth} />
           )}
-          {view === "today beside proposed" && width === "laptop" && (
+          {view === "at a width" && width === "laptop" && (
             <ChoiceGroup
               label="Slip"
               names={PLACEMENTS}
@@ -298,24 +255,19 @@ export function ForkConcept({ kyotoFriends }: { kyotoFriends: BenchDay }) {
       </header>
       {!isReading && (
         <div className="mt-10 flex flex-wrap items-start gap-10">
-          {view === "today beside proposed" ? (
-            <>
-              <Frame label="today" width={width} theme={theme}>
-                <TodayPlan key={key} bench={bench} at={at} />
-              </Frame>
-              <Frame label="proposed" width={width} theme={theme}>
-                <ProposedPlan
-                  key={key}
-                  bench={bench}
-                  at={at}
-                  placement={width === "phone" ? "column" : placement}
-                />
-              </Frame>
-            </>
+          {view === "at a width" ? (
+            <Frame label="the plan" width={width} theme={theme}>
+              <SlipPlan
+                key={key}
+                bench={bench}
+                at={at}
+                placement={width === "phone" ? "column" : placement}
+              />
+            </Frame>
           ) : (
             PLACEMENTS.map((each) => (
               <Frame key={each} label={`the slip in the ${each}`} width="laptop" theme={theme}>
-                <ProposedPlan key={key} bench={bench} at={at} placement={each} />
+                <SlipPlan key={key} bench={bench} at={at} placement={each} />
               </Frame>
             ))
           )}

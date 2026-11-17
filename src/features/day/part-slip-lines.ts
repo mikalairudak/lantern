@@ -1,15 +1,24 @@
 import type { StopDraft } from "@/features/abacus/day-draft";
 import { kindWordOf } from "@/features/abacus/meal";
 import type { ReplanWindow } from "@/features/abacus/replan-frame";
-import type { WorkReach } from "@/features/abacus/work-line";
+import {
+  receiptOf,
+  type TimedStop,
+  type WorkChange,
+  type WorkCounts,
+  type WorkReach,
+  type WorkReceipt,
+} from "@/features/abacus/work-line";
 import { isSameSpelling } from "@/lib/places/match";
 import { formatClock, minutesOf, runningSpans, runningStart } from "@/lib/time/clock";
+import type { ForkSide } from "./replan-controls";
 
 /**
  * What a part's slip says of the other version of its part, worked out by code from the two
- * versions' stops: one line a stop, and which of the version on screen's hours it would take.
+ * versions' stops: one line a stop, which of the version on screen's hours it would take, and
+ * the fork's receipt, counted from the lines.
  * A stop the other version keeps is found by its place's spelling, as the merge finds a stop
- * written again (`stayingStopOf`, `movedStopsOf`), never by id: a whole day written again
+ * written again (`stayingStopOf`), never by id: a whole day written again
  * numbers its stops from the start as the day before did. A part's hours run on the day's own
  * clock, from where the part opens, so a part after midnight is the night's, never a morning.
  */
@@ -29,8 +38,11 @@ export type SlipMark =
   | { kind: "new"; what: string }
   /** At a place of the part on screen, at the same hour. */
   | { kind: "stays" }
-  /** At a place of the part on screen, at another hour: the hour the part on screen gives it. */
-  | { kind: "moved"; hour: string };
+  /**
+   * At a place of the part on screen, at another hour: the hour the part on screen gives it, and
+   * which way the other version moves it.
+   */
+  | { kind: "moved"; hour: string; way: "later" | "earlier" };
 
 /** One line of the slip: a stop of the other version, its time and its name. */
 export interface SlipLine {
@@ -49,7 +61,7 @@ interface Timed {
 }
 
 /** The place a stop's plan shows: its primary, or the version its plan names. */
-function shownPlaceOf(stop: StopDraft) {
+export function shownPlaceOf(stop: StopDraft) {
   return stop.alternatives.find(({ id }) => id === stop.selectedPlaceId) ?? stop.primary;
 }
 
@@ -110,9 +122,26 @@ export function slipLinesOf(
           }
         : old.from === from
           ? { kind: "stays" }
-          : { kind: "moved", hour: formatClock(old.from) };
+          : {
+              kind: "moved",
+              hour: formatClock(old.from),
+              way: from > old.from ? "later" : "earlier",
+            };
     return { id: stop.id, time: formatClock(from), name, mark };
   });
+}
+
+/**
+ * What a slip's lines count against the version on screen, as the receipt says it: its new
+ * lines; on a part, its moved lines by which way they moved; on a whole day, the lines at the
+ * day's own places, staying or moved, as the same.
+ */
+export function slipCountsOf(lines: readonly SlipLine[], reach: WorkReach): WorkCounts {
+  const added = lines.filter(({ mark }) => mark.kind === "new").length;
+  if (reach === "whole") return { added, same: lines.length - added, later: 0, earlier: 0 };
+  const ways = lines.flatMap(({ mark }) => (mark.kind === "moved" ? [mark.way] : []));
+  const later = ways.filter((way) => way === "later").length;
+  return { added, same: null, later, earlier: ways.length - later };
 }
 
 /** Hours as a sentence says them: "13:15", "18:15 and 20:00", "10:00, 11:15 and 12:45". */
@@ -143,13 +172,29 @@ export function slipFootOf(
 }
 
 /**
- * The lines a slip holds room for in the column from the press, before the other version is
- * known: a line a stop, one for each of the part's stops on screen and one more, as a part's
- * proposal is often a stop longer; one each for a whole day. A stop whose line wraps takes the
- * rest of its room by a glide.
+ * The lines a slip holds room for from the press, before the other version is known: the
+ * part's own stops on screen, each as a new stop's line, so it wraps as such a line does at the
+ * width the slip stands in, and for a part one more, the longest of them, as a part's proposal
+ * is often a stop longer. A whole day's holds its own stops alone.
  */
-export function heldLinesOf(shownCount: number, reach: WorkReach): number {
-  return reach === "whole" ? shownCount : shownCount + 1;
+export function heldLinesOf(
+  shown: readonly StopDraft[],
+  opens: number | null,
+  reach: WorkReach,
+): SlipLine[] {
+  const own = slipLinesOf([], shown, opens);
+  const longest = own.reduce<SlipLine | null>(
+    (most, line) => (most === null || lengthOf(line) > lengthOf(most) ? line : most),
+    null,
+  );
+  return reach === "whole" || longest === null
+    ? own
+    : [...own, { ...longest, id: `${longest.id}:more` }];
+}
+
+/** How many letters a line sets. */
+function lengthOf({ time, name, mark }: SlipLine): number {
+  return time.length + name.length + (mark.kind === "new" ? mark.what.length : 0);
 }
 
 /**
@@ -166,5 +211,51 @@ export function partsOf<Stop extends StopDraft>(
       const from = starts[at] ?? 0;
       return from >= (opens ?? -Infinity) && from < (closes ?? Infinity);
     }),
+  );
+}
+
+/** A fork's two versions as they are drawn, and which of them stands beside the day. */
+export interface DrawnFork {
+  change: Pick<WorkChange, "word" | "from" | "to">;
+  reach: WorkReach;
+  /** The other version's answer: the proposal's, or the day before's once the proposal is taken. */
+  side: ForkSide;
+  /** The day on screen, and the other version, each as drawn (`asShownOf`). */
+  day: readonly StopDraft[];
+  other: readonly StopDraft[];
+  windows: readonly ReplanWindow[];
+}
+
+/** A stop as a receipt reads it: its hours, and the kind of the place it shows. */
+function timedAsShownOf(stop: StopDraft): TimedStop {
+  return { ...stop, primary: shownPlaceOf(stop) };
+}
+
+/**
+ * What the version beside the day would change against the day on screen, worked out from the
+ * two as they are drawn, re-picked for the energy chosen with the visitor's picks on them, so it
+ * says what the slips list at any energy: its counts are the slips' own lines, each part's paired
+ * as its slip pairs them (`slipCountsOf`), and its hour is read from the places each version
+ * shows. The day before, beside a proposal taken, says its hour alone.
+ */
+export function forkReceiptOf({
+  change,
+  reach,
+  side,
+  day,
+  other,
+  windows,
+}: DrawnFork): WorkReceipt {
+  const shown = partsOf(day, windows);
+  const lines = partsOf(other, windows).flatMap((part, at) =>
+    slipLinesOf(shown[at] ?? [], part, windows[at]?.opens ?? null),
+  );
+  const isProposal = side === "to";
+  return receiptOf(
+    { word: change.word, to: isProposal ? change.to : change.from },
+    reach,
+    day.map(timedAsShownOf),
+    other.map(timedAsShownOf),
+    isProposal ? slipCountsOf(lines, reach) : null,
   );
 }

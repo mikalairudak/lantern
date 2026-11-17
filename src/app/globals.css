@@ -194,6 +194,12 @@
   /* The margin right of the plan where the day's column is whole: where a version stands. */
   --container-margin: 16rem;
   /*
+   * The day's column whole, the plan and its margin: from this width a part's slip stands in
+   * the margin. Read against the column itself, never the viewport, which a classic scrollbar
+   * would leave 15 px short of it. Not `day`, which names the chart's height.
+   */
+  --container-day-column: 64rem;
+  /*
    * The shortest masthead row that holds the day's menu, the new day and the theme side by side:
    * the widest the built row needs, measured in each browser and in the face that stands in
    * before Literata lands, plus 6 px for the phones no measure was taken on

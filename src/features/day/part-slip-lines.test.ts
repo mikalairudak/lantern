@@ -52,7 +52,7 @@ describe("slipLinesOf", () => {
     const same = stopAt("stop-1", "11:15", 60, "Domtoren", "viewpoint");
 
     expect(slipLinesOf([COFFEE, TOWER], [earlier, same], null).map(({ mark }) => mark)).toEqual([
-      { kind: "moved", hour: "10:00" },
+      { kind: "moved", hour: "10:00", way: "earlier" },
       { kind: "stays" },
     ]);
   });
@@ -120,7 +120,7 @@ describe("slipLinesOf as the stream writes", () => {
     const drawn = slipLinesOf([square], [earlier], null)[0]?.mark;
     const after = slipLinesOf([square], [earlier, atItsHour], null).map(({ mark }) => mark);
 
-    expect(drawn).toEqual({ kind: "moved", hour: "15:00" });
+    expect(drawn).toEqual({ kind: "moved", hour: "15:00", way: "earlier" });
     expect(after).toEqual([drawn, { kind: "new", what: "walk\u00a0· until\u00a015:30" }]);
   });
 });
@@ -149,9 +149,20 @@ describe("slipFootOf", () => {
 });
 
 describe("heldLinesOf", () => {
-  it("holds a line for each of the part's stops and one more, and one each for a whole day", () => {
-    expect(heldLinesOf(1, "part")).toBe(2);
-    expect(heldLinesOf(9, "whole")).toBe(9);
+  it("holds a new stop's line for each of the part's stops and one more, the longest", () => {
+    const held = heldLinesOf([COFFEE, TOWER], null, "part");
+
+    expect(held.map(({ name }) => name)).toEqual([
+      "Coffee on the Oudegracht",
+      "Domtoren",
+      "Coffee on the Oudegracht",
+    ]);
+    expect(held.every(({ mark }) => mark.kind === "new")).toBe(true);
+    expect(new Set(held.map(({ id }) => id)).size).toBe(3);
+  });
+
+  it("holds a whole day's own stops alone", () => {
+    expect(heldLinesOf([COFFEE, TOWER], null, "whole")).toHaveLength(2);
   });
 });
 

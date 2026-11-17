@@ -93,6 +93,20 @@ function timesOfDay(itinerary: { stops: readonly Stop[] }): string[] {
   );
 }
 
+describe("replanFrameOf, the stops' times as the merge keeps them", () => {
+  it("rounds a new stop's stay to the minute, as the normalizer does", () => {
+    const shoren = stopAt("Shoren-in", "09:00", 20.4);
+    const awata = stopAt("Awata Shrine", "09:40", 15);
+
+    const frame = replanFrameOf(
+      KYOTO_MORNING_BASIS,
+      writing([shoren, awata], { alternatives: [] }),
+    );
+
+    expect(timesOf(frame)).toEqual(timesOfDay(merged(KYOTO_MORNING_BASIS, whole([shoren, awata]))));
+  });
+});
+
 describe("replanFrameOf", () => {
   it("keeps the day's morning as it is and lands each new stop beside it, once whole", () => {
     const shoren = stopAt("Shoren-in", "09:00", 20);

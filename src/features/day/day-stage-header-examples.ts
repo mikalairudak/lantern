@@ -604,7 +604,6 @@ function replanStillOf(
     reach: asked.reach,
     ending: isLimited ? "limited" : null,
     written: null,
-    receipt: null,
     windows: [],
     isCompared: status === "proposed",
     choose: () => false,

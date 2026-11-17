@@ -22,7 +22,7 @@ import { ReadingList } from "./reading-list";
 /**
  * A stop's bead on the plan is lit exactly where the rail beside it begins dotted, after sunset
  * and before sunrise alike (`docs/decisions.md`, "A day opens on its plan, lit by the day's
- * light"), never on a proposal's stop, and never changes once its row is on the plan.
+ * light"), and never changes once its row is on the plan.
  */
 
 beforeEach(() => {
@@ -104,16 +104,15 @@ describe("the plan's beads", () => {
     expect(ink.querySelector(".border-ink")).not.toBeNull();
   });
 
-  it("are never lit on a proposal's stop, and light once the proposal is taken", () => {
+  it("come onto the plan lit with a version taken, as its rows' hours have it", () => {
     const night = wholeOf(LATE_NIGHT_DAY);
-    const proposed = new Set(night.stops.slice(1, 3).map((stop) => stop.id));
-    const { container, rerender } = render(<ReadingList {...night} proposed={proposed} />);
-    expect(beadsOf(container).map(({ isLit }) => isLit)).toEqual([true, false, false]);
+    // The night's last two stops, a fork's other version, stand in no row until taken.
+    const other = new Set(night.stops.slice(1, 3).map((stop) => stop.id));
+    const { container, rerender } = render(<ReadingList {...night} hidden={other} />);
+    expect(beadsOf(container).map(({ isLit }) => isLit)).toEqual([true]);
     rerender(<ReadingList {...night} />);
     expect(beadsOf(container).map(({ isLit }) => isLit)).toEqual([true, true, true]);
-    // The glow lit from the first frame stands whole; a taken stop's grows from the bead.
-    const glows = [...container.querySelectorAll<HTMLElement>("[data-bead] .bg-lamp-glow")];
-    expect(glows.map((glow) => glow.style.transform)).toEqual(["none", "scale(0.5)", "scale(0.5)"]);
+    expect(container.querySelectorAll("[data-bead] .bg-lamp-glow")).toHaveLength(3);
   });
 });
 

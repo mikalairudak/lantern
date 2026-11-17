@@ -250,7 +250,6 @@ const NO_REPLAN: ReplanControls = {
   reach: null,
   ending: null,
   written: null,
-  receipt: null,
   windows: [],
   isCompared: false,
   choose: () => false,
