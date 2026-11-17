@@ -2,7 +2,6 @@
 
 import { useState, type ReactNode } from "react";
 import { cn } from "@/components/ui/cn";
-import { DAYS_SHOWN_AT_FIRST, YourDaysList } from "@/features/day/your-days-list";
 import {
   YourDaysLedger,
   type LedgerStill,
@@ -16,7 +15,7 @@ import {
   TWELVE_DAYS,
   WRITING_DAYS,
 } from "@/features/day/your-days-ledger-examples";
-import type { LedgerDateKind } from "@/features/day/your-days-ledger-words";
+import { DAYS_SHOWN_AT_FIRST, type LedgerDateKind } from "@/features/day/your-days-ledger-words";
 import type { YourDay } from "@/features/day/your-days";
 
 const THEMES = ["light", "dark"] as const;
@@ -41,7 +40,7 @@ const CELL_CLASSES =
 const WIDTH_CLASSES: Record<Width, string> = { phone: "@container w-phone", laptop: "w-page" };
 const GUTTER_CLASSES: Record<Width, string> = { phone: "px-4", laptop: "px-16" };
 
-/** What the switches choose for the ledger: each starts at the form the ledger proposes. */
+/** What the switches choose for the ledger: each starts at the form the start screen draws. */
 interface LedgerChoices {
   hasEnergyWire: boolean;
   /** Rows at rest on a phone; a laptop always shows three. */
@@ -50,7 +49,7 @@ interface LedgerChoices {
   dateKind: LedgerDateKind;
 }
 
-const PROPOSED: LedgerChoices = {
+const START_SCREEN: LedgerChoices = {
   hasEnergyWire: false,
   phoneRowsAtRest: DAYS_SHOWN_AT_FIRST,
   isForgetAsked: true,
@@ -84,12 +83,12 @@ const STATES: readonly LedgerState[] = [
 ];
 
 /**
- * Today's list of the visitor's days beside the same days as a ledger, in both themes, at a
- * phone's width or the start screen's column on a laptop. The switches change the ledger alone;
- * each starts at the ledger's own form.
+ * The visitor's days as a ledger, in both themes, at a phone's width or the start screen's
+ * column on a laptop, in every set and state. Each switch starts at the form the start screen
+ * draws and sets the other answer to one of the form's questions beside it.
  */
 export function YourDaysConcept() {
-  const [choices, setChoices] = useState<LedgerChoices>(PROPOSED);
+  const [choices, setChoices] = useState<LedgerChoices>(START_SCREEN);
   const [view, setView] = useState<View>("sets");
   const [width, setWidth] = useState<Width>("phone");
   const [themeView, setThemeView] = useState<ThemeView>("both");
@@ -113,8 +112,8 @@ export function YourDaysConcept() {
       <header className="mx-auto flex w-full max-w-page flex-col gap-2">
         <h1 className="type-voice text-display">Concept · Your days</h1>
         <p className="max-w-measure text-body text-ink-soft">
-          The visitor&apos;s own days on the start screen: as listed today, and as a ledger, a line
-          a day with its city, its date and its words.
+          The visitor&apos;s own days on the start screen as a ledger, a line a day with its city,
+          its date and its words, and the other answers to its form&apos;s questions.
         </p>
       </header>
       <div className="mx-auto flex w-full max-w-page flex-wrap gap-4">
@@ -158,7 +157,7 @@ export function YourDaysConcept() {
           label="Show"
           value={view}
           options={[
-            ["sets", "Today beside the ledger"],
+            ["sets", "The ledger's sets"],
             ["states", "The ledger's states"],
           ]}
           onChange={(value) => setView(value === "states" ? "states" : "sets")}
@@ -190,28 +189,13 @@ export function YourDaysConcept() {
             ? LEDGER_SETS.map(({ label, days, isAllShownAtFirst = false }) => (
                 <Row key={label} label={label} width={width}>
                   {THEME_VIEWS[themeView].map((theme) => (
-                    <Pair
-                      key={theme}
-                      theme={theme}
-                      width={width}
-                      today={
-                        <YourDaysList
-                          key={cellKey}
-                          days={days}
-                          now={LEDGER_NOW}
-                          onOpen={ignore}
-                          onForget={ignore}
-                          isAllShownAtFirst={isAllShownAtFirst}
-                        />
-                      }
-                      ledger={
-                        <YourDaysLedger
-                          key={cellKey}
-                          {...ledgerProps(days)}
-                          isAllShownAtFirst={isAllShownAtFirst}
-                        />
-                      }
-                    />
+                    <Cell key={theme} theme={theme} width={width} caption={`${theme} theme`}>
+                      <YourDaysLedger
+                        key={cellKey}
+                        {...ledgerProps(days)}
+                        isAllShownAtFirst={isAllShownAtFirst}
+                      />
+                    </Cell>
                   ))}
                 </Row>
               ))
@@ -286,26 +270,5 @@ function Cell({ theme, width, caption, children }: CellProps) {
         <div className={GUTTER_CLASSES[width]}>{children}</div>
       </div>
     </figure>
-  );
-}
-
-interface PairProps {
-  theme: Theme;
-  width: Width;
-  today: ReactNode;
-  ledger: ReactNode;
-}
-
-/** Today's list and the ledger of the same days in one theme. */
-function Pair({ theme, width, today, ledger }: PairProps) {
-  return (
-    <div className={cn("flex gap-3", width === "laptop" && "flex-col")}>
-      <Cell theme={theme} width={width} caption={`Today, ${theme}`}>
-        {today}
-      </Cell>
-      <Cell theme={theme} width={width} caption={`Ledger, ${theme}`}>
-        {ledger}
-      </Cell>
-    </div>
   );
 }

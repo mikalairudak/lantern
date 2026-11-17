@@ -82,13 +82,16 @@ const FIVE_FACTS_REQUEST: DayRequest = {
   company: "partner",
 };
 
-/** Saturday evening in the visitor's own calendar, as the matrix is set. */
-const NOW = new Date(2026, 9, 31, 21, 0);
+/** Saturday evening in Lisbon, as the matrix is set, on any machine's clock. */
+const NOW = new Date("2026-10-31T21:00:00Z");
 
-/** A visitor back on the start screen, with a day of six stops Lantern wrote them an hour ago. */
+/**
+ * A visitor back on the start screen, with a day of six stops Lantern wrote them an hour ago,
+ * for that Saturday.
+ */
 const RETURNING_DAY: YourDay = {
   id: "lab-returning",
-  request: LISBON_DAY.request,
+  request: { ...LISBON_DAY.request, date: "2026-10-31" },
   startedAt: new Date(NOW.getTime() - 60 * 60 * 1000).toISOString(),
   energies: ["calm", "balanced", "lively", "lively", "social", "balanced"],
   ending: "written",

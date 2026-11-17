@@ -24,13 +24,22 @@ import { writtenPool } from "./written-pool";
 import { INDEX_LABEL } from "./start-index";
 import { keepYourDay, readYourDays } from "./your-days";
 import { shownEnergiesOf } from "./day-shape";
-import { FORGET_YOUR_DAYS, YOUR_DAYS_HEADING } from "./your-days-list";
+import { FORGET_ANSWER, FORGET_ANSWER_WAIT_MS } from "./your-days-ledger";
+import {
+  FORGET_YOUR_DAYS,
+  YOUR_DAYS_HEADING,
+  WRITING_SAID,
+  ledgerDateOf,
+} from "./your-days-ledger-words";
 import { DAY_ID_HEADER } from "@/lib/days/stored-day";
 import { DAY_ROUTE } from "@/features/itinerary/day-route";
 import type { DaySource } from "@/features/itinerary/use-day-stream";
 import { ENERGY_LEVELS, type DayRequest, type EnergyLevel } from "@/lib/schema/itinerary.schema";
 import type { IntakeReader, IntakeResult, IntakeWords } from "@/lib/schema/intake.schema";
 import { TAKE_THIS_DAY } from "./day-menu";
+
+/** "Forget" takes a press only once a double press on "Forget these days" is over. */
+const waitOutADoublePress = () => new Promise((done) => setTimeout(done, FORGET_ANSWER_WAIT_MS));
 
 /** The start's own status: the theme's button in the masthead says its look in one too. */
 function startStatus(): HTMLElement {
@@ -1204,15 +1213,18 @@ describe("the visitor's own days", () => {
     act(() => window.history.back());
 
     const yours = await screen.findByRole("list", { name: YOUR_DAYS_HEADING });
-    expect(within(yours).getByRole("button")).toHaveTextContent(
-      /^A balanced Saturday in Rome, eating late, with family\. today$/,
+    // Its city, its words and the day's own date, which a written day sets on its next Saturday.
+    expect(within(yours).getByRole("link")).toHaveAccessibleName(
+      `Rome. Balanced Saturday, eating late, with family. ${ledgerDateOf(kept!, new Date())}`,
     );
-    await user.click(within(yours).getByRole("button"));
+    await user.click(within(yours).getByRole("link"));
     await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
     expect(window.location.pathname).toBe(`/day/${ID}`);
 
     act(() => window.history.back());
     await user.click(await screen.findByRole("button", { name: FORGET_YOUR_DAYS }));
+    await waitOutADoublePress();
+    await user.click(screen.getByRole("button", { name: FORGET_ANSWER }));
     expect(screen.queryByRole("list", { name: YOUR_DAYS_HEADING })).not.toBeInTheDocument();
     expect(readYourDays(window.localStorage)).toEqual([]);
   });
@@ -1247,7 +1259,15 @@ describe("the visitor's own days", () => {
       render(<Day start={{ pool: POOL, read }} isAddressed />);
 
       const yours = await screen.findByRole("list", { name: YOUR_DAYS_HEADING });
-      await waitFor(() => expect(within(yours).getByRole("button")).toHaveTextContent(/\. today$/));
+      // Written, the date's place says the day's own date where it said "writing".
+      await waitFor(() =>
+        expect(within(yours).getByRole("link")).not.toHaveAccessibleName(
+          new RegExp(`\\. ${WRITING_SAID}$`),
+        ),
+      );
+      expect(within(yours).getByRole("link")).toHaveAccessibleName(
+        new RegExp(`\\. ${ledgerDateOf(readYourDays(window.localStorage)[0]!, new Date())}$`),
+      );
       expect(readYourDays(window.localStorage)[0]?.energies).toEqual(
         shownEnergiesOf(nafplio.itinerary),
       );

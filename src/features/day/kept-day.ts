@@ -104,7 +104,7 @@ export function keptViewOf(
  * its shape and how it ended, one that failed, or was not found once the wait was over, did
  * not finish. A day still being written stays as recorded, and so does one past its link,
  * unless it was recorded as still being written: its record landed, so it ended, and the
- * row says only when it was asked rather than "writing" for good.
+ * row says its date rather than "writing" for good.
  */
 export function restatedYourDayOf(day: YourDay, stored: StoredDay, isOverdue: boolean): YourDay {
   switch (stored.status) {

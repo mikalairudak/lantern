@@ -27,7 +27,7 @@ import { TAKE_THIS_DAY } from "./day-menu";
 import { writtenPool } from "./written-pool";
 import { INDEX_LABEL } from "./start-index";
 import { readYourDays } from "./your-days";
-import { YOUR_DAYS_HEADING } from "./your-days-list";
+import { YOUR_DAYS_HEADING } from "./your-days-ledger-words";
 
 /**
  * One of the visitor's days pressed in "Your days" on the start screen, the day the page still
@@ -228,7 +228,7 @@ async function chooseCity(user: ReturnType<typeof userEvent.setup>, from: string
 /** Rome's row in "Your days" on the start screen. */
 async function romeInYourDays(): Promise<HTMLElement> {
   const yours = await screen.findByRole("list", { name: YOUR_DAYS_HEADING });
-  return within(yours).getByRole("button", { name: /Rome/ });
+  return within(yours).getByRole("link", { name: /Rome/ });
 }
 
 /** The visitor's days this browser keeps, by id and how each ended. */
@@ -412,7 +412,7 @@ describe("a day opened from Your days while another is asked on the start screen
       ]);
       act(() => window.history.back());
       const yours = await screen.findByRole("list", { name: YOUR_DAYS_HEADING });
-      expect(within(yours).getAllByRole("button", { name: /Paris|Rome/ })).toHaveLength(2);
+      expect(within(yours).getAllByRole("link", { name: /Paris|Rome/ })).toHaveLength(2);
     },
     LONG_TEST_MS,
   );

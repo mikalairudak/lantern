@@ -3,12 +3,17 @@ import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { YourDay } from "./your-days";
 import {
+  FORGET_ANSWER,
+  FORGET_ANSWER_WAIT_MS,
   FORGET_DAYS_QUESTION,
   FORGET_DAY_QUESTION,
   YourDaysLedger,
   type YourDaysLedgerProps,
 } from "./your-days-ledger";
-import { FORGET_YOUR_DAYS, YOUR_DAYS_HEADING } from "./your-days-list";
+import { FORGET_YOUR_DAYS, YOUR_DAYS_HEADING } from "./your-days-ledger-words";
+
+/** "Forget" takes a press only once a double press on "Forget these days" is over. */
+const waitOutADoublePress = () => new Promise((done) => setTimeout(done, FORGET_ANSWER_WAIT_MS));
 
 /** Sunday 15 November 2026, six in the evening in Alicante. */
 const NOW = new Date("2026-11-15T17:00:00Z");
@@ -212,8 +217,41 @@ describe("YourDaysLedger", () => {
     expect(screen.getByRole("button", { name: FORGET_YOUR_DAYS })).toHaveFocus();
 
     await user.click(screen.getByRole("button", { name: FORGET_YOUR_DAYS }));
+    await waitOutADoublePress();
     await user.click(screen.getByRole("button", { name: "Forget" }));
     expect(onForget).toHaveBeenCalledOnce();
+  });
+
+  it("takes no answer to forget from the second press of a double press", async () => {
+    const user = userEvent.setup();
+    const { onForget } = renderLedger({ days: FIVE });
+
+    // On a narrow phone "Forget" stands where "Forget these days" was pressed.
+    await user.click(screen.getByRole("button", { name: FORGET_YOUR_DAYS }));
+    await user.click(screen.getByRole("button", { name: FORGET_ANSWER }));
+    expect(onForget).not.toHaveBeenCalled();
+    expect(screen.getByText(FORGET_DAYS_QUESTION)).toBeInTheDocument();
+
+    await waitOutADoublePress();
+    await user.click(screen.getByRole("button", { name: FORGET_ANSWER }));
+    expect(onForget).toHaveBeenCalledOnce();
+  });
+
+  it("comes back at rest once its days have gone from under an open question or an open fold", async () => {
+    const user = userEvent.setup();
+    const props = { now: NOW, onOpen: vi.fn(), onForget: vi.fn() };
+    const { rerender } = render(<YourDaysLedger days={FIVE} {...props} />);
+    await user.click(screen.getByRole("button", { name: "All your days · 5" }));
+    await user.click(screen.getByRole("button", { name: FORGET_YOUR_DAYS }));
+    expect(screen.getByText(FORGET_DAYS_QUESTION)).toBeInTheDocument();
+
+    // Forgotten elsewhere, as in another tab, and then a day is kept again.
+    rerender(<YourDaysLedger days={[]} {...props} />);
+    rerender(<YourDaysLedger days={FIVE} {...props} />);
+
+    expect(screen.queryByText(FORGET_DAYS_QUESTION)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: FORGET_YOUR_DAYS })).toBeInTheDocument();
+    expect(rows()).toHaveLength(3);
   });
 
   it("asks of one day as one day, and forgets at one press when set not to ask", async () => {

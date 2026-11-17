@@ -169,7 +169,7 @@ export function endingOf(outcome: DayOutcome | null): YourDay["ending"] {
   return kept ? "cut" : "failed";
 }
 
-/** The shape a finished day shows, or the stops that have arrived while it is written. */
+/** Each stop's energy as a finished day shows it, or of the stops arrived while it is written. */
 export function energiesOfDay(
   partial: PartialDay | null,
   outcome: DayOutcome | null,

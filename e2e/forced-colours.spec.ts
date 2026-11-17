@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, type Locator, type Page } from "./fixtures";
+import { YOUR_DAYS_KEY, type YourDay } from "../src/features/day/your-days";
+import { writtenDayAt } from "../src/lib/days/written/days";
 
 /**
  * Under forced colours the device's theme stands over the one chosen in Lantern
@@ -10,6 +12,8 @@ import { expect, test, type Page } from "./fixtures";
 
 /** WCAG's bar for what is drawn rather than written. */
 const GRAPHICS_CONTRAST = 3;
+/** WCAG's bar for text. */
+const TEXT_CONTRAST = 4.5;
 /** Room round a picture's box, so the shot holds the canvas beside it. */
 const CANVAS_MARGIN_PX = 2;
 const INDEX_HEADING = "No city in mind? Start from one of these";
@@ -45,14 +49,18 @@ async function drawnPictureOf(page: Page) {
   return picture;
 }
 
+/** The first picture of the index: its canvas and its ink. */
+async function inkAndCanvasOf(page: Page): Promise<{ ink: Rgb; canvas: Rgb }> {
+  return inkAndCanvasOfBox(page, await drawnPictureOf(page));
+}
+
 /**
- * The canvas round the picture and the pixel in it most unlike the canvas, read from a shot of
- * the picture's box. The shot is decoded in a blank page of the same browser, where nothing of
+ * The canvas round an element and the pixel in it most unlike the canvas, read from a shot of
+ * the element's box. The shot is decoded in a blank page of the same browser, where nothing of
  * the site's own headers stands in the way of a `data:` image.
  */
-async function inkAndCanvasOf(page: Page): Promise<{ ink: Rgb; canvas: Rgb }> {
-  const picture = await drawnPictureOf(page);
-  const box = (await picture.boundingBox())!;
+async function inkAndCanvasOfBox(page: Page, element: Locator): Promise<{ ink: Rgb; canvas: Rgb }> {
+  const box = (await element.boundingBox())!;
   const shot = await page.screenshot({
     scale: "css",
     clip: {
@@ -132,6 +140,41 @@ test("a plate keeps its files as forced colours turn on and end, and stands clea
   expect(contrastOf(chosen.ink, chosen.canvas)).toBeGreaterThanOrEqual(GRAPHICS_CONTRAST);
   expect(await filesOf()).toEqual(files);
   expect(asked.slice(askedBefore)).toEqual([]);
+});
+
+test("under forced colours a day being written keeps its city in the system's text, the light's pass and all", async ({
+  page,
+}) => {
+  const id = "a-day-being-written";
+  const day: YourDay = {
+    id,
+    request: { ...writtenDayAt("kanazawa")!.request, city: "Elche", timezone: "Europe/Madrid" },
+    startedAt: new Date().toISOString(),
+    energies: [],
+    ending: "writing",
+    seconds: null,
+  };
+  await page.addInitScript(([key, kept]) => localStorage.setItem(key, kept), [
+    YOUR_DAYS_KEY,
+    JSON.stringify([day]),
+  ] as const);
+  // Still being written whenever the page asks.
+  await page.route(`**/api/day/${id}`, (route) => route.fulfill({ json: { status: "unknown" } }));
+  await page.emulateMedia({
+    forcedColors: "active",
+    colorScheme: "dark",
+    reducedMotion: "no-preference",
+  });
+  await page.goto("/");
+
+  const row = page.getByRole("list", { name: "Your days" }).getByRole("link");
+  await expect(row).toHaveAccessibleName(/\. writing$/);
+  const city = row.getByText("Elche", { exact: true });
+  await expect(city).toHaveClass(/word-lit/);
+  const { ink, canvas } = await inkAndCanvasOfBox(page, city);
+  expect(luminanceOf(canvas) > 0.5).toBe(false);
+  // Text, at text's bar: a clear fill the browser kept would leave the canvas alone.
+  expect(contrastOf(ink, canvas)).toBeGreaterThanOrEqual(TEXT_CONTRAST);
 });
 
 /** Where each thing in the masthead's row stands: the row holds the theme's button. */

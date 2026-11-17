@@ -300,7 +300,7 @@ interface Merged {
   dayId: string | null;
   /** The id the day had before, whose row in the visitor's list it takes. */
   fromId: string | null;
-  /** When the re-plan began: the row says how long the day took to write again. */
+  /** When the re-plan began: its row's place in the list and its link's days count from it. */
   startedAt: string;
   /** The word the visitor changed, which takes the focus back once the merged day stands. */
   changed: AssumableFactKey;
@@ -1553,7 +1553,7 @@ export function Day({
   useEffect(() => {
     if (replanning === null || replannedId === null) return;
     if (isAskedBeforeForget(replanning.request)) return;
-    // The row says when it was asked, and keeps saying so once the day is whole.
+    // The row keeps the moment it was asked once the day is whole: its place and its link's days.
     startedAt.current = { id: replannedId, at: replanning.at };
     keepDay({
       id: replannedId,

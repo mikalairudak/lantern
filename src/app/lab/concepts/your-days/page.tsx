@@ -9,7 +9,7 @@ export function generateMetadata(): Promise<Metadata> {
 // It reads its request for the studio's login (`requireStudioLogin`), so it waits on it.
 export const instant = false;
 
-/** The visitor's own days as the start screen lists them, beside the same days as a ledger. */
+/** The visitor's own days as the start screen's ledger, with the other answers to its form. */
 export default async function YourDaysConceptPage() {
   await requireStudioLogin();
   return <YourDaysConcept />;

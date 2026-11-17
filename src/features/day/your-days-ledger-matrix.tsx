@@ -21,8 +21,8 @@ interface LedgerCellProps extends YourDaysLedgerProps {
  */
 export const YOUR_DAYS_LEDGER_MATRIX: LabMatrix = labMatrix<LedgerCellProps>({
   key: "your-days-ledger",
-  title: "Your days, as a ledger",
-  note: "The visitor's own days a line each, city, date and words, from one to twelve and as each can stand",
+  title: "Your days",
+  note: "The visitor's own days over the index, a line each, city, date and words, from one to twelve and as each can stand",
   base: { days: LEDGER_SETS[0]!.days, now: LEDGER_NOW, onOpen: ignore, onForget: ignore },
   axes: [
     {

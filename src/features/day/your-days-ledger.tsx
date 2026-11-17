@@ -18,9 +18,6 @@ import {
   DAYS_SHOWN_AT_FIRST,
   FORGET_YOUR_DAYS,
   YOUR_DAYS_HEADING,
-  type YourDaysListProps,
-} from "./your-days-list";
-import {
   hasNoDayBehind,
   ledgerDateOf,
   ledgerEndingOf,
@@ -32,6 +29,12 @@ import {
 export const FORGET_DAYS_QUESTION = "Forget these days in this browser?";
 export const FORGET_DAY_QUESTION = "Forget this day in this browser?";
 export const FORGET_ANSWER = "Forget";
+/**
+ * How long "Forget" takes no press once the question stands. On a narrow phone the answer stands
+ * where "Forget these days" was pressed, so the second press of a double press would forget the
+ * days with the question unread; no one reads it and answers sooner.
+ */
+export const FORGET_ANSWER_WAIT_MS = 600;
 export const KEEP_ANSWER = "Keep";
 
 /** How many rows stand before "All your days": three, or one where a screen is short. */
@@ -55,7 +58,26 @@ export interface LedgerStill {
   isMotionReduced?: boolean;
 }
 
-export interface YourDaysLedgerProps extends YourDaysListProps {
+/** The visitor's days as the start screen hands them over, and what a press on them does. */
+export interface YourDaysProps {
+  days: readonly YourDay[];
+  /**
+   * Now: the browser's clock unless given, as a bench gives it. Read only once there is a day,
+   * so a page the server prerenders never reads a clock.
+   */
+  now?: Date;
+  /** A row pressed plainly: the page opens the day, from memory where it still holds it. */
+  onOpen: (day: YourDay) => void;
+  onForget: () => void;
+}
+
+/**
+ * The switches the lab's concept page sets, so each other form can be seen beside the one the
+ * start screen draws. Every default is what the start screen draws, which passes none of them.
+ */
+export interface YourDaysLedgerProps extends YourDaysProps {
+  /** Every day shown from the first frame, as a bench sets the list once "All" is pressed. */
+  isAllShownAtFirst?: boolean;
   /** The energy's scale, its five places, at the head of each row beside the city. */
   hasEnergyWire?: boolean;
   rowsAtRest?: RowsAtRest;
@@ -93,8 +115,12 @@ const CITY_CLASSES =
   "underline decoration-1 underline-offset-4 transition-colors pointed-group:decoration-2";
 const WORDS_CLASSES =
   "order-3 basis-full type-note text-pretty text-muted @measure:col-start-3 @measure:row-start-1";
+/**
+ * The date, at the line's end on a phone in the room the ledger's date column keeps, so a city
+ * beside "writing" does not break as the date takes its place.
+ */
 const DATE_CLASSES =
-  "order-2 shrink-0 type-time whitespace-nowrap text-muted @measure:col-start-1 @measure:row-start-1";
+  "order-2 min-w-16 shrink-0 text-right type-time whitespace-nowrap text-muted @measure:col-start-1 @measure:row-start-1 @measure:min-w-0 @measure:text-left";
 /**
  * A folded day's parts on the ledger's columns, as a row's are, but on a line of no height and
  * unseen; it never takes the focus, since it holds no link.
@@ -136,6 +162,8 @@ export function YourDaysLedger({
   const fold = useRef<HTMLButtonElement>(null);
   const forgetButton = useRef<HTMLButtonElement>(null);
   const keepButton = useRef<HTMLButtonElement>(null);
+  // The press that asked, on the clock its event carries: "Forget" waits a moment past it.
+  const askedAt = useRef(Number.NEGATIVE_INFINITY);
   // Where the keyboard's focus goes once a press has been drawn, and only after a press.
   const focusOwed = useRef<"shown" | "fold" | "keep" | "forget" | null>(null);
 
@@ -149,6 +177,12 @@ export function YourDaysLedger({
     if (owed === "forget") forgetButton.current?.focus();
   }, [isAllShown, isAsking, rowsAtRest]);
 
+  // With no day there is nothing to ask of and nothing unfolded: days kept after the list was
+  // forgotten elsewhere, as in another tab, stand at rest.
+  if (days.length === 0 && (isAsking || isAllShown)) {
+    setIsAsking(false);
+    setIsAllShown(false);
+  }
   if (days.length === 0) return null;
   const today = now ?? new Date();
   const shown = isAllShown ? days : days.slice(0, rowsAtRest);
@@ -157,15 +191,17 @@ export function YourDaysLedger({
     focusOwed.current = isAllShown ? "fold" : "shown";
     setIsAllShown(!isAllShown);
   };
-  const forget = () => {
+  const forget = (event: MouseEvent<HTMLButtonElement>) => {
+    if (event.timeStamp - askedAt.current < FORGET_ANSWER_WAIT_MS) return;
     setIsAsking(false);
     onForget();
   };
-  const ask = () => {
+  const ask = (event: MouseEvent<HTMLButtonElement>) => {
     if (!isForgetAsked) {
       onForget();
       return;
     }
+    askedAt.current = event.timeStamp;
     focusOwed.current = "keep";
     setIsAsking(true);
   };
