@@ -2,20 +2,27 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import type { CSSProperties } from "react";
-import { BEAD, LIGHT_FAR_RADIUS, LIGHT_NEAR_RADIUS } from "@/components/ui/lantern-mark";
+import { indexPictureOf } from "@/features/day/index-pictures";
+import { lockupLayoutOf, stillLockupOf } from "@/features/day/still-lockup";
+import { stillPlateOf, type StillPlateMasks } from "@/features/day/still-plate";
+import { cardMaskOf } from "@/lib/brand/card-masks";
 import { cardLinesOf } from "@/lib/brand/card-lines";
+import { fontMeasuresOf } from "@/lib/brand/font-advances";
+import { indexedPngOf, rgbImageOf } from "@/lib/brand/png-palette";
+import { SITE_CARD_LINE, SITE_CARD_LOCKUP, SITE_CARD_PLATES } from "@/lib/brand/site-card";
 import { SITE_CARD, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 import { themeColor, themeColorsOf, type Theme } from "@/lib/tokens/theme-colors";
 
 /*
- * The card every link to Lantern unfurls into, one for every page: the mark, a lit bead on a
- * sagging wire across the card, over the name and the site's line (`docs/discoverability.md`, "What
- * the code does"). Drawn at build time; nothing here runs for a visitor.
+ * The card every link to Lantern unfurls into, one for every page: three of the index's plates,
+ * the middle one lit, over the lockup and the site's line (`src/lib/brand/site-card.ts`). Drawn at
+ * build time; nothing here runs for a visitor.
  *
- * The image is drawn by Satori, which reads no stylesheet and no class, so its colours are
- * the tokens' values read from globals.css and its type is Literata from static files of its
- * own (`assets/fonts/`, cut to Latin): the name in the 72 pt italic, the cut drawn for its size,
- * and the line in the 36 pt roman. Its styles are plain objects.
+ * The image is drawn by Satori, which reads no stylesheet and no class, so its colours are the
+ * tokens' values read from globals.css, its type is Literata from static files of its own
+ * (`assets/fonts/`, cut to Latin), the name in the 72 pt italic and the line in the 36 pt roman,
+ * and each plate is drawn from PNG copies of its masks (`assets/pictures/`), since it reads no
+ * AVIF. Its styles are plain objects.
  */
 
 export const size = { width: SITE_CARD.width, height: SITE_CARD.height };
@@ -23,68 +30,69 @@ export const contentType = SITE_CARD.type;
 export const alt = SITE_CARD.alt;
 
 /**
- * An image cannot follow the theme of whoever sees it, so the card takes one: the night, where
- * the bead's two steps of light still read; on the day's wall its haze all but vanishes.
+ * An image cannot follow the theme of whoever sees it, so the card takes one: the day, which a
+ * visitor lands on. By day the light a card shows is lit paper, a sheet across a plate a little
+ * paler than the ground, not the mark's haze, which all but vanishes on it (`docs/decisions.md`,
+ * "The link card is drawn by day, a lit plate between two at rest").
  */
-const CARD_THEME: Theme = "dark";
+const CARD_THEME: Theme = "light";
 const COLORS = themeColorsOf(await readFile(join(process.cwd(), "src/app/globals.css"), "utf8"));
 
 function color(name: string): string {
   return themeColor(COLORS, name, CARD_THEME);
 }
 
+const PLATE_COLORS = {
+  engraving: color("engraving"),
+  "plate-lit": color("plate-lit"),
+  "plate-half": color("plate-half"),
+};
+const LOCKUP_COLORS = {
+  ink: color("ink"),
+  lamp: color("lamp"),
+  "lamp-glow": color("lamp-glow"),
+  "lamp-haze": color("lamp-haze"),
+};
+
 const FONT_FAMILY = "Literata";
 const fontFile = (file: string): Promise<Buffer> =>
   readFile(join(process.cwd(), "assets/fonts", file));
 const REGULAR = await fontFile("Literata36pt-Regular.latin.ttf");
 const ITALIC = await fontFile("Literata72pt-Italic.latin.ttf");
+const ITALIC_MEASURES = fontMeasuresOf(ITALIC);
+const REGULAR_MEASURES = fontMeasuresOf(REGULAR);
 
-/** The mark drawn 7.4 times its 24-unit grid, so the bead is about 50 px across. */
-const MARK_SCALE = 7.4;
 /**
- * How far the whole drawing stands above where it was first set, for a line of one row: the
- * site's line in two rows would leave it heavy at the foot, so the block from the bead's light
- * to the line's last row stands at the card's optical centre, about 125 px from its top and
- * 130 from its foot. The block's own spacing is as set.
+ * A plate's file as the renderer reads it: its PNG mask, inline. The folder is `CARD_MASKS_FOLDER`
+ * spelled out, since the build traces the files a route reads only under a folder it can see.
  */
-const LIFT_PX = 65;
-/** The bead stands at the card's centre across, above its middle. */
-const BEAD_CENTER = { x: size.width / 2, y: 250 - LIFT_PX };
-const BEAD_RADII = { x: BEAD.rx * MARK_SCALE, y: BEAD.ry * MARK_SCALE };
-/**
- * The card's wire is thinner than the mark's stroke scaled up (11 px), so it reads as a wire
- * across the card rather than the icon's line.
- */
-const WIRE_STROKE_PX = 3;
-/** Each half of the wire stops this far short of the bead, as the mark's does. */
-const WIRE_GAP_PX = 10;
-/**
- * The wire's left half, from past the card's edge, sagging to the bead; the right half is its
- * mirror. It runs through the card's edges on purpose: it is a wire strung across, not an icon.
- */
-const WIRE = {
-  startX: -20,
-  startY: 196 - LIFT_PX,
-  controlX: 330,
-  controlY: 236 - LIFT_PX,
-  endY: 248 - LIFT_PX,
-};
-const WIRE_END_X = BEAD_CENTER.x - BEAD_RADII.x - WIRE_GAP_PX;
-
-function mirrored(x: number): number {
-  return size.width - x;
+async function maskOf(file: string): Promise<string> {
+  const png = await readFile(join(process.cwd(), "assets/pictures", cardMaskOf(file)));
+  return `data:image/png;base64,${png.toString("base64")}`;
 }
 
-const WIRE_LEFT = `M${WIRE.startX} ${WIRE.startY} Q${WIRE.controlX} ${WIRE.controlY} ${WIRE_END_X} ${WIRE.endY}`;
-const WIRE_RIGHT = `M${mirrored(WIRE_END_X)} ${WIRE.endY} Q${mirrored(WIRE.controlX)} ${WIRE.controlY} ${mirrored(WIRE.startX)} ${WIRE.startY}`;
+const PLATES = await Promise.all(
+  SITE_CARD_PLATES.plates.map(async ({ slug, centre, light }) => {
+    const picture = indexPictureOf(slug);
+    if (picture === null) throw new Error(`The card draws "${slug}", which has no picture`);
+    const masks: StillPlateMasks = {
+      scene: await maskOf(picture.scene.files.wide),
+      sheet: await maskOf(picture.sheet),
+    };
+    return { picture, masks, light, centre };
+  }),
+);
 
-/** The name, in the voice's italic, and the site's line under it, each centred. */
-const NAME = { top: 360 - LIFT_PX, fontSize: 88, lineHeight: 1 };
-/**
- * The line sits in the body text's line height, `--text-body--line-height` in globals.css, in
- * one line or two (`cardLinesOf`).
- */
-const LINE = { top: 476 - LIFT_PX, fontSize: 30, lineHeight: 1.55 };
+const LOCKUP = lockupLayoutOf(
+  SITE_CARD_LOCKUP,
+  ITALIC_MEASURES.widthOf(SITE_NAME, SITE_CARD_LOCKUP.size),
+  ITALIC_MEASURES.baselineShareAt(1),
+);
+
+/** The line's box, its rows centred, placed by its first baseline. */
+const LINE_TOP =
+  SITE_CARD_LINE.firstBaseline -
+  REGULAR_MEASURES.baselineShareAt(SITE_CARD_LINE.lineHeight) * SITE_CARD_LINE.size;
 
 const CARD_STYLE: CSSProperties = {
   display: "flex",
@@ -94,74 +102,45 @@ const CARD_STYLE: CSSProperties = {
   backgroundColor: color("ground"),
   fontFamily: FONT_FAMILY,
 };
-const DRAWING_STYLE: CSSProperties = { position: "absolute", top: 0, left: 0 };
-const CENTRED_LINE_STYLE: CSSProperties = {
+const LINE_STYLE: CSSProperties = {
   position: "absolute",
   left: 0,
   width: size.width,
   display: "flex",
-  justifyContent: "center",
-};
-const NAME_STYLE: CSSProperties = {
-  ...CENTRED_LINE_STYLE,
-  ...NAME,
-  fontStyle: "italic",
-  color: color("ink"),
-};
-const LINE_STYLE: CSSProperties = {
-  ...CENTRED_LINE_STYLE,
   flexDirection: "column",
   alignItems: "center",
-  ...LINE,
+  top: LINE_TOP,
+  fontSize: SITE_CARD_LINE.size,
+  lineHeight: SITE_CARD_LINE.lineHeight,
   fontStyle: "normal",
   color: color("ink-soft"),
 };
 
-export default function OpenGraphImage(): ImageResponse {
-  return new ImageResponse(
+/** The colours the card is flat in, which its palette keeps exactly. */
+const FLAT_COLORS = [
+  color("ground"),
+  color("ink-soft"),
+  ...Object.values(PLATE_COLORS),
+  ...Object.values(LOCKUP_COLORS),
+];
+
+/**
+ * The card as the renderer draws it, then in a palette of 256 colours, at about half the weight
+ * (`src/lib/brand/png-palette.ts`).
+ */
+export default async function OpenGraphImage(): Promise<Response> {
+  const drawn = new ImageResponse(
     <div style={CARD_STYLE}>
-      <svg
-        width={size.width}
-        height={size.height}
-        viewBox={`0 0 ${size.width} ${size.height}`}
-        style={DRAWING_STYLE}
-      >
-        {/* As the mark draws it: the light under the wire and the bead (docs/brand/README.md). */}
-        <circle
-          cx={BEAD_CENTER.x}
-          cy={BEAD_CENTER.y}
-          r={LIGHT_FAR_RADIUS * MARK_SCALE}
-          fill={color("lamp-haze")}
-        />
-        <circle
-          cx={BEAD_CENTER.x}
-          cy={BEAD_CENTER.y}
-          r={LIGHT_NEAR_RADIUS * MARK_SCALE}
-          fill={color("lamp-glow")}
-        />
-        <path
-          d={WIRE_LEFT}
-          fill="none"
-          stroke={color("ink")}
-          strokeWidth={WIRE_STROKE_PX}
-          strokeLinecap="round"
-        />
-        <path
-          d={WIRE_RIGHT}
-          fill="none"
-          stroke={color("ink")}
-          strokeWidth={WIRE_STROKE_PX}
-          strokeLinecap="round"
-        />
-        <ellipse
-          cx={BEAD_CENTER.x}
-          cy={BEAD_CENTER.y}
-          rx={BEAD_RADII.x}
-          ry={BEAD_RADII.y}
-          fill={color("lamp")}
-        />
-      </svg>
-      <div style={NAME_STYLE}>{SITE_NAME}</div>
+      {PLATES.map(({ picture, masks, light, centre }) =>
+        stillPlateOf({
+          picture,
+          masks,
+          colors: PLATE_COLORS,
+          placement: { scale: SITE_CARD_PLATES.scale, centre, foot: SITE_CARD_PLATES.foot },
+          light,
+        }),
+      )}
+      {stillLockupOf({ layout: LOCKUP, colors: LOCKUP_COLORS })}
       <div style={LINE_STYLE}>
         {cardLinesOf(SITE_DESCRIPTION).map((line) => (
           <div key={line}>{line}</div>
@@ -176,4 +155,6 @@ export default function OpenGraphImage(): ImageResponse {
       ],
     },
   );
+  const image = rgbImageOf(new Uint8Array(await drawn.arrayBuffer()));
+  return new Response(indexedPngOf(image, FLAT_COLORS), { headers: drawn.headers });
 }

@@ -1,12 +1,21 @@
 // @vitest-environment node
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { SITE_DESCRIPTION } from "@/lib/site";
-import { CARD_LINE_LETTERS, cardLinesOf } from "./card-lines";
+import { CARD_LINE_LETTERS, CARD_ROW_MAX_PX, cardLinesOf } from "./card-lines";
+import { fontMeasuresOf } from "./font-advances";
+import { SITE_CARD_LINE } from "./site-card";
+
+/** The cut the card sets its line in. */
+const ROMAN = fontMeasuresOf(
+  readFileSync(join(__dirname, "..", "..", "..", "assets/fonts/Literata36pt-Regular.latin.ttf")),
+);
 
 describe("cardLinesOf", () => {
   it("keeps a line that fits whole", () => {
-    expect(cardLinesOf("An adaptive, editorial day planner for travel.")).toEqual([
-      "An adaptive, editorial day planner for travel.",
+    expect(cardLinesOf("A calm day in a city, hour by hour.")).toEqual([
+      "A calm day in a city, hour by hour.",
     ]);
   });
 
@@ -17,9 +26,15 @@ describe("cardLinesOf", () => {
     ]);
   });
 
-  it("sets the site's line in lines the card holds", () => {
-    for (const line of cardLinesOf(SITE_DESCRIPTION)) {
-      expect(line.length).toBeLessThanOrEqual(CARD_LINE_LETTERS);
+  it("sets the site's line in rows the card holds", () => {
+    for (const row of cardLinesOf(SITE_DESCRIPTION)) {
+      expect(row.length).toBeLessThanOrEqual(CARD_LINE_LETTERS);
+    }
+  });
+
+  it("sets each row of the site's line inside the middle square, as the card's renderer measures it", () => {
+    for (const row of cardLinesOf(SITE_DESCRIPTION)) {
+      expect(ROMAN.widthOf(row, SITE_CARD_LINE.size), row).toBeLessThanOrEqual(CARD_ROW_MAX_PX);
     }
   });
 

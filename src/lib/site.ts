@@ -39,7 +39,7 @@ export const SITE_CARD = {
   width: 1200,
   height: 630,
   type: "image/png",
-  alt: `Lantern's mark, a lit bead on a sagging wire, over the name ${SITE_NAME} and the line "${SITE_DESCRIPTION}"`,
+  alt: `Three engravings: a café terrace in Paris, an izakaya's door in Tokyo, lit, and water tanks on a New York roof. Under them, Lantern's mark, the name ${SITE_NAME} and the line "${SITE_DESCRIPTION}"`,
 } as const;
 
 /** What a page says of itself in a search result and a link preview. */

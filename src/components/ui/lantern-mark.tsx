@@ -2,7 +2,7 @@ import { ICON_STROKE_WIDTH } from "@/lib/tokens/icon";
 import { cn } from "./cn";
 
 /** The mark is drawn on the app's 24-unit icon grid (`docs/brand/README.md`). */
-const GRID = 24;
+export const MARK_GRID = 24;
 /** Beside the wordmark the mark stands 26 px tall, 6 px before the word. */
 const MARK_PX = 26;
 const GAP_PX = 6;
@@ -11,14 +11,17 @@ const GAP_PX = 6;
  * on the middle of the word's x-height.
  */
 const DROP_PX = 7;
-const UNITS_PER_PX = GRID / MARK_PX;
+const UNITS_PER_PX = MARK_GRID / MARK_PX;
 /** The box the mark is drawn in: its gap after it, and its drop below the baseline. */
 const BOX_WIDTH = MARK_PX + GAP_PX;
-const VIEW_BOX = `0 ${-DROP_PX * UNITS_PER_PX} ${BOX_WIDTH * UNITS_PER_PX} ${GRID}`;
+/** How wide the mark's box stands, its gap after it included, for each pixel of the mark's height. */
+export const MARK_BOX_PER_HEIGHT = BOX_WIDTH / MARK_PX;
+const VIEW_BOX = `0 ${-DROP_PX * UNITS_PER_PX} ${BOX_WIDTH * UNITS_PER_PX} ${MARK_GRID}`;
 
 /**
  * The bead at the wire's lowest point, a paper lantern's oval, and its two steps of light,
- * in grid units. A link's card draws the same mark larger from these (`opengraph-image.tsx`).
+ * in grid units. A link's card draws the same mark larger from these
+ * (`src/features/day/still-lockup.tsx`).
  */
 export const BEAD = { cx: 12, cy: 12, rx: 3.25, ry: 3.5 };
 export const LIGHT_NEAR_RADIUS = 5.75;
@@ -26,6 +29,24 @@ export const LIGHT_FAR_RADIUS = 8;
 /** The wire sags to the bead and stops one stroke short of it on each side. */
 const WIRE_LEFT = "M1 10.5 Q3.75 11.25 6.5 11.63";
 const WIRE_RIGHT = "M17.5 11.63 Q20.25 11.25 23 10.5";
+
+/** A drawing of the mark's wire: its two halves and its stroke, in grid units. */
+export interface MarkWire {
+  left: string;
+  right: string;
+  stroke: number;
+}
+
+/**
+ * The wire as the master draws it, and as the large drawing does from `LARGE_MARK_FROM_PX` up:
+ * thinned to one unit, so the bead leads, and ended half a unit nearer the bead for the thinner
+ * stroke. A link's card draws the mark at the size its drawing is for.
+ */
+export const MARK_WIRES: Readonly<Record<"master" | "large", MarkWire>> = {
+  master: { left: WIRE_LEFT, right: WIRE_RIGHT, stroke: ICON_STROKE_WIDTH },
+  large: { left: "M1 10.5 Q4 11.32 7 11.69", right: "M17 11.69 Q20 11.32 23 10.5", stroke: 1 },
+};
+export const LARGE_MARK_FROM_PX = 64;
 
 /**
  * Set in ems of the word beside it, the mark stands `MARK_EM` words tall and sinks below the
@@ -36,13 +57,13 @@ const WIRE_RIGHT = "M17.5 11.63 Q20.25 11.25 23 10.5";
  * the mark and the word read as one line, where the mark set in pixels is true for one size of
  * word alone.
  */
-const MARK_EM = 1.75;
+export const MARK_EM = 1.75;
 export const X_HEIGHT_EM = 0.507;
 const BOX_UNITS = BOX_WIDTH * UNITS_PER_PX;
-const EM_VIEW_BOX = `0 0 ${BOX_UNITS} ${GRID}`;
+const EM_VIEW_BOX = `0 0 ${BOX_UNITS} ${MARK_GRID}`;
 const EM_HEIGHT = `${MARK_EM}em`;
-const EM_WIDTH = `${(MARK_EM * BOX_UNITS) / GRID}em`;
-const EM_SINK = `${-(MARK_EM * ((GRID - BEAD.cy) / GRID) - X_HEIGHT_EM / 2)}em`;
+const EM_WIDTH = `${(MARK_EM * BOX_UNITS) / MARK_GRID}em`;
+const EM_SINK = `${-(MARK_EM * ((MARK_GRID - BEAD.cy) / MARK_GRID) - X_HEIGHT_EM / 2)}em`;
 
 interface LanternMarkProps {
   className?: string;

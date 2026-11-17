@@ -66,11 +66,19 @@ export function indexPictureOf(slug: string): IndexPicture | null {
 export const PICTURE_FIELD_WIDTH =
   Math.max(...Object.values(INDEX_PICTURES).map(({ scene }) => scene.box[2])) + 2 * SIDE;
 
-/** A picture's view of the field: as wide as the field, from just over its scene's top to just under the ground. */
-export function viewBoxOf(picture: IndexPicture): string {
+/**
+ * A picture's box on the field, left, top, width and height: as wide as the field, from just
+ * over its scene's top to just under the ground.
+ */
+export function pictureBoxOf(picture: IndexPicture): readonly [number, number, number, number] {
   const top = Math.max(0, picture.scene.box[1] - SKY);
   const left = FIELD_CENTRE - PICTURE_FIELD_WIDTH / 2;
-  return `${left} ${top} ${PICTURE_FIELD_WIDTH} ${FIELD_GROUND + FOOT - top}`;
+  return [left, top, PICTURE_FIELD_WIDTH, FIELD_GROUND + FOOT - top];
+}
+
+/** A picture's view of the field, its box as an SVG view box. */
+export function viewBoxOf(picture: IndexPicture): string {
+  return pictureBoxOf(picture).join(" ");
 }
 
 /**

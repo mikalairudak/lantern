@@ -1,8 +1,12 @@
 /**
- * The most a line of the link card holds at its size: the card's first line, "An adaptive,
- * editorial day planner for travel.", 46 letters, kept to about 640 of its 1200 px.
+ * The most letters a line of the link card sets in one row: at its size 40 letters are about
+ * 570 px, as the site's first row, "One day in a city, planned hour by hour,", is 569, under
+ * `CARD_ROW_MAX_PX`. It guards a line set whole; a test of each row's width guards both.
  */
-export const CARD_LINE_LETTERS = 48;
+export const CARD_LINE_LETTERS = 40;
+
+/** The widest a row of the card's line may be, so it stands 24 px inside the middle square. */
+export const CARD_ROW_MAX_PX = 582;
 
 /**
  * The site's line as the card sets it: whole when it fits a line, else in two at the comma
