@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 };
 
 /** When the page last changed what it says. */
-const UPDATED = "10 November 2026";
+const UPDATED = "17 November 2026";
 
 /**
  * Who handles what Lantern keeps, by what each does rather than by name: the recipients'
