@@ -19,8 +19,8 @@ const PRESSED_AT_PX = 205;
 const WATCHED_MS = waitMs(4500);
 /**
  * The most the day's row above the answer may move on the screen after a take, the answer
- * pressed where it stood: a row no version changes, so only the page scrolling moves it. While
- * the chart, unseen, held its own first row in view, it scrolled the plan's page, and the row
+ * pressed where it stood: a row no version changes, so only the page scrolling moves it. A
+ * chart that holds its own first row in view while unseen scrolls the plan's page, and the row
  * with it, by 88 to 114 px on a phone and 56 to 59 px on a laptop.
  */
 const PLAN_ROW_PX = 2;
@@ -181,6 +181,7 @@ test.describe("with motion", () => {
 
   test("on the plan, taking the proposal leaves the rows where it was pressed", async ({
     page,
+    isMobile,
   }) => {
     test.setTimeout(2 * DAY_TIMEOUT_MS);
     await eatLateInElche(page);
@@ -193,6 +194,11 @@ test.describe("with motion", () => {
     ).toBe(true);
     const box = await take.boundingBox();
     if (box === null) throw new Error("The proposal's answer has no box");
+    // The fork line's answer, the day's, which the answer taken comes to stand in.
+    const line = await shownForkRow(page, 0)
+      .getByRole("radio", { name: "early dinner, your day" })
+      .boundingBox();
+    if (line === null) throw new Error("The fork line's answer has no box");
     // The day's row above the answer, which no version changes: the answer itself goes to stand
     // at the first stop of the version taken.
     const above = await take.evaluate((element) => {
@@ -221,5 +227,14 @@ test.describe("with motion", () => {
     // The row above the press stands still. The page itself may scroll, as the browser keeps
     // it in place while what stands above the screen changes height.
     expect(strayOf(frames, ({ y }) => y)).toBeLessThanOrEqual(PLAN_ROW_PX);
+    // Once the rows rest, the answer taken stands on the fork line where the day's stood. Beside
+    // the plan that is where it was pressed; in the column, where the slip stands a line under
+    // the fork line, it is that line higher.
+    const taken = await shownForkRow(page, 0)
+      .getByRole("radio", { name: "eating late, your day" })
+      .boundingBox();
+    expect(Math.abs((taken?.y ?? Infinity) - line.y)).toBeLessThanOrEqual(PLAN_ROW_PX);
+    if (isMobile) return;
+    expect(Math.abs((taken?.y ?? Infinity) - box.y)).toBeLessThanOrEqual(PLAN_ROW_PX);
   });
 });

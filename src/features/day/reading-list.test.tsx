@@ -270,7 +270,7 @@ describe("ReadingList", () => {
     expect(fold()).not.toHaveClass("overflow-hidden");
     expect(rowsOf()[1]).toHaveClass("relative");
 
-    // The page narrowed: back in the column, the fold clips as it did, nothing left open.
+    // The page narrowed: back in the column, the fold clips again, nothing left open.
     rerender(<ReadingList {...KYOTO} parts={{ anchors, headOf: head }} />);
     expect(fold()).toHaveClass("overflow-hidden");
     expect(fold()?.style.overflowY).toBe("");
