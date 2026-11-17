@@ -81,24 +81,19 @@ describe("ForkRow", () => {
     expect(screen.getByText("1 so far")).toBeInTheDocument();
   });
 
-  it("says the proposal is ready once, and not again as its receipt follows an energy", () => {
+  it("says the proposal is ready once, and not again as what it would change follows an energy", () => {
     const ready = forkViewAt(ELCHE, momentOf("ready: take it"));
     const { rerender } = render(<ForkStatus view={ready} />);
-    const said = "eating late is ready beside your day: Dinner 21:00, not 18:15 · 3 new stops";
-    expect(screen.getByRole("status")).toHaveTextContent(said);
+    expect(screen.getByRole("status").textContent).toBe("eating late is ready beside your day");
 
-    // The same proposal at another energy: what it would change reads otherwise in the row.
+    // The same proposal at another energy: what it would change reads otherwise, in the row.
     const line = ready.line === null ? null : { ...ready.line, words: "1 new stop, 1 later" };
     rerender(<ForkStatus view={{ ...ready, line }} />);
-    expect(screen.getByRole("status")).toHaveTextContent(said);
+    expect(screen.getByRole("status").textContent).toBe("eating late is ready beside your day");
 
-    // Chosen, nothing is said; ready anew for another answer, it is said for that one.
+    // Chosen, nothing is said.
     rerender(<ForkStatus view={{ ...ready, isReady: false, isChosen: true, line: null }} />);
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
-    rerender(<ForkStatus view={{ ...ready, to: "home by eleven", line }} />);
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "home by eleven is ready beside your day: 1 new stop, 1 later",
-    );
   });
 
   it("offers the whole proposal to take, with what it would change, in one control", async () => {
@@ -109,10 +104,8 @@ describe("ForkRow", () => {
     expect(proposal).toHaveTextContent("eating late· Take");
     expect(screen.getByText("Dinner 21:00, not 18:15 · 3 new stops")).toBeInTheDocument();
     expect(screen.getByText("ends 23:45, not 20:45")).toBeInTheDocument();
-    // Said once, from the first row's live region.
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "eating late is ready beside your day: Dinner 21:00, not 18:15 · 3 new stops",
-    );
+    // Said once, from the first row's live region, without what it would change.
+    expect(screen.getByRole("status").textContent).toBe("eating late is ready beside your day");
 
     await user.click(proposal);
     expect(acts.onChoose).toHaveBeenCalledWith("to");

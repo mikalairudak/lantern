@@ -42,9 +42,9 @@ export const PART_SLIP_MATRIX: LabMatrix = labMatrix<PartSlipCellProps>({
   ],
   // The margin stands beside the abacus's column, so a wide cell takes the page's.
   wide: "page",
-  // Moments down alone, Utrecht's morning in the column at a phone's width: every moment of the
-  // plan's slip at a phone's width; the other examples and the margin are looked at in the
-  // matrix, not shot. A view names axes, not values, so it holds one example.
+  // One view is shot: every moment of the slip, for Utrecht's morning, in the column at a
+  // phone's width. A view names axes, not values, so it holds one example; the other examples
+  // and the margin are looked at in the matrix.
   baseline: [{ rows: 0, columns: 0 }],
   render: (props, width) => <PartSlipCell {...props} width={width} />,
 });

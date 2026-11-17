@@ -189,7 +189,7 @@ test("keeps the rule at the widths either side of the column's whole, with no si
  * over seven seconds.
  */
 const FORK_LINE_INK_MS = waitMs(600);
-/** Long enough to see a fork line inked as slowly as its room opens, 6.3 s, and more. */
+/** Long enough to see a fork line inked as slowly as its room opens, over seven seconds. */
 const INK_WATCHED_MS = waitMs(8000);
 
 /** A press's moment and, each frame from before it, how opaque the plan's first fork line is. */
