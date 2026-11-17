@@ -6,7 +6,7 @@ import { daySlugOf } from "../address";
 import { isSameRequest } from "../request";
 import { firstStartOf } from "./requests";
 import { firstSeasonOf, seasonOn, type WrittenSeason } from "./seasons";
-import { isShownNear, shownDateOf } from "./shown-date";
+import { isAnsweredByFile, shownDateOf } from "./shown-date";
 import { CITY_SEASONS, START_SEASONS } from "./start-days";
 import { writtenVersionFor } from "./version";
 
@@ -26,16 +26,16 @@ export const WRITTEN_DAYS: readonly WrittenDay[] = WRITTEN_SEASONS.flatMap((seas
 
 /**
  * The season whose file answers this request at an instant, or null: a season's own request
- * word for word, or the city's words on a date its days are shown on, give or take
- * (`isShownNear`), which then picks the season (`seasonOn`). Every word has to match, not only
- * the city: the normalizer writes the request's words over the day, so a calm day served for a
- * lively request would claim a plan it never made.
+ * word for word, or the city's words on its weekday on a date up to a week from today there
+ * (`isAnsweredByFile`), which then picks the season (`seasonOn`). Every word has to match, not
+ * only the city: the normalizer writes the request's words over the day, so a calm day served for
+ * a lively request would claim a plan it never made.
  */
 export function writtenSeasonFor(request: DayRequest, now: Date): WrittenSeason | null {
   for (const seasons of WRITTEN_SEASONS) {
     const own = seasons.find(({ written }) => isSameRequest(written.request, request));
     if (own) return own;
-    if (isShownNear(firstSeasonOf(seasons).written.request, request, now)) {
+    if (isAnsweredByFile(firstSeasonOf(seasons).written.request, request, now)) {
       return seasonOn(seasons, request.date);
     }
   }
@@ -102,16 +102,16 @@ export function shownWrittenDayAt(slug: string, now: Date): ShownDay | null {
 
 /**
  * The written day at this slug as a page that played it holds it, from the season the page's
- * date picks: on that date when the day is shown on it, give or take (`isShownNear`), and on the
- * season's own date otherwise. A re-plan reads its basis here, so the day it changes is the one
- * on screen, across a season's end too.
+ * date picks: on that date wherever the route plays the day's file for it (`isAnsweredByFile`),
+ * and on the season's own date otherwise. A re-plan reads its basis here, so the day it changes
+ * is the one on screen, across a season's end and on a page left open past its date too.
  */
 export function writtenDayOn(slug: string, date: string, now: Date): NormalizedDay | null {
   const seasons = writtenSeasonsAt(slug);
   if (!seasons) return null;
   const { written } = seasonOn(seasons, date);
-  const isShown = isShownNear(written.request, { ...written.request, date }, now);
-  return isShown ? normalizedDayOn(written, date) : normalizedDayOf(written);
+  const isPlayed = isAnsweredByFile(written.request, { ...written.request, date }, now);
+  return isPlayed ? normalizedDayOn(written, date) : normalizedDayOf(written);
 }
 
 /** The date a city's days are shown on at an instant, read from its start alone. */

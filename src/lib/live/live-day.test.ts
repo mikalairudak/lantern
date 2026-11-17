@@ -1,7 +1,8 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import { KYOTO_REQUEST } from "@/lib/fixtures/curated/requests";
+import { writtenDayAt } from "@/lib/days/written/days";
 import { KANAZAWA_START_DAY } from "@/lib/days/written/kanazawa";
 import { KANAZAWA_START_REQUEST } from "@/lib/days/written/quick-starts";
 import { REFUSED_DAY } from "@/lib/fixtures/edge/edge-days";
@@ -561,6 +562,97 @@ describe("the live day route's signature", () => {
     request.headers.set(CITY_SIGNATURE_HEADER, signature);
     return request;
   }
+});
+
+describe("a written day's words on a date behind today in its city", () => {
+  // Monday the 23rd at noon in Tokyo: Kanazawa's Saturday the 21st is two days back, the 14th
+  // nine, and its first season begins on the 7th.
+  const MONDAY = new Date("2026-11-23T03:00:00Z");
+  const kanazawaOn = (date: string): DayRequest => ({ ...KANAZAWA_START_REQUEST, date });
+  const FILE = writtenDayAt("kanazawa")!.itinerary;
+  /** The file's day on a date: its stops and its line, on the date its light is worked out for. */
+  const fileOn = (date: string) => ({
+    kind: "complete",
+    itinerary: expect.objectContaining({
+      date,
+      dek: FILE.dek,
+      stops: FILE.stops.map(({ id, primary }) =>
+        expect.objectContaining({ id, primary: expect.objectContaining({ name: primary.name }) }),
+      ),
+    }),
+  });
+
+  /** The route's clock at an instant; the live day reads the bench's own. */
+  function routeAt(at: Date): void {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(at);
+  }
+  afterEach(() => void vi.useRealTimers());
+
+  /** A bench that counts every call, count and hold the route could make. */
+  function watched() {
+    const day = simulatedModel({ day: DAY, ending: { kind: "finished" }, pace: QUICK });
+    const shadow = simulatedModel({ day: DAY, ending: { kind: "finished" }, pace: QUICK });
+    const { deps, appSpend } = bench({ day, shadow });
+    const take = vi.spyOn(deps.visitorLimits, "take");
+    const reserve = vi.spyOn(appSpend, "reserve");
+    const calls = () => [
+      day.doStreamCalls.length,
+      shadow.doStreamCalls.length,
+      take.mock.calls.length,
+      reserve.mock.calls.length,
+    ];
+    return { deps, calls };
+  }
+
+  it.each([
+    ["two days back", MONDAY, "2026-11-21"],
+    ["nine days back", MONDAY, "2026-11-14"],
+    ["before its first season", MONDAY, "2026-10-31"],
+    ["one day back", new Date("2026-11-22T03:00:00Z"), "2026-11-21"],
+    ["today", new Date("2026-11-21T03:00:00Z"), "2026-11-21"],
+  ])(
+    "plays its file %s, on the date asked, with live generation on or off",
+    async (_name, at, date) => {
+      routeAt(at);
+      const asked = kanazawaOn(date);
+      const { deps, calls } = watched();
+
+      const live = await read(answerDayRequest(post(asked), QUICK, liveDayOf(deps)), asked);
+      const off = await read(answerDayRequest(post(asked), QUICK), asked);
+
+      for (const { outcome } of [live, off]) {
+        expect(outcome).toEqual(fileOn(date));
+      }
+      expect(calls()).toEqual([0, 0, 0, 0]);
+    },
+  );
+
+  it("plays its file whatever a request behind today carries, a kept day's id or a signature", async () => {
+    routeAt(MONDAY);
+    const asked = kanazawaOn("2026-11-14");
+    const { deps, calls } = watched();
+    const carrying = await signed(asked);
+    carrying.headers.set(KEPT_DAY_HEADER, "1b6f0c2e-4d3a-4f5b-9c7e-2a1d3e4f5a6b");
+
+    const { outcome } = await read(answerDayRequest(carrying, QUICK, liveDayOf(deps)), asked);
+
+    expect(outcome).toEqual(fileOn("2026-11-14"));
+    expect(calls()).toEqual([0, 0, 0, 0]);
+  });
+
+  it.each([
+    ["other words", { ...KANAZAWA_START_REQUEST, energy: "lively", date: "2026-11-14" }],
+    ["another weekday", kanazawaOn("2026-11-13")],
+  ] as const)("still writes %s for the city behind today", async (_name, asked) => {
+    routeAt(MONDAY);
+    const { deps, calls } = watched();
+
+    const { outcome } = await read(answerDayRequest(post(asked), QUICK, liveDayOf(deps)), asked);
+
+    expect(outcome.kind).toBe("complete");
+    expect(calls()[0]).toBe(1);
+  });
 });
 
 describe("a day asked again in the city of a day kept at its address", () => {

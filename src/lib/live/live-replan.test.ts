@@ -660,6 +660,30 @@ describe("the day a re-plan rewrites, read by the server (docs/security.md, S1)"
     });
   });
 
+  it("reads a written day on a date behind today, where the route plays its file, and re-plans it there", async () => {
+    const { deps, claude, generationLog, afterResponse } = bench();
+    const kanazawa = writtenDayAt("kanazawa");
+    if (kanazawa === null) throw new Error("Kanazawa has no written day");
+    // Thursday the 19th in Tokyo: a page drawn for Saturday the 14th still shows that date.
+    const shownOn = "2026-11-14";
+    const body = {
+      basis: { kind: "written", slug: "kanazawa" },
+      request: { ...kanazawa.request, date: shownOn, start: "slow" },
+      changed: "start",
+      round: 1,
+    };
+
+    const response = await answerReplanRequest(post(body), deps);
+    await response.body?.cancel();
+    await afterResponse();
+
+    expect(response.status).toBe(200);
+    expect(JSON.stringify(claude.requests)).toContain(shownOn);
+    expect(generationLog.records.at(-1)?.context).toMatchObject({
+      itinerary: { ...kanazawa.itinerary, date: shownOn },
+    });
+  });
+
   it("re-plans a re-plan from its kept record, as the next round, and refuses a round out of turn", async () => {
     const { deps, claude, generationLog, afterResponse } = bench();
     const first = await answerReplanRequest(post(BODY), deps);
