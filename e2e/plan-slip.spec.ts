@@ -112,9 +112,12 @@ test("says in the first slip's head what the slips list once an energy re-picks 
   // A new stop's line says until when; a stop kept says it stays, or the hour it had.
   const marked = await lines.filter({ hasText: "until" }).count();
   expect(Number(said?.[1] ?? 0), `"${head}"`).toBe(marked);
-  // The chart's fork row, laid out unseen under the plan, says the same.
-  const chartRow = page.locator('[data-fork-row="0"]:not([aria-label="The day, to read"] *)');
-  await expect(chartRow).toContainText(head);
+  // The chart's fork, laid out unseen under the plan, says the same: in its row where the line
+  // stands under the answers, and beside the row where the chart has a margin.
+  const chartFork = page.locator(
+    ':is([data-fork-row="0"], [data-fork-line="0"]):not([aria-label="The day, to read"] *)',
+  );
+  await expect(chartFork.filter({ hasText: head })).toHaveCount(1);
   // An hour it names as dinner is a dinner among the lines.
   const dinner = /Dinner (?:at )?(\d\d:\d\d)/.exec(head)?.[1];
   if (dinner !== undefined) {
