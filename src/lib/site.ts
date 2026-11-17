@@ -23,6 +23,9 @@ export const SITE_DESCRIPTION =
  */
 export const SITE_AUTHOR = "Mikalai Rudak";
 
+/** Where that person can be found: the privacy page links it beside their name. */
+export const SITE_AUTHOR_PROFILE = "https://www.linkedin.com/in/mikalai-rudak/";
+
 /** What a link preview says of the site on every page, beside what the page says of itself. */
 export const SITE_OPEN_GRAPH = { siteName: SITE_NAME, type: "website" } as const;
 

@@ -6,6 +6,8 @@ const DAY_TIMEOUT_MS = waitMs(30_000);
 const PRIVACY_HEADING = "Privacy and terms";
 /** Where a visitor writes to have their text deleted. */
 const CONTACT = "mailto:support@lanternday.com";
+/** Where the person who runs Lantern can be found. */
+const PROFILE = "https://www.linkedin.com/in/mikalai-rudak/";
 /** The widths the page is judged at: the narrowest phone, a common one, a laptop. */
 const WIDTHS = [320, 390, 1440];
 /** Every part of the page, in the order it reads. */
@@ -132,6 +134,21 @@ test("says the short version first, then each part, the terms and where to write
 });
 
 // The e2e server runs without LIVE_GENERATION, as a deployment with live generation off does.
+test("names who runs Lantern beside where to find them, on a page of its own", async ({ page }) => {
+  await page.goto("/privacy");
+
+  const contact = page.locator("section", {
+    has: page.getByRole("heading", { name: "Contact", exact: true }),
+  });
+  await expect(contact).toContainText("Lantern is run by Mikalai Rudak (LinkedIn). Questions");
+  const profile = contact.getByRole("link", { name: "Mikalai Rudak on LinkedIn" });
+  await expect(profile).toHaveText("LinkedIn");
+  await expect(profile).toHaveAttribute("href", PROFILE);
+  // A page of its own, told nothing of the one it was opened from.
+  await expect(profile).toHaveAttribute("target", "_blank");
+  await expect(profile).toHaveAttribute("rel", "noreferrer");
+});
+
 test("with live generation off, says what is typed stays in the browser, and what the rest describes", async ({
   page,
 }) => {
