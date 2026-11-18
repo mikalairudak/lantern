@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
@@ -705,6 +705,29 @@ describe("the press that asks for a typed text", () => {
     );
     expect(heardStatus()).toMatch(/^Writing a lively Saturday in Lisbon/);
     expect(screen.getByRole("button", { name: "Writing" })).toBeInTheDocument();
+  });
+
+  it("keeps Reading said by the focus through a second press before the line says it", async () => {
+    const user = userEvent.setup();
+    const handlers = { onPlan: vi.fn(), onChooseWritten: vi.fn(), onChooseReading: vi.fn() };
+    const view = renderStart({ waitAtPlan: "reading", ...handlers });
+    const field = screen.getByRole("textbox");
+    await user.type(field, "Lisbon{Enter}");
+    // A second press, from the button the focus is now on, before the line turns to the read.
+    const form = field.closest("form");
+    if (!form) throw new Error("No form");
+    act(() => form.requestSubmit());
+    view.rerender(
+      <HeldStart
+        starts={STARTS}
+        line={{ kind: "reading" }}
+        isLive={false}
+        isCityFocused
+        {...handlers}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Reading" })).toHaveFocus();
+    expect(heardStatus()).toBe("");
   });
 
   it("says Reading where the focus lands when a press on the button left the focus in the field, as WebKit's click does", async () => {

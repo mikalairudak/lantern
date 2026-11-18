@@ -419,9 +419,14 @@ function QuestionForm({
     event.preventDefault();
     if (text.trim() === "" || isReading) return;
     const isFocusMoving = document.activeElement !== button.current;
+    // A press inside a wait already under way, before the line says it, asks nothing new: what
+    // the press that started the wait made heard stands.
+    const isWaitStarting = wait === null;
     flushSync(() => onPlan(text.trim()));
-    const isNamedReading = button.current?.getAttribute("aria-label") === BUTTON_WORDS.reading;
-    setIsReadingSaidByFocus(isFocusMoving && isNamedReading);
+    if (isWaitStarting) {
+      const isNamedReading = button.current?.getAttribute("aria-label") === BUTTON_WORDS.reading;
+      setIsReadingSaidByFocus(isFocusMoving && isNamedReading);
+    }
     button.current?.focus({ preventScroll: true });
   };
   // The field takes a sentence, never a second line: Enter asks for the day, as a one-line
