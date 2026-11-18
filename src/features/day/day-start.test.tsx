@@ -719,6 +719,44 @@ describe("the wait that follows a typed text, with reduced motion", () => {
     expect(steppedBack().every(Boolean)).toBe(true);
   });
 
+  it("stands at rest when the start screen comes back from hidden while its text was read", async () => {
+    const user = userEvent.setup();
+    // A reader that gives up when its reading is stopped, as the intake's call does.
+    const read = vi.fn<IntakeReader>(
+      (_, signal) =>
+        new Promise((_resolve, reject) => {
+          signal?.addEventListener("abort", () => reject(new Error("stopped")));
+        }),
+    );
+    const page = (mode: "visible" | "hidden") => (
+      <Activity mode={mode}>
+        <Day
+          start={{ pool: POOL, read }}
+          sourceFor={(request) => ({ request, open: () => new Promise(() => {}) })}
+        />
+      </Activity>
+    );
+    const view = render(page("visible"));
+    await user.type(screen.getByRole("textbox"), "Bologna{Enter}");
+    await waitFor(() => expect(startStatus()).toHaveTextContent("Reading what you wrote"));
+
+    // Hidden by a link to another page, then shown again by Back, as the router does.
+    view.rerender(page("hidden"));
+    view.rerender(page("visible"));
+    await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
+
+    const field = screen.getByRole("textbox");
+    expect(field).toHaveValue("Bologna");
+    expect(field).not.toHaveAttribute("readonly");
+    expect(startStatus()).not.toHaveTextContent("Reading what you wrote");
+    expect(screen.getByRole("button", { name: "Plan this day" })).toBeInTheDocument();
+    expect(signPart("pen")).toBeNull();
+    expect(steppedBack().some(Boolean)).toBe(false);
+
+    await user.type(field, "{Enter}");
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
+  });
+
   it("reads a text pressed twice in one moment once, and holds its wait", async () => {
     // A reader that gives up when its reading is stopped, as the intake's call does.
     const read = vi.fn<IntakeReader>(

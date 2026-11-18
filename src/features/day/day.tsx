@@ -700,15 +700,28 @@ export function Day({
   const [typedCity, setTypedCity] = useState<TypedCity | null>(null);
   // The reading under way: any other gesture, or a new reading, aborts it.
   const reading = useRef<AbortController | null>(null);
+  // The frame at which the start screen's line comes to say the visitor's text is read.
+  const readingSaid = useRef<number | null>(null);
   // The visitor's own text being read, by its reading, so a reading stopped for a newer one
   // never ends the newer one's wait (`startWait`).
   const [typedRead, setTypedRead] = useState<AbortController | null>(null);
+  /**
+   * Ends the reading under way however it ends, a newer reading, another gesture, or the page
+   * hidden by a link to another, and with it all that says a reading is under way: the reading
+   * itself, the line's frame to come, the wait it holds and a line that says it, which goes back
+   * to the question it answered, or to rest. A start screen shown again stands at rest, its text
+   * kept, and the next press reads.
+   */
   const stopReading = useCallback(() => {
     reading.current?.abort();
     reading.current = null;
+    if (readingSaid.current !== null) cancelAnimationFrame(readingSaid.current);
+    readingSaid.current = null;
     setTypedRead(null);
+    setLine((now) => (now?.kind === "reading" ? (now.answering ?? null) : now));
   }, []);
-  useEffect(() => () => reading.current?.abort(), []);
+  // Hidden, as a route left by a link is, or gone: React runs this cleanup either way.
+  useEffect(() => stopReading, [stopReading]);
   const stream = useDayStream();
   const { play, stop } = stream;
   /**
@@ -1867,15 +1880,21 @@ export function Day({
     const controller = new AbortController();
     reading.current = controller;
     if (isSaid) setTypedRead(controller);
-    const saying = isSaid
-      ? requestAnimationFrame(() => setLine({ kind: "reading", answering }))
-      : null;
+    if (isSaid) {
+      readingSaid.current = requestAnimationFrame(() => {
+        readingSaid.current = null;
+        setLine({ kind: "reading", answering });
+      });
+    }
     // A reader that fails is a reading that is unavailable, as the contract answers it.
     const answer = await read(text, controller.signal).catch((): StartResult => ({
       kind: "unavailable",
     }));
-    if (saying !== null) cancelAnimationFrame(saying);
+    // Stopped, by `stopReading`, which has ended all that said it was under way.
     if (controller.signal.aborted) return null;
+    // Answered: the line turns to the answer, so the frame that would say the reading goes.
+    if (readingSaid.current !== null) cancelAnimationFrame(readingSaid.current);
+    readingSaid.current = null;
     reading.current = null;
     setTypedRead((now) => (now === controller ? null : now));
     remember(answer);
