@@ -92,7 +92,7 @@ import { readIntakeRoute } from "./intake-route";
 import { FootLine } from "./foot-line";
 import { replanningOf, replanningPartOf, type SetAside } from "./not-yet";
 import { requestFor, standInZoneOf } from "./start";
-import { StartHeader, type CityQuestion, type StartLine } from "./start-header";
+import { StartHeader, type CityQuestion, type StartLine, type StartVia } from "./start-header";
 import type { TypedCity, TypedCityFailure } from "./city-word";
 import { ASKED_LABELS, FACT_OPTIONS, optionOf, type FactKey } from "./facts";
 import { useDayEvents } from "./use-day-events";
@@ -221,7 +221,7 @@ interface PlayOptions {
 /** How a day is asked for on the start screen, beyond its request. */
 interface AskOptions {
   /** How the visitor reached it: by their words, or a written city pressed. */
-  via: DayVia;
+  via: StartVia;
   /** The visitor's phrases that fit no word of the request, said back under the day. */
   unplaced?: readonly string[];
   /** The cities the name could mean, when an intake read them for this day. */
@@ -2021,7 +2021,7 @@ export function Day({
     // Said back as on its way only when it is: with live generation on, or a day Lantern has
     // written. With it off any other is answered at once that no new day is written, and the line
     // keeps reading until then.
-    if (isLive || isWritten(start, request)) setLine({ kind: "writing", request, answering });
+    if (isLive || isWritten(start, request)) setLine({ kind: "writing", request, via, answering });
     // The page comes back to its top while the day is on its way, so the day's header is
     // written in view, where the question was, even from a phone scrolled to the starts.
     window.scrollTo({ top: 0, behavior: isReducedMotion ? "instant" : "smooth" });
@@ -2275,7 +2275,7 @@ export function Day({
               isLive={isLive}
               // The city is asked for only after the visitor's text, so the field takes the focus.
               isCityFocused={line?.kind === "question"}
-              onPlan={(text) => void plan(text)}
+              onPlan={plan}
               onChooseWritten={(request) => ask(request, { via: "pressed" })}
               onChooseReading={chooseReading}
               yourDays={{

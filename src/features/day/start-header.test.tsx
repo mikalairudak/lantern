@@ -94,7 +94,7 @@ describe("StartHeader", () => {
   });
 
   it("keeps the starts on screen while a day is on its way, and the field its words", () => {
-    renderStart({ line: { kind: "writing", request: LISBON_REQUEST } });
+    renderStart({ line: { kind: "writing", request: LISBON_REQUEST, via: "pressed" } });
     const field = screen.getByRole("textbox", { name: "Where, and anything else" });
 
     expect(field).toHaveAttribute("readonly");
@@ -138,8 +138,8 @@ describe("StartHeader", () => {
 
   it.each([
     [{ kind: "reading" } as const, false, "Reading"],
-    [{ kind: "writing", request: LISBON_REQUEST } as const, true, "Writing"],
-    [{ kind: "writing", request: LISBON_REQUEST } as const, false, "Opening"],
+    [{ kind: "writing", request: LISBON_REQUEST, via: "typed" } as const, true, "Writing"],
+    [{ kind: "writing", request: LISBON_REQUEST, via: "typed" } as const, false, "Opening"],
     [{ kind: "refused" } as const, true, "Plan this day"],
   ])("names the button for what Lantern is doing: %o, live %s", (line, isLive, name) => {
     renderStart({ line, isLive });
@@ -220,7 +220,7 @@ describe("StartHeader", () => {
     expect(onPlan).not.toHaveBeenCalled();
   });
 
-  it("says from the Enter what Lantern is doing, and lights the button doing it", () => {
+  it("says from the Enter what Lantern is doing, and draws the sign of work in the button", () => {
     renderStart({ line: { kind: "reading" } });
 
     // The line under the field says it in words, where the example stood, at the example's
@@ -229,10 +229,12 @@ describe("StartHeader", () => {
     expect(said).toHaveTextContent(/^Reading what you wrote$/);
     expect(said).toHaveClass("text-body");
     expect(said).not.toHaveTextContent(/For example/);
-    // The light passes over the button as over the words, about every second, and a press
-    // asks nothing more while Lantern works.
+    // The button is a lantern, framed in ink, with no light passing over it, and a press asks
+    // nothing more while Lantern works.
     const button = screen.getByRole("button", { name: "Reading" });
-    expect(button).toHaveClass("motion-safe:animate-pass-steady");
+    expect(button.querySelector('[data-part="pen"]')).not.toBeNull();
+    expect(button).not.toHaveClass("motion-safe:animate-pass-steady");
+    expect(button).not.toHaveClass("bg-ink");
     expect(button).toHaveAttribute("aria-disabled", "true");
   });
 
@@ -298,13 +300,15 @@ describe("StartHeader", () => {
     ).toBeInTheDocument();
     const needed = screen.getByText(/Lantern needs a city to plan the day/);
     expect(needed.closest("[aria-hidden='true']")).not.toBeNull();
-    expect(screen.getByText("Reading what you wrote")).toHaveClass("sr-only");
+    // "Reading" is heard on the button the focus is on, not again from the status.
+    expect(screen.queryByText("Reading what you wrote")).not.toBeInTheDocument();
 
     // Read, its day sets off from the same field.
     view.rerender(
       startOf({
         kind: "writing",
         request: { ...LISBON_REQUEST, city: "Porto", energy: "calm" },
+        via: "typed",
         answering: question,
       }),
     );
@@ -418,6 +422,159 @@ describe("StartHeader", () => {
   });
 });
 
+/** The motion-safe loop of the sign, on its pen: present only while it runs. */
+const PEN_LOOP = "motion-safe:animate-sign-cut";
+
+/** The sign of work in the start button, or null where the arrow stands. */
+function signInButton(): Element | null {
+  const button = screen.getByRole("button", { name: /^(Plan this day|Reading|Writing|Opening)$/ });
+  return button.querySelector("svg:has([data-part='pen'])");
+}
+
+describe("the wait that follows a typed text", () => {
+  const TYPED = { kind: "writing", request: LISBON_REQUEST, via: "typed" } as const;
+  const PRESSED = { kind: "writing", request: LISBON_REQUEST, via: "pressed" } as const;
+
+  it.each([
+    ["while its text is read", { kind: "reading" } as const],
+    ["while its day is on its way", TYPED],
+  ])("draws the sign of work, running, in a hollow frame %s", (_, line) => {
+    renderStart({ line, isLive: true });
+
+    const sign = signInButton();
+    expect(sign).not.toBeNull();
+    expect(sign?.querySelector("[data-part='pen']")).toHaveClass(PEN_LOOP);
+    const button = screen.getByRole("button", { name: /^(Reading|Writing)$/ });
+    expect(button).toHaveClass("border-ink");
+    expect(button).not.toHaveClass("bg-ink");
+    expect(button).not.toHaveClass("motion-safe:animate-pass-steady");
+  });
+
+  it.each([
+    ["at rest", null],
+    ["for a city pressed in the index", PRESSED],
+    ["once the wait ends without a day", { kind: "refused" } as const],
+  ])("draws the arrow, not the sign, %s", (_, line) => {
+    renderStart({ line, isLive: true });
+    expect(signInButton()).toBeNull();
+  });
+});
+
+describe("the press that asks for a typed text", () => {
+  it("hands the focus to the button, named Reading as the focus lands, before the text is asked for", async () => {
+    const user = userEvent.setup();
+    const named: string[] = [];
+    let isAskedBeforeFocus = false;
+    const onPlan = vi.fn(async () => undefined);
+    renderStart({ onPlan });
+    const field = screen.getByRole("textbox", { name: "Where, and anything else" });
+    await user.type(field, "Bologna");
+    const button = screen.getByRole("button", { name: "Plan this day" });
+    button.addEventListener("focus", () => {
+      named.push(button.getAttribute("aria-label") ?? "");
+      isAskedBeforeFocus = onPlan.mock.calls.length > 0;
+    });
+
+    await user.keyboard("{Enter}");
+    expect(button).toHaveFocus();
+    expect(named).toEqual(["Reading"]);
+    expect(isAskedBeforeFocus).toBe(false);
+    expect(onPlan).toHaveBeenCalledWith("Bologna");
+    // Its asking settled with no read on the line, the button is at rest again, still focused.
+    await waitFor(() => expect(screen.getByRole("button", { name: "Plan this day" })).toBe(button));
+    expect(button).toHaveFocus();
+  });
+
+  it("draws the sign from the press, before the line says the text is read", async () => {
+    const user = userEvent.setup();
+    renderStart({ onPlan: () => new Promise<void>(() => undefined) });
+    await user.type(screen.getByRole("textbox"), "Bologna{Enter}");
+
+    expect(signInButton()).not.toBeNull();
+  });
+
+  it("gives the focus back to the field when the wait ends without a day", async () => {
+    const user = userEvent.setup();
+    const handlers = {
+      onPlan: vi.fn(() => new Promise<void>(() => undefined)),
+      onChooseWritten: vi.fn(),
+      onChooseReading: vi.fn(),
+    };
+    const startOf = (line: StartHeaderProps["line"]) => (
+      <HeldStart starts={STARTS} line={line} isLive isCityFocused={false} {...handlers} />
+    );
+    const view = render(startOf(null));
+    const field = screen.getByRole("textbox");
+    await user.type(field, "Paris{Enter}");
+    view.rerender(startOf({ kind: "reading" }));
+    expect(screen.getByRole("button", { name: "Reading" })).toHaveFocus();
+
+    view.rerender(startOf({ kind: "not-yet" }));
+    await waitFor(() => expect(field).toHaveFocus());
+  });
+
+  it("gives the focus back to the city's field when its answer asks for the city again", async () => {
+    const user = userEvent.setup();
+    const question = {
+      kind: "question",
+      words: { ...NO_WORDS, company: "friends" },
+      readings: [],
+      unplaced: [],
+    } as const;
+    const handlers = {
+      onPlan: vi.fn(() => new Promise<void>(() => undefined)),
+      onChooseWritten: vi.fn(),
+      onChooseReading: vi.fn(),
+    };
+    const startOf = (line: StartHeaderProps["line"]) => (
+      <HeldStart starts={STARTS} line={line} isLive isCityFocused {...handlers} />
+    );
+    const view = render(startOf(question));
+    const field = screen.getByRole("textbox", { name: "Which city?" });
+    await user.type(field, "Portland{Enter}");
+    view.rerender(startOf({ kind: "reading", answering: question }));
+    expect(screen.getByRole("button", { name: "Reading" })).toHaveFocus();
+
+    view.rerender(
+      startOf({
+        ...question,
+        readings: [
+          { placeId: "a", name: "Portland", region: "Oregon", timezone: "America/Los_Angeles" },
+          { placeId: "b", name: "Portland", region: "Maine", timezone: "America/New_York" },
+        ],
+      }),
+    );
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Which city?" })).toHaveFocus());
+  });
+
+  it("says Reading once, on the focused button, and Writing once, in the status", () => {
+    const view = renderStart({ line: { kind: "reading" }, isLive: true });
+    // What the status holds that a screen reader hears: its words outside what is hidden.
+    const heard = () => {
+      const copy = startStatus().cloneNode(true) as HTMLElement;
+      for (const hidden of copy.querySelectorAll("[aria-hidden='true']")) hidden.remove();
+      return copy.textContent;
+    };
+    expect(screen.getByRole("button", { name: "Reading" })).toBeInTheDocument();
+    expect(heard()).toBe("");
+    expect(startStatus()).toHaveTextContent("Reading what you wrote");
+
+    view.rerender(
+      <HeldStart
+        starts={STARTS}
+        line={{ kind: "writing", request: LISBON_REQUEST, via: "typed" }}
+        isLive
+        isCityFocused
+        onPlan={vi.fn()}
+        onChooseWritten={vi.fn()}
+        onChooseReading={vi.fn()}
+      />,
+    );
+    expect(heard()).toMatch(/^Writing a lively Saturday in Lisbon/);
+    expect(screen.getByRole("button", { name: "Writing" })).toBeInTheDocument();
+  });
+});
+
 describe("the visitor's days over the starts", () => {
   const DAY: YourDay = {
     id: "a",
@@ -509,7 +666,7 @@ describe("the field's room", () => {
 
   it.each([
     [{ kind: "reading" } as const],
-    [{ kind: "writing", request: LISBON_REQUEST } as const],
+    [{ kind: "writing", request: LISBON_REQUEST, via: "typed" } as const],
   ])("says no room left while Lantern works: %o", (line) => {
     render(
       <StartHeader

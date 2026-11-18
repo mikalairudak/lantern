@@ -603,6 +603,79 @@ describe("the day under its start screen", () => {
   });
 });
 
+// The tests here run with reduced motion, so the sign in the button keeps its tally.
+describe("the wait that follows a typed text, with reduced motion", () => {
+  /** A reader that answers only when the test lands its answer. */
+  function landedReader() {
+    let land: (result: IntakeResult) => void = () => undefined;
+    const read = vi.fn<IntakeReader>(() => new Promise((resolve) => (land = resolve)));
+    return { read, land: (result: IntakeResult) => land(result) };
+  }
+  const planButton = () =>
+    screen.getByRole("button", { name: /^(Plan this day|Reading|Opening|Writing)$/ });
+  const signPart = (part: string) => planButton().querySelector(`[data-part="${part}"]`);
+  it("takes the focus to the button named Reading, its lantern's outline drawn", async () => {
+    const user = userEvent.setup();
+    const release = holdDay();
+    const { read, land } = landedReader();
+    render(<Day start={{ pool: POOL, read }} />);
+
+    await user.type(screen.getByRole("textbox"), "Bologna{Enter}");
+    const button = screen.getByRole("button", { name: "Reading" });
+    expect(button).toHaveFocus();
+    expect(signPart("pen")).toHaveAttribute("stroke-dashoffset", "1");
+    expect(signPart("paper")).toHaveAttribute("transform", "scale(0)");
+
+    land({ kind: "request", request: BOLOGNA_START_REQUEST, readings: [], unplaced: [] });
+    expect(await saysBack("Opening a lively Saturday in Bologna, with friends")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Opening" })).toBe(button);
+    expect(button).toHaveFocus();
+    // Its ribs cut and its wick lit, with no loop.
+    expect(signPart("pen")).toHaveAttribute("stroke-dashoffset", "0");
+    expect(signPart("paper")).toHaveAttribute("transform", "scale(0.25)");
+    expect(signPart("pen")?.getAttribute("class")).not.toMatch(/animate-/);
+    release();
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A lively Saturday in Bologna/));
+  });
+
+  it("gives the focus back to the field when the wait ends without a day", async () => {
+    const { user } = renderStart({ kind: "unavailable" });
+
+    await user.type(screen.getByRole("textbox"), "Paris{Enter}");
+    expect(await saysBack(NOT_YET_LINE)).toBeVisible();
+    await waitFor(() => expect(screen.getByRole("textbox")).toHaveFocus());
+    expect(screen.getByRole("button", { name: "Plan this day" })).toBeInTheDocument();
+    expect(signPart("pen")).toBeNull();
+  });
+
+  it("gives the focus to the city's field when the text asks for the city", async () => {
+    const { user } = renderStart({
+      kind: "question",
+      key: "city",
+      words: NO_WORDS,
+      readings: [],
+      unplaced: [],
+    });
+
+    await user.type(screen.getByRole("textbox"), "with friends{Enter}");
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Which city?" })).toHaveFocus());
+    expect(signPart("pen")).toBeNull();
+  });
+
+  it("ends the wait at a press on a city: no sign", async () => {
+    const user = userEvent.setup();
+    stallDay();
+    const { read } = landedReader();
+    render(<Day start={{ pool: POOL, read }} />);
+
+    await user.type(screen.getByRole("textbox"), "Bologna{Enter}");
+    await user.click(cityWord("Paris"));
+
+    await waitFor(() => expect(startStatus()).toHaveTextContent(/^Opening a calm Sunday in Paris/));
+    expect(signPart("pen")).toBeNull();
+  });
+});
+
 // `docs/decisions.md`, "The first screen asks one question, and no day is drawn until a press".
 describe("the wait for the day's own words", () => {
   function renderHeld(

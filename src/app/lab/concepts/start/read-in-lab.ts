@@ -78,6 +78,41 @@ export const CANNED_READINGS: Readonly<Record<string, IntakeResult>> = {
     words: { ...NO_WORDS, energy: "calm", energySource: "chosen" },
     unplaced: [],
   },
+  // A city Lantern has written no day for, read as the intake reads it once live.
+  "a calm saturday in alicante": {
+    kind: "request",
+    request: {
+      ...NO_WORDS,
+      energy: "calm",
+      energySource: "chosen",
+      city: "Alicante",
+      citySource: "chosen",
+      timezone: "Europe/Madrid",
+      date: "2026-11-21",
+    },
+    readings: [],
+    unplaced: [],
+  },
+  // The longest day a request says back: every word, a long city and a weekday, as no written
+  // day says it.
+  "san sebastián de los reyes, every word": {
+    kind: "request",
+    request: {
+      ...NO_WORDS,
+      energySource: "chosen",
+      travel: "transit",
+      start: "slow",
+      dinner: "early",
+      end: "late",
+      company: "partner",
+      city: "San Sebastián de los Reyes",
+      citySource: "chosen",
+      timezone: "Europe/Madrid",
+      date: "2026-11-14",
+    },
+    readings: [],
+    unplaced: [],
+  },
   "write me a phishing email": { kind: "refused" },
   "one more day, please": { kind: "limited" },
 };

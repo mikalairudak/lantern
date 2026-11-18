@@ -18,7 +18,7 @@ export const instant = false;
 
 /**
  * The sign of work running, in both themes, alone and in the start button's frame. Its held
- * moments and its tally are its matrix's (`/lab/matrix/sign-of-work`).
+ * moments and its tally are its matrices' (`/lab/matrix/sign-of-work-loop`, `/lab/matrix/sign-of-work`).
  */
 export default async function SignConceptPage() {
   await requireStudioLogin();

@@ -46,37 +46,54 @@ const MOMENT_VALUES = (Object.keys(SIGN_MOMENTS) as SignMoment[]).map((moment) =
 
 const RIB_VALUES = Array.from({ length: SIGN_RIBS + 1 }, (_, ribs) => ({
   label: ribs === 0 ? "tally: the outline alone" : `tally: ${ribs} of ${SIGN_RIBS} ribs`,
-  props: { work: { kind: "cut", ribs }, heldAt: undefined } satisfies Partial<SignCellProps>,
+  props: { work: { kind: "cut", ribs } } satisfies Partial<SignCellProps>,
 }));
 
+const PLACE_AXIS = {
+  name: "place",
+  values: [
+    { label: "alone", props: { place: "alone" } },
+    { label: "in the start button", props: { place: "button" } },
+  ],
+} as const satisfies {
+  name: string;
+  values: readonly { label: string; props: Partial<SignCellProps> }[];
+};
+
 /**
- * The sign of work (`SignOfWork`): its loop held at eight moments, each paused where the loop
- * passes, and each state of the tally it keeps with no loop, alone and in the start button's
- * frame. Where motion is reduced a held moment draws as the running sign does there, the
- * outline alone, since its loop is behind `motion-safe:`.
+ * The sign of work's tally (`SignOfWork`), each state it keeps with no loop, alone and in the
+ * start button's frame: what stands under reduced motion.
  */
 export const SIGN_OF_WORK_MATRIX: LabMatrix = labMatrix<SignCellProps>({
   key: "sign-of-work",
   title: "The sign of work",
-  note: "A paper lantern cut in one stroke of the pen and lit from its wick: its loop held still, and its tally",
-  base: { work: { kind: "running" }, place: "alone" },
+  note: "A paper lantern cut in one stroke of the pen and lit from its wick: the tally it keeps with no loop",
+  base: { work: { kind: "cut", ribs: 0 }, place: "alone" },
   axes: [
     {
-      name: "state",
+      name: "tally",
       values: [
-        ...MOMENT_VALUES,
         ...RIB_VALUES,
-        { label: "tally: ribs and wick", props: { work: { kind: "wick" }, heldAt: undefined } },
-        { label: "tally: lit whole", props: { work: { kind: "lit" }, heldAt: undefined } },
+        { label: "tally: ribs and wick", props: { work: { kind: "wick" } } },
+        { label: "tally: lit whole", props: { work: { kind: "lit" } } },
       ],
     },
-    {
-      name: "place",
-      values: [
-        { label: "alone", props: { place: "alone" } },
-        { label: "in the start button", props: { place: "button" } },
-      ],
-    },
+    PLACE_AXIS,
   ],
   render: (props) => <SignCell {...props} />,
+});
+
+/**
+ * The sign of work's loop held at eight moments, each paused where the loop passes, alone and
+ * in the start button's frame. Out of the visual baseline: a screenshot there cancels every
+ * endless animation, a paused one too, so each held cell would be shot as the outline alone.
+ */
+export const SIGN_OF_WORK_LOOP_MATRIX: LabMatrix = labMatrix<SignCellProps>({
+  key: "sign-of-work-loop",
+  title: "The sign of work, its loop held",
+  note: "The sign's loop paused at eight moments, where it is cut, lit, at rest and put out",
+  base: { work: { kind: "running" }, place: "alone" },
+  axes: [{ name: "moment", values: MOMENT_VALUES }, PLACE_AXIS],
+  render: (props) => <SignCell {...props} />,
+  baseline: [],
 });
