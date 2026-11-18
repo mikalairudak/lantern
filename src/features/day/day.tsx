@@ -700,9 +700,13 @@ export function Day({
   const [typedCity, setTypedCity] = useState<TypedCity | null>(null);
   // The reading under way: any other gesture, or a new reading, aborts it.
   const reading = useRef<AbortController | null>(null);
+  // The visitor's own text being read, by its reading, so a reading stopped for a newer one
+  // never ends the newer one's wait (`startWait`).
+  const [typedRead, setTypedRead] = useState<AbortController | null>(null);
   const stopReading = useCallback(() => {
     reading.current?.abort();
     reading.current = null;
+    setTypedRead(null);
   }, []);
   useEffect(() => () => reading.current?.abort(), []);
   const stream = useDayStream();
@@ -890,8 +894,6 @@ export function Day({
   const events = useDayEvents(stream, isCounted);
   const { open: openDay, leave: leaveDay } = events;
   const [pending, setPending] = useState<Pending | null>(null);
-  // A typed text is being read, from the press until its reading has settled (`plan`).
-  const [isTextRead, setIsTextRead] = useState(false);
   // Noted as it is first asked, pending or on screen, before its answer can name an id.
   useEffect(() => {
     noteAsked(pending?.request);
@@ -1864,6 +1866,7 @@ export function Day({
     if (isSaid) dropPending();
     const controller = new AbortController();
     reading.current = controller;
+    if (isSaid) setTypedRead(controller);
     const saying = isSaid
       ? requestAnimationFrame(() => setLine({ kind: "reading", answering }))
       : null;
@@ -1874,6 +1877,7 @@ export function Day({
     if (saying !== null) cancelAnimationFrame(saying);
     if (controller.signal.aborted) return null;
     reading.current = null;
+    setTypedRead((now) => (now === controller ? null : now));
     remember(answer);
     // Only the intake's answers count: with live generation off its stand-in reads in the page.
     if (isLive) events.send({ kind: "intake-ended", outcome: answer.kind });
@@ -1885,21 +1889,11 @@ export function Day({
     setLine({ kind: kind === "unavailable" ? "not-yet" : kind });
 
   /**
-   * The visitor's text, or their answer to "in …?", read and its day asked for. From the press
-   * until it has settled the text is being read, which the start screen's wait says until a day
-   * typed is on its way (`startWait`).
+   * The visitor's text, or their answer to "in …?", read and its day asked for. A second press
+   * while the text is read, before the line can say so, asks nothing: one text, one reading.
    */
   const plan = async (text: string) => {
-    if (!start) return;
-    setIsTextRead(true);
-    try {
-      await planFrom(text, start);
-    } finally {
-      setIsTextRead(false);
-    }
-  };
-
-  const planFrom = async (text: string, start: DayStart) => {
+    if (!start || reading.current !== null) return;
     if (line?.kind === "question") return answerQuestion(text, line);
     const read = await readText(text, start.read, true);
     if (read === null) return;
@@ -2063,7 +2057,7 @@ export function Day({
         : isLive && !isWritten(start, pending.request)
           ? "writing"
           : "opening"
-      : isTextRead
+      : typedRead !== null
         ? "reading"
         : null;
 

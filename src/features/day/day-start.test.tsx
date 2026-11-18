@@ -701,6 +701,32 @@ describe("the wait that follows a typed text, with reduced motion", () => {
     expect(steppedBack().every(Boolean)).toBe(true);
   });
 
+  it("reads a text pressed twice in one moment once, and holds its wait", async () => {
+    // A reader that gives up when its reading is stopped, as the intake's call does.
+    const read = vi.fn<IntakeReader>(
+      (_, signal) =>
+        new Promise((_resolve, reject) => {
+          signal?.addEventListener("abort", () => reject(new Error("stopped")));
+        }),
+    );
+    const user = userEvent.setup();
+    render(<Day start={{ pool: POOL, read }} />);
+    await user.type(screen.getByRole("textbox"), "Bologna");
+    const form = screen.getByRole("textbox").closest("form");
+    if (!form) throw new Error("No form");
+
+    act(() => {
+      form.requestSubmit();
+      form.requestSubmit();
+    });
+    await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
+
+    expect(read).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "Reading" })).toBeInTheDocument();
+    expect(signPart("pen")).not.toBeNull();
+    expect(steppedBack().every(Boolean)).toBe(true);
+  });
+
   it("keeps the wait at a press on the city whose day is already on its way", async () => {
     const user = userEvent.setup();
     const release = holdDay();
