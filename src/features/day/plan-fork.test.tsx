@@ -27,6 +27,7 @@ import {
   asShownOf,
   chartArrivalsOf,
   forkOtherAt,
+  headKeysOf,
   planForkOf,
   proposedAtOf,
   slipPlacementOf,
@@ -50,6 +51,25 @@ const COFFEE = stopAt("stop-0", "10:00", 60, "Coffee on the Oudegracht");
 const TOWER = stopAt("stop-1", "11:15", 75, "Domtoren");
 const LUNCH = stopAt("stop-2", "12:45", 60, "Pancakes on the Domplein");
 const MUSEUM = stopAt("stop-3", "14:15", 90, "Centraal Museum");
+
+describe("headKeysOf", () => {
+  it("keeps a part's key through a take, whose windows stand", () => {
+    const windows = [
+      { opens: 720, closes: 900 },
+      { opens: 1080, closes: null },
+    ];
+    expect(headKeysOf(windows)).toEqual(headKeysOf([...windows]));
+    expect(new Set(headKeysOf(windows)).size).toBe(2);
+  });
+
+  it("keeps the key of a part that opens the day when the change is sent on to the whole day", () => {
+    expect(headKeysOf([{ opens: null, closes: 900 }])).toEqual(headKeysOf([WHOLE_DAY_WINDOW]));
+  });
+
+  it("gives another key to a part that opens at another hour", () => {
+    expect(headKeysOf([{ opens: 1080, closes: null }])).not.toEqual(headKeysOf([WHOLE_DAY_WINDOW]));
+  });
+});
 
 describe("slipPlacementOf", () => {
   it("stands the slip in the margin once the day's column is whole, and in the column short of it", () => {

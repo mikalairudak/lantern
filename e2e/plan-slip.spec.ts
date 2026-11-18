@@ -538,14 +538,14 @@ async function pressWhereItStands(page: Page, control: Locator): Promise<void> {
  * measures 0.8 px at most over three runs at 390 px and 1440. Over the second, on a phone, the
  * first part's rows and slip change height above the screen and the browser's scroll anchoring
  * holds the view a frame behind them: 4.1 px at most, and 6.1 with the page's CPU twice as slow
- * (`pnpm e2e:busy`). A head drawn anew over the version taken's first row stood 206 px lower at
- * 1440 px and 384 px at 390.
+ * (`pnpm e2e:busy`). A head drawn anew over the version taken's first row stands 206 px lower at
+ * 1440 px and 384 px at 390, which the bound rules out.
  */
 const FORK_LINE_STRAY_PX = [1, 7];
 /**
  * The least ink the answer just pressed stands in, its copies' greatest, in every frame from the
- * press to rest. It measures 1 in every frame; with a head drawn anew that inked with its row,
- * the answer stood at its palest at 0.14 to 0.18 of its ink, at 390 px and 1440 alike.
+ * press to rest. It measures 1 in every frame; a head drawn anew that inks with its row
+ * leaves the answer at 0.14 to 0.18 of its ink at its palest, at 390 px and 1440 alike.
  */
 const PRESSED_ANSWER_INK = 0.99;
 /** Less ink than this, opacities multiplied up the page, and a copy is not seen. */
@@ -557,7 +557,7 @@ const PRESSED_AT_PX = 205;
 
 /** Room added under the page, a screen's height and more. */
 const ROOM_UNDER_PX = 1000;
-/** From the press until a take's rows rest, 3.8 s at most on a phone, with a margin. */
+/** From the press until the rows rest, a take-back's 3.8 s at most on a phone, with a margin. */
 const TAKE_WATCHED_MS = waitMs(5000);
 
 /** One frame of a fork's part through a take: its fork lines seen, and the answer's ink. */

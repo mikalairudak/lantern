@@ -41,12 +41,6 @@ export function shownFirstForkRow(): HTMLElement | null {
  */
 export const FORK_LINE_ATTRIBUTE = "data-fork-line";
 
-/**
- * Marks each of a fork row's controls by what it does, an answer by its side, so the focus can
- * be given back to the same control where the row is drawn anew.
- */
-export const FORK_CONTROL_ATTRIBUTE = "data-fork-control";
-
 /** Every word of the row is a note's size, as the scale's band and a row's second line are. */
 const ROW_CLASSES = "type-note";
 
@@ -225,7 +219,6 @@ export function ForkRow({
         {view.isComparable && (
           <button
             type="button"
-            {...{ [FORK_CONTROL_ATTRIBUTE]: "compare" }}
             aria-pressed={view.isCompared}
             onClick={onCompare}
             className={cn(ACTION_CLASSES, "text-ink-soft")}
@@ -282,7 +275,6 @@ function Answer({
       ref={ref}
       type="button"
       role="radio"
-      {...{ [FORK_CONTROL_ATTRIBUTE]: side }}
       aria-checked={isChecked}
       aria-disabled={(!isChecked && !isTakeable) || undefined}
       aria-label={`${label}, ${description}`}
@@ -379,7 +371,6 @@ export function ForkLine({ view, onAskAgain, isRoomHeld = false, isSeen = true }
             <span className="text-muted"> · </span>
             <button
               type="button"
-              {...{ [FORK_CONTROL_ATTRIBUTE]: "ask-again" }}
               onClick={onAskAgain}
               className={cn(ACTION_CLASSES, ASK_AGAIN_CLASSES)}
             >

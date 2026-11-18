@@ -90,9 +90,9 @@ interface ReadingListProps {
  */
 export interface PlanParts {
   /**
-   * What each part's head is kept by, beside its part: the part's window, which a take keeps, so
-   * the head is drawn again in place, and a fork over another window folds its head in anew. Left
-   * out, a head is kept by its part alone.
+   * What each part's head is kept by, beside its part (`headKeysOf`): the hour the part's window
+   * opens at, which a take keeps, so the head is drawn again in place, and a part that opens at
+   * another hour folds its head in anew. Left out, a head is kept by its part alone.
    */
   keys?: readonly string[];
   /**
@@ -158,8 +158,9 @@ export function ReadingList({
   const spans = runningSpans(shown.map(({ stop }) => stop));
   // Rows on the list when it is first drawn, as a day come back to whole, stand whole; so do the
   // rows of a fork's other version, once it is taken. The rows let in after are written in.
-  const [firstIds] = useState(() => new Set(shown.map(({ stop }) => stop.id)));
-  const [wholeIds, setWholeIds] = useState(() => new Set([...firstIds, ...hidden]));
+  const [wholeIds, setWholeIds] = useState(
+    () => new Set([...shown.map(({ stop }) => stop.id), ...hidden]),
+  );
   const newlyHidden = [...hidden].filter((id) => !wholeIds.has(id));
   if (newlyHidden.length > 0) setWholeIds(new Set([...wholeIds, ...newlyHidden]));
   // Rows a new energy changes together glide as one, in about 1.5 s.
@@ -213,14 +214,15 @@ export function ReadingList({
   );
   /**
    * The heads of the parts that stand over a row, or under the last: each an item of the list of
-   * its own, just before its part's first row, kept by its part and its window. A take changes the
-   * rows under a head and not the head: it stays where it was pressed, in full ink, its answers
-   * changing sides in place, while the rows of the version left fold out under it and those of
-   * the version taken fold in. A head folds in and out as its part comes and goes; one there
-   * before the list's first paint stands whole. In the column one that comes after comes into
-   * full ink on its spring's own time while its room still opens at a row's pace: its fork line
-   * says Lantern has begun, and ink that followed the room a whole day holds on a phone would
-   * leave it pale for seconds. In the margin its room is a line's, and its ink follows it.
+   * its own, just before its part's first row, kept by its part and the hour its window opens at
+   * (`headKeysOf`). A take changes the rows under a head and not the head: it stays where it was
+   * pressed, in full ink, its answers changing sides in place, while the rows of the version
+   * left fold out under it and those of the version taken fold in. A head folds in and out as
+   * its part comes and goes; one there before the list's first paint stands whole. In the column
+   * one that comes after comes into full ink on its spring's own time while its room still opens
+   * at a row's pace: its fork line says Lantern has begun, and ink that followed the room a whole
+   * day holds on a phone would leave it pale for seconds. In the margin its room is a line's, and
+   * its ink follows it.
    */
   const headsAt = (anchor: string | null) =>
     anchors.flatMap((each, part) => {

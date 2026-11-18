@@ -126,6 +126,7 @@ import {
   asShownOf,
   chartArrivalsOf,
   forkOtherAt,
+  headKeysOf,
   planForkOf,
   proposedAtOf,
   useSlipPlacement,
@@ -1012,8 +1013,7 @@ export function DayStage({
   const planParts: PlanParts | null =
     replan && planView && planFork && slipPlacement !== null
       ? {
-          // Each part by its window, which a take keeps: its head stands where it was pressed.
-          keys: replan.windows.map(({ opens, closes }) => `${opens} ${closes}`),
+          keys: headKeysOf(replan.windows),
           anchors: planFork.anchors,
           ends: planFork.shown.map((part) => part.at(-1)?.id ?? null),
           isBeside: slipPlacement === "margin",

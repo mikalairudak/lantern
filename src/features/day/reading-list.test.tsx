@@ -550,7 +550,7 @@ describe("ReadingList", () => {
     );
   });
 
-  it("folds in anew the head of a part over another window, and keeps one over the same", () => {
+  it("folds in anew the head of a part that opens at another hour, and keeps one that opens at the same", () => {
     const head = (part: number) => <p>{`head ${part}`}</p>;
     const anchors = [KYOTO.stops[1]!.id];
     const { rerender } = render(
@@ -558,11 +558,11 @@ describe("ReadingList", () => {
     );
     const first = screen.getByText("head 0").closest("li");
 
-    // Another change over the same window: the same head, its words changed in place.
+    // Another change that opens at the same hour: the same head, its words changed in place.
     rerender(<ReadingList {...KYOTO} parts={{ anchors, keys: ["13:00"], headOf: head }} />);
     expect(screen.getByText("head 0").closest("li")).toBe(first);
 
-    // A fork over another window: the head before it folds out, and its own folds in.
+    // A part that opens at another hour: the head before it folds out, and its own folds in.
     rerender(<ReadingList {...KYOTO} parts={{ anchors, keys: ["18:00"], headOf: head }} />);
     const heads = screen.getAllByText("head 0").map((each) => each.closest("li"));
     expect(heads).toHaveLength(2);
