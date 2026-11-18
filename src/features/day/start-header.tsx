@@ -753,7 +753,7 @@ function QuestionLine({
       ) : (
         <>
           {isLive ? "Writing" : "Opening"} <AskedSentence request={line.request} isMidSentence />
-          {isLive && wait === "writing" && ` · ${WHOLE_DAY_TAKES}`}
+          {isLive && wait === "writing" && ` ${WHOLE_DAY_TAKES}`}
         </>
       );
     // A typed text's read is heard where the focus lands, on the button named "Reading".

@@ -500,10 +500,10 @@ describe("the wait that follows a typed text", () => {
     expect(signInButton()).toBeNull();
   });
 
-  it("says a day being written takes under a minute", () => {
+  it("says a day being written takes under a minute, its dot tied to the words", () => {
     renderStart({ line: ON_ITS_WAY, wait: "writing", isLive: true });
     expect(startStatus().textContent).toBe(
-      "Writing a lively Saturday in Lisbon, with friends · under\u00A0a\u00A0minute",
+      "Writing a lively Saturday in Lisbon, with friends ·\u00A0under\u00A0a\u00A0minute",
     );
   });
 
