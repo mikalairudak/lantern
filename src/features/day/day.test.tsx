@@ -203,6 +203,68 @@ async function waitForTheDay(wait = DAY_TIMEOUT): Promise<void> {
   );
 }
 
+/** Long enough for the status to say the day is being written, under reduced motion. */
+const EMPTY_DAY_SILENCE_MS = 1500;
+const STOPS_OPEN = '"stops":[';
+
+/**
+ * Kanazawa's day as a model can write it: its header and its stops opened, then, after a
+ * wait, closed with none in them, so the day is asked for again.
+ */
+function emptyDayResponse(silenceMs: number): Response {
+  const text = dayText({ ...KANAZAWA_START_DAY.day, stops: [], alternatives: [] });
+  const opened = text.indexOf(STOPS_OPEN) + STOPS_OPEN.length;
+  const encoder = new TextEncoder();
+  const event = (data: string) => encoder.encode(`data: ${data}\n\n`);
+  const delta = (part: string) =>
+    event(JSON.stringify({ type: "text-delta", id: "day", delta: part }));
+  const body = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      controller.enqueue(delta(text.slice(0, opened)));
+      await new Promise((resolve) => setTimeout(resolve, silenceMs));
+      controller.enqueue(delta(text.slice(opened)));
+      controller.enqueue(event(JSON.stringify({ type: "finish", finishReason: "stop" })));
+      controller.enqueue(event("[DONE]"));
+      controller.close();
+    },
+  });
+  return new Response(body, { headers: { "Content-Type": "text/event-stream" } });
+}
+
+/** What a wait shows and says as a day is written: each counted as it begins. */
+interface HeardWait {
+  /** How often the waiting line came. */
+  lines: number;
+  /** How often the header's status came to say that the day is being written. */
+  entries: number;
+}
+
+/** Listens to the page from now until stopped, for the waiting line and the header's status. */
+function listenToTheWait(): { heard: HeardWait; stop: () => void } {
+  const heard: HeardWait = { lines: 0, entries: 0 };
+  const said = new Map<Element, string>();
+  let isLineShown = false;
+  const listen = () => {
+    const isLine = document.querySelector("[data-waiting]") !== null;
+    if (isLine && !isLineShown) heard.lines += 1;
+    isLineShown = isLine;
+    for (const status of document.querySelectorAll("header p[role=status]")) {
+      const text = status.textContent ?? "";
+      if (text === "Writing the day" && said.get(status) !== text) heard.entries += 1;
+      said.set(status, text);
+    }
+  };
+  const observer = new MutationObserver(listen);
+  observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+  return {
+    heard,
+    stop: () => {
+      listen();
+      observer.disconnect();
+    },
+  };
+}
+
 async function renderWritten() {
   const user = userEvent.setup();
   render(<Day first={KANAZAWA_START_REQUEST} />);
@@ -304,25 +366,41 @@ describe("the day", () => {
       deltaChars: Math.ceil(dayText(KANAZAWA_START_DAY.day).length / 4),
       deltaDelayMs: 1200,
     };
-    let entries = 0;
-    const said = new Map<Element, string>();
-    const hear = () => {
-      for (const status of document.querySelectorAll("header p[role=status]")) {
-        const text = status.textContent ?? "";
-        if (text === "Writing the day" && said.get(status) !== text) entries += 1;
-        said.set(status, text);
-      }
+    const wait = listenToTheWait();
+    try {
+      render(<Day first={KANAZAWA_START_REQUEST} />);
+      await screen.findByText("Writing the day", undefined, DAY_TIMEOUT);
+      await waitForTheDay(SLOW_DAY_TIMEOUT);
+    } finally {
+      wait.stop();
+    }
+
+    // Two silences at least: the one before the first words, which the status said, and one
+    // after them, in which the waiting line came, as it can only once the frame is drawn.
+    expect(wait.heard.lines).toBeGreaterThanOrEqual(1);
+    expect(wait.heard.entries).toBe(1);
+    expect(screen.queryByText("Writing the day")).not.toBeInTheDocument();
+  }, 20_000);
+
+  it("tells screen readers the day is being written once across an empty day asked again", async () => {
+    // The empty day falls silent before it closes; the day asked again falls silent between
+    // its deltas. One stream, so one wait.
+    vi.mocked(fetch).mockImplementationOnce(async () => emptyDayResponse(EMPTY_DAY_SILENCE_MS));
+    route.pace = {
+      deltaChars: Math.ceil(dayText(KANAZAWA_START_DAY.day).length / 4),
+      deltaDelayMs: 1200,
     };
-    const listen = new MutationObserver(hear);
-    listen.observe(document.body, { subtree: true, childList: true, characterData: true });
-    render(<Day first={KANAZAWA_START_REQUEST} />);
+    const wait = listenToTheWait();
+    try {
+      render(<Day first={KANAZAWA_START_REQUEST} />);
+      await waitForTheDay(SLOW_DAY_TIMEOUT);
+    } finally {
+      wait.stop();
+    }
 
-    await screen.findByText("Writing the day", undefined, DAY_TIMEOUT);
-    await waitForTheDay(SLOW_DAY_TIMEOUT);
-    hear();
-    listen.disconnect();
-
-    expect(entries).toBe(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(wait.heard.lines).toBeGreaterThanOrEqual(1);
+    expect(wait.heard.entries).toBe(1);
     expect(screen.queryByText("Writing the day")).not.toBeInTheDocument();
   }, 20_000);
 

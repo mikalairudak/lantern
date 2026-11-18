@@ -139,6 +139,7 @@ function headerAt({
       reservedSlot={slot}
       notice={null}
       isEnabled={controls === undefined || controls.status !== "writing"}
+      isDayBeingWritten={false}
       isWaiting={false}
       written={START_REQUESTS}
       cityOpenAt={null}

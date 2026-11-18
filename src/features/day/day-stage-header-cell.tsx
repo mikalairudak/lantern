@@ -15,6 +15,7 @@ const ignore = () => undefined;
 
 /** The header at rest: nothing open, nothing changing, no one waiting, every hand still. */
 const AT_REST = {
+  isDayBeingWritten: false,
   isWaiting: false,
   cityOpenAt: null,
   isCityFocused: false,

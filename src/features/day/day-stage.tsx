@@ -224,6 +224,11 @@ interface DayStageProps {
    */
   isAfterExit?: boolean;
   /**
+   * The day stands behind the start screen after Back, writing on unseen and unheard, until
+   * Forward brings it back.
+   */
+  isBehindStart?: boolean;
+  /**
    * Taken from the start screen, which kept its place while the day's header streamed, so
    * the header is written in the order of its words (`DayStageHeader`).
    */
@@ -398,6 +403,7 @@ export function DayStage({
   isChosen,
   focusedWord = null,
   isAfterExit = false,
+  isBehindStart = false,
   isFromStart = false,
   isDrawnWhole = false,
   onPlayedThrough,
@@ -1487,8 +1493,10 @@ export function DayStage({
       dayOpacity={dayOpacity}
       isLeaving={isChartLeaving}
       isEnabled={isInteractive}
-      isDayBeingWritten={isStreaming}
-      isWaiting={isWaiting}
+      // Behind the start screen no one hears the day's wait, so none of it is said there: back
+      // on the day, its next silence says it.
+      isDayBeingWritten={isStreaming && !isBehindStart}
+      isWaiting={isWaiting && !isBehindStart}
       // Until the frame is drawn the waiting line has nowhere to stand: the light it carries
       // runs through the headline instead (`docs/decisions.md`, "A row's words go where its bead
       // comes to rest, and rows ease rather than jump"), from the frame the headline stands whole.

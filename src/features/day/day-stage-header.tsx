@@ -371,11 +371,14 @@ interface DayStageHeaderProps {
   /** The day is written and still: its words can be opened. */
   isEnabled: boolean;
   /**
-   * The day's stream is being written. Through it, screen readers hear that the day is being
-   * written once, from its first silence, not again at each silence after.
+   * The day's stream is being written where a screen reader can hear it: one wait, through
+   * which the status says the day is being written once.
    */
-  isDayBeingWritten?: boolean;
-  /** Nothing has arrived for a while: screen readers hear that the day is being written. */
+  isDayBeingWritten: boolean;
+  /**
+   * Nothing has arrived for a while, where a screen reader can hear it: the first silence of a
+   * wait says that the day is being written.
+   */
   isWaiting: boolean;
   /**
    * Nothing has arrived for a while and nothing is drawn under the headline yet, as while a
@@ -558,7 +561,7 @@ export function DayStageHeader({
   dayOpacity,
   isLeaving = false,
   isEnabled,
-  isDayBeingWritten = false,
+  isDayBeingWritten,
   isWaiting,
   isHeadlineLit = false,
   written,
@@ -890,12 +893,12 @@ export function DayStageHeader({
   const hasWaysAlong = takeAlong.length > 0;
   const isLockedSaid = isReplanWriting && (isLockedPressed || isLockSaid);
   // The status says the day is being written once a wait, as a live region is heard each time
-  // it is filled: the words stand from the stream's first silence until it ends, through the
+  // it is filled: the words stand from the wait's first silence until it ends, through the
   // silences after it, and then only while the waiting line fades with the chart.
-  const [isWaitHeard, setIsWaitHeard] = useState(false);
-  const isWaitHeld = isDayBeingWritten && (isWaitHeard || isWaiting);
-  if (isWaitHeld !== isWaitHeard) setIsWaitHeard(isWaitHeld);
-  const isWaitSaid = isWaiting || isWaitHeld;
+  const [hasWaited, setHasWaited] = useState(false);
+  if (hasWaited && !isDayBeingWritten) setHasWaited(false);
+  if (!hasWaited && isDayBeingWritten && isWaiting) setHasWaited(true);
+  const isWritingSaid = isWaiting || (isDayBeingWritten && hasWaited);
   const slotStanding: SlotStanding = !isReplanWriting ? "shown" : isLockedSaid ? "locked" : "faded";
   // A locked word pressed is answered in the facts line, so the fork's note gives way to it.
   const isForkNoteShown = forkNote !== null && !isLockedSaid;
@@ -1223,11 +1226,12 @@ export function DayStageHeader({
                   )}
                 </motion.div>
               )}
-              {/* What a screen reader hears: that the day is being written, or once, in the
-                step, the notice's whole line, before the page shows it. Once the notice stands
-                whole, the page says it, so this says it no more: read through, the header
-                holds the line once. What a change set aside is heard with what the new word
-                re-plans, in one line that stays as the note on screen steps on. */}
+              {/* What a screen reader hears: once a wait, from its first silence to its end, that
+                the day is being written; or once, in the step, the notice's whole line, before
+                the page shows it. Once the notice stands whole, the page says it, so this says
+                it no more: read through, the header holds the line once. What a change set aside
+                is heard with what the new word re-plans, in one line that stays as the note on
+                screen steps on. */}
               <p role="status" className="sr-only">
                 {noticeLine !== null
                   ? isNoticeSaid
@@ -1241,7 +1245,7 @@ export function DayStageHeader({
                         : replanningLine
                     : status === "idle" && setAsideHeard !== null
                       ? setAsideHeard
-                      : isWaitSaid
+                      : isWritingSaid
                         ? "Writing the day"
                         : ""}
               </p>

@@ -154,7 +154,7 @@ function headerOf(
     onPointToFork,
     isAsPlanned,
     forkNote = null,
-    isDayBeingWritten,
+    isDayBeingWritten = false,
     isWaiting = false,
   }: Handlers = {},
 ) {
@@ -655,16 +655,20 @@ describe("DayStageHeader", () => {
       expect(heard[3]).toMatch(/^The connection dropped before Lantern finished this day\./);
     });
 
-    it("says a re-plan's line over the wait, as it would over any day", () => {
-      const replan = slowMorning({ status: "writing" });
+    it("says a re-plan's line once the day is written, and not the wait again as the line goes", () => {
       const heard = hearSteps([
-        { isDayBeingWritten: true, isWaiting: true },
-        { isDayBeingWritten: true, isWaiting: false, replan },
+        { isDayBeingWritten: true },
+        ...SILENCES.map((isWaiting) => ({ isDayBeingWritten: true, isWaiting })),
+        { isDayBeingWritten: false },
+        { isDayBeingWritten: false, replan: slowMorning({ status: "writing" }) },
+        { isDayBeingWritten: false, replan: slowMorning({ status: "proposed" }) },
+        { isDayBeingWritten: false, replan: slowMorning({ status: "taken" }) },
       ]);
 
-      expect(heard).toHaveLength(2);
-      expect(heard[0]).toBe(WRITING);
-      expect(heard[1]).toMatch(/re-planning/);
+      expect(heard).toHaveLength(5);
+      expect(heard.slice(0, 3)).toEqual(["", WRITING, ""]);
+      expect(heard[3]).toMatch(/re-planning/);
+      expect(heard[4]).toBe("");
     });
   });
 

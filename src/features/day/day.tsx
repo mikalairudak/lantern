@@ -2182,6 +2182,7 @@ export function Day({
             isStreaming={isStreaming}
             isChosen={asked.isChosen}
             isAfterExit={asked.isAfterExit}
+            isBehindStart={isStartShown}
             isFromStart={asked.isStreamed && asked.kept === null}
             isDrawnWhole={asked.whole !== null || asked.isKeptWhole}
             onPlayedThrough={notePlayedThrough}
