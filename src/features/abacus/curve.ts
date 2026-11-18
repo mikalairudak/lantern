@@ -175,19 +175,25 @@ export function shownPlacesOf(stops: readonly Identified[], picks: readonly numb
   );
 }
 
+/** The place each stop plans, by the stop's id. */
+export function plannedPlacesOf(stops: readonly Identified[]): ShownPlaces {
+  return Object.fromEntries(stops.map((stop) => [stop.id, plannedPlace(stop).id]));
+}
+
 /**
- * Whether every stop shows the place the line about the day was written around: what it
- * showed when the line last changed, or its primary place where the line has said nothing of
- * it. The line names those, whatever a swap, a drag or the energy word has picked since; a
- * re-plan writes the line again, around the day as it then stands.
+ * Whether every stop shows the place the line about the day was written around (`written`,
+ * by stop id): the day's plan as the day wrote it (`plannedPlacesOf`), which a re-plan sets to
+ * the visitor's pick of a kept stop and names. The line names those, whatever a swap, a drag
+ * or the energy word has picked since. It is given apart from the stops, since an energy
+ * re-pick moves the stops' plan and not the line.
  */
 export function isAsWritten(
   stops: readonly Identified[],
   picks: readonly number[],
-  written: ShownPlaces = {},
+  written: ShownPlaces,
 ): boolean {
   const shown = shownPlacesOf(stops, picks);
-  return stops.every((stop) => shown[stop.id] === (written[stop.id] ?? stop.primary.id));
+  return stops.every((stop) => shown[stop.id] === written[stop.id]);
 }
 
 /** The place the model selected for a stop. */

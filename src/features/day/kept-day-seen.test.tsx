@@ -5,7 +5,13 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, 
 import type { StoredDay } from "@/lib/days/stored-day";
 import { KYOTO_REQUEST } from "@/lib/fixtures/curated/requests";
 import { KYOTO_ITINERARY } from "@/lib/fixtures/replan/kyoto-morning";
+import {
+  ELCHE_OTHER_GARDEN,
+  ELCHE_PALM_GROVE,
+  elcheDinnerKeptWith,
+} from "@/lib/fixtures/replan/elche-dinner";
 import { KeptDayPage } from "./kept-day-page";
+import { watchLead } from "./lead-on-screen";
 import { isKeptSeen, keptSeenKeyOf, markSeen } from "./seen-days";
 import { browserStorage, keepYourDay, type YourDay } from "./your-days";
 
@@ -206,5 +212,23 @@ describe("a kept day this device has seen", () => {
     expect(notice).not.toBeNull();
     // Written in by its pen, a notice's letters to come stand unseen.
     expect(notice?.querySelector(".opacity-0")).toBeNull();
+  });
+});
+
+describe("a re-planned day from someone's link, its rows landing a beat apart", () => {
+  it("is never led as first planned while it lands, and keeps its hint", async () => {
+    const stored = elcheDinnerKeptWith({ [ELCHE_PALM_GROVE]: ELCHE_OTHER_GARDEN });
+    if (stored.status !== "written") throw new Error("A written day");
+    const wasLeadSeen = watchLead();
+    render(<KeptDayPage id={ID} stored={stored} isLive={false} />);
+    expect(rows()).toBe(0);
+
+    await waitFor(() => expect(rows()).toBe(stored.itinerary.stops.length), PLAYED_TIMEOUT);
+    await waitFor(() => expect(chart()).toHaveAttribute("aria-busy", "false"), PLAYED_TIMEOUT);
+
+    expect(wasLeadSeen()).toBe(false);
+    // One frame led would count as the page's first change, and the hint would go for good.
+    const hints = screen.queryAllByText("click a word to change it");
+    expect(hints.some((hint) => hint.closest("[aria-hidden]") === null)).toBe(true);
   });
 });

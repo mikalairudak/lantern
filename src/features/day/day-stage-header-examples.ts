@@ -14,6 +14,7 @@ import {
   isAsWritten,
   modelPicks,
   pickCandidate,
+  plannedPlacesOf,
   stepEnergy,
 } from "@/features/abacus/curve";
 import { DEK, completeDraftOf, draftDayOf } from "@/features/abacus/day-draft";
@@ -479,7 +480,11 @@ function headerFrameOf({
     reservedDek: draft.dek,
     isDekWriting: draft.writing === DEK,
     // The line about the day names the planned places, as `DayStage` reads its picks.
-    isAsPlanned: isAsWritten(draft.stops, picks ?? modelPicks(draft.stops)),
+    isAsPlanned: isAsWritten(
+      draft.stops,
+      picks ?? modelPicks(draft.stops),
+      plannedPlacesOf(draft.stops),
+    ),
     sunrise: context ? sunCrossing(context, SUNRISE_ALTITUDE, "rising") : null,
     sunset: context ? sunCrossing(context, SUNRISE_ALTITUDE, "setting") : null,
     isSunShown: isHeaderWritten,

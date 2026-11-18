@@ -84,7 +84,13 @@ import type {
 import { useSprung } from "@/components/ui/use-sprung";
 import { SPRINGS, gentleOver } from "@/lib/tokens/motion";
 import { bareStopOf, waitingInBareRow, waitingOver } from "@/features/abacus/waiting";
-import { isAsWritten, midOf, shownPlacesOf, type ShownPlaces } from "@/features/abacus/curve";
+import {
+  isAsWritten,
+  midOf,
+  plannedPlacesOf,
+  shownPlacesOf,
+  type ShownPlaces,
+} from "@/features/abacus/curve";
 import type { CityFocus, TypedCity } from "./city-word";
 import { daySlugOf } from "@/lib/days/address";
 import {
@@ -725,9 +731,8 @@ export function DayStage({
     setIsActedOn(false);
   }
   const curve = useEnergyCurve(stops);
-  // The places the line about the day was written around: what each stop showed when the line
-  // last changed. A re-plan writes the line again around the day as it then stands, so a
-  // version the visitor kept through it is the line's own.
+  // The place each stop shows, the visitor's picks over the plan: what a changed word's re-plan
+  // is written around, and what the plan lists.
   const shownPlaces = shownPlacesOf(stops, curve.committed);
   // The other version as taking it draws it: re-picked for the energy the headline says, from
   // the one it was planned for, with the visitor's picks on it: a part's those made on this day,
@@ -971,8 +976,11 @@ export function DayStage({
   // Under the chart they wait for it, whose drawing would push them down.
   const isFootDrawn = (basis !== null && isFrameDrawn) || (isDrawnWhole && view === "read");
   const clause = clauseOf(changesOf(stops, energy.committed));
-  const [writtenFor, setWrittenFor] = useState({ dek, places: shownPlaces });
-  if (writtenFor.dek !== dek) setWrittenFor({ dek, places: shownPlaces });
+  // The places the line about the day was written around: each stop's plan as the day wrote
+  // it, before an energy re-picks it. The line comes with the stops it names, and a re-plan plans
+  // each kept stop on the place it showed at the press, so the plan reads the same on any device.
+  const linePlaces = useMemo(() => plannedPlacesOf(writtenStops), [writtenStops]);
+  const isAsPlanned = isAsWritten(stops, energy.committed, linePlaces);
   // What each energy answer would change on screen, counted from the re-pick its press makes,
   // so the line under an answer and the press never disagree.
   const energyRepicks: EnergyRepicks = {
@@ -1439,7 +1447,7 @@ export function DayStage({
 
   // The hint goes at the page's first change, a swap or a drag as much as a word; it does not
   // come back when the day is put back as planned.
-  const isChangedFromPlan = !isAsWritten(stops, energy.committed, writtenFor.places);
+  const isChangedFromPlan = !isAsPlanned;
   const [isTouched, setIsTouched] = useState(false);
   if (isChangedFromPlan && !isTouched) setIsTouched(true);
   const slot = slotOf(phase, replanLine ?? notYet, local, isTouched);
@@ -1455,7 +1463,7 @@ export function DayStage({
       dek={reached.includes("dek") ? dek : undefined}
       reservedDek={dek}
       isDekWriting={draft.writing === DEK}
-      isAsPlanned={isAsWritten(stops, energy.committed, writtenFor.places)}
+      isAsPlanned={isAsPlanned}
       sunrise={sunrise}
       sunset={sunset}
       // The sun is said with the first place, which lands once the pen has written the

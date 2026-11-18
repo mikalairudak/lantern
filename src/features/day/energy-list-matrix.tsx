@@ -1,5 +1,5 @@
 import { cn } from "@/components/ui/cn";
-import { modelPicks, shownPlacesOf } from "@/features/abacus/curve";
+import { plannedPlacesOf } from "@/features/abacus/curve";
 import { replanForEnergy, stopsRepickedOf } from "@/features/abacus/replan";
 import { writtenDayAt } from "@/lib/days/written/days";
 import { labMatrix, type LabMatrix } from "@/lib/lab-matrix";
@@ -26,7 +26,7 @@ function writtenRepicksOf(slug: string): Repicks {
   const written = writtenDayAt(slug);
   if (!written) throw new Error(`No written day at ${slug}`);
   const { stops } = written.itinerary;
-  const landed = shownPlacesOf(stops, modelPicks(stops));
+  const landed = plannedPlacesOf(stops);
   const requested = ENERGY_LEVELS.indexOf(written.request.energy);
   return {
     day: written.request.energy,
