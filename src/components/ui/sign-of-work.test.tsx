@@ -1,7 +1,8 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { SIGN_MOMENTS } from "@/lib/tokens/motion";
-import { SIGN_RIBS, SignOfWork, type SignWork } from "./sign-of-work";
+import { SignOfWork } from "./sign-of-work";
+import { SIGN_RIBS, type SignWork } from "./sign-tally";
 
 const PARTS = ["pen", "haze", "glow", "paper", "paper-ribs"] as const;
 type Part = (typeof PARTS)[number];

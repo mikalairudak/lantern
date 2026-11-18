@@ -4,6 +4,7 @@ import { useId } from "react";
 import { ICON_STROKE_WIDTH } from "@/lib/tokens/icon";
 import { signHeldAt, type SignMoment } from "@/lib/tokens/motion";
 import { cn } from "./cn";
+import { heldPartsOf, type SignWork } from "./sign-tally";
 
 /** The sign is drawn on the mark's 24 grid (`docs/brand/README.md`, "The sign of work"). */
 const GRID = 24;
@@ -21,10 +22,6 @@ const WIRE_RIGHT = "M19.5 11.3 Q21.25 10.98 23 10.5";
 const PEN_PATH =
   "M7.906 8.4 Q12 8.95 16.094 8.4 A5.25 5.75 0 0 1 17.134 10.8 Q12 11.35 6.866 10.8 A5.25 5.75 0 0 0 6.866 13.2 Q12 13.75 17.134 13.2 A5.25 5.75 0 0 1 16.094 15.6 Q12 16.15 7.906 15.6";
 const PEN_STROKE = 1;
-/** Where along the pen's stroke each rib ends, as a share of its length. */
-const RIB_ENDS = [0.184, 0.473, 0.757, 1] as const;
-/** The ribs a whole lantern has: the tally's count before it is lit. */
-export const SIGN_RIBS = RIB_ENDS.length;
 /**
  * The same stroke over lit paper, where no outline hides its turns: each rib runs on a unit
  * past the lantern's edge along its own curve and turns outside it, and the paper's shape cuts
@@ -36,18 +33,12 @@ const PAPER_PEN_STROKE = 0.9;
 /** The lantern's light, two flat steps round its middle, inside the grid. */
 const GLOW_RADIUS = 8.2;
 const HAZE_RADIUS = 10.8;
-/** The lit paper at its wick: a quarter of its size. */
-const WICK_SCALE = 0.25;
 /**
- * A stroke drawn by its dash: shown whole at an offset of 0, and not at all at 1. Its gap is
- * twice the path, so at 1 no dash of no length starts at the path's end, where its round cap
- * would draw a dot.
+ * The dash a stroke is drawn by, whole at an offset of 0 and not at all at 1. Its gap is twice
+ * the path, so at 1 no dash of no length starts at the path's end, where its round cap would
+ * draw a dot.
  */
 const DASHES = "1 2";
-const UNDRAWN = 1;
-const DRAWN = 0;
-const HIDDEN = 0;
-const SHOWN = 1;
 
 /** Each part's loop, behind `motion-safe:`, so where motion is reduced it never runs. */
 const LOOP_CLASSES = {
@@ -57,50 +48,6 @@ const LOOP_CLASSES = {
   paper: "motion-safe:animate-sign-light",
   paperRibs: "motion-safe:animate-sign-ribs",
 } as const;
-
-/**
- * What the sign holds with no loop running: a tally of the work. `cut` is the outline with
- * `ribs` of its ribs cut, none to `SIGN_RIBS`; `wick` is the lantern cut whole with its wick
- * lit; `lit` is the lantern lit whole, its ribs through the paper, its glow and haze round it.
- */
-export type SignTally = { kind: "cut"; ribs: number } | { kind: "wick" } | { kind: "lit" };
-
-/** The work the sign says: the loop, or a tally held still. */
-export type SignWork = { kind: "running" } | SignTally;
-
-/** The outline alone, which the loop starts from and the tally starts at. */
-const SIGN_UNCUT: SignTally = { kind: "cut", ribs: 0 };
-
-interface HeldParts {
-  penOffset: number;
-  penOpacity: number;
-  paperScale: number;
-  paperRibsOffset: number;
-  lightOpacity: number;
-}
-
-/** The parts' still values for a tally; the running sign draws the loop's start. */
-function heldPartsOf(work: SignWork): HeldParts {
-  const tally = work.kind === "running" ? SIGN_UNCUT : work;
-  const unlit = { penOpacity: SHOWN, paperRibsOffset: UNDRAWN, lightOpacity: HIDDEN };
-  switch (tally.kind) {
-    case "cut": {
-      const ribs = Math.min(Math.max(Math.round(tally.ribs), 0), SIGN_RIBS);
-      const drawn = RIB_ENDS[ribs - 1] ?? 0;
-      return { ...unlit, penOffset: UNDRAWN - drawn, paperScale: 0 };
-    }
-    case "wick":
-      return { ...unlit, penOffset: DRAWN, paperScale: WICK_SCALE };
-    case "lit":
-      return {
-        penOffset: DRAWN,
-        penOpacity: HIDDEN,
-        paperScale: 1,
-        paperRibsOffset: DRAWN,
-        lightOpacity: SHOWN,
-      };
-  }
-}
 
 interface SignOfWorkProps {
   /** Running plays the loop wherever motion is allowed; a tally is drawn still. */

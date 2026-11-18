@@ -1,5 +1,6 @@
 import { cn } from "@/components/ui/cn";
-import { SIGN_RIBS, SignOfWork, type SignWork } from "@/components/ui/sign-of-work";
+import { SignOfWork } from "@/components/ui/sign-of-work";
+import { SIGN_RIBS, type SignWork } from "@/components/ui/sign-tally";
 import { labMatrix, type LabMatrix } from "@/lib/lab-matrix";
 import { SIGN_LOOP_SECONDS, SIGN_MOMENTS, type SignMoment } from "@/lib/tokens/motion";
 
