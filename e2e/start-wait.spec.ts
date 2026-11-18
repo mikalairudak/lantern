@@ -1,3 +1,4 @@
+import { CITY_DAYS } from "../src/lib/days/written/city-days";
 import { expect, test, type Page, waitMs } from "./fixtures";
 
 const URL = "/lab/concepts/start";
@@ -98,6 +99,48 @@ for (const { name, viewport } of SIZES) {
       await expect(page.getByRole("button", { name: "Plan this day" })).toBeVisible();
       await expect(sign(page)).toHaveCount(0);
       await expectPlatesAt(page, 1);
+    });
+  });
+}
+
+/** Where the index's line stands on the page, to a tenth of a pixel. */
+function indexTopOf(page: Page): Promise<number> {
+  return page
+    .getByRole("heading", { name: /No city in mind/ })
+    .evaluate((heading) => Math.round(heading.getBoundingClientRect().top * 10) / 10);
+}
+
+/** The start screen's own line under the field, whatever it says. */
+const saidLine = (page: Page) => page.locator("main form [role=status]").first();
+
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 320, height: 568 },
+]) {
+  test.describe(`at ${viewport.width} px, live, the day held before its first words`, () => {
+    test.use({ viewport });
+
+    test("keeps the index where it stood as a written city's own words turn from read to on their way", async ({
+      page,
+    }) => {
+      test.setTimeout(waitMs(CITY_DAYS.length * 10_000));
+      await page.goto(URL);
+      const controls = page.getByRole("complementary", { name: "Lab controls" });
+      await controls.getByRole("button", { name: "Live" }).click();
+      await controls.getByRole("button", { name: "Try" }).click();
+      await controls.getByRole("button", { name: "Stalled" }).click();
+      await controls.getByRole("button", { name: "Try" }).click();
+
+      for (const { request } of CITY_DAYS) {
+        await controls.getByRole("button", { name: "Again" }).click();
+        await field(page).fill(request.city);
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await field(page).press("Enter");
+        await expect(saidLine(page)).toHaveText("Reading what you wrote");
+        const reading = await indexTopOf(page);
+        await expect(saidLine(page)).toHaveText(/^(Opening|Writing) /);
+        expect(await indexTopOf(page), request.city).toBe(reading);
+      }
     });
   });
 }

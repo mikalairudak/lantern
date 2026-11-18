@@ -172,6 +172,12 @@
   --spacing-day: 33.75rem;
   /* A phone's screen height, paired with --container-phone. */
   --spacing-phone-height: 52.75rem;
+  /*
+   * Two lines of the text the element sets: the start screen's line under the field holds them
+   * at least, and runs one line more into the gap under it, so a day said back in three lines
+   * moves nothing under it.
+   */
+  --spacing-two-lines: 2lh;
 
   /* Widths: a text column, the page, and the key column of a label–value list. */
   --container-measure: 34rem;

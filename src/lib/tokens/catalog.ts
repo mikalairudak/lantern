@@ -88,6 +88,7 @@ export const SPACING_TOKENS = [
   "24",
   "day",
   "phone-height",
+  "two-lines",
 ] as const;
 
 export const RADIUS_TOKENS = ["sm"] as const;

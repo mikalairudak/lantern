@@ -130,6 +130,7 @@ const SPACING_CLASSES: Record<SpacingToken, string> = {
   "24": "w-24",
   day: "w-day max-w-full",
   "phone-height": "w-phone-height max-w-full",
+  "two-lines": "w-two-lines",
 };
 
 const RADIUS_CLASSES: Record<RadiusToken, string> = { sm: "rounded-sm" };

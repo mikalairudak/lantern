@@ -691,18 +691,23 @@ interface QuestionLineProps {
 /**
  * The line under the field, holding the example's room whatever it says: one line, or two
  * where the field's column is narrower than the example, as on a 320 px phone, so the note
- * under it never lies under its second line. What it says shares the room's cell with a line's
- * margin less under it, so a day said back may run one line into the room under it, the gap
- * over the index or the note's held room, and each line after that moves the index down by
- * itself: the last line stands 16 px or more over "No city in mind?", never over it, and a
- * pressed city's day, said in two lines, moves nothing.
+ * under it never lies under its second line. With live generation on, where no note stands
+ * under it, it holds two lines at least (`docs/decisions.md`, "The start screen asks its
+ * question as one line"). What it says shares the room's cell with a line's margin less under
+ * it, so a day said back may run one line into the room under it, the gap over the index or the
+ * note's held room, and each line after that moves the index down by itself: the last line
+ * stands 16 px or more over "No city in mind?", never over it, and a day said back in three
+ * lines, a typed day with its minute among them, moves nothing.
  */
 function SaidLine({
   className,
   isHeard = true,
+  isTwoLinesHeld,
   children,
 }: {
   className: string;
+  /** Holds two lines however short the example, as with live generation on. */
+  isTwoLinesHeld: boolean;
   /**
    * Heard as it changes, or seen alone: a typed text's "Reading" is heard where the focus lands,
    * on the button named for it, and the status holds it unheard, so it is said once.
@@ -714,7 +719,12 @@ function SaidLine({
     <div className="grid">
       <span
         aria-hidden
-        className={cn(LINE_SIZE_CLASSES, "invisible col-start-1 row-start-1", EXAMPLE_CLASSES)}
+        className={cn(
+          LINE_SIZE_CLASSES,
+          "invisible col-start-1 row-start-1",
+          EXAMPLE_CLASSES,
+          isTwoLinesHeld && "min-h-two-lines",
+        )}
       >
         {EXAMPLE}
       </span>
@@ -747,7 +757,7 @@ function QuestionLine({
   if (line === null) {
     // At rest, the example takes the line's size, so the line takes its place as it is.
     return (
-      <SaidLine className={cn("text-muted", EXAMPLE_CLASSES)}>
+      <SaidLine className={cn("text-muted", EXAMPLE_CLASSES)} isTwoLinesHeld={isLive}>
         {isExampleShown ? EXAMPLE : null}
       </SaidLine>
     );
@@ -785,7 +795,11 @@ function QuestionLine({
       );
     }
     return (
-      <SaidLine className={STEADY_WORDS_LIT_CLASSES("ink-soft")} isHeard={isHeard}>
+      <SaidLine
+        className={STEADY_WORDS_LIT_CLASSES("ink-soft")}
+        isHeard={isHeard}
+        isTwoLinesHeld={isLive}
+      >
         {said}
       </SaidLine>
     );
