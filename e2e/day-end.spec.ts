@@ -142,8 +142,8 @@ for (const motion of MOTIONS) {
         expect(frames.slice(landed).filter(({ isWriting }) => isWriting)).toEqual([]);
         expect(frames.slice(0, landed).some(({ isWriting }) => isWriting)).toBe(true);
         // Every row on screen as it landed holds still, the chart and the header with them, and
-        // so does the end itself: under reduced motion the last row comes in Read with the day
-        // whole, in the same frame as the end under it.
+        // so does the end itself: under reduced motion the last row's versions come in Read as
+        // the day is whole, and the end lands under them once they have, a frame or more on.
         const before = frames[landed - 1]!;
         expect(before.rows.length).toBeGreaterThanOrEqual(KANAZAWA.stops.length - 1);
         const after = frames.slice(landed);

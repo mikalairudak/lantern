@@ -388,6 +388,25 @@ describe("the plan under reduced motion", () => {
     },
   );
 
+  it("shows its rows whole until a stream that ends invalid, then none", async () => {
+    // The whole text written, its versions coming in, then a day the normalizer refuses.
+    const before = stepBefore(TEXT.length);
+    const seen = await play(
+      [{ at: before, partial: partials.get(before)!, outcome: null }],
+      {
+        at: TEXT.length,
+        partial: partials.get(before)!,
+        outcome: { kind: "invalid", reason: "refused by the normalizer", isEmpty: false },
+      },
+      { frameMs: LANDED_MS },
+    );
+
+    // Every row of the day stood with its own words (`lookAtThePlan`), and the ending leaves
+    // none, no row half in: the day goes in one step, its notice in its place.
+    expect(seen.rowsByFrame[0]).toHaveLength(STOP_COUNT);
+    expect(seen.rowsByFrame.at(-1)).toEqual([]);
+  });
+
   it.each<[string, DayOutcome]>([
     ["offline", { kind: "disconnected", itinerary: null }],
     ["rejected", { kind: "unavailable" }],

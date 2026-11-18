@@ -19,6 +19,11 @@ const DAY_TIMEOUT_MS = waitMs(120_000);
  * writes the stops over about half the day's minute, and the versions after them.
  */
 const ROW_AHEAD_OF_VERSIONS_MS = 5000;
+/**
+ * The most one frame moves a row by: the largest step `docs/decisions.md` states for a row's
+ * versions coming in, 102 px at 360 px, and a few pixels for a line's rounding.
+ */
+const MAX_STEP_PX = 106;
 
 /** A row's state as one frame drew it, kept only when it changed. */
 interface RowEvent {
@@ -229,13 +234,17 @@ test.describe("under reduced motion", { tag: "@frame" }, () => {
           : [`${ids[at]} from ${before.top} to ${event.top} in frame ${event.frame}`];
       }),
     );
+    const moves = records.flatMap((record) =>
+      record.events.slice(1).map((event, index) => Math.abs(event.top - record.events[index]!.top)),
+    );
+    const largestMove = Math.max(0, ...moves);
     const versionSteps = steps.flatMap((rowSteps) =>
       rowSteps.filter((step) => step.isVersions).map((step) => Math.round(step.px)),
     );
 
     test.info().annotations.push({
       type: "measured",
-      description: `first row ${Math.round(firstRowAt - recording.armedAt!)} ms after the day was asked, ${Math.round(firstRowAt - listAt)} ms after the list was drawn, first versions ${Math.round(versionsAt - firstRowAt)} ms after it; ${versionSteps.length} version steps of ${Math.min(...versionSteps)} to ${Math.max(...versionSteps)} px; ${recording.frames} frames`,
+      description: `first row ${Math.round(firstRowAt - recording.armedAt!)} ms after the day was asked, ${Math.round(firstRowAt - listAt)} ms after the list was drawn, first versions ${Math.round(versionsAt - firstRowAt)} ms after it; ${versionSteps.length} version steps of ${Math.min(...versionSteps)} to ${Math.max(...versionSteps)} px, a row moved ${Math.round(largestMove)} px at most in a frame; ${recording.frames} frames`,
     });
     expect(versionsAt - firstRowAt).toBeGreaterThan(ROW_AHEAD_OF_VERSIONS_MS);
     expect(misread).toEqual([]);
@@ -243,5 +252,7 @@ test.describe("under reduced motion", { tag: "@frame" }, () => {
     expect(strayHeights).toEqual([]);
     expect(strayTops).toEqual([]);
     expect(versionSteps.length).toBeGreaterThan(0);
+    expect(Math.max(...versionSteps)).toBeLessThanOrEqual(MAX_STEP_PX);
+    expect(largestMove).toBeLessThanOrEqual(MAX_STEP_PX);
   });
 });
