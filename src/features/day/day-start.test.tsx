@@ -603,7 +603,8 @@ describe("the day under its start screen", () => {
   });
 });
 
-// The tests here run with reduced motion, so the sign in the button keeps its tally.
+// `docs/decisions.md`, "The index's pictures step back while Lantern reads and writes"; the tests
+// here run with reduced motion, so the sign in the button keeps its tally.
 describe("the wait that follows a typed text, with reduced motion", () => {
   /** A reader that answers only when the test lands its answer. */
   function landedReader() {
@@ -614,7 +615,12 @@ describe("the wait that follows a typed text, with reduced motion", () => {
   const planButton = () =>
     screen.getByRole("button", { name: /^(Plan this day|Reading|Opening|Writing)$/ });
   const signPart = (part: string) => planButton().querySelector(`[data-part="${part}"]`);
-  it("takes the focus to the button named Reading, its lantern's outline drawn", async () => {
+  const steppedBack = () =>
+    [...document.querySelectorAll("svg[data-picture]")].map(
+      (plate) => plate.closest("[data-stepped-back]") !== null,
+    );
+
+  it("takes the focus to the button named Reading, its lantern's outline drawn, and the plates step back", async () => {
     const user = userEvent.setup();
     const release = holdDay();
     const { read, land } = landedReader();
@@ -625,6 +631,8 @@ describe("the wait that follows a typed text, with reduced motion", () => {
     expect(button).toHaveFocus();
     expect(signPart("pen")).toHaveAttribute("stroke-dashoffset", "1");
     expect(signPart("paper")).toHaveAttribute("transform", "scale(0)");
+    expect(steppedBack().length).toBeGreaterThan(0);
+    expect(steppedBack().every(Boolean)).toBe(true);
 
     land({ kind: "request", request: BOLOGNA_START_REQUEST, readings: [], unplaced: [] });
     expect(await saysBack("Opening a lively Saturday in Bologna, with friends")).toBeVisible();
@@ -638,7 +646,7 @@ describe("the wait that follows a typed text, with reduced motion", () => {
     await waitFor(() => expect(headline()).toHaveTextContent(/^A lively Saturday in Bologna/));
   });
 
-  it("gives the focus back to the field when the wait ends without a day", async () => {
+  it("gives the focus back to the field and the plates their strength when the wait ends without a day", async () => {
     const { user } = renderStart({ kind: "unavailable" });
 
     await user.type(screen.getByRole("textbox"), "Paris{Enter}");
@@ -646,6 +654,7 @@ describe("the wait that follows a typed text, with reduced motion", () => {
     await waitFor(() => expect(screen.getByRole("textbox")).toHaveFocus());
     expect(screen.getByRole("button", { name: "Plan this day" })).toBeInTheDocument();
     expect(signPart("pen")).toBeNull();
+    expect(steppedBack().some(Boolean)).toBe(false);
   });
 
   it("gives the focus to the city's field when the text asks for the city", async () => {
@@ -660,19 +669,22 @@ describe("the wait that follows a typed text, with reduced motion", () => {
     await user.type(screen.getByRole("textbox"), "with friends{Enter}");
     await waitFor(() => expect(screen.getByRole("textbox", { name: "Which city?" })).toHaveFocus());
     expect(signPart("pen")).toBeNull();
+    expect(steppedBack().some(Boolean)).toBe(false);
   });
 
-  it("ends the wait at a press on a city: no sign", async () => {
+  it("ends the wait at a press on a city: no sign, every plate whole", async () => {
     const user = userEvent.setup();
     stallDay();
     const { read } = landedReader();
     render(<Day start={{ pool: POOL, read }} />);
 
     await user.type(screen.getByRole("textbox"), "Bologna{Enter}");
+    expect(steppedBack().every(Boolean)).toBe(true);
     await user.click(cityWord("Paris"));
 
     await waitFor(() => expect(startStatus()).toHaveTextContent(/^Opening a calm Sunday in Paris/));
     expect(signPart("pen")).toBeNull();
+    expect(steppedBack().some(Boolean)).toBe(false);
   });
 });
 

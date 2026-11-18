@@ -100,7 +100,8 @@ const RETURNING_DAY: YourDay = {
 
 /**
  * The start screen in every line a reading can give, with live generation off and on, over its
- * index: the day on its way from the visitor's words, the button a lantern, or from a city pressed with the field left empty, the city asked for, and each ending
+ * index: the day on its way from the visitor's words, the button a lantern and the plates stepped
+ * back, or from a city pressed with the field left empty, the city asked for, and each ending
  * without a day; and the question itself, its field focused, its button hollow, filled, pointed at
  * and focused through a wait, the room left near the field's end, and a returning visitor's days
  * over the index.

@@ -431,6 +431,13 @@ function signInButton(): Element | null {
   return button.querySelector("svg:has([data-part='pen'])");
 }
 
+/** Every plate's frame in the index, and whether it stands stepped back. */
+function steppedBackPlates(): boolean[] {
+  return [...document.querySelectorAll("svg[data-picture]")].map(
+    (plate) => plate.closest("[data-stepped-back]") !== null,
+  );
+}
+
 describe("the wait that follows a typed text", () => {
   const TYPED = { kind: "writing", request: LISBON_REQUEST, via: "typed" } as const;
   const PRESSED = { kind: "writing", request: LISBON_REQUEST, via: "pressed" } as const;
@@ -457,6 +464,45 @@ describe("the wait that follows a typed text", () => {
   ])("draws the arrow, not the sign, %s", (_, line) => {
     renderStart({ line, isLive: true });
     expect(signInButton()).toBeNull();
+  });
+
+  it("steps every plate back while its text is read and its day written, and none for a city pressed", () => {
+    const view = renderStart({ line: { kind: "reading" } });
+    const plates = steppedBackPlates();
+    expect(plates.length).toBeGreaterThan(0);
+    expect(plates.every(Boolean)).toBe(true);
+
+    view.rerender(
+      <HeldStart
+        starts={STARTS}
+        line={PRESSED}
+        isLive={false}
+        isCityFocused
+        onPlan={vi.fn()}
+        onChooseWritten={vi.fn()}
+        onChooseReading={vi.fn()}
+      />,
+    );
+    expect(steppedBackPlates().some(Boolean)).toBe(false);
+  });
+
+  it("keeps every city's name at its strength and pressable, its plate whole once pointed at", async () => {
+    const user = userEvent.setup();
+    const { onChooseWritten } = renderStart({ line: { kind: "reading" } });
+    const [first] = within(writtenDays()).getAllByRole("button");
+    if (!first) throw new Error("No start in the index");
+
+    // Only the picture steps back: the names and the lines under them are outside it.
+    expect(
+      within(first)
+        .getByText(INDEX_REQUESTS[0]?.city ?? "")
+        .closest("[data-stepped-back]"),
+    ).toBeNull();
+    fireEvent.pointerEnter(first, { pointerType: "mouse" });
+    expect(first.querySelector("[data-stepped-back]")).toBeNull();
+    expect(first.querySelector("svg[data-picture]")).toHaveAttribute("data-light", "lit");
+    await user.click(first);
+    expect(onChooseWritten).toHaveBeenCalledOnce();
   });
 });
 
@@ -491,6 +537,7 @@ describe("the press that asks for a typed text", () => {
     await user.type(screen.getByRole("textbox"), "Bologna{Enter}");
 
     expect(signInButton()).not.toBeNull();
+    expect(steppedBackPlates().every(Boolean)).toBe(true);
   });
 
   it("gives the focus back to the field when the wait ends without a day", async () => {

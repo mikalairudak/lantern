@@ -223,7 +223,14 @@ export function StartHeader({
       </div>
       {yourDays && areStartsDrawn && <YourDaysLedger {...yourDays} onForget={forget} />}
       {areStartsDrawn && (
-        <StartIndex starts={starts} onChoose={onChooseWritten} listRef={startsList} />
+        <StartIndex
+          starts={starts}
+          onChoose={onChooseWritten}
+          listRef={startsList}
+          // While Lantern reads and writes a typed text, the cities on offer step back
+          // (`docs/decisions.md`, "The index's pictures step back while Lantern reads and writes").
+          isSteppedBack={wait !== null}
+        />
       )}
     </header>
   );
