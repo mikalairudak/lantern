@@ -87,7 +87,7 @@ import { bareStopOf, waitingInBareRow, waitingOver } from "@/features/abacus/wai
 import {
   isAsWritten,
   midOf,
-  modelPicks,
+  plannedPlacesOf,
   shownPlacesOf,
   type ShownPlaces,
 } from "@/features/abacus/curve";
@@ -731,9 +731,8 @@ export function DayStage({
     setIsActedOn(false);
   }
   const curve = useEnergyCurve(stops);
-  // The places the line about the day was written around: what each stop showed when the line
-  // last changed. A re-plan writes the line again around the day as it then stands, so a
-  // version the visitor kept through it is the line's own.
+  // The place each stop shows, the visitor's picks over the plan: what a changed word's re-plan
+  // is written around, and what the plan lists.
   const shownPlaces = shownPlacesOf(stops, curve.committed);
   // The other version as taking it draws it: re-picked for the energy the headline says, from
   // the one it was planned for, with the visitor's picks on it: a part's those made on this day,
@@ -977,18 +976,11 @@ export function DayStage({
   // Under the chart they wait for it, whose drawing would push them down.
   const isFootDrawn = (basis !== null && isFrameDrawn) || (isDrawnWhole && view === "read");
   const clause = clauseOf(changesOf(stops, energy.committed));
-  const [writtenFor, setWrittenFor] = useState({ dek, places: shownPlaces });
-  if (writtenFor.dek !== dek) setWrittenFor({ dek, places: shownPlaces });
-  // A stop not on screen when the line last changed, as every stop of a day opened by its link
-  // is, was written around its plan as the day wrote it, before an energy re-picks it.
-  const writtenPlans = useMemo(
-    () => shownPlacesOf(writtenStops, modelPicks(writtenStops)),
-    [writtenStops],
-  );
-  const isAsPlanned = isAsWritten(stops, energy.committed, {
-    ...writtenPlans,
-    ...writtenFor.places,
-  });
+  // The places the line about the day was written around: each stop's plan as the day wrote
+  // it, before an energy re-picks it. The line comes with the stops it names, and a re-plan plans
+  // each kept stop on the place it showed at the press, so the plan reads the same on any device.
+  const linePlaces = useMemo(() => plannedPlacesOf(writtenStops), [writtenStops]);
+  const isAsPlanned = isAsWritten(stops, energy.committed, linePlaces);
   // What each energy answer would change on screen, counted from the re-pick its press makes,
   // so the line under an answer and the press never disagree.
   const energyRepicks: EnergyRepicks = {

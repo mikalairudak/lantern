@@ -1,4 +1,7 @@
-import type { ReplanBasis } from "@/lib/replan/merge";
+import type { StoredDay } from "@/lib/days/stored-day";
+import { mergeReplan, type ReplanBasis } from "@/lib/replan/merge";
+import { replanIdPrefix, withPicks, type ReplanPicks } from "@/lib/replan/request";
+import { replanPlanOf } from "@/lib/replan/windows";
 import {
   DayRequestSchema,
   ItinerarySchema,
@@ -72,3 +75,41 @@ export const ELCHE_LATE_DINNER_UNREPEATED: GeneratedReplan = {
     .filter(({ stopIndex }) => stopIndex !== 2)
     .map((set) => ({ ...set, stopIndex: set.stopIndex > 2 ? set.stopIndex - 1 : set.stopIndex })),
 };
+
+/** The palm grove, which the late dinner keeps, and its other garden, a visitor's pick of it. */
+export const ELCHE_PALM_GROVE = "stop-1";
+export const ELCHE_OTHER_GARDEN = "stop-1:a1";
+
+/**
+ * Elche's late dinner as the server keeps it for a page that showed `picks`: merged on the
+ * route's basis, the day with the picks planned in (`withPicks`). Its line names the places on
+ * screen, as the re-plan's prompt lists each kept stop by the place it shows: the other garden
+ * where it was picked, which the recorded line, written with none, does not.
+ */
+export function elcheDinnerKeptWith(picks: ReplanPicks): StoredDay {
+  const shown = withPicks(ELCHE_ITINERARY, picks);
+  const plan = replanPlanOf(shown, ELCHE_EATING_LATE, "dinner");
+  if (plan.kind !== "targeted") throw new Error("Elche's dinner re-plans a part");
+  const dek =
+    picks[ELCHE_PALM_GROVE] === ELCHE_OTHER_GARDEN
+      ? ELCHE_LATE_DINNER.dek.replace("the Palmeral d'Elx", "Hort de Baix")
+      : ELCHE_LATE_DINNER.dek;
+  const merged = mergeReplan({
+    itinerary: shown,
+    request: ELCHE_EATING_LATE,
+    changed: "dinner",
+    windows: plan.windows,
+    idPrefix: replanIdPrefix(1),
+    replan: { ...ELCHE_LATE_DINNER, dek },
+  });
+  if (!merged.ok) throw new Error(merged.reason);
+  return {
+    status: "written",
+    request: ELCHE_EATING_LATE,
+    itinerary: merged.itinerary,
+    checks: {},
+    writtenAt: "2026-11-18T20:00:00.000Z",
+    seconds: 30,
+    round: 1,
+  };
+}

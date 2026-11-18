@@ -16,6 +16,7 @@ import {
   modelPicks,
   pickAll,
   pickCandidate,
+  plannedPlacesOf,
   pullGain,
   restingCurve,
   sampleCurve,
@@ -350,27 +351,41 @@ describe("isAsWritten", () => {
   const planned = stops.map(() => 0);
   const swapped = stops.findIndex((stop) => stop.alternatives.length > 0);
   const withVersion = planned.map((pick, index) => (index === swapped ? 1 : pick));
+  const plan = plannedPlacesOf(stops);
 
-  it("reads a day as written while every stop shows its primary place", () => {
-    expect(isAsWritten(stops, planned)).toBe(true);
-    expect(isAsWritten([], [])).toBe(true);
+  it("reads a day as written while every stop shows its plan", () => {
+    expect(isAsWritten(stops, planned, plan)).toBe(true);
+    expect(isAsWritten([], [], {})).toBe(true);
   });
 
   it("reads it changed once one stop shows a version, by a swap, a drag or the energy word", () => {
-    expect(isAsWritten(stops, withVersion)).toBe(false);
+    expect(isAsWritten(stops, withVersion, plan)).toBe(false);
     expect(
       isAsWritten(
         stops,
         modelPicks(stops).map(() => 1),
+        plan,
       ),
     ).toBe(false);
   });
 
-  it("reads a line written again around a version kept through a re-plan as that day's", () => {
-    // The line came while the stop showed its version: that is the place it names.
-    const written = shownPlacesOf(stops, withVersion);
-    expect(isAsWritten(stops, withVersion, written)).toBe(true);
-    expect(isAsWritten(stops, planned, written)).toBe(false);
+  it("reads a stop a re-plan planned on the visitor's pick as written where it shows that pick", () => {
+    const picked = stops.map((stop, index) =>
+      index === swapped ? { ...stop, selectedPlaceId: stop.alternatives[0]!.id } : stop,
+    );
+    const pickedPlan = plannedPlacesOf(picked);
+
+    expect(pickedPlan[stops[swapped]!.id]).toBe(stops[swapped]!.alternatives[0]!.id);
+    expect(isAsWritten(picked, modelPicks(picked), pickedPlan)).toBe(true);
+    expect(isAsWritten(picked, planned, pickedPlan)).toBe(false);
+  });
+
+  it("reads the line against the plan it is given, not the one an energy re-pick moved the stops to", () => {
+    const repicked = stops.map((stop, index) =>
+      index === swapped ? { ...stop, selectedPlaceId: stop.alternatives[0]!.id } : stop,
+    );
+
+    expect(isAsWritten(repicked, modelPicks(repicked), plan)).toBe(false);
   });
 
   it("names each stop's shown place by its id", () => {

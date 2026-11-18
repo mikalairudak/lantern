@@ -25,6 +25,7 @@ import type { DayRequest } from "@/lib/schema/itinerary.schema";
 import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { dayText, simulateDayStream } from "@/lib/stream/simulate-day-stream";
 import { DAY_ROUTE } from "@/features/itinerary/day-route";
+import { isLeadSeen, LEAD_DUE_MS, watchLead } from "./lead-on-screen";
 import { readYourDays } from "./your-days";
 import { forgetDays } from "./use-your-days";
 import { keepCaveats, readCaveats } from "./caveats";
@@ -2300,25 +2301,14 @@ describe("a word's list once a re-plan has met our limit, with live generation o
   });
 });
 
-/** Whether the line about the day is led "As first planned:" on screen, not in a reserve. */
-const isLeadSeen = () =>
-  screen.queryAllByText("As first planned:").some((lead) => lead.closest("[aria-hidden]") === null);
-
-/** Watches for the lead on screen from now; tells whether it was ever seen, and stops. */
-function watchLead(): () => boolean {
-  let isSeen = isLeadSeen();
-  const observer = new MutationObserver(() => {
-    isSeen ||= isLeadSeen();
-  });
-  observer.observe(document.body, { subtree: true, childList: true, characterData: true });
-  return () => {
-    observer.disconnect();
-    return isSeen || isLeadSeen();
-  };
+/** The bead of the day's last version, on a stop a slow morning keeps. */
+function lastVersionBead(): SVGElement {
+  const version = [...document.querySelectorAll<SVGElement>(`[${CANDIDATE_ATTRIBUTE}]`)]
+    .filter((bead) => /:a\d$/.test(bead.getAttribute(CANDIDATE_ATTRIBUTE) ?? ""))
+    .at(-1);
+  if (version === undefined) throw new Error("Kyoto's last stops have versions");
+  return version;
 }
-
-/** Long enough for a lead that is due to come in, as the pen's beat brings it. */
-const LEAD_DUE_MS = 800;
 
 describe("the line about the day, led as first planned only once a stop has changed", () => {
   beforeEach(() => window.localStorage.clear());
@@ -2364,11 +2354,7 @@ describe("the line about the day, led as first planned only once a stop has chan
     dayIds.push(KYOTO_DAY_ID);
     const day = createRef<DayHandle>();
     const user = await askForKyoto(day);
-    // A version of the day's last stop, which a slow morning keeps.
-    const version = [...document.querySelectorAll<SVGElement>(`[${CANDIDATE_ATTRIBUTE}]`)]
-      .filter((bead) => /:a\d$/.test(bead.getAttribute(CANDIDATE_ATTRIBUTE) ?? ""))
-      .at(-1);
-    if (version === undefined) throw new Error("Kyoto's last stops have versions");
+    const version = lastVersionBead();
     await user.click(version);
     await waitFor(() => expect(isLeadSeen()).toBe(true), DAY_TIMEOUT);
 
@@ -2384,6 +2370,82 @@ describe("the line about the day, led as first planned only once a stop has chan
         version.getAttribute(CANDIDATE_ATTRIBUTE),
     });
     expect(isLeadSeen()).toBe(false);
+  });
+
+  it("leads the line taken from a proposal once an energy pressed while it stood changes a stop", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "early start", "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("proposed"), DAY_TIMEOUT);
+    const before = rowTexts();
+
+    // The proposal's line is written for the energy at the word's press.
+    await changeWord(user, "calm", "lively");
+    expect(rowTexts()).not.toEqual(before);
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${REPLAN_ID}`), DAY_TIMEOUT);
+    await waitForTheDay();
+
+    await waitFor(() => expect(isLeadSeen()).toBe(true), DAY_TIMEOUT);
+  });
+
+  it("takes no lead from a proposal asked after an energy re-pick, which plans the stops it kept as they showed", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "calm", "lively");
+    await waitFor(() => expect(isLeadSeen()).toBe(true), DAY_TIMEOUT);
+    const kept = rowTexts().slice(2);
+
+    await changeWord(user, "early start", "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("proposed"), DAY_TIMEOUT);
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${REPLAN_ID}`), DAY_TIMEOUT);
+    await waitForTheDay();
+    await act(() => new Promise((resolve) => setTimeout(resolve, LEAD_DUE_MS)));
+
+    expect(rowTexts().slice(2)).toEqual(kept);
+    expect(isLeadSeen()).toBe(false);
+  });
+
+  it("leads the line taken from a proposal once a stop it kept is swapped while it stood", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "early start", "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("proposed"), DAY_TIMEOUT);
+
+    // The proposal plans the kept stop as it showed at the press, and its line names that.
+    await user.click(lastVersionBead());
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${REPLAN_ID}`), DAY_TIMEOUT);
+    await waitForTheDay();
+
+    expect(replanPosts[0]?.body.picks).toEqual({});
+    await waitFor(() => expect(isLeadSeen()).toBe(true), DAY_TIMEOUT);
+  });
+
+  it("leads the day taken back again where a stop shows a version, as it did before", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await user.click(lastVersionBead());
+    await waitFor(() => expect(isLeadSeen()).toBe(true), DAY_TIMEOUT);
+    await changeWord(user, "early start", "slow morning");
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${REPLAN_ID}`), DAY_TIMEOUT);
+    await waitForTheDay();
+    await waitFor(() => expect(isLeadSeen()).toBe(false), DAY_TIMEOUT);
+
+    await takeBack(user, "early start");
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${KYOTO_DAY_ID}`), DAY_TIMEOUT);
+
+    await waitFor(() => expect(isLeadSeen()).toBe(true), DAY_TIMEOUT);
   });
 
   it("leads the line once an energy re-pick changes a stop", async () => {
