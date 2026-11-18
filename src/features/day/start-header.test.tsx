@@ -493,7 +493,7 @@ describe("the wait that follows a typed text", () => {
     expect(signInButton()).toBeNull();
   });
 
-  it("lights a city pressed in the index with the steady light, as before, and draws no sign", () => {
+  it("lights a city pressed in the index with the steady light, and draws no sign", () => {
     renderStart({ line: ON_ITS_WAY, isLive: true });
     const button = screen.getByRole("button", { name: "Writing" });
     expect(button).toHaveClass("bg-ink", "motion-safe:animate-pass-steady");
@@ -513,15 +513,27 @@ describe("the wait that follows a typed text", () => {
   });
 
   it.each([
-    ["with live generation on", true],
-    ["with live generation off", false],
-  ])("says nothing of a minute for a day Lantern opens already written, %s", (_, isLive) => {
-    renderStart({ line: ON_ITS_WAY, wait: "opening", isLive });
-    expect(startStatus()).toHaveTextContent(
-      /^(Writing|Opening) a lively Saturday in Lisbon, with friends$/,
-    );
-    expect(screen.getByRole("button", { name: "Opening" })).toBeInTheDocument();
-  });
+    ["a typed text's day from its file, live", "opening", true, "Opening", ""],
+    ["a typed text's day from its file, before launch", "opening", false, "Opening", ""],
+    [
+      "a typed text's day no file holds, live",
+      "writing",
+      true,
+      "Writing",
+      " ·\u00A0under\u00A0a\u00A0minute",
+    ],
+    ["a city pressed, live", null, true, "Writing", ""],
+    ["a city pressed, before launch", null, false, "Opening", ""],
+  ] as const)(
+    "names %s with one verb, in the line and on the button",
+    (_, wait, isLive, verb, minute) => {
+      renderStart({ line: ON_ITS_WAY, wait, isLive });
+      expect(startStatus().textContent).toBe(
+        `${verb} a lively Saturday in Lisbon, with friends${minute}`,
+      );
+      expect(screen.getByRole("button", { name: verb })).toBeInTheDocument();
+    },
+  );
 
   it("steps every plate back through a typed wait, and none for a city pressed", () => {
     const view = renderStart({ line: { kind: "reading" }, wait: "reading" });

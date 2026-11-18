@@ -604,10 +604,19 @@ type ButtonLabel = (typeof BUTTON_WORDS)[keyof typeof BUTTON_WORDS];
 
 /** What the button is named: what Lantern is doing with the text, or what it will. */
 function buttonLabelOf(line: StartLine, wait: StartWait | null, isLive: boolean): ButtonLabel {
-  if (wait !== null) return BUTTON_WORDS[wait];
-  if (line?.kind === "reading") return BUTTON_WORDS.reading;
-  if (line?.kind === "writing") return isLive ? BUTTON_WORDS.writing : BUTTON_WORDS.opening;
+  if (wait === "reading" || line?.kind === "reading") return BUTTON_WORDS.reading;
+  if (wait !== null || line?.kind === "writing") return BUTTON_WORDS[onItsWayOf(wait, isLive)];
   return BUTTON_WORDS.plan;
+}
+
+/**
+ * What Lantern does with a day on its way, which the button and the line under the field both
+ * say: through a typed wait what the wait says, opened from a written day's file or written;
+ * for a city pressed, written with live generation on and opened with it off.
+ */
+function onItsWayOf(wait: StartWait | null, isLive: boolean): "opening" | "writing" {
+  if (wait === "opening" || wait === "writing") return wait;
+  return isLive ? "writing" : "opening";
 }
 
 interface PlanButtonProps {
@@ -752,7 +761,8 @@ function QuestionLine({
         READING_SAID
       ) : (
         <>
-          {isLive ? "Writing" : "Opening"} <AskedSentence request={line.request} isMidSentence />
+          {BUTTON_WORDS[onItsWayOf(wait, isLive)]}{" "}
+          <AskedSentence request={line.request} isMidSentence />
           {isLive && wait === "writing" && ` ${WHOLE_DAY_TAKES}`}
         </>
       );
