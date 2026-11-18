@@ -690,13 +690,14 @@ describe("the wait that follows a typed text, with reduced motion", () => {
     expect(steppedBack().some(Boolean)).toBe(false);
   });
 
-  it("holds a typed day no file holds as a read with live generation off, as its line does", async () => {
+  /** A day that sends nothing, so the wait is seen as it is before the route's answer. */
+  const silent = (request: DayRequest): DaySource => ({
+    request,
+    open: () => new Promise(() => {}),
+  });
+
+  it("says no wait for a city answered with live generation off that no file holds, as its line says none", async () => {
     const user = userEvent.setup();
-    // A day that sends nothing, so the wait is seen as it is before the route's answer.
-    const silent = (request: DayRequest): DaySource => ({
-      request,
-      open: () => new Promise(() => {}),
-    });
     const read = vi.fn<IntakeReader>(async () => ({
       kind: "question",
       key: "city",
@@ -710,13 +711,34 @@ describe("the wait that follows a typed text, with reduced motion", () => {
     const city = await screen.findByRole("textbox", { name: "Which city?" });
     await user.type(city, "Paris{Enter}");
 
-    // Paris on these words is no written day: nothing is opened, and with live generation off
-    // nothing is written, so the page says what its line does until the route answers.
+    // Paris on these words is no written day and nothing is written: the line still asks for
+    // the city, its field open, and nothing on the page says Lantern is at work.
     await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
-    expect(screen.getByRole("button", { name: "Reading" })).toBeInTheDocument();
-    expect(signPart("pen")).toHaveAttribute("stroke-dashoffset", "1");
-    expect(signPart("paper")).toHaveAttribute("transform", "scale(0)");
-    expect(steppedBack().every(Boolean)).toBe(true);
+    expect(screen.getByRole("textbox", { name: "Which city?" })).not.toHaveAttribute("readonly");
+    expect(screen.getByText(/Lantern needs a city to plan the day/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Plan this day" })).toBeInTheDocument();
+    expect(signPart("pen")).toBeNull();
+    expect(steppedBack().some(Boolean)).toBe(false);
+  });
+
+  it("says no wait for a text read before the next frame to a day no file holds, as its line says none", async () => {
+    const user = userEvent.setup();
+    const read = vi.fn<IntakeReader>(async () => ({
+      kind: "request",
+      request: { ...PARIS_REQUEST, company: "family" },
+      readings: [],
+      unplaced: [],
+    }));
+    render(<Day start={{ pool: POOL, read }} sourceFor={silent} />);
+
+    await user.type(screen.getByRole("textbox"), "Paris with my family{Enter}");
+
+    await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("readonly");
+    expect(startStatus()).not.toHaveTextContent(/Reading|Opening|Writing/);
+    expect(screen.getByRole("button", { name: "Plan this day" })).toBeInTheDocument();
+    expect(signPart("pen")).toBeNull();
+    expect(steppedBack().some(Boolean)).toBe(false);
   });
 
   it("stands at rest when the start screen comes back from hidden while its text was read", async () => {
@@ -730,10 +752,7 @@ describe("the wait that follows a typed text, with reduced motion", () => {
     );
     const page = (mode: "visible" | "hidden") => (
       <Activity mode={mode}>
-        <Day
-          start={{ pool: POOL, read }}
-          sourceFor={(request) => ({ request, open: () => new Promise(() => {}) })}
-        />
+        <Day start={{ pool: POOL, read }} sourceFor={silent} />
       </Activity>
     );
     const view = render(page("visible"));
