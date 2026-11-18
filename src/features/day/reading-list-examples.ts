@@ -41,7 +41,9 @@ export const READING_DAYS: readonly { label: string; fixture: ExampleDay }[] = [
 /**
  * The moments a day's list lives through, from its real stream: a stop waiting while its
  * line is written, a row the pen writes as it comes in, the versions' second pass, and a
- * version swapped. A changed word's fork on the plan is the part slip's matrix.
+ * version swapped. A changed word's fork on the plan is the part slip's matrix. The plan lets
+ * its rows and versions in the same way with motion and without, so "waiting" and "versions"
+ * are also its rows landed before their versions under reduced motion.
  */
 export const READING_STATES = [
   { key: "whole", label: "whole" },

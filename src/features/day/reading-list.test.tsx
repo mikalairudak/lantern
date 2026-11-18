@@ -14,6 +14,7 @@ import { revealedOf } from "@/features/itinerary/revealed";
 import { firstAt, partialAt } from "@/features/itinerary/stream-frames";
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import { LISBON_DAY } from "@/lib/fixtures/curated/lisbon";
+import { CROWDED_DAY } from "@/lib/fixtures/edge/edge-days";
 import { dayText } from "@/lib/stream/simulate-day-stream";
 import { enteredOf, versionsWrittenOf } from "./reading-gates";
 import { PartSlip } from "./part-slip";
@@ -194,6 +195,40 @@ describe("ReadingList", () => {
       within(rows[2]!).getByRole("button", { name: "Quieter: Konchi-in" }),
     ).toBeInTheDocument();
     expect(within(rows[3]!).queryAllByRole("button", { name: ARROW_NAME })).toHaveLength(0);
+  });
+
+  it("draws a row whose versions are still to come as a stop that has none, then adds only its versions", () => {
+    const crowded = wholeOf(CROWDED_DAY);
+    const none = crowded.stops.findIndex((stop) => stop.alternatives.length === 0);
+    const some = crowded.stops.findIndex((stop) => stop.alternatives.length > 0);
+    const toCome = new Set(
+      [...crowded.versionsShown].filter((id) => id !== crowded.stops[some]!.id),
+    );
+    const wordsAt = (at: number) => {
+      const row = rowsOf()[at]!;
+      return [
+        row.querySelector("h2"),
+        row.querySelector("p.type-note"),
+        row.querySelector("p.type-prose"),
+      ]
+        .map((part) => part?.textContent)
+        .join(" | ");
+    };
+    const arrowsAt = (at: number) =>
+      within(rowsOf()[at]!).queryAllByRole("button", { name: ARROW_NAME });
+    const { rerender } = render(<ReadingList {...crowded} versionsShown={toCome} />);
+
+    // Neither says a version: one has none, the other's are still to come.
+    expect(arrowsAt(none)).toHaveLength(0);
+    expect(arrowsAt(some)).toHaveLength(0);
+    const before = [wordsAt(none), wordsAt(some)];
+
+    rerender(<ReadingList {...crowded} />);
+    // Its versions come in beside its words, which stay as they were; the stop with none is as
+    // it was.
+    expect(arrowsAt(some).length).toBeGreaterThan(0);
+    expect(arrowsAt(none)).toHaveLength(0);
+    expect([wordsAt(none), wordsAt(some)]).toEqual(before);
   });
 
   it("writes a row in with the pen once it comes in, its words holding their room", async () => {
