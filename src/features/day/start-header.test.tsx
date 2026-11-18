@@ -466,6 +466,18 @@ describe("the wait that follows a typed text", () => {
     expect(signInButton()).toBeNull();
   });
 
+  it("says a day being written takes under a minute, in the project's own words", () => {
+    renderStart({ line: TYPED, isLive: true });
+    expect(startStatus().textContent).toBe(
+      "Writing a lively Saturday in Lisbon, with friends · under\u00A0a\u00A0minute",
+    );
+  });
+
+  it("says nothing of a minute for a day Lantern opens already written", () => {
+    renderStart({ line: TYPED, isLive: false });
+    expect(startStatus()).toHaveTextContent(/^Opening a lively Saturday in Lisbon, with friends$/);
+  });
+
   it("steps every plate back while its text is read and its day written, and none for a city pressed", () => {
     const view = renderStart({ line: { kind: "reading" } });
     const plates = steppedBackPlates();

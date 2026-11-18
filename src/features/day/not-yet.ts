@@ -280,8 +280,11 @@ export function keptStopsLineOf(changed: AssumableFactKey): string | null {
  * minute" read as two thoughts.
  */
 
+/** How long a whole day takes to write: said after a day that is written, and its proposal. */
+export const WHOLE_DAY_TAKES = "under\u00A0a\u00A0minute";
+
 /** Said under an answer that writes the whole day again, as a proposal to take or leave. */
-export const WHOLE_DAY_AGAIN = "a proposal for the whole day · under\u00A0a\u00A0minute";
+export const WHOLE_DAY_AGAIN = `a proposal for the whole day · ${WHOLE_DAY_TAKES}`;
 
 /** How long a re-plan of part of the day takes, said after the parts it rewrites. */
 const PART_AGAIN_TAKES = "about\u00A0half\u00A0a\u00A0minute";

@@ -30,6 +30,7 @@ import {
 } from "@/lib/schema/intake.schema";
 import { unplacedLineOf } from "./start";
 import { LINK_CLASSES } from "./link-classes";
+import { WHOLE_DAY_TAKES } from "./not-yet";
 import { AskedSentence } from "./asked-sentence";
 import { Masthead } from "./masthead";
 import { StartIndex } from "./start-index";
@@ -754,13 +755,14 @@ function QuestionLine({
   }
   if (line.kind === "reading" || line.kind === "writing") {
     // From the Enter the line says what Lantern does, lit as the field's words are: reading the
-    // words, then opening the day they ask for, or writing it.
+    // words, then opening the day they ask for, or writing it, in under a minute.
     const said =
       line.kind === "reading" ? (
         READING_SAID
       ) : (
         <>
           {isLive ? "Writing" : "Opening"} <AskedSentence request={line.request} isMidSentence />
+          {isLive && ` · ${WHOLE_DAY_TAKES}`}
         </>
       );
     // A typed text's read is heard where the focus lands, on the button named "Reading".
