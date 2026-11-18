@@ -1,11 +1,20 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StoredDay } from "@/lib/days/stored-day";
 import { KYOTO_REQUEST } from "@/lib/fixtures/curated/requests";
 import { KYOTO_ITINERARY } from "@/lib/fixtures/replan/kyoto-morning";
+import {
+  ELCHE_EATING_LATE,
+  ELCHE_ITINERARY,
+  ELCHE_LATE_DINNER,
+} from "@/lib/fixtures/replan/elche-dinner";
+import { mergeReplan } from "@/lib/replan/merge";
+import { replanIdPrefix, withPicks } from "@/lib/replan/request";
+import { replanPlanOf } from "@/lib/replan/windows";
 import type { PlaceCheck } from "@/lib/stream/place-checks";
+import { CANDIDATE_ATTRIBUTE } from "@/features/abacus/chart-stop";
 import { DAY_ROUTE } from "@/features/itinerary/day-route";
 import { CITY_SIGNATURE_HEADER, KEPT_DAY_HEADER } from "@/lib/intake/signed-city";
 import { answerDayRequest } from "@/lib/stream/answer-day-request";
@@ -16,6 +25,7 @@ import { KeptDayPage } from "./kept-day-page";
 import { NO_DAY_HERE } from "./no-day-here";
 import { LINK_EXPIRED, OPENS_HERE, STILL_WRITING, UNFINISHED } from "./not-yet";
 import { writtenDayAt } from "@/lib/days/written/days";
+import { keptSeenKeyOf, markSeen } from "./seen-days";
 import { keepYourDay, readYourDays, browserStorage, type YourDay } from "./your-days";
 
 const ORIGIN = "http://lantern.test";
@@ -321,5 +331,156 @@ describe("a kept day's landing", () => {
 
     rerender(<Day kept={landingOf(UNKNOWN, true)} isAddressed />);
     await waitFor(() => expect(notice()).toHaveTextContent(UNFINISHED), NOTICE_TIMEOUT);
+  });
+});
+
+/** Whether the line about the day is led "As first planned:" on screen, not in a reserve. */
+const isLeadSeen = () =>
+  screen.queryAllByText("As first planned:").some((lead) => lead.closest("[aria-hidden]") === null);
+/** Long enough for a lead that is due to come in, as the pen's beat brings it. */
+const LEAD_DUE_MS = 800;
+
+/** Elche's palm grove, kept by the late dinner, and the visitor's pick of its other garden. */
+const PALM_GROVE = "stop-1";
+const OTHER_GARDEN = "stop-1:a1";
+
+/**
+ * Elche's late dinner as the server keeps it, merged on the route's basis: the day with the
+ * page's picks planned in (`withPicks`). Its line is written around the places on screen, as
+ * the re-plan's prompt lists each kept stop by the place it shows.
+ */
+function replannedWith(picks: Record<string, string>): StoredDay {
+  const shown = withPicks(ELCHE_ITINERARY, picks);
+  const plan = replanPlanOf(shown, ELCHE_EATING_LATE, "dinner");
+  if (plan.kind !== "targeted") throw new Error("Elche's dinner re-plans a part");
+  const dek =
+    picks[PALM_GROVE] === OTHER_GARDEN
+      ? ELCHE_LATE_DINNER.dek.replace("the Palmeral d'Elx", "Hort de Baix")
+      : ELCHE_LATE_DINNER.dek;
+  const merged = mergeReplan({
+    itinerary: shown,
+    request: ELCHE_EATING_LATE,
+    changed: "dinner",
+    windows: plan.windows,
+    idPrefix: replanIdPrefix(1),
+    replan: { ...ELCHE_LATE_DINNER, dek },
+  });
+  if (!merged.ok) throw new Error(merged.reason);
+  return {
+    status: "written",
+    request: ELCHE_EATING_LATE,
+    itinerary: merged.itinerary,
+    checks: {},
+    writtenAt: "2026-11-18T20:00:00.000Z",
+    seconds: 30,
+    round: 1,
+  };
+}
+
+/** Opens a kept day at its address and waits until every row has landed and the pen is done. */
+async function openKept(stored: StoredDay): Promise<HTMLElement> {
+  if (stored.status !== "written") throw new Error("A written day");
+  render(<KeptDayPage id={ID} stored={stored} isLive={false} />);
+  const list = await screen.findByRole("list", { name: "The day" }, NOTICE_TIMEOUT);
+  await waitFor(
+    () => expect(within(list).getAllByRole("listitem")).toHaveLength(stored.itinerary.stops.length),
+    NOTICE_TIMEOUT,
+  );
+  await act(() => new Promise((resolve) => setTimeout(resolve, LEAD_DUE_MS)));
+  return list;
+}
+
+/** The bead of a place on the chart. */
+function bead(placeId: string): SVGElement {
+  const found = document.querySelector<SVGElement>(`[${CANDIDATE_ATTRIBUTE}="${placeId}"]`);
+  if (found === null) throw new Error(`No bead for ${placeId}`);
+  return found;
+}
+
+describe("a re-planned day's line, opened on a device that has not seen it", () => {
+  it("is not led as first planned where the day plans the visitor's pick", async () => {
+    const stored = replannedWith({ [PALM_GROVE]: OTHER_GARDEN });
+    if (stored.status !== "written") throw new Error("A written day");
+    expect(stored.itinerary.stops[1]?.selectedPlaceId).toBe(OTHER_GARDEN);
+
+    const list = await openKept(stored);
+
+    expect(within(list).getByRole("button", { name: /^Hort de Baix/ })).toBeInTheDocument();
+    expect(isLeadSeen()).toBe(false);
+  });
+
+  it("is not led where the day plans its primaries", async () => {
+    await openKept(replannedWith({}));
+
+    expect(isLeadSeen()).toBe(false);
+  });
+
+  it("is led once the picked stop is swapped back to its primary, and not once swapped again", async () => {
+    const user = userEvent.setup();
+    await openKept(replannedWith({ [PALM_GROVE]: OTHER_GARDEN }));
+
+    await user.click(bead(`${PALM_GROVE}:p`));
+    await waitFor(() => expect(isLeadSeen()).toBe(true), NOTICE_TIMEOUT);
+
+    await user.click(bead(OTHER_GARDEN));
+    await waitFor(() => expect(isLeadSeen()).toBe(false), NOTICE_TIMEOUT);
+  });
+
+  it("is led once an energy re-pick changes a stop", async () => {
+    const user = userEvent.setup();
+    await openKept(replannedWith({ [PALM_GROVE]: OTHER_GARDEN }));
+
+    await user.click(within(headline()).getByRole("button", { name: "balanced" }));
+    const moving = screen
+      .getAllByRole("option")
+      .find((option) => !/keeps every stop/.test(option.textContent ?? ""));
+    if (moving === undefined) throw new Error("An energy that moves a stop");
+    await user.click(moving);
+
+    await waitFor(() => expect(isLeadSeen()).toBe(true), NOTICE_TIMEOUT);
+  });
+
+  it("reads as on the device that has seen it", async () => {
+    markSeen(keptSeenKeyOf(ID));
+    await openKept(replannedWith({ [PALM_GROVE]: OTHER_GARDEN }));
+
+    expect(isLeadSeen()).toBe(false);
+  });
+});
+
+describe("a first day's line, opened at its address", () => {
+  it("is led once a swap shows another place", async () => {
+    const user = userEvent.setup();
+    await openKept(WRITTEN);
+    expect(isLeadSeen()).toBe(false);
+
+    const [first] = KYOTO.itinerary.stops;
+    await user.click(bead(first!.alternatives[0]!.id));
+
+    await waitFor(() => expect(isLeadSeen()).toBe(true), NOTICE_TIMEOUT);
+  });
+
+  it("is led again on a device that swapped a stop and opens the day once more", async () => {
+    const user = userEvent.setup();
+    markSeen(keptSeenKeyOf(ID));
+    await openKept(WRITTEN);
+    const [first] = KYOTO.itinerary.stops;
+    await user.click(bead(first!.alternatives[0]!.id));
+    await waitFor(() => expect(isLeadSeen()).toBe(true), NOTICE_TIMEOUT);
+
+    cleanup();
+    await openKept(WRITTEN);
+
+    await waitFor(() => expect(isLeadSeen()).toBe(true), NOTICE_TIMEOUT);
+  });
+
+  it("is led once an energy re-pick changes a stop", async () => {
+    const user = userEvent.setup();
+    await openKept(WRITTEN);
+
+    await user.click(within(headline()).getByRole("button", { name: "calm" }));
+    await user.click(screen.getByRole("option", { name: /^lively/ }));
+
+    await waitFor(() => expect(isLeadSeen()).toBe(true), NOTICE_TIMEOUT);
   });
 });

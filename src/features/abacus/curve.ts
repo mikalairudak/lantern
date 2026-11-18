@@ -177,9 +177,11 @@ export function shownPlacesOf(stops: readonly Identified[], picks: readonly numb
 
 /**
  * Whether every stop shows the place the line about the day was written around: what it
- * showed when the line last changed, or its primary place where the line has said nothing of
- * it. The line names those, whatever a swap, a drag or the energy word has picked since; a
- * re-plan writes the line again, around the day as it then stands.
+ * showed when the line last changed, or its plan where the line has said nothing of it, as a
+ * re-plan plans a kept stop on the visitor's pick and names it. The line names those, whatever
+ * a swap, a drag or the energy word has picked since; a re-plan writes the line again, around
+ * the day as it then stands. An energy re-pick moves a stop's plan, so a page that re-picks
+ * gives each stop's plan as written in `written`.
  */
 export function isAsWritten(
   stops: readonly Identified[],
@@ -187,7 +189,7 @@ export function isAsWritten(
   written: ShownPlaces = {},
 ): boolean {
   const shown = shownPlacesOf(stops, picks);
-  return stops.every((stop) => shown[stop.id] === (written[stop.id] ?? stop.primary.id));
+  return stops.every((stop) => shown[stop.id] === (written[stop.id] ?? plannedPlace(stop).id));
 }
 
 /** The place the model selected for a stop. */

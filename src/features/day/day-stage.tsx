@@ -84,7 +84,13 @@ import type {
 import { useSprung } from "@/components/ui/use-sprung";
 import { SPRINGS, gentleOver } from "@/lib/tokens/motion";
 import { bareStopOf, waitingInBareRow, waitingOver } from "@/features/abacus/waiting";
-import { isAsWritten, midOf, shownPlacesOf, type ShownPlaces } from "@/features/abacus/curve";
+import {
+  isAsWritten,
+  midOf,
+  modelPicks,
+  shownPlacesOf,
+  type ShownPlaces,
+} from "@/features/abacus/curve";
 import type { CityFocus, TypedCity } from "./city-word";
 import { daySlugOf } from "@/lib/days/address";
 import {
@@ -973,6 +979,16 @@ export function DayStage({
   const clause = clauseOf(changesOf(stops, energy.committed));
   const [writtenFor, setWrittenFor] = useState({ dek, places: shownPlaces });
   if (writtenFor.dek !== dek) setWrittenFor({ dek, places: shownPlaces });
+  // A stop not on screen when the line last changed, as every stop of a day opened by its link
+  // is, was written around its plan as the day wrote it, before an energy re-picks it.
+  const writtenPlans = useMemo(
+    () => shownPlacesOf(writtenStops, modelPicks(writtenStops)),
+    [writtenStops],
+  );
+  const isAsPlanned = isAsWritten(stops, energy.committed, {
+    ...writtenPlans,
+    ...writtenFor.places,
+  });
   // What each energy answer would change on screen, counted from the re-pick its press makes,
   // so the line under an answer and the press never disagree.
   const energyRepicks: EnergyRepicks = {
@@ -1439,7 +1455,7 @@ export function DayStage({
 
   // The hint goes at the page's first change, a swap or a drag as much as a word; it does not
   // come back when the day is put back as planned.
-  const isChangedFromPlan = !isAsWritten(stops, energy.committed, writtenFor.places);
+  const isChangedFromPlan = !isAsPlanned;
   const [isTouched, setIsTouched] = useState(false);
   if (isChangedFromPlan && !isTouched) setIsTouched(true);
   const slot = slotOf(phase, replanLine ?? notYet, local, isTouched);
@@ -1455,7 +1471,7 @@ export function DayStage({
       dek={reached.includes("dek") ? dek : undefined}
       reservedDek={dek}
       isDekWriting={draft.writing === DEK}
-      isAsPlanned={isAsWritten(stops, energy.committed, writtenFor.places)}
+      isAsPlanned={isAsPlanned}
       sunrise={sunrise}
       sunset={sunset}
       // The sun is said with the first place, which lands once the pen has written the
