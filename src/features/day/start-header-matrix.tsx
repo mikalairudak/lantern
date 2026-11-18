@@ -138,16 +138,6 @@ export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
           props: { line: { kind: "reading" }, text: READ, wait: "reading" },
         },
         {
-          // The keyboard's ring on the working button, which holds the focus through the wait.
-          label: "reading, the button focused",
-          props: {
-            line: { kind: "reading" },
-            text: READ,
-            wait: "reading",
-            drawnAsPointed: "button-focus",
-          },
-        },
-        {
           label: "reading words longer than the field",
           props: { line: { kind: "reading" }, text: READ_LONG, wait: "reading" },
         },
@@ -245,6 +235,18 @@ export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
           props: {
             line: null,
             yourDays: { days: [RETURNING_DAY], now: NOW, onOpen: ignore, onForget: ignore },
+          },
+        },
+        {
+          // The keyboard's ring on the working button, which holds the focus through the wait. Last,
+          // since a row set among the others moves every cell under it down the grid, and with it
+          // how Chromium smooths their edges, so each would differ from its baseline by a few pixels.
+          label: "reading, the button focused",
+          props: {
+            line: { kind: "reading" },
+            text: READ,
+            wait: "reading",
+            drawnAsPointed: "button-focus",
           },
         },
       ],
