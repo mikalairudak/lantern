@@ -78,8 +78,9 @@ export const CANNED_READINGS: Readonly<Record<string, IntakeResult>> = {
     words: { ...NO_WORDS, energy: "calm", energySource: "chosen" },
     unplaced: [],
   },
-  // A city Lantern has written no day for, read as the intake reads it once live.
-  "a calm saturday in alicante": {
+  // A city Lantern has written no day for, read as the intake reads it once live. It names no
+  // weekday, since the reader dates it on today in the city (`onToday`).
+  "a calm day in alicante": {
     kind: "request",
     request: {
       ...NO_WORDS,
