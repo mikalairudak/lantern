@@ -278,6 +278,7 @@ describe("the day header's menu", () => {
         reservedSlot={null}
         notice={null}
         isEnabled
+        isDayBeingWritten={false}
         isWaiting={false}
         written={CURATED_REQUESTS}
         cityOpenAt={null}

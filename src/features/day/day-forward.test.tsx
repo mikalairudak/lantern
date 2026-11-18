@@ -257,3 +257,76 @@ describe("Forward to the first day after a request on the start screen behind it
     LONG_TEST_MS,
   );
 });
+
+describe("Forward to a day left writing behind the start screen", () => {
+  /** Paris in six deltas, a silence after each: the first takes the page among its stops. */
+  const PARIS_PACE = { deltaChars: 3200, deltaDelayMs: 1200 };
+  const PARIS_TIMEOUT = { timeout: 15_000 };
+
+  it(
+    "says the day is being written once back on the day, for a silence that fell unheard behind",
+    async () => {
+      fetchDay.mockImplementationOnce((path, init) =>
+        answerDayRequest(new Request(new URL(path, ORIGIN), init), PARIS_PACE),
+      );
+      // How often the header's status came to say it where a screen reader hears it, and how
+      // often the waiting line came behind the start screen.
+      let heard = 0;
+      let linesBehind = 0;
+      const said = new Map<Element, string>();
+      let isLineShown = false;
+      const listen = () => {
+        const line = document.querySelector("[data-waiting]");
+        if (line && !isLineShown && line.closest("[aria-hidden=true]")) linesBehind += 1;
+        isLineShown = line !== null;
+        for (const status of document.querySelectorAll("header p[role=status]")) {
+          const text = status.textContent ?? "";
+          const isHeard = status.closest("[aria-hidden=true], [inert]") === null;
+          if (isHeard && text === "Writing the day" && said.get(status) !== text) heard += 1;
+          said.set(status, text);
+        }
+      };
+      const observer = new MutationObserver(listen);
+      observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+      try {
+        const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
+        const user = userEvent.setup();
+        render(<Day start={{ pool: POOL, read }} isAddressed />);
+        await user.click(cityWord("Paris"));
+        await waitFor(() => expect(window.location.pathname).toBe("/day/paris"));
+        act(() => window.history.back());
+        await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+
+        // Forward once the next words have come behind the start screen, a silence after the
+        // first: every stop is in, and the silence after them has not yet fallen.
+        const behind = screen.getByRole("list", { name: "The day", hidden: true });
+        await waitFor(
+          () =>
+            expect(within(behind).getAllByRole("listitem", { hidden: true })).toHaveLength(
+              PARIS_STOPS,
+            ),
+          PARIS_TIMEOUT,
+        );
+        expect(linesBehind).toBeGreaterThanOrEqual(1);
+        expect(heard).toBe(0);
+        act(() => window.history.forward());
+        await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+        await waitFor(
+          () =>
+            expect(screen.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+              "aria-busy",
+              "false",
+            ),
+          PARIS_TIMEOUT,
+        );
+      } finally {
+        listen();
+        observer.disconnect();
+      }
+
+      expect(heard).toBe(1);
+      expect(screen.queryByText("Writing the day")).not.toBeInTheDocument();
+    },
+    LONG_TEST_MS,
+  );
+});

@@ -81,6 +81,7 @@ function headerOf(request: DayRequest, assumptions: PartialDay["assumptions"], i
       notice={null}
       isLeaving={isLeaving}
       isEnabled
+      isDayBeingWritten={false}
       isWaiting={false}
       written={CURATED_REQUESTS}
       cityOpenAt={null}
