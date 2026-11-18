@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
@@ -300,8 +300,8 @@ describe("StartHeader", () => {
     ).toBeInTheDocument();
     const needed = screen.getByText(/Lantern needs a city to plan the day/);
     expect(needed.closest("[aria-hidden='true']")).not.toBeNull();
-    // "Reading" is heard on the button the focus is on, not again from the status.
-    expect(screen.queryByText("Reading what you wrote")).not.toBeInTheDocument();
+    // No press moved the focus to the button, so the status says the read to a screen reader.
+    expect(screen.getByText("Reading what you wrote")).toHaveClass("sr-only");
 
     // Read, its day sets off from the same field.
     view.rerender(
@@ -518,6 +518,13 @@ describe("the wait that follows a typed text", () => {
   });
 });
 
+/** What the start's status holds that a screen reader hears: its words outside what is hidden. */
+function heardStatus(): string | null {
+  const copy = startStatus().cloneNode(true) as HTMLElement;
+  for (const hidden of copy.querySelectorAll("[aria-hidden='true']")) hidden.remove();
+  return copy.textContent;
+}
+
 describe("the press that asks for a typed text", () => {
   it("hands the focus to the button, named Reading as the focus lands, before the text is asked for", async () => {
     const user = userEvent.setup();
@@ -593,6 +600,8 @@ describe("the press that asks for a typed text", () => {
     await user.type(field, "Portland{Enter}");
     view.rerender(startOf({ kind: "reading", answering: question }));
     expect(screen.getByRole("button", { name: "Reading" })).toHaveFocus();
+    // Said as the focus landed, so not again under the question.
+    expect(screen.queryByText("Reading what you wrote")).not.toBeInTheDocument();
 
     view.rerender(
       startOf({
@@ -606,16 +615,24 @@ describe("the press that asks for a typed text", () => {
     await waitFor(() => expect(screen.getByRole("textbox", { name: "Which city?" })).toHaveFocus());
   });
 
-  it("says Reading once, on the focused button, and Writing once, in the status", () => {
-    const view = renderStart({ line: { kind: "reading" }, isLive: true });
-    // What the status holds that a screen reader hears: its words outside what is hidden.
-    const heard = () => {
-      const copy = startStatus().cloneNode(true) as HTMLElement;
-      for (const hidden of copy.querySelectorAll("[aria-hidden='true']")) hidden.remove();
-      return copy.textContent;
-    };
-    expect(screen.getByRole("button", { name: "Reading" })).toBeInTheDocument();
-    expect(heard()).toBe("");
+  it("says Reading once, on the button the focus moves to, and Writing once, in the status", async () => {
+    const user = userEvent.setup();
+    const onPlan = () => new Promise<void>(() => undefined);
+    const view = renderStart({ isLive: true, onPlan });
+    await user.type(screen.getByRole("textbox"), "Lisbon{Enter}");
+    view.rerender(
+      <HeldStart
+        starts={STARTS}
+        line={{ kind: "reading" }}
+        isLive
+        isCityFocused
+        onPlan={onPlan}
+        onChooseWritten={vi.fn()}
+        onChooseReading={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Reading" })).toHaveFocus();
+    expect(heardStatus()).toBe("");
     expect(startStatus()).toHaveTextContent("Reading what you wrote");
 
     view.rerender(
@@ -629,8 +646,32 @@ describe("the press that asks for a typed text", () => {
         onChooseReading={vi.fn()}
       />,
     );
-    expect(heard()).toMatch(/^Writing a lively Saturday in Lisbon/);
+    expect(heardStatus()).toMatch(/^Writing a lively Saturday in Lisbon/);
     expect(screen.getByRole("button", { name: "Writing" })).toBeInTheDocument();
+  });
+
+  it("says Reading in the status where the press found the focus on the button already", async () => {
+    const user = userEvent.setup();
+    const onPlan = () => new Promise<void>(() => undefined);
+    const view = renderStart({ onPlan });
+    await user.type(screen.getByRole("textbox"), "Lisbon");
+    const button = screen.getByRole("button", { name: "Plan this day" });
+    // Tabbed to, then pressed, as a keyboard or a screen reader's own press reaches it.
+    act(() => button.focus());
+    await user.keyboard("{Enter}");
+    view.rerender(
+      <HeldStart
+        starts={STARTS}
+        line={{ kind: "reading" }}
+        isLive={false}
+        isCityFocused
+        onPlan={onPlan}
+        onChooseWritten={vi.fn()}
+        onChooseReading={vi.fn()}
+      />,
+    );
+    expect(button).toHaveFocus();
+    expect(heardStatus()).toBe("Reading what you wrote");
   });
 });
 

@@ -277,11 +277,11 @@ const SENTENCE_START = "A day in";
  * The light through what Lantern is working on while the start screen waits (`docs/decisions.md`,
  * "The first screen asks one question, and no day is drawn until a press", quickened since a cold
  * start's four seconds read as a hang): one band fixed to the screen, as the waiting line's is, so
- * the field's words, the line under them and the button light as it passes each, about every
- * second. Light in words is amber, the colour light is said in (5:1 and more as words are; the
- * lamp's, which draws light, was 3.84:1 at the band's peak), passing through words that stay in
- * their own ink, so nothing reads as switched off; a word in a colour of its own, the energy's,
- * keeps it. The band stands upright: slanted, as the waiting line's is, it drew a hard edge across
+ * the field's words and the line under them light as it passes each, about every second, and the
+ * button with them for a city pressed; through a typed wait the button holds the sign of work.
+ * Light in words is amber, the colour light is said in (5:1 and more as words are; the lamp's,
+ * which draws light, was 3.84:1 at the band's peak), passing through words that stay in their own
+ * ink, so nothing reads as switched off; a word in a colour of its own, the energy's, keeps it. The band stands upright: slanted, as the waiting line's is, it drew a hard edge across
  * the button on a phone, where the screen's height shifts it sideways out of its own box. With
  * reduced motion the words stand in their ink.
  */
@@ -430,12 +430,20 @@ function QuestionForm({
   }, [wait, line]);
 
   // At the press the button takes the focus, named for what Lantern is doing, so a phone's
-  // keyboard leaves and uncovers the screen for the wait; a screen reader hears "Reading" there
-  // (`SaidLine`). It is named so before it is focused, and the text is asked for after.
+  // keyboard leaves and uncovers the screen for the wait; a screen reader hears "Reading" as the
+  // focus lands there, so the status holds it unheard (`SaidLine`). A press on the button itself
+  // leaves the focus where it was, unannounced, and the status says it. The button is named
+  // before it is focused, and the text is asked for after.
+  const [isReadingSaidByFocus, setIsReadingSaidByFocus] = useState(false);
+  if (wait === null && isReadingSaidByFocus) setIsReadingSaidByFocus(false);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (text.trim() === "" || isReading || wait !== null) return;
-    flushSync(() => onAsked(true));
+    const isFocusMoving = document.activeElement !== button.current;
+    flushSync(() => {
+      onAsked(true);
+      setIsReadingSaidByFocus(isFocusMoving);
+    });
     button.current?.focus({ preventScroll: true });
     void Promise.resolve(onPlan(text.trim())).finally(() => onAsked(false));
   };
@@ -528,7 +536,7 @@ function QuestionForm({
               <div className="relative mt-2">
                 <QuestionLine
                   line={line}
-                  wait={wait}
+                  isReadingSaidByFocus={isReadingSaidByFocus}
                   text={text}
                   isLive={isLive}
                   isExampleShown={!isCountShown}
@@ -647,7 +655,10 @@ interface PlanButtonProps {
  * work"), and leaves at once when the wait ends.
  */
 function PlanButton({ ref, line, wait, isLive, hasWords, drawnAs }: PlanButtonProps) {
-  const isReducedMotion = useReducedMotion() ?? false;
+  // Read once the page is hydrated, as the server cannot know it: until then the running sign,
+  // whose loop waits behind `motion-safe:`, stands as the outline alone.
+  const isHydrated = useHydrated();
+  const isReducedMotion = (useReducedMotion() ?? false) && isHydrated;
   const isWorking = wait !== null || line?.kind === "reading" || line?.kind === "writing";
   const stateClasses =
     wait !== null
@@ -681,7 +692,8 @@ function PlanButton({ ref, line, wait, isLive, hasWords, drawnAs }: PlanButtonPr
 
 interface QuestionLineProps {
   line: StartLine;
-  wait: TypedWait | null;
+  /** The press moved the focus to the button, whose name says "Reading" as it lands. */
+  isReadingSaidByFocus: boolean;
   /** What the field holds: while an answer is read, the city it names. */
   text: string;
   isLive: boolean;
@@ -739,7 +751,7 @@ const EXAMPLE_CLASSES = "text-balance";
 /** Under the field: the example, or what Lantern does with the text. */
 function QuestionLine({
   line,
-  wait,
+  isReadingSaidByFocus,
   text,
   isLive,
   isExampleShown,
@@ -766,7 +778,7 @@ function QuestionLine({
         </>
       );
     // A typed text's read is heard where the focus lands, on the button named "Reading".
-    const isHeard = !(line.kind === "reading" && wait === "reading");
+    const isHeard = !(line.kind === "reading" && isReadingSaidByFocus);
     // An answer read and its day set off keep the question's lines as they stand, so nothing
     // moves until the day takes the page; screen readers hear what is happening.
     if (line.answering) {
