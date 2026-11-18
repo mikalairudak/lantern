@@ -126,6 +126,7 @@ import {
   asShownOf,
   chartArrivalsOf,
   forkOtherAt,
+  headKeysOf,
   planForkOf,
   proposedAtOf,
   useSlipPlacement,
@@ -1006,12 +1007,13 @@ export function DayStage({
   const [wholeColumn, setWholeColumn] = useState<HTMLDivElement | null>(null);
   const slipPlacement = useSlipPlacement(planColumn, wholeColumn);
   // The fork's presses, kept across its slips, by the page where it keeps them: a slip drawn
-  // anew over a version taken, in this day or in a whole day taken as a run of its own, knows a
-  // press made a moment before on the slip it replaces.
+  // anew in a whole day taken as a run of its own knows a press made a moment before on the slip
+  // it replaces.
   const [ownPresses] = useState<ForkPresses>(() => new Map());
   const planParts: PlanParts | null =
     replan && planView && planFork && slipPlacement !== null
       ? {
+          keys: headKeysOf(replan.windows),
           anchors: planFork.anchors,
           ends: planFork.shown.map((part) => part.at(-1)?.id ?? null),
           isBeside: slipPlacement === "margin",

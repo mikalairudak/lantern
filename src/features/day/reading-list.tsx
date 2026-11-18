@@ -6,7 +6,6 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type FocusEvent,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -17,7 +16,6 @@ import { BestLightIcon } from "@/features/abacus/best-light-icon";
 import { candidatesOf } from "@/features/abacus/curve";
 import type { PlaceDraft, StopDraft } from "@/features/abacus/day-draft";
 import { PennedText } from "@/components/ui/penned-text";
-import { FORK_CONTROL_ATTRIBUTE, FORK_ROW_ATTRIBUTE } from "@/features/abacus/fork-row";
 import { bestLightOf } from "@/features/abacus/light";
 import { kindWordOf } from "@/features/abacus/meal";
 import { isQuarterNamed } from "@/features/abacus/quarter";
@@ -92,6 +90,12 @@ interface ReadingListProps {
  */
 export interface PlanParts {
   /**
+   * What each part's head is kept by, beside its part (`headKeysOf`): the hour the part's window
+   * opens at, which a take keeps, so the head is drawn again in place, and a part that opens at
+   * another hour folds its head in anew. Left out, a head is kept by its part alone.
+   */
+  keys?: readonly string[];
+  /**
    * Each part's stop, by id: the first of the day's stops in the part, or, for a part the day on
    * screen has no stop in, the first stop after it. Null where none follows: its head stands
    * under the last row.
@@ -114,12 +118,12 @@ export interface PlanParts {
 export const READING_LIST_LABEL = "The day, to read";
 
 const NO_STOPS: ReadonlySet<string> = new Set();
-/** Marks each row by its stop's id, so a part's head is found by its stop. */
+/** Marks each row by its stop's id. */
 const STOP_ATTRIBUTE = "data-stop";
 /** Marks what a part's head stands beside the list, out of flow, as a slip in the margin. */
 export const BESIDE_ATTRIBUTE = "data-beside";
 
-/** The heads of the parts no stop of the day follows, under the last row. */
+/** The room after the last row for a slip beside the list whose part no stop of the day follows. */
 const TAIL_KEY = "parts-after";
 
 /**
@@ -154,8 +158,9 @@ export function ReadingList({
   const spans = runningSpans(shown.map(({ stop }) => stop));
   // Rows on the list when it is first drawn, as a day come back to whole, stand whole; so do the
   // rows of a fork's other version, once it is taken. The rows let in after are written in.
-  const [firstIds] = useState(() => new Set(shown.map(({ stop }) => stop.id)));
-  const [wholeIds, setWholeIds] = useState(() => new Set([...firstIds, ...hidden]));
+  const [wholeIds, setWholeIds] = useState(
+    () => new Set([...shown.map(({ stop }) => stop.id), ...hidden]),
+  );
   const newlyHidden = [...hidden].filter((id) => !wholeIds.has(id));
   if (newlyHidden.length > 0) setWholeIds(new Set([...wholeIds, ...newlyHidden]));
   // Rows a new energy changes together glide as one, in about 1.5 s.
@@ -182,7 +187,6 @@ export function ReadingList({
     const painted = requestAnimationFrame(() => setIsPainted(true));
     return () => cancelAnimationFrame(painted);
   }, []);
-  const noteFocus = useForkFocusKept(list, anchors);
   // A slip beside the list stands out of flow, so its part holds the room it takes after its
   // last row: it never reaches the next part's rule, nor the page's foot under the last row.
   const isBeside = parts?.isBeside ?? false;
@@ -209,54 +213,53 @@ export function ReadingList({
     </AnimatePresence>
   );
   /**
-   * The heads of the parts that stand over a row, or under the last: each folds in and out as
-   * its part comes and goes, and with its row as the row comes and goes. One over a row let in
-   * after the list was drawn folds in with it; one there before the list's first paint stands
-   * whole. In the column a head that comes over a row already there, as at a press, comes into
-   * full ink on its spring's own time while its room still opens at a row's pace: its fork line
-   * says Lantern has begun, and ink that followed the room a whole day holds on a phone would
-   * leave it pale for seconds.
-   * One drawn anew with its row, as on a take, inks with the row. In the margin its room is a
-   * line's, and its ink follows it.
+   * The heads of the parts that stand over a row, or under the last: each an item of the list of
+   * its own, just before its part's first row, kept by its part and the hour its window opens at
+   * (`headKeysOf`). A take changes the rows under a head and not the head: it stays where it was
+   * pressed, in full ink, its answers changing sides in place, while the rows of the version
+   * left fold out under it and those of the version taken fold in. A head folds in and out as
+   * its part comes and goes; one there before the list's first paint stands whole. In the column
+   * one that comes after comes into full ink on its spring's own time while its room still opens
+   * at a row's pace: its fork line says Lantern has begun, and ink that followed the room a whole
+   * day holds on a phone would leave it pale for seconds. In the margin its room is a line's, and
+   * its ink follows it.
    */
-  const headsAt = (anchor: string | null, glideKey: string, isWithItsRow: boolean) => (
-    <AnimatePresence initial={false} propagate>
-      {anchors.flatMap((each, part) => {
-        const head = each === anchor ? parts?.headOf(part) : null;
-        return head
-          ? [
+  const headsAt = (anchor: string | null) =>
+    anchors.flatMap((each, part) => {
+      const head = each === anchor ? parts?.headOf(part) : null;
+      const key = `head ${part} ${parts?.keys?.[part] ?? ""}`;
+      return head
+        ? [
+            // Positioned, so a slip in the margin stands from the head's top, out of its fold.
+            <li key={key} className={cn("group relative", rowClassName)}>
               <Fold
-                key={part}
                 reachPx={ROW_REACH_PX}
-                isAppearing={isPainted ? isWithItsRow || undefined : false}
-                isOpenToTheSide={parts?.isBeside}
-                isInkOnItsSpring={!parts?.isBeside}
-                onGlide={glideOf(`${glideKey} head ${part}`)}
+                isAppearing={isPainted ? undefined : false}
+                isOpenToTheSide={isBeside}
+                isInkOnItsSpring={!isBeside}
+                onGlide={glideOf(key)}
               >
                 <PartHead part={part}>{head}</PartHead>
-              </Fold>,
-            ]
-          : [];
-      })}
-    </AnimatePresence>
-  );
+              </Fold>
+            </li>,
+          ]
+        : [];
+    });
   return (
     <ol
       ref={list}
       aria-label={READING_LIST_LABEL}
       aria-busy={!isWritten || isGliding}
       className="flex flex-col"
-      onFocus={noteFocus}
     >
       <AnimatePresence initial={false}>
-        {shown.map(({ stop, index }, at) => (
-          // Positioned, so a slip in the margin stands from the row's top, out of its head's fold.
+        {shown.flatMap(({ stop, index }, at) => [
+          ...headsAt(stop.id),
           <li
             key={stop.id}
             {...{ [STOP_ATTRIBUTE]: stop.id }}
             className={cn("group relative", rowClassName)}
           >
-            {headsAt(stop.id, stop.id, !firstIds.has(stop.id))}
             {/* The last row let in as the day is written opens on the layout spring, with
                 nothing on the list below it to move. Every other row, and every row of a list
                 written whole, as a version taken coming in or the one it replaces folding away
@@ -289,11 +292,11 @@ export function ReadingList({
               </RowWords>
               {roomsAt(stop.id)}
             </Fold>
-          </li>
-        ))}
-        {anchors.includes(null) && (
+          </li>,
+        ])}
+        {headsAt(null)}
+        {isBeside && anchors.includes(null) && (
           <li key={TAIL_KEY} className={cn("group relative", rowClassName)}>
-            {headsAt(null, TAIL_KEY, isPainted)}
             <Fold isAppearing={isPainted} reachPx={ROW_REACH_PX}>
               {roomsAt(null)}
             </Fold>
@@ -339,7 +342,7 @@ function RoomBeside({ part, room, isPainted }: { part: number; room: number; isP
  * the head and the rows inside their folds, so one folding in or out never reads short, and a
  * row's words inside the box that glides to them, so a swap or a re-pick moves no room while
  * the rows glide. A row folding away counts for nothing, its rest, and the head is the part's
- * that stands, never one folding away as a take moves it. Read after each render and as any of
+ * that stands, never one folding away with its fork. Read after each render and as any of
  * them is resized; none while nothing stands beside the list, when those measured are dropped.
  * Between two forks that stand one after the other, a room is kept by where it stands (`roomOf`).
  */
@@ -443,7 +446,7 @@ function RowWords({ stop, children }: { stop: string; children: ReactNode }) {
 
 /**
  * A part's head, which takes no press and no focus once it folds away: it still says the fork
- * as it stood before, as a version taken moves the head to its own first stop.
+ * as it stood before it went.
  */
 function PartHead({ part, children }: { part: number; children: ReactNode }) {
   const isPresent = useIsPresent();
@@ -456,60 +459,6 @@ function PartHead({ part, children }: { part: number; children: ReactNode }) {
 
 /** No fork: one array for every list without one. */
 const NO_ANCHORS: readonly (string | null)[] = [];
-
-/** Which of a part's controls had the focus: by its part, and how to find it again. */
-interface ForkFocus {
-  part: number;
-  selector: string;
-}
-
-/** The part's control `target` is, if it is one: an answer by its side, or an action. */
-function forkFocusOf(target: EventTarget | null): ForkFocus | null {
-  if (!(target instanceof HTMLElement)) return null;
-  const row = target.closest(`[${FORK_ROW_ATTRIBUTE}]`);
-  const control = target.closest(`[${FORK_CONTROL_ATTRIBUTE}]`);
-  if (!row || !control) return null;
-  const name = control.getAttribute(FORK_CONTROL_ATTRIBUTE) ?? "";
-  return {
-    part: Number(row.getAttribute(FORK_ROW_ATTRIBUTE)),
-    selector: `[${FORK_CONTROL_ATTRIBUTE}="${name}"]`,
-  };
-}
-
-/**
- * Keeps the keys' focus on a part's head that moves to another stop, as a take moves it: the
- * head is drawn anew over the first stop of the version taken, and the one that had the focus
- * folds away with its row. The focus goes to the same control in the head's new place, or to its
- * chosen answer. Gives the handler that notes which control has the focus.
- */
-function useForkFocusKept(
-  list: RefObject<HTMLOListElement | null>,
-  anchors: readonly (string | null)[],
-): (event: FocusEvent<HTMLOListElement>) => void {
-  const had = useRef<ForkFocus | null>(null);
-  const anchorsKey = anchors.join(" ");
-  useLayoutEffect(() => {
-    const element = list.current;
-    const focus = had.current;
-    // Each part's stop by its id, read from the key, so the effect runs only as they change.
-    const anchor = focus === null ? null : anchorsKey.split(" ")[focus.part];
-    if (!element || focus === null || !anchor) return;
-    const row = element.querySelector<HTMLElement>(
-      `li[${STOP_ATTRIBUTE}="${CSS.escape(anchor)}"] [${FORK_ROW_ATTRIBUTE}]`,
-    );
-    const active = document.activeElement;
-    // Only the focus still on the head that folds away, or fallen to the page, is moved.
-    const isLost = active === null || active === document.body || element.contains(active);
-    if (!row || row.contains(active) || !isLost) return;
-    const control =
-      row.querySelector<HTMLElement>(focus.selector) ??
-      row.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]');
-    control?.focus({ preventScroll: true });
-  }, [anchorsKey, list]);
-  return (event) => {
-    had.current = forkFocusOf(event.target);
-  };
-}
 
 /**
  * The glides of the list's rows told as one: each by what moves, as a row's fold or its height,

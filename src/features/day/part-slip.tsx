@@ -20,7 +20,6 @@ import {
   ANSWER_CLASSES,
   ASK_AGAIN_CLASSES,
   AnswerBead,
-  FORK_CONTROL_ATTRIBUTE,
   FORK_ROW_ATTRIBUTE,
   ForkStatus,
   LIT_ANSWER_CLASSES,
@@ -55,8 +54,8 @@ export type SlipPlacement = "column" | "margin";
 /**
  * Every word of the fork is a note's size, as a row's second line is. Its hairline goes at the
  * list's first row, as the fork row's does. It sets no position of its own: the slip in the
- * margin stands from the plan's row it heads (`ReadingList`), outside the fold that opens the
- * fork line's room, which would cut it.
+ * margin stands from its head's own item of the plan's list (`ReadingList`), outside the fold
+ * that opens the fork line's room, which would cut it.
  */
 const FORK_CLASSES = "border-t border-line pt-3 pb-3 type-note group-first:border-t-0";
 
@@ -74,7 +73,7 @@ const RAIL_ROOM_CLASSES = "w-2 shrink-0";
  */
 const SLIP_PILL_CLASSES = "px-2";
 
-/** In the margin: out of flow at the top of the row it heads, the fork's hairline carried over it. */
+/** In the margin: out of flow at the top of its head's item, the fork's hairline carried over it. */
 const MARGIN_CLASSES =
   "absolute top-0 left-full w-margin border-t border-line pt-3 pl-4 group-first:border-t-0";
 
@@ -103,8 +102,8 @@ type ControlPlace = `${number}:${"line" | "slip"}`;
 
 /**
  * When each of the fork's controls was last pressed, on the clock its events carry, by its
- * place: the page keeps one for all its slips, so a slip drawn anew over a version taken knows
- * a press made on the one before it.
+ * place: the page keeps one for all its slips, so a slip drawn anew, as a whole day taken is as
+ * a run of its own, knows a press made on the one before it.
  */
 export type ForkPresses = Map<ControlPlace, number>;
 
@@ -293,7 +292,6 @@ function ShownAnswer({ view, onPress }: ShownAnswerProps) {
     <button
       type="button"
       role="radio"
-      {...{ [FORK_CONTROL_ATTRIBUTE]: side }}
       aria-checked
       aria-label={`${label}, your day`}
       // The checked answer is the group's stop in the tab order, which the sentence's pointer
@@ -318,7 +316,6 @@ function Ending({ view, onAskAgain }: { view: ForkView; onAskAgain: () => void }
           <span>{SEPARATOR}</span>
           <button
             type="button"
-            {...{ [FORK_CONTROL_ATTRIBUTE]: "ask-again" }}
             onClick={onAskAgain}
             className={cn(ACTION_CLASSES, ASK_AGAIN_CLASSES)}
           >
@@ -453,7 +450,6 @@ function SlipAnswer({ view, side, onPress }: SlipAnswerProps) {
     <button
       type="button"
       role="radio"
-      {...{ [FORK_CONTROL_ATTRIBUTE]: side }}
       aria-checked={false}
       aria-disabled={isWriting || undefined}
       aria-label={`${label}, ${description}`}

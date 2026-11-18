@@ -76,6 +76,12 @@ function rowsOf(): HTMLElement[] {
   return within(screen.getByRole("list", { name: "The day, to read" })).queryAllByRole("listitem");
 }
 
+/** The list's own items, its rows and its parts' heads, without the lists a slip holds. */
+function itemsOf(): HTMLElement[] {
+  const list = screen.getByRole("list", { name: "The day, to read" });
+  return [...list.querySelectorAll<HTMLElement>(":scope > li")];
+}
+
 /** A row's words as they are read: the versions waiting beside its stop are drawn unheard. */
 function readTextOf(row: HTMLElement): string {
   const copy = row.cloneNode(true) as HTMLElement;
@@ -237,7 +243,10 @@ describe("ReadingList", () => {
       />,
     );
 
-    const group = within(rowsOf()[1]!).getByRole("radiogroup");
+    // The head is an item of its own, just before the stop it heads.
+    const [, head, row] = itemsOf();
+    expect(row).toHaveAttribute("data-stop", KYOTO.stops[1]!.id);
+    const group = within(head!).getByRole("radiogroup");
     expect(group).toHaveAccessibleName("early dinner or eating late, 1 of 2");
     await user.click(within(group).getByRole("radio", { name: "eating late, proposed" }));
     expect(onChoose).toHaveBeenCalledWith("to");
@@ -249,10 +258,11 @@ describe("ReadingList", () => {
     const head = "the part's head";
     render(<ReadingList {...KYOTO} parts={{ anchors: [second], headOf: () => <p>{head}</p> }} />);
 
-    const row = rowsOf()[1]!;
-    expect(within(row).getByText(head)).toBeInTheDocument();
-    // Before the row's own fold: a fold clips, and a slip in the margin stands out of it.
-    expect(row.firstElementChild).toHaveTextContent(head);
+    const row = rowsOf().find((item) => item.getAttribute("data-stop") === second)!;
+    // In an item of its own before the row: the row's fold clips, and a slip in the margin
+    // stands out of it.
+    expect(row.previousElementSibling).toHaveTextContent(head);
+    expect(within(row).queryByText(head)).toBeNull();
     expect(screen.getAllByText(head)).toHaveLength(1);
   });
 
@@ -266,9 +276,9 @@ describe("ReadingList", () => {
 
     rerender(<ReadingList {...KYOTO} parts={{ anchors, headOf: head, isBeside: true }} />);
 
-    // Its row stands it beside the list, from the row's own top, outside the fold.
+    // Its item stands it beside the list, from the item's own top, outside the fold.
     expect(fold()).not.toHaveClass("overflow-hidden");
-    expect(rowsOf()[1]).toHaveClass("relative");
+    expect(screen.getByText("head 0").closest("li")).toHaveClass("relative");
 
     // The page narrowed: back in the column, the fold clips again, nothing left open.
     rerender(<ReadingList {...KYOTO} parts={{ anchors, headOf: head }} />);
@@ -366,12 +376,12 @@ describe("ReadingList", () => {
     vi.restoreAllMocks();
   });
 
-  it("holds the room beside a part by the slip that stands, not the one leaving as a take moves it", () => {
-    // The slip leaving is 500 px tall, the one that stands 300.
+  it("holds the room beside a part through a take by its one head and the rows of the version taken", () => {
+    // The slip of the proposal is 500 px tall, the one of the day before 300.
     vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
       this: HTMLElement,
     ) {
-      if (this.hasAttribute(BESIDE_ATTRIBUTE)) return this.textContent === "leaving" ? 500 : 300;
+      if (this.hasAttribute(BESIDE_ATTRIBUTE)) return this.textContent === "proposal" ? 500 : 300;
       if (this.hasAttribute("data-part-head")) return 49;
       if (this.hasAttribute("data-row-at-rest") || this.hasAttribute("data-row-words")) return 100;
       return 0;
@@ -384,19 +394,22 @@ describe("ReadingList", () => {
     const { rerender } = render(
       <ReadingList
         {...KYOTO}
-        parts={{ anchors: [first!.id], headOf: slipSaying("leaving"), isBeside: true }}
+        hidden={new Set([second!.id])}
+        parts={{ anchors: [first!.id], headOf: slipSaying("proposal"), isBeside: true }}
       />,
     );
 
-    // Taken: the head moves to the next stop, the one over the first folding away.
+    // Taken: the day's row folds away under the head, and the version taken's comes in.
     rerender(
       <ReadingList
         {...KYOTO}
-        parts={{ anchors: [second!.id], headOf: slipSaying("standing"), isBeside: true }}
+        hidden={new Set([first!.id])}
+        parts={{ anchors: [second!.id], headOf: slipSaying("the day before"), isBeside: true }}
       />,
     );
 
-    expect(screen.getByText("leaving")).toBeInTheDocument();
+    expect(document.querySelectorAll('[data-part-head="0"]')).toHaveLength(1);
+    expect(screen.queryByText("proposal")).toBeNull();
     const room = document.querySelector<HTMLElement>(
       `li[data-stop="${second!.id}"] [data-room-beside="0"] > div > div > div`,
     );
@@ -426,7 +439,12 @@ describe("ReadingList", () => {
     });
     const slip = () => <div {...{ [BESIDE_ATTRIBUTE]: "" }}>the slip</div>;
     const [, first, second] = KYOTO.stops;
-    const forkOver = (stop: StopDraft) => ({ anchors: [stop.id], headOf: slip, isBeside: true });
+    const forkOver = (stop: StopDraft) => ({
+      keys: [stop.id],
+      anchors: [stop.id],
+      headOf: slip,
+      isBeside: true,
+    });
     const { rerender } = render(<ReadingList {...KYOTO} parts={forkOver(first!)} />);
     // Painted, as the page is before a visitor changes another word.
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
@@ -500,33 +518,58 @@ describe("ReadingList", () => {
     expect(rows.at(-1)).toHaveTextContent(head);
   });
 
-  it("keeps the focus on a part's answer as a take moves its slip to another stop", async () => {
+  it("keeps a part's head where it stands through a take, the focus on its answer", async () => {
+    const [, day, proposed] = KYOTO.stops;
     const { rerender } = render(
       <ReadingList
         {...KYOTO}
-        parts={{ anchors: [KYOTO.stops[1]!.id], headOf: () => slipOf("whole") }}
+        hidden={new Set([proposed!.id])}
+        parts={{ anchors: [day!.id], headOf: () => slipOf("whole") }}
       />,
     );
-    within(rowsOf()[1]!).getByRole("radio", { name: "eating late, proposed" }).focus();
+    const head = screen.getByRole("radiogroup").closest("li");
+    screen.getByRole("radio", { name: "eating late, proposed" }).focus();
 
-    // Taken, the old part's stop folds away and the slip stands over the version taken.
+    // Taken: the day's row folds away under the head, and the version taken's comes in.
     rerender(
       <ReadingList
         {...KYOTO}
-        hidden={new Set([KYOTO.stops[1]!.id])}
-        parts={{ anchors: [KYOTO.stops[2]!.id], headOf: () => slipOf("taken") }}
+        hidden={new Set([day!.id])}
+        parts={{ anchors: [proposed!.id], headOf: () => slipOf("taken") }}
       />,
     );
 
-    const row = screen
-      .getAllByRole("listitem")
-      .find((item) => item.getAttribute("data-stop") === KYOTO.stops[2]!.id)!;
+    // One head, the same one, before the version taken's row.
+    expect(screen.getAllByRole("radiogroup")).toHaveLength(1);
+    expect(screen.getByRole("radiogroup").closest("li")).toBe(head);
+    const items = itemsOf();
+    expect(items[items.indexOf(head!) + 1]).toHaveAttribute("data-stop", day!.id);
+    expect(items[items.indexOf(head!) + 2]).toHaveAttribute("data-stop", proposed!.id);
     await waitFor(() =>
-      expect(within(row).getByRole("radio", { name: "eating late, your day" })).toHaveFocus(),
+      expect(screen.getByRole("radio", { name: "eating late, your day" })).toHaveFocus(),
     );
   });
 
-  it("takes no press on a slip whose row is folding away", () => {
+  it("folds in anew the head of a part that opens at another hour, and keeps one that opens at the same", () => {
+    const head = (part: number) => <p>{`head ${part}`}</p>;
+    const anchors = [KYOTO.stops[1]!.id];
+    const { rerender } = render(
+      <ReadingList {...KYOTO} parts={{ anchors, keys: ["13:00"], headOf: head }} />,
+    );
+    const first = screen.getByText("head 0").closest("li");
+
+    // Another change that opens at the same hour: the same head, its words changed in place.
+    rerender(<ReadingList {...KYOTO} parts={{ anchors, keys: ["13:00"], headOf: head }} />);
+    expect(screen.getByText("head 0").closest("li")).toBe(first);
+
+    // A part that opens at another hour: the head before it folds out, and its own folds in.
+    rerender(<ReadingList {...KYOTO} parts={{ anchors, keys: ["18:00"], headOf: head }} />);
+    const heads = screen.getAllByText("head 0").map((each) => each.closest("li"));
+    expect(heads).toHaveLength(2);
+    expect(heads.filter((each) => each?.querySelector("[inert]"))).toEqual([first]);
+  });
+
+  it("takes no press on a slip whose fork is folding away", () => {
     const { rerender } = render(
       <ReadingList
         {...KYOTO}
@@ -534,15 +577,9 @@ describe("ReadingList", () => {
       />,
     );
 
-    rerender(
-      <ReadingList
-        {...KYOTO}
-        hidden={new Set([KYOTO.stops[1]!.id])}
-        parts={{ anchors: [KYOTO.stops[2]!.id], headOf: () => slipOf("taken") }}
-      />,
-    );
+    rerender(<ReadingList {...KYOTO} parts={null} />);
 
-    // The old slip still stands as its row folds out, its closures those of the proposal.
+    // The slip still stands as its fork folds out, its closures those of the proposal.
     const leaving = screen.getByRole("radio", { name: "eating late, proposed", hidden: true });
     expect(leaving.closest("[inert]")).not.toBeNull();
   });

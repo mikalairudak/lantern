@@ -151,6 +151,17 @@ export function planForkOf(
 const SUBPIXEL = 0.5;
 
 /**
+ * What each part's head on the plan is kept by, beside its part (`PlanParts.keys`): the hour its
+ * window opens at, which says where in the day the head stands. A take keeps the windows, so the
+ * head stands where it was pressed; so does a part that opens the day when the route sends its
+ * change on to the whole day, whose window opens there too. A part that opens at another hour
+ * stands elsewhere, and its head folds in anew.
+ */
+export function headKeysOf(windows: readonly ReplanWindow[]): string[] {
+  return windows.map(({ opens }) => `opens ${opens ?? "the day"}`);
+}
+
+/**
  * Where a part's slip stands: in the margin once the day's column is whole, as wide as the plan
  * and its margin (`--container-day-column`), and in the column otherwise, as on a phone. Keyed on the
  * column, never the viewport, which a classic scrollbar leaves narrower than the screen.

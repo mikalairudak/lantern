@@ -83,8 +83,7 @@ function isInstantExit(data: unknown): boolean {
  * never stretched by `reach`, while its height still opens over it, its edge's feather alone
  * hiding a line the edge cuts; leaving, its ink follows its height, from the ink it has, so one
  * that leaves while still opening fades rather than vanishing in a frame. Read as it mounts: one
- * drawn with its `AnimatePresence`, as with a row drawn anew, inks with its height, as the row
- * does.
+ * drawn with its `AnimatePresence`, as with the list it stands in, inks with its height.
  */
 function useUnfolding(
   isAppearing?: boolean,
@@ -193,7 +192,7 @@ interface FoldProps {
   /**
    * Clips only above and below, only while it folds, and feathers no edge: the feather is a
    * mask, which hides all it holds outside its box, as a part's slip set out in the margin beside
-   * the plan from the row it heads. Its opacity alone hides a line its moving edge cuts.
+   * the plan from its head. Its opacity alone hides a line its moving edge cuts.
    */
   isOpenToTheSide?: boolean;
   /** Classes for the clipping box. */

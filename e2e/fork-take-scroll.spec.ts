@@ -199,8 +199,8 @@ test.describe("with motion", () => {
       .getByRole("radio", { name: "early dinner, your day" })
       .boundingBox();
     if (line === null) throw new Error("The fork line's answer has no box");
-    // The day's row above the answer, which no version changes: the answer itself goes to stand
-    // at the first stop of the version taken.
+    // The day's row above the answer, which no version changes: the answer stands in the part's
+    // head, over the rows the take changes.
     const above = await take.evaluate((element) => {
       const top = element.getBoundingClientRect().top;
       const rows = document.querySelectorAll<HTMLElement>(
