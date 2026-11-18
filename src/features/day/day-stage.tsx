@@ -1487,6 +1487,7 @@ export function DayStage({
       dayOpacity={dayOpacity}
       isLeaving={isChartLeaving}
       isEnabled={isInteractive}
+      isDayBeingWritten={isStreaming}
       isWaiting={isWaiting}
       // Until the frame is drawn the waiting line has nowhere to stand: the light it carries
       // runs through the headline instead (`docs/decisions.md`, "A row's words go where its bead

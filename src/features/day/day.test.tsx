@@ -297,6 +297,35 @@ describe("the day", () => {
     expect(screen.queryByText("Writing the day")).not.toBeInTheDocument();
   });
 
+  it("tells screen readers the day is being written once, however many silences its wait holds", async () => {
+    // The day in four deltas, each a silence after the last, as well as the wait for the first.
+    route.pace = {
+      startDelayMs: 1500,
+      deltaChars: Math.ceil(dayText(KANAZAWA_START_DAY.day).length / 4),
+      deltaDelayMs: 1200,
+    };
+    let entries = 0;
+    const said = new Map<Element, string>();
+    const hear = () => {
+      for (const status of document.querySelectorAll("header p[role=status]")) {
+        const text = status.textContent ?? "";
+        if (text === "Writing the day" && said.get(status) !== text) entries += 1;
+        said.set(status, text);
+      }
+    };
+    const listen = new MutationObserver(hear);
+    listen.observe(document.body, { subtree: true, childList: true, characterData: true });
+    render(<Day first={KANAZAWA_START_REQUEST} />);
+
+    await screen.findByText("Writing the day", undefined, DAY_TIMEOUT);
+    await waitForTheDay(SLOW_DAY_TIMEOUT);
+    hear();
+    listen.disconnect();
+
+    expect(entries).toBe(1);
+    expect(screen.queryByText("Writing the day")).not.toBeInTheDocument();
+  }, 20_000);
+
   it("runs the waiting light through the headline until the model's first words, where the waiting line has no place yet", async () => {
     route.pace = { startDelayMs: 1500 };
     render(<Day first={KANAZAWA_START_REQUEST} />);

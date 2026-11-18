@@ -52,6 +52,10 @@ interface Handlers {
   isAsPlanned?: boolean;
   /** What a changed word's fork says in the facts line's place. */
   forkNote?: ForkNoteShown | null;
+  /** The day's stream is being written, as the page tells the header. */
+  isDayBeingWritten?: boolean;
+  /** Nothing has arrived for a while. */
+  isWaiting?: boolean;
 }
 
 /** Kyoto's day as Lantern wrote it: every word but the company assumed, and that one asked. */
@@ -150,6 +154,8 @@ function headerOf(
     onPointToFork,
     isAsPlanned,
     forkNote = null,
+    isDayBeingWritten,
+    isWaiting = false,
   }: Handlers = {},
 ) {
   const facts = sentenceFactsOf(request, assumptions);
@@ -178,7 +184,8 @@ function headerOf(
       onPointToFork={onPointToFork}
       forkNote={forkNote}
       isEnabled
-      isWaiting={false}
+      isDayBeingWritten={isDayBeingWritten}
+      isWaiting={isWaiting}
       written={CURATED_REQUESTS}
       cityOpenAt={null}
       isCityFocused={false}
@@ -568,6 +575,97 @@ describe("DayStageHeader", () => {
     // The status only ever fell quiet, never a fragment.
     expect(heard.length).toBeGreaterThan(0);
     expect(heard.every((text) => text === "")).toBe(true);
+  });
+
+  describe("the wait for a day, as a screen reader hears it", () => {
+    const WRITING = "Writing the day";
+    /** A stream's silences and what arrives between them, as the page tells the header. */
+    const SILENCES = [true, false, true, false, true, false, true];
+
+    /** One render of the header in a stream: what the page tells it, a notice with it. */
+    interface Step extends Handlers {
+      notice?: HeaderNotice | null;
+    }
+
+    /** Every text the header's status holds, each once in a row, as each step renders. */
+    function hearSteps([first, ...rest]: readonly Step[]): string[] {
+      const view = renderHeader(KYOTO_REQUEST, null, first?.notice ?? null, first);
+      const heard = [headerStatus().textContent ?? ""];
+      for (const step of rest) {
+        view.rerender(headerOf(KYOTO_REQUEST, null, step.notice ?? null, step));
+        const text = headerStatus().textContent ?? "";
+        if (text !== heard.at(-1)) heard.push(text);
+      }
+      return heard;
+    }
+
+    it("says the day is being written once, at the wait's first silence, and no more once it is written", () => {
+      const heard = hearSteps([
+        { isDayBeingWritten: true },
+        ...SILENCES.map((isWaiting) => ({ isDayBeingWritten: true, isWaiting })),
+        { isDayBeingWritten: false },
+      ]);
+
+      expect(heard).toEqual(["", WRITING, ""]);
+    });
+
+    it("says it once more for the next wait, the same day asked again", () => {
+      const wait = SILENCES.map((isWaiting) => ({ isDayBeingWritten: true, isWaiting }));
+      const heard = hearSteps([
+        { isDayBeingWritten: true },
+        ...wait,
+        { isDayBeingWritten: false },
+        { isDayBeingWritten: true },
+        ...wait,
+        { isDayBeingWritten: false },
+      ]);
+
+      expect(heard).toEqual(["", WRITING, "", WRITING, ""]);
+    });
+
+    it("keeps it through the fade of a day that ended in a silence, then says the notice", () => {
+      const notice = noticeOf({ kind: "cut", itinerary: null }, KYOTO_REQUEST);
+      const heard = hearSteps([
+        { isDayBeingWritten: true },
+        ...SILENCES.map((isWaiting) => ({ isDayBeingWritten: true, isWaiting })),
+        // The waiting line fades with the chart, as the stream last stood.
+        { isDayBeingWritten: false, isWaiting: true },
+        { isDayBeingWritten: false, notice },
+      ]);
+
+      expect(heard).toHaveLength(3);
+      expect(heard.slice(0, 2)).toEqual(["", WRITING]);
+      expect(heard[2]).toMatch(
+        /^Lantern couldn't finish this day\. Write it again, or open one it has\swritten:$/,
+      );
+    });
+
+    it("lets it go as a day that ended between silences fades, then says the notice", () => {
+      const notice = noticeOf({ kind: "disconnected", itinerary: null }, KYOTO_REQUEST);
+      const heard = hearSteps([
+        { isDayBeingWritten: true },
+        ...SILENCES.map((isWaiting) => ({ isDayBeingWritten: true, isWaiting })),
+        { isDayBeingWritten: true, isWaiting: false },
+        { isDayBeingWritten: false },
+        { isDayBeingWritten: false, notice },
+      ]);
+
+      expect(heard).toHaveLength(4);
+      expect(heard.slice(0, 3)).toEqual(["", WRITING, ""]);
+      expect(heard[3]).toMatch(/^The connection dropped before Lantern finished this day\./);
+    });
+
+    it("says a re-plan's line over the wait, as it would over any day", () => {
+      const replan = slowMorning({ status: "writing" });
+      const heard = hearSteps([
+        { isDayBeingWritten: true, isWaiting: true },
+        { isDayBeingWritten: true, isWaiting: false, replan },
+      ]);
+
+      expect(heard).toHaveLength(2);
+      expect(heard[0]).toBe(WRITING);
+      expect(heard[1]).toMatch(/re-planning/);
+    });
   });
 
   it("fades a notice that leaves for the next day as it stands, the focus on the control pressed", async () => {

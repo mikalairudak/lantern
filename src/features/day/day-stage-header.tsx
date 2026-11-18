@@ -370,6 +370,11 @@ interface DayStageHeaderProps {
   isLeaving?: boolean;
   /** The day is written and still: its words can be opened. */
   isEnabled: boolean;
+  /**
+   * The day's stream is being written. Through it, screen readers hear that the day is being
+   * written once, from its first silence, not again at each silence after.
+   */
+  isDayBeingWritten?: boolean;
   /** Nothing has arrived for a while: screen readers hear that the day is being written. */
   isWaiting: boolean;
   /**
@@ -553,6 +558,7 @@ export function DayStageHeader({
   dayOpacity,
   isLeaving = false,
   isEnabled,
+  isDayBeingWritten = false,
   isWaiting,
   isHeadlineLit = false,
   written,
@@ -883,6 +889,13 @@ export function DayStageHeader({
   const giveNewDayTheFocus = () => requestAnimationFrame(() => newDayButton.current?.focus());
   const hasWaysAlong = takeAlong.length > 0;
   const isLockedSaid = isReplanWriting && (isLockedPressed || isLockSaid);
+  // The status says the day is being written once a wait, as a live region is heard each time
+  // it is filled: the words stand from the stream's first silence until it ends, through the
+  // silences after it, and then only while the waiting line fades with the chart.
+  const [isWaitHeard, setIsWaitHeard] = useState(false);
+  const isWaitHeld = isDayBeingWritten && (isWaitHeard || isWaiting);
+  if (isWaitHeld !== isWaitHeard) setIsWaitHeard(isWaitHeld);
+  const isWaitSaid = isWaiting || isWaitHeld;
   const slotStanding: SlotStanding = !isReplanWriting ? "shown" : isLockedSaid ? "locked" : "faded";
   // A locked word pressed is answered in the facts line, so the fork's note gives way to it.
   const isForkNoteShown = forkNote !== null && !isLockedSaid;
@@ -1228,7 +1241,7 @@ export function DayStageHeader({
                         : replanningLine
                     : status === "idle" && setAsideHeard !== null
                       ? setAsideHeard
-                      : isWaiting
+                      : isWaitSaid
                         ? "Writing the day"
                         : ""}
               </p>
