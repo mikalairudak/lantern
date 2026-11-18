@@ -590,6 +590,23 @@ describe("the day under its start screen", () => {
     expect(screen.getByRole("button", { name: "Plan this day" })).toBeInTheDocument();
   });
 
+  it("reads again at the next press after a reader that failed", async () => {
+    const user = userEvent.setup();
+    const read = vi
+      .fn<IntakeReader>()
+      .mockRejectedValueOnce(new Error("The intake did not answer"))
+      .mockResolvedValueOnce({ kind: "unavailable" });
+    render(<Day start={{ pool: POOL, read }} />);
+    const field = screen.getByRole("textbox");
+
+    await user.type(field, "Paris{Enter}");
+    expect(await saysBack(NOT_YET_LINE)).toBeInTheDocument();
+    await user.type(field, "{Enter}");
+
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
+    expect(await saysBack(NOT_YET_LINE)).toBeInTheDocument();
+  });
+
   it("points to the written days when it can write none, and writes the one pressed", async () => {
     const { user } = renderStart({ kind: "unavailable" });
 
