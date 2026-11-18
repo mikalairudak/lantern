@@ -44,7 +44,7 @@ The wordmark is the word itself, "Lantern", set as the masthead sets it: Literat
 
 ## The sign of work
 
-While Lantern works, it shows a second drawing of a lantern, not the mark: a paper lantern on the mark's wire, cut in one stroke of the pen, lit from its wick and put out (`SignOfWork`, `src/components/ui/sign-of-work.tsx`; `docs/design-direction.md`, "A pen and its lantern, not a spinner"). It is drawn inline on the 24 grid, at 24 px, in the mark's tokens and the ground's: `ink`, `lamp`, `lamp-glow`, `lamp-haze` and `ground`.
+Through the wait that follows a typed text, the start screen's button holds a second drawing of a lantern, not the mark: a paper lantern on the mark's wire, cut in one stroke of the pen, lit from its wick and put out (`SignOfWork`, `src/components/ui/sign-of-work.tsx`; `docs/design-direction.md`, "A pen and its lantern, not a spinner"). It is drawn inline on the 24 grid, at 24 px, in the mark's tokens and the ground's: `ink`, `lamp`, `lamp-glow`, `lamp-haze` and `ground`.
 
 - **The lantern** is an ellipse 10.5 × 11.5 at (12, 12), its outline 1.25 in `ink`, and the wire ends at x 4.5 and 19.5: `M1 10.5 Q2.75 10.98 4.5 11.3` and `M19.5 11.3 Q21.25 10.98 23 10.5`, stroke 1.5, round caps.
 - **The ribs** are four, at y 8.4, 10.8, 13.2 and 15.6, each a quadratic whose control stands 0.55 below its ends, cut as one stroke of 1 in `ink`, round caps and joins: each rib in turn, left to right and back, joined by the arc of the outline between their ends, under the outline's own ink. `M7.906 8.4 Q12 8.95 16.094 8.4 A5.25 5.75 0 0 1 17.134 10.8 Q12 11.35 6.866 10.8 A5.25 5.75 0 0 0 6.866 13.2 Q12 13.75 17.134 13.2 A5.25 5.75 0 0 1 16.094 15.6 Q12 16.15 7.906 15.6`, 44.7 units long, a rib ending at 0.184, 0.473, 0.757 and 1 of it.

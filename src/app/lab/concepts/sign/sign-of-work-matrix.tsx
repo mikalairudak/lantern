@@ -30,7 +30,7 @@ export function SignCell({ work, heldAt, place }: SignCellProps) {
 
 const MOMENT_LABELS: Readonly<Record<SignMoment, string>> = {
   uncut: "the lantern uncut",
-  cutting: "the pen on its second rib",
+  cutting: "two ribs cut, the pen turning to the third",
   wick: "the wick lit",
   swelling: "the light swelling",
   litBeforeRibs: "lit, its ribs coming through",
