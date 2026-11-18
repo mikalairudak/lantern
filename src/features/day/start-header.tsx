@@ -253,15 +253,16 @@ const SENTENCE_START = "A day in";
 
 /**
  * The light through what Lantern is working on while the start screen waits (`docs/decisions.md`,
- * "The first screen asks one question, and no day is drawn until a press", quickened since a cold
- * start's four seconds read as a hang): one band fixed to the screen, as the waiting line's is, so
- * the field's words and the line under them light as it passes each, about every second, and the
- * button with them for a city pressed; through a typed wait the button holds the sign of work.
- * Light in words is amber, the colour light is said in (5:1 and more as words are; the lamp's,
- * which draws light, was 3.84:1 at the band's peak), passing through words that stay in their own
- * ink, so nothing reads as switched off; a word in a colour of its own, the energy's, keeps it. The band stands upright: slanted, as the waiting line's is, it drew a hard edge across
- * the button on a phone, where the screen's height shifts it sideways out of its own box. With
- * reduced motion the words stand in their ink.
+ * "The first screen asks one question, and no day is drawn until a press"): one band fixed to
+ * the screen, as the waiting line's is, so the field's words and the line under them light as it
+ * passes each, about every second, since a cold start's seconds with a sparser light read as a
+ * hang; the button lights with them for a city pressed, and through a typed wait holds the sign
+ * of work. Light in words is amber, the colour light is said in, 5:1 and more as words are; the
+ * lamp's, which draws light, stands 3.84:1 at the band's peak. It passes through words that stay
+ * in their own ink, so nothing reads as switched off, and a word in a colour of its own, the
+ * energy's, keeps it. The band stands upright: a slanted one, as the waiting line's is, draws a
+ * hard edge across the button on a phone, where the screen's height shifts it sideways out of
+ * its own box. With reduced motion the words stand in their ink.
  */
 const STEADY_PASS_CLASSES =
   "bg-linear-90 from-transparent to-transparent bg-fixed bg-size-pass bg-no-repeat motion-safe:animate-pass-steady motion-reduce:bg-none";
