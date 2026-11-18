@@ -407,20 +407,20 @@ function QuestionForm({
   }, [wait, line]);
 
   // At the press the button takes the focus, named for what Lantern is doing, so a phone's
-  // keyboard leaves and uncovers the screen for the wait. Asked for at Enter in the field, the
-  // focus moves and a screen reader hears "Reading" as it lands, so the status holds it unheard
-  // (`SaidLine`). Pressed on the button itself, where a screen reader's own cursor stands, the
-  // focus moves to where that cursor already is and nothing is heard: the status says it. The
-  // text is asked for first, so the button is named for the wait when the focus lands on it.
+  // keyboard leaves and uncovers the screen for the wait. Where the focus moves to it, from the
+  // field at Enter or from wherever a click in WebKit leaves it, a screen reader hears "Reading" as
+  // it lands, so the status holds it unheard (`SaidLine`). Where it is on the button already, as a
+  // press from the keyboard or a click in Chromium leaves it, nothing moves and the status says
+  // it. The text is asked for first, so the button is named for the wait when the focus lands.
   const [isReadingSaidByFocus, setIsReadingSaidByFocus] = useState(false);
   if (wait === null && isReadingSaidByFocus) setIsReadingSaidByFocus(false);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (text.trim() === "" || isReading) return;
-    const isPressedOnButton = submitterOf(event) === button.current;
+    const isFocusMoving = document.activeElement !== button.current;
     flushSync(() => onPlan(text.trim()));
     const isNamedReading = button.current?.getAttribute("aria-label") === BUTTON_WORDS.reading;
-    setIsReadingSaidByFocus(!isPressedOnButton && isNamedReading);
+    setIsReadingSaidByFocus(isFocusMoving && isNamedReading);
     button.current?.focus({ preventScroll: true });
   };
   // The field takes a sentence, never a second line: Enter asks for the day, as a one-line
@@ -952,11 +952,6 @@ export function isUnderWay(
   line: StartLine,
 ): line is Extract<StartLine, { kind: "reading" | "writing" }> {
   return line?.kind === "reading" || line?.kind === "writing";
-}
-
-/** The control that sent a form, where the browser says which one did: none for `requestSubmit()`. */
-function submitterOf(event: FormEvent<HTMLFormElement>): Element | null {
-  return (event.nativeEvent as Partial<SubmitEvent>).submitter ?? null;
 }
 
 /** The line says no day can be written, in place of the note under the field. */

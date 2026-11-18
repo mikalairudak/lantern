@@ -707,7 +707,29 @@ describe("the press that asks for a typed text", () => {
     expect(screen.getByRole("button", { name: "Writing" })).toBeInTheDocument();
   });
 
-  it("says Reading in the status where the button itself was pressed, where a reader's cursor stands", async () => {
+  it("says Reading where the focus lands when a press on the button left the focus in the field, as WebKit's click does", async () => {
+    const user = userEvent.setup();
+    const handlers = { onPlan: vi.fn(), onChooseWritten: vi.fn(), onChooseReading: vi.fn() };
+    const view = renderStart({ waitAtPlan: "reading", ...handlers });
+    const field = screen.getByRole("textbox");
+    await user.type(field, "Lisbon");
+    const button = screen.getByRole("button", { name: "Plan this day" });
+    // A click that sends the form and leaves the focus where it was.
+    fireEvent.click(button);
+    view.rerender(
+      <HeldStart
+        starts={STARTS}
+        line={{ kind: "reading" }}
+        isLive={false}
+        isCityFocused
+        {...handlers}
+      />,
+    );
+    expect(button).toHaveFocus();
+    expect(heardStatus()).toBe("");
+  });
+
+  it("says Reading in the status where a press on the button found the focus on it already", async () => {
     const user = userEvent.setup();
     const handlers = { onPlan: vi.fn(), onChooseWritten: vi.fn(), onChooseReading: vi.fn() };
     const view = renderStart({ waitAtPlan: "reading", ...handlers });
