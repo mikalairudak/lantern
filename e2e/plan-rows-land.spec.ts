@@ -1,4 +1,6 @@
 import { expect, test, type Page, waitMs } from "./fixtures";
+import { ALICANTE_DAY } from "../src/lib/fixtures/curated/alicante";
+import { formatClock, parseClock } from "../src/lib/time/clock";
 
 /**
  * The plan under reduced motion, frame by frame, while a day is written at the bench's live
@@ -29,7 +31,7 @@ interface RowEvent {
 
 interface RowRecord {
   landedAt: number;
-  landedFrame: number;
+  /** The words the row says of its own stop as it landed. */
   words: string;
   /** Every other set of words the row was drawn with after it landed. */
   changedWords: string[];
@@ -61,16 +63,14 @@ async function recordThePlan(page: Page): Promise<void> {
       writtenFrame: null,
     };
     (window as unknown as { recording: Recording }).recording = recording;
-    /** A row's own words, as it reads them: its time, its name, what and where, its line. */
+    /**
+     * The words a row says of its own stop, as heard: without the versions drawn beside it, the
+     * arrows that name them or the hint that tells how to swipe.
+     */
     const wordsOf = (row: Element): string => {
-      const box = row.querySelector("[data-row-at-rest]");
-      const parts = [
-        box?.querySelector("span"),
-        box?.querySelector("h2"),
-        box?.querySelector("p.type-note"),
-        box?.querySelector("p.type-prose"),
-      ];
-      return parts.map((part) => part?.textContent ?? "").join(" | ");
+      const copy = row.cloneNode(true) as Element;
+      for (const other of copy.querySelectorAll("[aria-hidden], button, .sr-only")) other.remove();
+      return copy.textContent ?? "";
     };
     const sample = () => {
       const list = document.querySelector('ol[aria-label="The day, to read"]');
@@ -103,7 +103,6 @@ async function recordThePlan(page: Page): Promise<void> {
         if (!known) {
           recording.rows[id] = {
             landedAt: t,
-            landedFrame: frame,
             words,
             changedWords: [],
             events: [event],
@@ -191,7 +190,17 @@ test.describe("under reduced motion", { tag: "@frame" }, () => {
     );
     const listAt = recording.listAt ?? firstRowAt;
 
-    // (b) No row's words change once it has landed.
+    // (b) Each row lands with its own stop's words, as the day has them, and they never change.
+    const misread = records.flatMap((record, at) => {
+      const id = ids[at]!;
+      const stop = ALICANTE_DAY.day.stops[Number(id.replace("stop-", ""))];
+      if (!stop) return [`${id}: no such stop`];
+      const until = `until\u00a0${formatClock((parseClock(stop.startTime) ?? 0) + stop.durationMinutes)}`;
+      const own = [`${stop.startTime}${stop.place.name}`, until, stop.place.summary];
+      return own.every((words) => record.words.includes(words))
+        ? []
+        : [`${id}: "${record.words}" for ${own.join(" | ")}`];
+    });
     const changed = records.flatMap((record, at) =>
       record.changedWords.map((words) => `${ids[at]}: "${record.words}" became "${words}"`),
     );
@@ -229,6 +238,7 @@ test.describe("under reduced motion", { tag: "@frame" }, () => {
       description: `first row ${Math.round(firstRowAt - recording.armedAt!)} ms after the day was asked, ${Math.round(firstRowAt - listAt)} ms after the list was drawn, first versions ${Math.round(versionsAt - firstRowAt)} ms after it; ${versionSteps.length} version steps of ${Math.min(...versionSteps)} to ${Math.max(...versionSteps)} px; ${recording.frames} frames`,
     });
     expect(versionsAt - firstRowAt).toBeGreaterThan(ROW_AHEAD_OF_VERSIONS_MS);
+    expect(misread).toEqual([]);
     expect(changed).toEqual([]);
     expect(strayHeights).toEqual([]);
     expect(strayTops).toEqual([]);
