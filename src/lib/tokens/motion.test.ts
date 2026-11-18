@@ -1,3 +1,5 @@
+// @vitest-environment node
+import { readFileSync } from "node:fs";
 import { spring } from "motion";
 import { describe, expect, it } from "vitest";
 import {
@@ -6,6 +8,8 @@ import {
   GLIDE_REST_PX,
   ROOM_REACH_PX,
   ROW_REACH_PX,
+  SIGN_LOOP_SECONDS,
+  SIGN_MOMENTS,
   SPRINGS,
   foldGlideOver,
   gestureGlideOver,
@@ -13,6 +17,7 @@ import {
   goingOnOver,
   peakStepOf,
   physicsOf,
+  signHeldAt,
   springOver,
   type PhysicalSpringOptions,
   type SpringOptions,
@@ -270,5 +275,26 @@ describe("physicsOf", () => {
     expect(() => physicsOf({ type: "spring", visualDuration: 0.4, bounce: -0.2 })).toThrow(
       /bounce under 0/,
     );
+  });
+});
+
+describe("the sign of work's loop", () => {
+  const stylesheet = readFileSync(new URL("../../app/globals.css", import.meta.url), "utf8");
+
+  it("is as long as each of its five parts' loops in the stylesheet", () => {
+    const loops = [...stylesheet.matchAll(/--animate-sign-[a-z]+: sign-[a-z]+ ([\d.]+)s /g)];
+    expect(loops).toHaveLength(5);
+    for (const [, seconds] of loops) expect(Number(seconds)).toBe(SIGN_LOOP_SECONDS);
+  });
+
+  it("holds its moments inside the loop, in the loop's order", () => {
+    const moments = Object.values(SIGN_MOMENTS);
+    expect(moments.every((at) => at >= 0 && at < SIGN_LOOP_SECONDS)).toBe(true);
+    expect([...moments].sort((a, b) => a - b)).toEqual(moments);
+  });
+
+  it("holds a moment by pausing the loop that far into it", () => {
+    expect(signHeldAt("wick")).toEqual({ animationDelay: "-1.6s", animationPlayState: "paused" });
+    expect(signHeldAt("uncut").animationDelay).toBe("0s");
   });
 });

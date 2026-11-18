@@ -42,6 +42,11 @@ const PAGES = [
     note: "The start screen: one question over a day Lantern has already written, its named pick",
   },
   {
+    href: "/lab/concepts/sign",
+    title: "Concept · Sign of work",
+    note: "The lantern cut and lit while Lantern works, running in both themes, alone and in the start button",
+  },
+  {
     href: "/lab/concepts/your-days",
     title: "Concept · Your days",
     note: "The visitor's own days as the start screen's ledger, with switches for the other answers to its form",

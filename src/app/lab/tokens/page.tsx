@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { LucideIcon } from "lucide-react";
 import { ArrowLeftRight, MapPin, Sun } from "lucide-react";
 import {
+  ANIMATION_TOKENS,
   COLOR_TOKENS,
   CONTAINER_TOKENS,
   DELAY_TOKENS,
@@ -193,6 +194,12 @@ export default async function TokensPage() {
           {DELAY_TOKENS.map(({ name, role }) => (
             <li key={name} className="flex flex-col gap-1 md:flex-row md:gap-8">
               <span className="w-label shrink-0 text-meta">--delay-{name}</span>
+              <span className="text-small text-muted">{role}</span>
+            </li>
+          ))}
+          {ANIMATION_TOKENS.map(({ name, role }) => (
+            <li key={name} className="flex flex-col gap-1 md:flex-row md:gap-8">
+              <span className="w-label shrink-0 text-meta">--animate-{name}</span>
               <span className="text-small text-muted">{role}</span>
             </li>
           ))}

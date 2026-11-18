@@ -27,6 +27,7 @@ import { ENERGY_GLYPH_MATRIX } from "@/features/day/energy-glyph-matrix";
 import { ENERGY_LIST_MATRIX } from "@/features/day/energy-list-matrix";
 import { THEME_BUTTON_MATRIX } from "@/features/theme/theme-button-matrix";
 import { MASTHEAD_MATRIX } from "@/features/day/masthead-matrix";
+import { SIGN_OF_WORK_MATRIX } from "../concepts/sign/sign-of-work-matrix";
 import { labMatrix, type LabMatrix } from "@/lib/lab-matrix";
 
 /**
@@ -60,6 +61,7 @@ export const MATRICES: readonly LabMatrix[] = [
   PLAN_ROW_MATRIX,
   PLAN_BAR_MATRIX,
   THEME_BUTTON_MATRIX,
+  SIGN_OF_WORK_MATRIX,
   labMatrix<FrameCellProps>({
     key: "stream-frames",
     title: "Stream frames",
