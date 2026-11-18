@@ -685,17 +685,13 @@ export function DayStage({
     }
     return versionsWrittenOf(stops, revealed.day.alternatives, isRepicked || draft.isComplete);
   }, [replanFrame, isRepicked, draft.isComplete, stops, revealed.day.alternatives]);
-  // Under reduced motion nothing eases, so a row waits for its versions too and comes in
-  // whole, as the chart's rows wait for their words: one that took its versions after
-  // stepped the rows below by 22 to 45 px.
+  // With motion and without, a row comes in once its words are final and its versions once
+  // they are written, so the plan reads from its first stop while the rest are written; under
+  // reduced motion a row's versions coming in step the rows below in one frame.
   const listWhole = useMemo(() => {
     if (frameStops !== null || isRepicked || draft.isComplete) return stops.length;
-    const whole = openableStopsOf(revealed.day, draft);
-    return enteredOf(
-      stops,
-      isReducedMotion ? new Set([...whole].filter((id) => listVersions.has(id))) : whole,
-    );
-  }, [frameStops, isRepicked, draft, revealed.day, stops, isReducedMotion, listVersions]);
+    return enteredOf(stops, openableStopsOf(revealed.day, draft));
+  }, [frameStops, isRepicked, draft, revealed.day, stops]);
   // A day that ends without one keeps the rows it showed while its chart fades. The rest of
   // this render reads the rows as the render it sets will, so nothing in it, as the line under
   // the list, reads the list short of rows a fork's take has just drawn in.

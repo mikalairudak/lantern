@@ -44,7 +44,7 @@ const NO_BREAK = "\u00a0";
  * the spring's time, about 2.4 px a frame. Rows a new energy changes together glide as one and
  * settle in about 1.5 s, the rows on screen under 3 px a frame (`gestureGlideOver`). The
  * pen writes each row's words in, as the chart's pen writes a row's. Under reduced motion each
- * stands whole at once, and a row waits for its versions (`DayStage`).
+ * stands whole at once, and a row's versions coming in step the rows below in one frame.
  */
 
 interface ReadingListProps {

@@ -17,10 +17,13 @@ const isCI = Boolean(process.env.CI);
  * twice that, and a shared laptop slows them two to five times. CI's runner runs the suite
  * about eight times slower than the laptop, in about 17 minutes against 2, which puts the
  * slowest near 24 s, past the laptop's 15; 60 s leaves them more than twice that. A test that
- * hangs still fails, later.
+ * hangs still fails, later. A hook takes the same limit: one that plays a whole day does a
+ * test's work, and Vitest's own 10 s for a hook is little more than a second of the laptop's
+ * on CI.
  */
 const LAPTOP_TEST_TIMEOUT_MS = 15_000;
 const CI_TEST_TIMEOUT_MS = 60_000;
+const TEST_TIMEOUT_MS = isCI ? CI_TEST_TIMEOUT_MS : LAPTOP_TEST_TIMEOUT_MS;
 
 export default defineConfig({
   plugins: [react()],
@@ -31,7 +34,8 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     maxWorkers: MAX_WORKERS,
-    testTimeout: isCI ? CI_TEST_TIMEOUT_MS : LAPTOP_TEST_TIMEOUT_MS,
+    testTimeout: TEST_TIMEOUT_MS,
+    hookTimeout: TEST_TIMEOUT_MS,
     include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
       include: ["src/**/*.{ts,tsx}"],

@@ -137,7 +137,7 @@ In a silence of 0.4 s on the page, the phrase naming the part of the day being w
 - A streamed number or enum value is final only once the next field has started: a duration grows 1, 15, 150 as it streams, and a string can stop mid-word.
 - The stream draws only what the finished day will keep. A version the normalizer will drop, past the 800 m walk or named as one of the day's stops, is never drawn, so nothing leaves as the day lands.
 - Rows ease, never jump. A row is measured before its first paint, and its words go where its bead comes to rest.
-- Under reduced motion each element appears in its final state as its data arrives, and a row lands whole.
+- Under reduced motion each element appears in its final state as its data arrives, and a row lands whole once its words are final. On the plan its versions come in after it, stepping the rows below in one frame.
 - A day this device has already watched to its end opens whole, without its replay.
 
 ## Dynamic UI
