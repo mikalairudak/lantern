@@ -767,14 +767,15 @@ function QuestionLine({
   }
   if (line.kind === "reading" || line.kind === "writing") {
     // From the Enter the line says what Lantern does, lit as the field's words are: reading the
-    // words, then opening the day they ask for, or writing it, in under a minute.
+    // words, then opening the day they ask for, or writing it, in under a minute. A city pressed
+    // is said back without the minute, so its line never runs one line further into the index.
     const said =
       line.kind === "reading" ? (
         READING_SAID
       ) : (
         <>
           {isLive ? "Writing" : "Opening"} <AskedSentence request={line.request} isMidSentence />
-          {isLive && ` · ${WHOLE_DAY_TAKES}`}
+          {isLive && line.via === "typed" && ` · ${WHOLE_DAY_TAKES}`}
         </>
       );
     // A typed text's read is heard where the focus lands, on the button named "Reading".

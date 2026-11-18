@@ -473,6 +473,11 @@ describe("the wait that follows a typed text", () => {
     );
   });
 
+  it("says nothing of a minute for a city pressed in the index", () => {
+    renderStart({ line: PRESSED, isLive: true });
+    expect(startStatus()).toHaveTextContent(/^Writing a lively Saturday in Lisbon, with friends$/);
+  });
+
   it("says nothing of a minute for a day Lantern opens already written", () => {
     renderStart({ line: TYPED, isLive: false });
     expect(startStatus()).toHaveTextContent(/^Opening a lively Saturday in Lisbon, with friends$/);
