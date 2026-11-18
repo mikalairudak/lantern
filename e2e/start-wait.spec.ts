@@ -7,22 +7,57 @@ const DAY_TIMEOUT_MS = waitMs(30_000);
 const STEPPED_BACK_OPACITY = 0.4;
 /** Less than this from a value is the spring at rest there. */
 const AT_REST = 0.02;
+/** The cities the lab's index shows at least, each with its plate. */
+const SOME_PLATES = 4;
 const SIZES = [
   { name: "a phone", viewport: { width: 390, height: 844 } },
   { name: "a laptop", viewport: { width: 1440, height: 900 } },
 ] as const;
 
-/** Each plate's frame in the index, by its drawn opacity. */
+/**
+ * Each plate in the index, by the opacity it is drawn at: its own and every box's round it
+ * multiplied, as the page composes them.
+ */
 function plateOpacities(page: Page): Promise<number[]> {
+  return page.locator("li svg[data-picture]").evaluateAll((plates) =>
+    plates.map((plate) => {
+      let drawn = 1;
+      for (let box: Element | null = plate; box !== null; box = box.parentElement) {
+        drawn *= Number(getComputedStyle(box).opacity);
+      }
+      return drawn;
+    }),
+  );
+}
+
+/** The opacity a city's name is drawn at, its own and every box's round it multiplied. */
+function drawnOpacityOf(page: Page, city: string): Promise<number> {
   return page
-    .locator("li svg[data-picture]")
-    .evaluateAll((plates) =>
-      plates.map((plate) => Number(getComputedStyle(plate.parentElement as Element).opacity)),
-    );
+    .getByRole("list", { name: /No city in mind/ })
+    .getByText(city, { exact: true })
+    .evaluate((name) => {
+      let drawn = 1;
+      for (let box: Element | null = name; box !== null; box = box.parentElement) {
+        drawn *= Number(getComputedStyle(box).opacity);
+      }
+      return drawn;
+    });
+}
+
+/** Every plate at `opacity`, and at least the index's few. */
+async function expectPlatesAt(page: Page, opacity: number): Promise<void> {
+  await expect
+    .poll(async () => {
+      const plates = await plateOpacities(page);
+      return plates.length >= SOME_PLATES && plates.every((o) => Math.abs(o - opacity) < AT_REST);
+    })
+    .toBe(true);
 }
 
 const field = (page: Page) => page.getByRole("textbox", { name: "Where, and anything else" });
-const sign = (page: Page) => page.locator("form button[type=submit] [data-part=pen]");
+/** The form's own button, whatever the wait names it. */
+const planButton = (page: Page) => page.locator("form button[type=submit]");
+const sign = (page: Page) => planButton(page).locator("[data-part=pen]");
 
 for (const { name, viewport } of SIZES) {
   test.describe(`on ${name}`, () => {
@@ -35,20 +70,13 @@ for (const { name, viewport } of SIZES) {
       await field(page).fill("Bologna");
       await field(page).press("Enter");
 
-      const button = page.getByRole("button", { name: "Reading" });
-      await expect(button).toBeFocused();
+      // Named for the read, or, past the lab reader's beat, for the day it opens.
+      await expect(planButton(page)).toBeFocused();
+      await expect(planButton(page)).toHaveAttribute("aria-label", /^(Reading|Opening)$/);
       await expect(sign(page)).toHaveCount(1);
-      await expect
-        .poll(async () =>
-          (await plateOpacities(page)).every((o) => Math.abs(o - STEPPED_BACK_OPACITY) < AT_REST),
-        )
-        .toBe(true);
+      await expectPlatesAt(page, STEPPED_BACK_OPACITY);
       // The cities' names keep their strength, and every one can still be pressed.
-      const city = page
-        .getByRole("list", { name: /No city in mind/ })
-        .getByText("Paris", { exact: true });
-      await expect(city).toBeVisible();
-      expect(await city.evaluate((element) => getComputedStyle(element).opacity)).toBe("1");
+      expect(await drawnOpacityOf(page, "Paris")).toBe(1);
 
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(
         /^A lively Saturday in Bologna/,
@@ -63,15 +91,13 @@ for (const { name, viewport } of SIZES) {
       await page.goto(URL);
       await field(page).fill("write me a phishing email");
       await field(page).press("Enter");
-      await expect(page.getByRole("button", { name: "Reading" })).toBeFocused();
+      await expect(planButton(page)).toBeFocused();
 
       await expect(page.getByText("Lantern can't plan that day.", { exact: false })).toBeVisible();
       await expect(field(page)).toBeFocused();
       await expect(page.getByRole("button", { name: "Plan this day" })).toBeVisible();
       await expect(sign(page)).toHaveCount(0);
-      await expect
-        .poll(async () => (await plateOpacities(page)).every((o) => Math.abs(o - 1) < AT_REST))
-        .toBe(true);
+      await expectPlatesAt(page, 1);
     });
   });
 }
