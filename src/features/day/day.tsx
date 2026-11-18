@@ -2045,18 +2045,22 @@ export function Day({
 
   /**
    * The wait a typed text is in on the start screen (`docs/decisions.md`, "The index's pictures
-   * step back while Lantern reads and writes"): read from the press, then its day on its way,
-   * opened from its file or, live, written, until the day takes the page. A day pressed in the
-   * index is none, so a press on another city ends the wait; pressed again, the day on its way
-   * is not asked twice, and the wait goes on.
+   * step back while Lantern reads and writes"), as its line says it: read from the press, then its
+   * day on its way, opened from a written day's file or, live, written, until the day takes the
+   * page. With live generation off a day no file holds is not on its way, and the line keeps
+   * reading until the answer that no new day is written. A day pressed in the index is no typed
+   * wait, so a press on another city ends it; pressed again, the day on its way is not asked
+   * twice, and the wait goes on.
    */
   const startWait: StartWait | null =
     pending !== null
       ? pending.via !== "typed"
         ? null
-        : isLive && !isWritten(start, pending.request)
-          ? "writing"
-          : "opening"
+        : isWritten(start, pending.request)
+          ? "opening"
+          : isLive
+            ? "writing"
+            : "reading"
       : typedRead !== null
         ? "reading"
         : null;

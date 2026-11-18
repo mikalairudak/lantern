@@ -673,9 +673,9 @@ describe("the wait that follows a typed text, with reduced motion", () => {
     expect(steppedBack().some(Boolean)).toBe(false);
   });
 
-  it("keeps the wait while a typed answer opens a written city's day, until the day takes the page", async () => {
+  it("holds a typed day no file holds as a read with live generation off, as its line does", async () => {
     const user = userEvent.setup();
-    // A day that sends nothing, so the wait is seen as it is before the day's words come.
+    // A day that sends nothing, so the wait is seen as it is before the route's answer.
     const silent = (request: DayRequest): DaySource => ({
       request,
       open: () => new Promise(() => {}),
@@ -693,11 +693,12 @@ describe("the wait that follows a typed text, with reduced motion", () => {
     const city = await screen.findByRole("textbox", { name: "Which city?" });
     await user.type(city, "Paris{Enter}");
 
-    // With live generation off the answer is the request at once: its day is opened from Paris's
-    // file, and the wait holds until it takes the page.
+    // Paris on these words is no written day: nothing is opened, and with live generation off
+    // nothing is written, so the page says what its line does until the route answers.
     await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
-    expect(screen.getByRole("button", { name: "Opening" })).toBeInTheDocument();
-    expect(signPart("pen")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Reading" })).toBeInTheDocument();
+    expect(signPart("pen")).toHaveAttribute("stroke-dashoffset", "1");
+    expect(signPart("paper")).toHaveAttribute("transform", "scale(0)");
     expect(steppedBack().every(Boolean)).toBe(true);
   });
 
