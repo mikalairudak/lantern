@@ -15,6 +15,7 @@ import {
 import { PORTLAND_MAINE, PORTLAND_OREGON, SAINT_PETERSBURGS } from "@/lib/fixtures/city-readings";
 import { BOLOGNA_START_DAY } from "@/lib/days/written/bologna";
 import { BOLOGNA_START_REQUEST, KANAZAWA_START_REQUEST } from "@/lib/days/written/quick-starts";
+import { PARIS_REQUEST } from "@/lib/days/written/city-days";
 import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { simulateDayStream } from "@/lib/stream/simulate-day-stream";
 import { Day, START_WORDS_CAP_MS, type WrittenGist } from "./day";
@@ -670,6 +671,55 @@ describe("the wait that follows a typed text, with reduced motion", () => {
     await waitFor(() => expect(screen.getByRole("textbox", { name: "Which city?" })).toHaveFocus());
     expect(signPart("pen")).toBeNull();
     expect(steppedBack().some(Boolean)).toBe(false);
+  });
+
+  it("keeps the wait while a typed answer opens a written city's day, until the day takes the page", async () => {
+    const user = userEvent.setup();
+    // A day that sends nothing, so the wait is seen as it is before the day's words come.
+    const silent = (request: DayRequest): DaySource => ({
+      request,
+      open: () => new Promise(() => {}),
+    });
+    const read = vi.fn<IntakeReader>(async () => ({
+      kind: "question",
+      key: "city",
+      words: { ...NO_WORDS, energy: "calm", energySource: "chosen", company: "family" },
+      readings: [],
+      unplaced: [],
+    }));
+    render(<Day start={{ pool: POOL, read }} sourceFor={silent} />);
+
+    await user.type(screen.getByRole("textbox"), "a quiet day with my kids{Enter}");
+    const city = await screen.findByRole("textbox", { name: "Which city?" });
+    await user.type(city, "Paris{Enter}");
+
+    // With live generation off the answer is the request at once: its day is opened from Paris's
+    // file, and the wait holds until it takes the page.
+    await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
+    expect(screen.getByRole("button", { name: "Opening" })).toBeInTheDocument();
+    expect(signPart("pen")).not.toBeNull();
+    expect(steppedBack().every(Boolean)).toBe(true);
+  });
+
+  it("keeps the wait at a press on the city whose day is already on its way", async () => {
+    const user = userEvent.setup();
+    const release = holdDay();
+    const { read, land } = landedReader();
+    render(<Day start={{ pool: POOL, read }} />);
+
+    await user.type(screen.getByRole("textbox"), "Paris{Enter}");
+    land({ kind: "request", request: PARIS_REQUEST, readings: [], unplaced: [] });
+    await waitFor(() => expect(startStatus()).toHaveTextContent(/^Opening a calm Sunday in Paris/));
+    await user.click(cityWord("Paris"));
+
+    // The same day is not asked twice, so it is still being opened; the city pressed stands
+    // whole under the pointer, every other plate stepped back.
+    expect(screen.getByRole("button", { name: "Opening" })).toBeInTheDocument();
+    expect(signPart("pen")).not.toBeNull();
+    expect(steppedBack().filter(Boolean)).toHaveLength(steppedBack().length - 1);
+    expect(fetchDay).toHaveBeenCalledOnce();
+    release();
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
   });
 
   it("ends the wait at a press on a city: no sign, every plate whole", async () => {

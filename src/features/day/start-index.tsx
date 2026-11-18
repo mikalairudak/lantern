@@ -36,8 +36,8 @@ const PICTURE_CLASSES = "self-end";
  * pool of light with it, so the one light left on the screen is the working button's.
  */
 const STEPPED_BACK_OPACITY = 0.4;
-/** The keyboard's ring, drawn still on a cell a lab shows focused: `focus-ring`'s own. */
-const STILL_RING_CLASSES = "outline-2 outline-offset-2 outline-ink";
+/** The keyboard's ring, drawn still on a control a lab shows focused: `focus-ring`'s own. */
+export const STILL_RING_CLASSES = "outline-2 outline-offset-2 outline-ink";
 
 /** A cell drawn still, as a lab cell shows it: pointed at, focused by the keyboard, or touched. */
 export type CellStill = "pointed" | "focused" | "touched";

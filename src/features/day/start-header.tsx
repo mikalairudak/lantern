@@ -33,7 +33,7 @@ import { LINK_CLASSES } from "./link-classes";
 import { WHOLE_DAY_TAKES } from "./not-yet";
 import { AskedSentence } from "./asked-sentence";
 import { Masthead } from "./masthead";
-import { StartIndex } from "./start-index";
+import { STILL_RING_CLASSES, StartIndex } from "./start-index";
 import { YourDaysLedger, type YourDaysProps } from "./your-days-ledger";
 import type { StartOffer } from "./start-offers";
 
@@ -71,10 +71,9 @@ export type StartLine =
   /**
    * Read: the day it asked for is on its way, and takes the page in a moment. The line says
    * the visitor's day back as Lantern read it: written with live generation on, opened when
-   * Lantern has written the day already. A day from an answer keeps the city's field. It was
-   * asked by the visitor's words, or by a city pressed in the index.
+   * Lantern has written the day already. A day from an answer keeps the city's field.
    */
-  | { kind: "writing"; request: DayRequest; via: StartVia; answering?: CityQuestion }
+  | { kind: "writing"; request: DayRequest; answering?: CityQuestion }
   | CityQuestion
   /** No day can be written for this text yet: the days that are written are offered. */
   | { kind: "not-yet" }
@@ -83,9 +82,6 @@ export type StartLine =
   /** Our own limit answered. */
   | { kind: "limited" }
   | null;
-
-/** How a day on its way was asked: by the visitor's words, or by a city pressed in the index. */
-export type StartVia = "typed" | "pressed";
 
 export interface StartHeaderProps {
   /** The written days, offered under the question as an index. */
@@ -98,11 +94,13 @@ export interface StartHeaderProps {
   isLive: boolean;
   /** The city was just asked for, after the visitor's text: the field takes the focus. */
   isCityFocused: boolean;
+  /** The question is answered: the text, or the city asked for. */
+  onPlan: (text: string) => void;
   /**
-   * The question is answered: the text, or the city asked for. What it hands back settles once
-   * the text is read and its day, if any, asked for.
+   * The wait a typed text is in, as the page holds it, from the press until the page turns to
+   * its day or the wait ends without one: none for a day pressed in the index.
    */
-  onPlan: (text: string) => Promise<void> | void;
+  wait: StartWait | null;
   /** A day Lantern has written, chosen: it is written where the question was. */
   onChooseWritten: (request: DayRequest) => void;
   /** One of the cities a shared name could be, chosen as the answer to "in …?". */
@@ -128,21 +126,10 @@ export interface StartHeaderProps {
 export type DrawnAsPointed = "field" | "button" | "button-focus" | null;
 
 /**
- * What Lantern is doing in the wait that follows a typed text, from the press until the page
- * turns to the day or the wait ends without one: the sign of work stands in the button through it.
+ * What Lantern is doing in the wait that follows a typed text: reading it, then opening a day it
+ * has written already, or writing one. The sign of work stands in the button through it.
  */
-type TypedWait = "reading" | "writing";
-
-/**
- * The wait a typed text is in. A day on its way from a city pressed is none, so a press on a
- * city cuts the wait short. Pressed, a text is in its wait before the line says it is read: the
- * read starts a frame later, or not at all where its answer comes first.
- */
-function typedWaitOf(line: StartLine, isAsked: boolean): TypedWait | null {
-  if (line?.kind === "writing") return line.via === "typed" ? "writing" : null;
-  if (line?.kind === "reading") return "reading";
-  return isAsked ? "reading" : null;
-}
+export type StartWait = "reading" | "opening" | "writing";
 
 /**
  * The start screen: what Lantern is in one line, one question, and the index of the days Lantern
@@ -162,7 +149,10 @@ export function StartHeader({
   yourDays,
   isReturnedTo = false,
   drawnAsPointed = null,
+  wait: waitAsked,
 }: StartHeaderProps) {
+  // With live generation off nothing is written: a day on its way is opened from its file.
+  const wait = waitAsked === "writing" && !isLive ? "opening" : waitAsked;
   const promise = useRef<HTMLHeadingElement>(null);
   const startsList = useRef<HTMLUListElement>(null);
   // Mounted again by Back, so read once, as it mounts.
@@ -186,15 +176,6 @@ export function StartHeader({
     setWasAskingCity(isAskingCity);
     setIsFocusHandedOn(!isAskingCity && isNoDay(line));
   }
-  // A text pressed is in its wait until the line takes it up, and no longer once the line says
-  // anything but a read or a day on its way: an ending, the city asked for, or nothing.
-  const [isAsked, setIsAsked] = useState(false);
-  const [lineAsked, setLineAsked] = useState(line);
-  if (lineAsked !== line) {
-    setLineAsked(line);
-    if (!isUnderWay(line)) setIsAsked(false);
-  }
-  const wait = typedWaitOf(line, isAsked);
 
   return (
     <header className="flex shrink-0 flex-col pt-5 pb-5">
@@ -216,7 +197,6 @@ export function StartHeader({
           isCityFocused={isCityFocused}
           isFocusedOnMount={isFocusHandedOn}
           wait={wait}
-          onAsked={setIsAsked}
           onPlan={onPlan}
           onChooseReading={onChooseReading}
           drawnAsPointed={drawnAsPointed}
@@ -245,10 +225,8 @@ interface QuestionFormProps {
   isCityFocused: boolean;
   /** Drawn again in place of the city's field, it takes the focus that field had. */
   isFocusedOnMount: boolean;
-  wait: TypedWait | null;
-  /** A text is pressed, and its wait starts; or its asking has settled. */
-  onAsked: (isAsked: boolean) => void;
-  onPlan: (text: string) => Promise<void> | void;
+  wait: StartWait | null;
+  onPlan: (text: string) => void;
   onChooseReading: (reading: CityReading) => void;
   drawnAsPointed: DrawnAsPointed;
 }
@@ -378,7 +356,6 @@ function QuestionForm({
   isCityFocused,
   isFocusedOnMount,
   wait,
-  onAsked,
   onPlan,
   onChooseReading,
   drawnAsPointed,
@@ -388,7 +365,7 @@ function QuestionForm({
   const roomId = useId();
   const left = Math.max(0, MAX_INTAKE_TEXT_CHARS - text.length);
   // Read, and then written: the field holds the text it was asked with until the day is here.
-  const isReading = line?.kind === "reading" || line?.kind === "writing";
+  const isReading = isUnderWay(line);
   const isAskingCity = questionOf(line) !== null;
   // The waiting line's light passes through what Lantern is working on (`docs/decisions.md`,
   // "The first screen asks one question, and no day is drawn until a press"): the visitor's words
@@ -430,22 +407,21 @@ function QuestionForm({
   }, [wait, line]);
 
   // At the press the button takes the focus, named for what Lantern is doing, so a phone's
-  // keyboard leaves and uncovers the screen for the wait; a screen reader hears "Reading" as the
-  // focus lands there, so the status holds it unheard (`SaidLine`). A press on the button itself
-  // leaves the focus where it was, unannounced, and the status says it. The button is named
-  // before it is focused, and the text is asked for after.
+  // keyboard leaves and uncovers the screen for the wait. Asked for at Enter in the field, the
+  // focus moves and a screen reader hears "Reading" as it lands, so the status holds it unheard
+  // (`SaidLine`). Pressed on the button itself, where a screen reader's own cursor stands, the
+  // focus moves to where that cursor already is and nothing is heard: the status says it. The
+  // text is asked for first, so the button is named for the wait when the focus lands on it.
   const [isReadingSaidByFocus, setIsReadingSaidByFocus] = useState(false);
   if (wait === null && isReadingSaidByFocus) setIsReadingSaidByFocus(false);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (text.trim() === "" || isReading || wait !== null) return;
-    const isFocusMoving = document.activeElement !== button.current;
-    flushSync(() => {
-      onAsked(true);
-      setIsReadingSaidByFocus(isFocusMoving);
-    });
+    if (text.trim() === "" || isReading) return;
+    const isPressedOnButton = submitterOf(event) === button.current;
+    flushSync(() => onPlan(text.trim()));
+    const isNamedReading = button.current?.getAttribute("aria-label") === BUTTON_WORDS.reading;
+    setIsReadingSaidByFocus(!isPressedOnButton && isNamedReading);
     button.current?.focus({ preventScroll: true });
-    void Promise.resolve(onPlan(text.trim())).finally(() => onAsked(false));
   };
   // The field takes a sentence, never a second line: Enter asks for the day, as a one-line
   // field's does, and a word being composed takes its own Enter, the one Safari sends after
@@ -536,6 +512,7 @@ function QuestionForm({
               <div className="relative mt-2">
                 <QuestionLine
                   line={line}
+                  wait={wait}
                   isReadingSaidByFocus={isReadingSaidByFocus}
                   text={text}
                   isLive={isLive}
@@ -551,9 +528,7 @@ function QuestionForm({
             <p
               className={cn(
                 "mt-1 type-note text-muted",
-                (line?.kind === "reading" || line?.kind === "writing") &&
-                  !line.answering &&
-                  "invisible",
+                isUnderWay(line) && !line.answering && "invisible",
               )}
             >
               {NOT_LIVE_NOTE}
@@ -607,14 +582,12 @@ const PLAN_WORKING_CLASSES = cn(
  * the sign is never drawn over an ink ground fading out; at rest again it eases as a press does.
  */
 const PLAN_SIGN_CLASSES = "border-ink text-ink transition-none";
-/** The keyboard's ring, drawn still on a button a lab shows focused: `focus-ring`'s own. */
-const STILL_RING_CLASSES = "outline-2 outline-offset-2 outline-ink";
 
 /**
  * The sign's work through a typed wait: its loop from the press, or with reduced motion its
  * tally, the outline while the text is read and the ribs and the wick once the day is written.
  */
-function signWorkOf(wait: TypedWait, isReducedMotion: boolean): SignWork {
+function signWorkOf(wait: StartWait, isReducedMotion: boolean): SignWork {
   if (!isReducedMotion) return { kind: "running" };
   return wait === "reading" ? { kind: "cut", ribs: 0 } : { kind: "wick" };
 }
@@ -630,8 +603,9 @@ const BUTTON_WORDS = {
 type ButtonLabel = (typeof BUTTON_WORDS)[keyof typeof BUTTON_WORDS];
 
 /** What the button is named: what Lantern is doing with the text, or what it will. */
-function buttonLabelOf(line: StartLine, wait: TypedWait | null, isLive: boolean): ButtonLabel {
-  if (wait === "reading" || line?.kind === "reading") return BUTTON_WORDS.reading;
+function buttonLabelOf(line: StartLine, wait: StartWait | null, isLive: boolean): ButtonLabel {
+  if (wait !== null) return BUTTON_WORDS[wait];
+  if (line?.kind === "reading") return BUTTON_WORDS.reading;
   if (line?.kind === "writing") return isLive ? BUTTON_WORDS.writing : BUTTON_WORDS.opening;
   return BUTTON_WORDS.plan;
 }
@@ -639,7 +613,7 @@ function buttonLabelOf(line: StartLine, wait: TypedWait | null, isLive: boolean)
 interface PlanButtonProps {
   ref: Ref<HTMLButtonElement>;
   line: StartLine;
-  wait: TypedWait | null;
+  wait: StartWait | null;
   isLive: boolean;
   /** The field holds words a press would ask with. */
   hasWords: boolean;
@@ -659,7 +633,9 @@ function PlanButton({ ref, line, wait, isLive, hasWords, drawnAs }: PlanButtonPr
   // whose loop waits behind `motion-safe:`, stands as the outline alone.
   const isHydrated = useHydrated();
   const isReducedMotion = (useReducedMotion() ?? false) && isHydrated;
-  const isWorking = wait !== null || line?.kind === "reading" || line?.kind === "writing";
+  // A press waits while the line says Lantern has the text under way; a day on its way that the
+  // line does not say back, as one no file holds with live generation off, gives way to a new text.
+  const isWorking = isUnderWay(line);
   const stateClasses =
     wait !== null
       ? PLAN_SIGN_CLASSES
@@ -692,6 +668,7 @@ function PlanButton({ ref, line, wait, isLive, hasWords, drawnAs }: PlanButtonPr
 
 interface QuestionLineProps {
   line: StartLine;
+  wait: StartWait | null;
   /** The press moved the focus to the button, whose name says "Reading" as it lands. */
   isReadingSaidByFocus: boolean;
   /** What the field holds: while an answer is read, the city it names. */
@@ -751,6 +728,7 @@ const EXAMPLE_CLASSES = "text-balance";
 /** Under the field: the example, or what Lantern does with the text. */
 function QuestionLine({
   line,
+  wait,
   isReadingSaidByFocus,
   text,
   isLive,
@@ -767,15 +745,15 @@ function QuestionLine({
   }
   if (line.kind === "reading" || line.kind === "writing") {
     // From the Enter the line says what Lantern does, lit as the field's words are: reading the
-    // words, then opening the day they ask for, or writing it, in under a minute. A city pressed
-    // is said back without the minute, so its line never runs one line further into the index.
+    // words, then opening the day they ask for, or writing it, in under a minute. A day opened
+    // from its file, pressed or typed, is said back without the minute: it opens in seconds.
     const said =
       line.kind === "reading" ? (
         READING_SAID
       ) : (
         <>
           {isLive ? "Writing" : "Opening"} <AskedSentence request={line.request} isMidSentence />
-          {isLive && line.via === "typed" && ` · ${WHOLE_DAY_TAKES}`}
+          {isLive && wait === "writing" && ` · ${WHOLE_DAY_TAKES}`}
         </>
       );
     // A typed text's read is heard where the focus lands, on the button named "Reading".
@@ -960,8 +938,15 @@ function questionOf(line: StartLine): CityQuestion | null {
 }
 
 /** The line says Lantern has the text under way: read, or its day on its way. */
-function isUnderWay(line: StartLine): boolean {
+export function isUnderWay(
+  line: StartLine,
+): line is Extract<StartLine, { kind: "reading" | "writing" }> {
   return line?.kind === "reading" || line?.kind === "writing";
+}
+
+/** The control that sent a form, where the browser says which one did: none for `requestSubmit()`. */
+function submitterOf(event: FormEvent<HTMLFormElement>): Element | null {
+  return (event.nativeEvent as Partial<SubmitEvent>).submitter ?? null;
 }
 
 /** The line says no day can be written, in place of the note under the field. */

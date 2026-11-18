@@ -118,6 +118,7 @@ export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
     isLive: false,
     isCityFocused: false,
     onPlan: ignore,
+    wait: null,
     onChooseWritten: ignore,
     onChooseReading: ignore,
   },
@@ -132,49 +133,59 @@ export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
         // The waiting line's light passes through the visitor's words while they are read
         // (`docs/decisions.md`, "The first screen asks one question, and no day is drawn until a
         // press"), however far they run past the field.
-        { label: "reading the visitor's words", props: { line: { kind: "reading" }, text: READ } },
+        {
+          label: "reading the visitor's words",
+          props: { line: { kind: "reading" }, text: READ, wait: "reading" },
+        },
         {
           // The keyboard's ring on the working button, which holds the focus through the wait.
           label: "reading, the button focused",
-          props: { line: { kind: "reading" }, text: READ, drawnAsPointed: "button-focus" },
+          props: {
+            line: { kind: "reading" },
+            text: READ,
+            wait: "reading",
+            drawnAsPointed: "button-focus",
+          },
         },
         {
           label: "reading words longer than the field",
-          props: { line: { kind: "reading" }, text: READ_LONG },
+          props: { line: { kind: "reading" }, text: READ_LONG, wait: "reading" },
         },
         {
+          // A written day's own words, typed: its day opens from its file.
           label: "read, being written",
           props: {
-            line: { kind: "writing", request: LISBON_DAY.request, via: "typed" },
+            line: { kind: "writing", request: LISBON_DAY.request },
             text: "Lisbon",
+            wait: "opening",
           },
         },
         {
           // A city pressed is no typed wait, so it cuts one short: no sign, every plate whole.
           label: "a city pressed, being written",
-          props: { line: { kind: "writing", request: KYOTO_DAY.request, via: "pressed" } },
+          props: { line: { kind: "writing", request: KYOTO_DAY.request } },
         },
         {
           // The longest start's line, which takes two lines on a phone, into the room under it.
           label: "the longest start pressed, being written",
-          props: { line: { kind: "writing", request: MADRID_START_REQUEST, via: "pressed" } },
+          props: { line: { kind: "writing", request: MADRID_START_REQUEST } },
         },
         { label: "city asked, words read", props: { line: CALM_QUESTION } },
         {
           label: "city asked, its answer read",
-          props: { line: { kind: "reading", answering: CALM_QUESTION }, text: ANSWERED },
+          props: {
+            line: { kind: "reading", answering: CALM_QUESTION },
+            text: ANSWERED,
+            wait: "reading",
+          },
         },
         {
           // A written day's words, answered with its city: said back with live generation off too.
           label: "city answered, being written",
           props: {
-            line: {
-              kind: "writing",
-              request: LISBON_DAY.request,
-              via: "typed",
-              answering: LISBON_QUESTION,
-            },
+            line: { kind: "writing", request: LISBON_DAY.request, answering: LISBON_QUESTION },
             text: LISBON_DAY.request.city,
+            wait: "opening",
           },
         },
         {
@@ -202,9 +213,10 @@ export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
           },
         },
         {
-          // Each line past one the said line runs into the gap moves the index down by itself.
+          // Each line past one the said line runs into the gap moves the index down by itself. A
+          // day no file holds: written once live, in under a minute.
           label: "five facts and a long city, being written",
-          props: { line: { kind: "writing", request: FIVE_FACTS_REQUEST, via: "typed" } },
+          props: { line: { kind: "writing", request: FIVE_FACTS_REQUEST }, wait: "writing" },
         },
         { label: "no day yet", props: { line: { kind: "not-yet" } } },
         { label: "refused", props: { line: { kind: "refused" } } },

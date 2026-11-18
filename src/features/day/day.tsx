@@ -92,7 +92,13 @@ import { readIntakeRoute } from "./intake-route";
 import { FootLine } from "./foot-line";
 import { replanningOf, replanningPartOf, type SetAside } from "./not-yet";
 import { requestFor, standInZoneOf } from "./start";
-import { StartHeader, type CityQuestion, type StartLine, type StartVia } from "./start-header";
+import {
+  StartHeader,
+  isUnderWay,
+  type CityQuestion,
+  type StartLine,
+  type StartWait,
+} from "./start-header";
 import type { TypedCity, TypedCityFailure } from "./city-word";
 import { ASKED_LABELS, FACT_OPTIONS, optionOf, type FactKey } from "./facts";
 import { useDayEvents } from "./use-day-events";
@@ -221,7 +227,7 @@ interface PlayOptions {
 /** How a day is asked for on the start screen, beyond its request. */
 interface AskOptions {
   /** How the visitor reached it: by their words, or a written city pressed. */
-  via: StartVia;
+  via: DayVia;
   /** The visitor's phrases that fit no word of the request, said back under the day. */
   unplaced?: readonly string[];
   /** The cities the name could mean, when an intake read them for this day. */
@@ -884,6 +890,8 @@ export function Day({
   const events = useDayEvents(stream, isCounted);
   const { open: openDay, leave: leaveDay } = events;
   const [pending, setPending] = useState<Pending | null>(null);
+  // A typed text is being read, from the press until its reading has settled (`plan`).
+  const [isTextRead, setIsTextRead] = useState(false);
   // Noted as it is first asked, pending or on screen, before its answer can name an id.
   useEffect(() => {
     noteAsked(pending?.request);
@@ -1876,8 +1884,22 @@ export function Day({
   const sayNoDay = (kind: "refused" | "limited" | "unavailable") =>
     setLine({ kind: kind === "unavailable" ? "not-yet" : kind });
 
+  /**
+   * The visitor's text, or their answer to "in …?", read and its day asked for. From the press
+   * until it has settled the text is being read, which the start screen's wait says until a day
+   * typed is on its way (`startWait`).
+   */
   const plan = async (text: string) => {
     if (!start) return;
+    setIsTextRead(true);
+    try {
+      await planFrom(text, start);
+    } finally {
+      setIsTextRead(false);
+    }
+  };
+
+  const planFrom = async (text: string, start: DayStart) => {
     if (line?.kind === "question") return answerQuestion(text, line);
     const read = await readText(text, start.read, true);
     if (read === null) return;
@@ -2021,11 +2043,29 @@ export function Day({
     // Said back as on its way only when it is: with live generation on, or a day Lantern has
     // written. With it off any other is answered at once that no new day is written, and the line
     // keeps reading until then.
-    if (isLive || isWritten(start, request)) setLine({ kind: "writing", request, via, answering });
+    if (isLive || isWritten(start, request)) setLine({ kind: "writing", request, answering });
     // The page comes back to its top while the day is on its way, so the day's header is
     // written in view, where the question was, even from a phone scrolled to the starts.
     window.scrollTo({ top: 0, behavior: isReducedMotion ? "instant" : "smooth" });
   };
+
+  /**
+   * The wait a typed text is in on the start screen (`docs/decisions.md`, "The index's pictures
+   * step back while Lantern reads and writes"): read from the press, then its day on its way,
+   * opened from its file or, live, written, until the day takes the page. A day pressed in the
+   * index is none, so a press on another city ends the wait; pressed again, the day on its way
+   * is not asked twice, and the wait goes on.
+   */
+  const startWait: StartWait | null =
+    pending !== null
+      ? pending.via !== "typed"
+        ? null
+        : isLive && !isWritten(start, pending.request)
+          ? "writing"
+          : "opening"
+      : isTextRead
+        ? "reading"
+        : null;
 
   /**
    * One of the visitor's days, pressed on the start screen: the day behind the start screen comes
@@ -2042,7 +2082,7 @@ export function Day({
     if (isBehindStart && pending === null && isShownDrawn) {
       stopReading();
       setPending(null);
-      setLine((now) => (isUnderWayLine(now) ? null : now));
+      setLine((now) => (isUnderWay(now) ? null : now));
       // The day pressed is the one told of again, whichever day the start screen last opened.
       // Its own whole day written again is still on its way beside it, and is not left.
       if (replanning === null) events.resume(asked.openedAs, asked.via);
@@ -2091,7 +2131,7 @@ export function Day({
     // A day the start screen was writing gives way too, one asked but not yet drawn among them,
     // and so does a text it was reading, each with its line.
     setPending(null);
-    setLine((now) => (pending !== null || isUnderWayLine(now) ? null : now));
+    setLine((now) => (pending !== null || isUnderWay(now) ? null : now));
     setReplanning(null);
     setReplanLine(null);
     setTargeted(null);
@@ -2275,7 +2315,8 @@ export function Day({
               isLive={isLive}
               // The city is asked for only after the visitor's text, so the field takes the focus.
               isCityFocused={line?.kind === "question"}
-              onPlan={plan}
+              onPlan={(text) => void plan(text)}
+              wait={startWait}
               onChooseWritten={(request) => ask(request, { via: "pressed" })}
               onChooseReading={chooseReading}
               yourDays={{
@@ -2295,11 +2336,6 @@ export function Day({
       )}
     </MotionConfig>
   );
-}
-
-/** The start screen's line says what it has under way: a text read, or a day on its way. */
-function isUnderWayLine(line: StartLine): boolean {
-  return line?.kind === "reading" || line?.kind === "writing";
 }
 
 /**

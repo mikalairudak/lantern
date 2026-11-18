@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
@@ -7,7 +7,13 @@ import { LISBON_REQUEST } from "@/lib/fixtures/curated/requests";
 import { INDEX_REQUESTS, PARIS_REQUEST } from "@/lib/days/written/city-days";
 import { MADRID_START_REQUEST } from "@/lib/days/written/quick-starts";
 import { MAX_INTAKE_TEXT_CHARS, type IntakeWords } from "@/lib/schema/intake.schema";
-import { NOT_LIVE_NOTE, PROMISE, StartHeader, type StartHeaderProps } from "./start-header";
+import {
+  NOT_LIVE_NOTE,
+  PROMISE,
+  StartHeader,
+  type StartHeaderProps,
+  type StartWait,
+} from "./start-header";
 import { INDEX_LABEL } from "./start-index";
 import { startOffersOf } from "./start-offers";
 import { writtenPool } from "./written-pool";
@@ -41,13 +47,33 @@ const NO_WORDS: IntakeWords = {
   company: null,
 };
 
-/** The header with its text held as the day holds it. */
-function HeldStart(props: Omit<StartHeaderProps, "text" | "onTextChange">) {
+type HeldStartProps = Omit<StartHeaderProps, "text" | "onTextChange" | "wait"> & {
+  /** The wait as the page holds it; left out, the one a press set (`waitAtPlan`), or none. */
+  wait?: StartWait | null;
+  /** The wait the page starts at a press, as `Day` does while it reads the text. */
+  waitAtPlan?: StartWait;
+};
+
+/** The header with its text held as the day holds it, and its wait as the page sets it. */
+function HeldStart({ wait, waitAtPlan, onPlan, ...props }: HeldStartProps) {
   const [text, setText] = useState("");
-  return <StartHeader {...props} text={text} onTextChange={setText} />;
+  const [waitPressed, setWaitPressed] = useState<StartWait | null>(null);
+  const plan = (asked: string) => {
+    if (waitAtPlan) setWaitPressed(waitAtPlan);
+    onPlan(asked);
+  };
+  return (
+    <StartHeader
+      {...props}
+      text={text}
+      onTextChange={setText}
+      onPlan={plan}
+      wait={wait === undefined ? waitPressed : wait}
+    />
+  );
 }
 
-function renderStart(props: Partial<StartHeaderProps> = {}) {
+function renderStart(props: Partial<HeldStartProps> = {}) {
   const handlers = {
     onPlan: vi.fn(),
     onChooseWritten: vi.fn(),
@@ -94,7 +120,7 @@ describe("StartHeader", () => {
   });
 
   it("keeps the starts on screen while a day is on its way, and the field its words", () => {
-    renderStart({ line: { kind: "writing", request: LISBON_REQUEST, via: "pressed" } });
+    renderStart({ line: { kind: "writing", request: LISBON_REQUEST } });
     const field = screen.getByRole("textbox", { name: "Where, and anything else" });
 
     expect(field).toHaveAttribute("readonly");
@@ -138,8 +164,8 @@ describe("StartHeader", () => {
 
   it.each([
     [{ kind: "reading" } as const, false, "Reading"],
-    [{ kind: "writing", request: LISBON_REQUEST, via: "typed" } as const, true, "Writing"],
-    [{ kind: "writing", request: LISBON_REQUEST, via: "typed" } as const, false, "Opening"],
+    [{ kind: "writing", request: LISBON_REQUEST } as const, true, "Writing"],
+    [{ kind: "writing", request: LISBON_REQUEST } as const, false, "Opening"],
     [{ kind: "refused" } as const, true, "Plan this day"],
   ])("names the button for what Lantern is doing: %o, live %s", (line, isLive, name) => {
     renderStart({ line, isLive });
@@ -221,7 +247,7 @@ describe("StartHeader", () => {
   });
 
   it("says from the Enter what Lantern is doing, and draws the sign of work in the button", () => {
-    renderStart({ line: { kind: "reading" } });
+    renderStart({ line: { kind: "reading" }, wait: "reading" });
 
     // The line under the field says it in words, where the example stood, at the example's
     // size: a cold start's four seconds never stand still and unsaid.
@@ -308,7 +334,6 @@ describe("StartHeader", () => {
       startOf({
         kind: "writing",
         request: { ...LISBON_REQUEST, city: "Porto", energy: "calm" },
-        via: "typed",
         answering: question,
       }),
     );
@@ -438,20 +463,23 @@ function steppedBackPlates(): boolean[] {
   );
 }
 
+/** A day on its way, as the line says it back. */
+const ON_ITS_WAY_LIVE = { kind: "writing", request: LISBON_REQUEST } as const;
+
 describe("the wait that follows a typed text", () => {
-  const TYPED = { kind: "writing", request: LISBON_REQUEST, via: "typed" } as const;
-  const PRESSED = { kind: "writing", request: LISBON_REQUEST, via: "pressed" } as const;
+  const ON_ITS_WAY = ON_ITS_WAY_LIVE;
 
   it.each([
-    ["while its text is read", { kind: "reading" } as const],
-    ["while its day is on its way", TYPED],
-  ])("draws the sign of work, running, in a hollow frame %s", (_, line) => {
-    renderStart({ line, isLive: true });
+    ["while its text is read", { kind: "reading" } as const, "reading"],
+    ["while its day is opened", ON_ITS_WAY, "opening"],
+    ["while its day is written", ON_ITS_WAY, "writing"],
+  ] as const)("draws the sign of work, running, in a hollow frame %s", (_, line, wait) => {
+    renderStart({ line, wait, isLive: true });
 
     const sign = signInButton();
     expect(sign).not.toBeNull();
     expect(sign?.querySelector("[data-part='pen']")).toHaveClass(PEN_LOOP);
-    const button = screen.getByRole("button", { name: /^(Reading|Writing)$/ });
+    const button = screen.getByRole("button", { name: /^(Reading|Opening|Writing)$/ });
     expect(button).toHaveClass("border-ink");
     expect(button).not.toHaveClass("bg-ink");
     expect(button).not.toHaveClass("motion-safe:animate-pass-steady");
@@ -459,32 +487,44 @@ describe("the wait that follows a typed text", () => {
 
   it.each([
     ["at rest", null],
-    ["for a city pressed in the index", PRESSED],
     ["once the wait ends without a day", { kind: "refused" } as const],
   ])("draws the arrow, not the sign, %s", (_, line) => {
     renderStart({ line, isLive: true });
     expect(signInButton()).toBeNull();
   });
 
-  it("says a day being written takes under a minute, in the project's own words", () => {
-    renderStart({ line: TYPED, isLive: true });
+  it("lights a city pressed in the index with the steady light, as before, and draws no sign", () => {
+    renderStart({ line: ON_ITS_WAY, isLive: true });
+    const button = screen.getByRole("button", { name: "Writing" });
+    expect(button).toHaveClass("bg-ink", "motion-safe:animate-pass-steady");
+    expect(signInButton()).toBeNull();
+  });
+
+  it("says a day being written takes under a minute", () => {
+    renderStart({ line: ON_ITS_WAY, wait: "writing", isLive: true });
     expect(startStatus().textContent).toBe(
       "Writing a lively Saturday in Lisbon, with friends · under\u00A0a\u00A0minute",
     );
   });
 
   it("says nothing of a minute for a city pressed in the index", () => {
-    renderStart({ line: PRESSED, isLive: true });
+    renderStart({ line: ON_ITS_WAY, isLive: true });
     expect(startStatus()).toHaveTextContent(/^Writing a lively Saturday in Lisbon, with friends$/);
   });
 
-  it("says nothing of a minute for a day Lantern opens already written", () => {
-    renderStart({ line: TYPED, isLive: false });
-    expect(startStatus()).toHaveTextContent(/^Opening a lively Saturday in Lisbon, with friends$/);
+  it.each([
+    ["with live generation on", true],
+    ["with live generation off", false],
+  ])("says nothing of a minute for a day Lantern opens already written, %s", (_, isLive) => {
+    renderStart({ line: ON_ITS_WAY, wait: "opening", isLive });
+    expect(startStatus()).toHaveTextContent(
+      /^(Writing|Opening) a lively Saturday in Lisbon, with friends$/,
+    );
+    expect(screen.getByRole("button", { name: "Opening" })).toBeInTheDocument();
   });
 
-  it("steps every plate back while its text is read and its day written, and none for a city pressed", () => {
-    const view = renderStart({ line: { kind: "reading" } });
+  it("steps every plate back through a typed wait, and none for a city pressed", () => {
+    const view = renderStart({ line: { kind: "reading" }, wait: "reading" });
     const plates = steppedBackPlates();
     expect(plates.length).toBeGreaterThan(0);
     expect(plates.every(Boolean)).toBe(true);
@@ -492,7 +532,8 @@ describe("the wait that follows a typed text", () => {
     view.rerender(
       <HeldStart
         starts={STARTS}
-        line={PRESSED}
+        line={ON_ITS_WAY}
+        wait={null}
         isLive={false}
         isCityFocused
         onPlan={vi.fn()}
@@ -505,7 +546,7 @@ describe("the wait that follows a typed text", () => {
 
   it("keeps every city's name at its strength and pressable, its plate whole once pointed at", async () => {
     const user = userEvent.setup();
-    const { onChooseWritten } = renderStart({ line: { kind: "reading" } });
+    const { onChooseWritten } = renderStart({ line: { kind: "reading" }, wait: "reading" });
     const [first] = within(writtenDays()).getAllByRole("button");
     if (!first) throw new Error("No start in the index");
 
@@ -531,12 +572,12 @@ function heardStatus(): string | null {
 }
 
 describe("the press that asks for a typed text", () => {
-  it("hands the focus to the button, named Reading as the focus lands, before the text is asked for", async () => {
+  it("asks for the text, then hands the focus to the button, named Reading as the focus lands", async () => {
     const user = userEvent.setup();
     const named: string[] = [];
     let isAskedBeforeFocus = false;
-    const onPlan = vi.fn(async () => undefined);
-    renderStart({ onPlan });
+    const onPlan = vi.fn();
+    renderStart({ onPlan, waitAtPlan: "reading" });
     const field = screen.getByRole("textbox", { name: "Where, and anything else" });
     await user.type(field, "Bologna");
     const button = screen.getByRole("button", { name: "Plan this day" });
@@ -548,16 +589,13 @@ describe("the press that asks for a typed text", () => {
     await user.keyboard("{Enter}");
     expect(button).toHaveFocus();
     expect(named).toEqual(["Reading"]);
-    expect(isAskedBeforeFocus).toBe(false);
+    expect(isAskedBeforeFocus).toBe(true);
     expect(onPlan).toHaveBeenCalledWith("Bologna");
-    // Its asking settled with no read on the line, the button is at rest again, still focused.
-    await waitFor(() => expect(screen.getByRole("button", { name: "Plan this day" })).toBe(button));
-    expect(button).toHaveFocus();
   });
 
-  it("draws the sign from the press, before the line says the text is read", async () => {
+  it("draws the sign and steps the plates back from the press, as the page starts the wait", async () => {
     const user = userEvent.setup();
-    renderStart({ onPlan: () => new Promise<void>(() => undefined) });
+    renderStart({ waitAtPlan: "reading" });
     await user.type(screen.getByRole("textbox"), "Bologna{Enter}");
 
     expect(signInButton()).not.toBeNull();
@@ -566,13 +604,17 @@ describe("the press that asks for a typed text", () => {
 
   it("gives the focus back to the field when the wait ends without a day", async () => {
     const user = userEvent.setup();
-    const handlers = {
-      onPlan: vi.fn(() => new Promise<void>(() => undefined)),
-      onChooseWritten: vi.fn(),
-      onChooseReading: vi.fn(),
-    };
-    const startOf = (line: StartHeaderProps["line"]) => (
-      <HeldStart starts={STARTS} line={line} isLive isCityFocused={false} {...handlers} />
+    const handlers = { onPlan: vi.fn(), onChooseWritten: vi.fn(), onChooseReading: vi.fn() };
+    const startOf = (line: StartHeaderProps["line"], wait?: StartWait | null) => (
+      <HeldStart
+        starts={STARTS}
+        line={line}
+        wait={wait}
+        waitAtPlan="reading"
+        isLive
+        isCityFocused={false}
+        {...handlers}
+      />
     );
     const view = render(startOf(null));
     const field = screen.getByRole("textbox");
@@ -580,7 +622,7 @@ describe("the press that asks for a typed text", () => {
     view.rerender(startOf({ kind: "reading" }));
     expect(screen.getByRole("button", { name: "Reading" })).toHaveFocus();
 
-    view.rerender(startOf({ kind: "not-yet" }));
+    view.rerender(startOf({ kind: "not-yet" }, null));
     await waitFor(() => expect(field).toHaveFocus());
   });
 
@@ -592,13 +634,17 @@ describe("the press that asks for a typed text", () => {
       readings: [],
       unplaced: [],
     } as const;
-    const handlers = {
-      onPlan: vi.fn(() => new Promise<void>(() => undefined)),
-      onChooseWritten: vi.fn(),
-      onChooseReading: vi.fn(),
-    };
-    const startOf = (line: StartHeaderProps["line"]) => (
-      <HeldStart starts={STARTS} line={line} isLive isCityFocused {...handlers} />
+    const handlers = { onPlan: vi.fn(), onChooseWritten: vi.fn(), onChooseReading: vi.fn() };
+    const startOf = (line: StartHeaderProps["line"], wait?: StartWait | null) => (
+      <HeldStart
+        starts={STARTS}
+        line={line}
+        wait={wait}
+        waitAtPlan="reading"
+        isLive
+        isCityFocused
+        {...handlers}
+      />
     );
     const view = render(startOf(question));
     const field = screen.getByRole("textbox", { name: "Which city?" });
@@ -609,32 +655,27 @@ describe("the press that asks for a typed text", () => {
     expect(screen.queryByText("Reading what you wrote")).not.toBeInTheDocument();
 
     view.rerender(
-      startOf({
-        ...question,
-        readings: [
-          { placeId: "a", name: "Portland", region: "Oregon", timezone: "America/Los_Angeles" },
-          { placeId: "b", name: "Portland", region: "Maine", timezone: "America/New_York" },
-        ],
-      }),
+      startOf(
+        {
+          ...question,
+          readings: [
+            { placeId: "a", name: "Portland", region: "Oregon", timezone: "America/Los_Angeles" },
+            { placeId: "b", name: "Portland", region: "Maine", timezone: "America/New_York" },
+          ],
+        },
+        null,
+      ),
     );
     await waitFor(() => expect(screen.getByRole("textbox", { name: "Which city?" })).toHaveFocus());
   });
 
-  it("says Reading once, on the button the focus moves to, and Writing once, in the status", async () => {
+  it("says Reading once, on the button the focus moves to from the field, and Writing once, in the status", async () => {
     const user = userEvent.setup();
-    const onPlan = () => new Promise<void>(() => undefined);
-    const view = renderStart({ isLive: true, onPlan });
+    const handlers = { onPlan: vi.fn(), onChooseWritten: vi.fn(), onChooseReading: vi.fn() };
+    const view = renderStart({ isLive: true, waitAtPlan: "reading", ...handlers });
     await user.type(screen.getByRole("textbox"), "Lisbon{Enter}");
     view.rerender(
-      <HeldStart
-        starts={STARTS}
-        line={{ kind: "reading" }}
-        isLive
-        isCityFocused
-        onPlan={onPlan}
-        onChooseWritten={vi.fn()}
-        onChooseReading={vi.fn()}
-      />,
+      <HeldStart starts={STARTS} line={{ kind: "reading" }} isLive isCityFocused {...handlers} />,
     );
     expect(screen.getByRole("button", { name: "Reading" })).toHaveFocus();
     expect(heardStatus()).toBe("");
@@ -643,36 +684,31 @@ describe("the press that asks for a typed text", () => {
     view.rerender(
       <HeldStart
         starts={STARTS}
-        line={{ kind: "writing", request: LISBON_REQUEST, via: "typed" }}
+        line={ON_ITS_WAY_LIVE}
+        wait="writing"
         isLive
         isCityFocused
-        onPlan={vi.fn()}
-        onChooseWritten={vi.fn()}
-        onChooseReading={vi.fn()}
+        {...handlers}
       />,
     );
     expect(heardStatus()).toMatch(/^Writing a lively Saturday in Lisbon/);
     expect(screen.getByRole("button", { name: "Writing" })).toBeInTheDocument();
   });
 
-  it("says Reading in the status where the press found the focus on the button already", async () => {
+  it("says Reading in the status where the button itself was pressed, where a reader's cursor stands", async () => {
     const user = userEvent.setup();
-    const onPlan = () => new Promise<void>(() => undefined);
-    const view = renderStart({ onPlan });
+    const handlers = { onPlan: vi.fn(), onChooseWritten: vi.fn(), onChooseReading: vi.fn() };
+    const view = renderStart({ waitAtPlan: "reading", ...handlers });
     await user.type(screen.getByRole("textbox"), "Lisbon");
     const button = screen.getByRole("button", { name: "Plan this day" });
-    // Tabbed to, then pressed, as a keyboard or a screen reader's own press reaches it.
-    act(() => button.focus());
-    await user.keyboard("{Enter}");
+    await user.click(button);
     view.rerender(
       <HeldStart
         starts={STARTS}
         line={{ kind: "reading" }}
         isLive={false}
         isCityFocused
-        onPlan={onPlan}
-        onChooseWritten={vi.fn()}
-        onChooseReading={vi.fn()}
+        {...handlers}
       />,
     );
     expect(button).toHaveFocus();
@@ -698,6 +734,7 @@ describe("the visitor's days over the starts", () => {
     isLive: false,
     isCityFocused: false,
     onPlan: vi.fn(),
+    wait: null,
     onChooseWritten: vi.fn(),
     onChooseReading: vi.fn(),
   };
@@ -771,7 +808,7 @@ describe("the field's room", () => {
 
   it.each([
     [{ kind: "reading" } as const],
-    [{ kind: "writing", request: LISBON_REQUEST, via: "typed" } as const],
+    [{ kind: "writing", request: LISBON_REQUEST } as const],
   ])("says no room left while Lantern works: %o", (line) => {
     render(
       <StartHeader
@@ -779,6 +816,7 @@ describe("the field's room", () => {
         line={line}
         text={textOf(MAX_INTAKE_TEXT_CHARS)}
         onTextChange={vi.fn()}
+        wait={null}
         isLive
         isCityFocused={false}
         onPlan={vi.fn()}
