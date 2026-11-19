@@ -685,6 +685,44 @@ describe("the start screen with live generation on", () => {
     ]);
   });
 
+  it("keeps the city asked for, its answer in the field, after Forward to the day behind stops the answer's reading", async () => {
+    intakeReplies.push(
+      answered({
+        kind: "question",
+        key: "city",
+        readings: [],
+        words: { ...NO_WORDS, company: "family" },
+        unplaced: [],
+      }),
+      "pending",
+    );
+    const user = userEvent.setup();
+    render(<Day start={{ pool: POOL, read: readIntakeRoute }} isLive isAddressed />);
+    const index = screen.getByRole("list", { name: INDEX_LABEL });
+    await user.click(within(index).getByRole("button", { name: /^Paris / }));
+    await waitFor(() => expect(window.location.pathname).toBe("/day/paris"), DAY_TIMEOUT);
+    await waitForTheDay();
+    act(() => window.history.back());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+    await ask(user, "a day with my kids");
+    const city = await screen.findByRole("textbox", { name: "Which city?" });
+    await user.type(city, "Lyon{Enter}");
+    await waitFor(() => expect(city).toHaveAttribute("readonly"));
+
+    act(() => window.history.forward());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+    act(() => window.history.back());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+
+    // The reading stopped, the question stands as it did before the answer, which the field
+    // keeps, so the next press answers it again rather than read "Lyon" as a text of its own.
+    const field = screen.getByRole("textbox", { name: "Which city?" });
+    expect(field).toHaveValue("Lyon");
+    expect(field).not.toHaveAttribute("readonly");
+    expect(screen.getByRole("button", { name: "Plan this day" })).toBeInTheDocument();
+    expect(intakeTexts).toEqual(["a day with my kids", "Lyon"]);
+  });
+
   it("plans a day the question's text named, already over in the city typed, for today there", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-14T12:00:00Z"));

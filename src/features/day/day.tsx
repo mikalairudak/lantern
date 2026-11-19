@@ -2185,10 +2185,9 @@ export function Day({
     const left = key === null ? undefined : daysLeft.current.get(key);
     const isAtStart = here === START_ADDRESS && start !== undefined;
     if (key !== null && key === asked?.entry && pending === null && isShownDrawn) {
-      if (isStartShown && reading.current !== null) {
-        stopReading();
-        setLine(null);
-      }
+      // A reading the day shown again stops sets the line back as every road away does: to the
+      // question it answered, whose answer the field still holds, or to rest.
+      if (isStartShown && reading.current !== null) stopReading();
       setIsStartShown(false);
     } else if (left !== undefined) {
       returnTo(left);
