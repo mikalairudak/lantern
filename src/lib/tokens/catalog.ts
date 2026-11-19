@@ -88,6 +88,7 @@ export const SPACING_TOKENS = [
   "24",
   "day",
   "phone-height",
+  "two-lines",
 ] as const;
 
 export const RADIUS_TOKENS = ["sm"] as const;
@@ -141,6 +142,27 @@ export const GRID_TOKENS = [
     name: "ledger",
     role: "A ledger's line: its date, at one width; its name; what is said of it, never under 45%",
   },
+] as const;
+
+/** The loops CSS plays, each used behind `motion-safe:`, with its use. */
+export const ANIMATION_TOKENS = [
+  {
+    name: "pass",
+    role: "The waiting line's light while the model is silent: one crossing, then rest",
+  },
+  {
+    name: "pass-steady",
+    role: "The start screen's light while Lantern reads and writes: a pass about every second",
+  },
+  { name: "pass-once", role: "One crossing of the steady light over a name a re-plan lands" },
+  { name: "sign-cut", role: "The sign of work: the pen cutting the lantern's ribs in one stroke" },
+  {
+    name: "sign-light",
+    role: "The sign of work: the lit paper growing from its wick, and falling back to it",
+  },
+  { name: "sign-ribs", role: "The sign of work: the ribs coming through the lit paper" },
+  { name: "sign-glow", role: "The sign of work: the glow growing out from under the lit paper" },
+  { name: "sign-haze", role: "The sign of work: the haze growing out past the glow" },
 ] as const;
 
 /** The waits before what CSS shows, each named for its one use. */

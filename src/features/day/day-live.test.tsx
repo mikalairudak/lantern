@@ -767,10 +767,11 @@ describe("the start screen with live generation on", () => {
     const field = await screen.findByRole("textbox", { name: "Which city?" });
     await user.type(field, "Lisbon{Enter}");
 
+    // Named from the press; the field takes no keys once the line says the answer is read.
     await screen.findByRole("button", { name: "Reading" });
     expect(screen.getByRole("textbox", { name: "Which city?" })).toBe(field);
     expect(field).toHaveValue("Lisbon");
-    expect(field).toHaveAttribute("readonly");
+    await waitFor(() => expect(field).toHaveAttribute("readonly"));
     expect(
       screen.getByText(
         (_, element) => element?.textContent === "A calm day in Lisbon, with family",

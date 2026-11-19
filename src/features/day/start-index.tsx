@@ -2,7 +2,9 @@
 
 import { useEffect, useId, useState, type Ref } from "react";
 import { flushSync } from "react-dom";
+import { motion, useReducedMotionConfig } from "motion/react";
 import { cn } from "@/components/ui/cn";
+import { SPRINGS } from "@/lib/tokens/motion";
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
 import { daySlugOf } from "@/lib/days/address";
 import { IndexPictureView } from "./index-picture";
@@ -29,8 +31,13 @@ const CELL_CLASSES =
 const CITY_CLASSES =
   "type-voice text-quote text-pretty text-ink decoration-ink decoration-1 underline-offset-4 pointed-group:underline";
 const PICTURE_CLASSES = "self-end";
-/** The keyboard's ring, drawn still on a cell a lab shows focused: `focus-ring`'s own. */
-const STILL_RING_CLASSES = "outline-2 outline-offset-2 outline-ink";
+/**
+ * How strongly a plate stands while Lantern reads and writes a typed text: stepped back, its low
+ * pool of light with it, so the one light left on the screen is the working button's.
+ */
+const STEPPED_BACK_OPACITY = 0.4;
+/** The keyboard's ring, drawn still on a control a lab shows focused: `focus-ring`'s own. */
+export const STILL_RING_CLASSES = "outline-2 outline-offset-2 outline-ink";
 
 /** A cell drawn still, as a lab cell shows it: pointed at, focused by the keyboard, or touched. */
 export type CellStill = "pointed" | "focused" | "touched";
@@ -67,6 +74,7 @@ export function StartIndex({
   stills = {},
   arePicturesHeld = false,
   picturesFor = {},
+  isSteppedBack = false,
 }: {
   starts: readonly StartOffer[];
   onChoose: (request: DayRequest) => void;
@@ -77,7 +85,14 @@ export function StartIndex({
   arePicturesHeld?: boolean;
   /** A picture drawn for a city the site draws none for, by its slug, as a lab cell shows one. */
   picturesFor?: Readonly<Record<string, string>>;
+  /**
+   * While Lantern reads and writes a typed text, each plate steps back; its name and its lines
+   * keep their strength, and a plate pointed at, focused or touched stands whole and lit
+   * (`docs/decisions.md`, "The index's pictures step back while Lantern reads and writes").
+   */
+  isSteppedBack?: boolean;
 }) {
+  const isReduced = useReducedMotionConfig() === true;
   const label = useId();
   const [pointed, setPointed] = useState<string | null>(null);
   const [focused, setFocused] = useState<string | null>(null);
@@ -134,13 +149,19 @@ export function StartIndex({
                 data-pointed={still === "pointed" || still === "focused" || undefined}
                 className={cn(CELL_CLASSES, still === "focused" && STILL_RING_CLASSES)}
               >
-                <span className={PICTURE_CLASSES}>
+                <motion.span
+                  className={PICTURE_CLASSES}
+                  data-stepped-back={(isSteppedBack && !isLit) || undefined}
+                  initial={false}
+                  animate={{ opacity: isSteppedBack && !isLit ? STEPPED_BACK_OPACITY : 1 }}
+                  transition={isReduced ? { duration: 0 } : SPRINGS.layout}
+                >
                   <IndexPictureView
                     slug={picturesFor[city] ?? daySlugOf(start.request)}
                     isLit={isLit}
                     files={arePicturesHeld ? "none" : "all"}
                   />
-                </span>
+                </motion.span>
                 <span className="flex flex-col items-center pt-1 pb-6">
                   <span className={CITY_CLASSES}>{start.request.city}</span>
                   {/* A space between lines, so the cell's name reads as words; a column shows none. */}{" "}

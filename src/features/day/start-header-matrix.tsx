@@ -100,10 +100,11 @@ const RETURNING_DAY: YourDay = {
 
 /**
  * The start screen in every line a reading can give, with live generation off and on, over its
- * index: the day on its way from the visitor's words or from a city pressed with the field left
- * empty, the city asked for, and each ending without a day; and the question itself, its field
- * focused, its button hollow, filled and pointed at, the room left near the field's end, and a
- * returning visitor's days over the index.
+ * index: the day on its way from the visitor's words, the button a lantern and the plates stepped
+ * back, or from a city pressed with the field left empty, the city asked for, and each ending
+ * without a day; and the question itself, its field focused, its button hollow, filled, pointed at
+ * and focused through a wait, the room left near the field's end, and a returning visitor's days
+ * over the index.
  */
 export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
   key: "start-header",
@@ -117,6 +118,7 @@ export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
     isLive: false,
     isCityFocused: false,
     onPlan: ignore,
+    wait: null,
     onChooseWritten: ignore,
     onChooseReading: ignore,
   },
@@ -131,16 +133,25 @@ export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
         // The waiting line's light passes through the visitor's words while they are read
         // (`docs/decisions.md`, "The first screen asks one question, and no day is drawn until a
         // press"), however far they run past the field.
-        { label: "reading the visitor's words", props: { line: { kind: "reading" }, text: READ } },
+        {
+          label: "reading the visitor's words",
+          props: { line: { kind: "reading" }, text: READ, wait: "reading" },
+        },
         {
           label: "reading words longer than the field",
-          props: { line: { kind: "reading" }, text: READ_LONG },
+          props: { line: { kind: "reading" }, text: READ_LONG, wait: "reading" },
         },
         {
+          // A written day's own words, typed: its day opens from its file.
           label: "read, being written",
-          props: { line: { kind: "writing", request: LISBON_DAY.request }, text: "Lisbon" },
+          props: {
+            line: { kind: "writing", request: LISBON_DAY.request },
+            text: "Lisbon",
+            wait: "opening",
+          },
         },
         {
+          // A city pressed is no typed wait, so it cuts one short: no sign, every plate whole.
           label: "a city pressed, being written",
           props: { line: { kind: "writing", request: KYOTO_DAY.request } },
         },
@@ -152,7 +163,11 @@ export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
         { label: "city asked, words read", props: { line: CALM_QUESTION } },
         {
           label: "city asked, its answer read",
-          props: { line: { kind: "reading", answering: CALM_QUESTION }, text: ANSWERED },
+          props: {
+            line: { kind: "reading", answering: CALM_QUESTION },
+            text: ANSWERED,
+            wait: "reading",
+          },
         },
         {
           // A written day's words, answered with its city: said back with live generation off too.
@@ -160,6 +175,7 @@ export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
           props: {
             line: { kind: "writing", request: LISBON_DAY.request, answering: LISBON_QUESTION },
             text: LISBON_DAY.request.city,
+            wait: "opening",
           },
         },
         {
@@ -187,9 +203,10 @@ export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
           },
         },
         {
-          // Each line past one the said line runs into the gap moves the index down by itself.
+          // Each line past one the said line runs into the gap moves the index down by itself. A
+          // day no file holds: written once live, in under a minute.
           label: "five facts and a long city, being written",
-          props: { line: { kind: "writing", request: FIVE_FACTS_REQUEST } },
+          props: { line: { kind: "writing", request: FIVE_FACTS_REQUEST }, wait: "writing" },
         },
         { label: "no day yet", props: { line: { kind: "not-yet" } } },
         { label: "refused", props: { line: { kind: "refused" } } },
@@ -218,6 +235,18 @@ export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
           props: {
             line: null,
             yourDays: { days: [RETURNING_DAY], now: NOW, onOpen: ignore, onForget: ignore },
+          },
+        },
+        {
+          // The keyboard's ring on the working button, which holds the focus through the wait. Last,
+          // since a row set among the others moves every cell under it down the grid, and with it
+          // how Chromium smooths their edges, so each would differ from its baseline by a few pixels.
+          label: "reading, the button focused",
+          props: {
+            line: { kind: "reading" },
+            text: READ,
+            wait: "reading",
+            drawnAsPointed: "button-focus",
           },
         },
       ],

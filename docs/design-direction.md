@@ -8,7 +8,7 @@ The owner made the design calls, mostly by comparing options drawn side by side 
 
 - **The layout carries meaning.** Where a stop stands says how lively it is, and how far down, when.
 - **Real data first, never a skeleton.** Only what has arrived is shown, in the order the model writes it.
-- **A pen, not a spinner.** Words are written in as they arrive. A pause in the stream shows as light running through the words that name what is being written.
+- **A pen and its lantern, not a spinner.** Words are written in as they arrive, and a pause in the stream shows as light running through the words that name what is being written. While Lantern works on a typed day, a small lantern in the start screen's button is cut in one stroke of the pen and lit from its wick, as a plate is lit from its lamps: the work's own two acts (`docs/brand/README.md`, "The sign of work"). Nothing in it fades or turns in place: a line grows, a light grows and falls back. Under reduced motion it keeps a tally of the work, and it leaves when the work ends.
 - **One colour, one meaning.** Light is amber, energy is green, the other versions are blue, and what is chosen is ink. Nothing else in the chart has a colour.
 - **Density follows energy.** A calm row opens with how its place sounds; a lively one folds to its name and kind.
 - **Surfaces mean something.** A raised sheet holds what was opened: a list, the day's menu, an open stop's words. Lamplight is what a bead gives the page round it, the mark's bead and a lit bead on the plan, and, by night, what lights a plate in the index that is pointed at. Everything else sits on the ground.

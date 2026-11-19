@@ -25,12 +25,15 @@ interface LivePace {
  * How the days stream: at the landing's pace, or with a live start's waits as production
  * measured them (`docs/harness.md`, "Where a request's seconds go"): the intake's answer,
  * then the day's first bytes about a second later. The model's first words come 1.4 s after
- * those, the uneven pace's own wait, against 1.0 to 1.2 s measured.
+ * those, the uneven pace's own wait, against 1.0 to 1.2 s measured. Stalled, the first bytes
+ * come past the start screen's cap (`START_WORDS_CAP_MS`), so the day takes the page with
+ * nothing yet.
  */
 const PACES = {
   landing: null,
   warm: { intakeMs: 1600, firstBytesMs: 1000 },
   cold: { intakeMs: 4100, firstBytesMs: 1000 },
+  stalled: { intakeMs: 1600, firstBytesMs: 9000 },
 } as const satisfies Record<string, LivePace | null>;
 
 type PaceName = keyof typeof PACES;
@@ -39,6 +42,7 @@ const PACE_LABELS: Record<PaceName, string> = {
   landing: "Landing",
   warm: "Warm",
   cold: "Cold",
+  stalled: "Stalled",
 };
 
 /** Waits, unless the visitor leaves first. */
@@ -55,12 +59,21 @@ function waitFor(ms: number, signal: AbortSignal): Promise<void> {
 /**
  * A curated day at a live model's pace, its first bytes after the pace's wait, so the start
  * screen's wait for a day can be seen as it is live. Any other day is answered as the route
- * answers it.
+ * answers it, after the same wait.
  */
 function liveSourceFor(pace: LivePace): (request: DayRequest) => DaySource {
   return (request) => {
     const curated = writtenDayFor(request, new Date());
-    if (!curated) return routeSourceFor(request);
+    if (!curated) {
+      const route = routeSourceFor(request);
+      return {
+        request,
+        open: async (signal) => {
+          await waitFor(pace.firstBytesMs, signal);
+          return route.open(signal);
+        },
+      };
+    }
     return {
       request,
       open: async (signal) => {

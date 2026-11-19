@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  ANIMATION_TOKENS,
   COLOR_TOKENS,
   CONTAINER_TOKENS,
   DELAY_TOKENS,
@@ -45,6 +46,7 @@ describe("token catalog", () => {
     ["root", ROOT_TOKENS.map((token) => token.name)],
     ["duration", DURATION_TOKENS.map((token) => token.name)],
     ["delay", DELAY_TOKENS.map((token) => token.name)],
+    ["animate", ANIMATION_TOKENS.map((token) => token.name)],
     ["container", CONTAINER_TOKENS.map((token) => token.name)],
     ["grid-template-columns", GRID_TOKENS.map((token) => token.name)],
   ])("lists every %s token globals.css defines", (namespace, listed) => {

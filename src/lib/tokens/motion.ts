@@ -129,6 +129,41 @@ export function physicsOf(spring: SpringOptions & { restDelta?: number }): Physi
   };
 }
 
+/** The sign of work's loop, in seconds: `--animate-sign-*` in globals.css run on it. */
+export const SIGN_LOOP_SECONDS = 3.6;
+
+/**
+ * The moments of the sign's loop a still of it is held at, in seconds into the loop: one in
+ * each of its acts, and the two where a loop like it goes wrong, the lit lantern's edge and
+ * the light's return to its wick.
+ */
+export const SIGN_MOMENTS = {
+  uncut: 0,
+  cutting: 0.75,
+  wick: 1.6,
+  swelling: 1.9,
+  litBeforeRibs: 2.2,
+  litWhole: 2.88,
+  puttingOut: 3.1,
+  withdrawing: 3.3,
+} as const;
+
+export type SignMoment = keyof typeof SIGN_MOMENTS;
+
+/** A part of the sign held still at a moment of its loop. */
+export interface HeldLoopStyle {
+  animationDelay: string;
+  animationPlayState: "paused";
+}
+
+/**
+ * The sign's loop held at `moment`: paused, and set off that far into the loop before it
+ * started, since a part's place in the loop is in its keyframes and its running delay is none.
+ */
+export function signHeldAt(moment: SignMoment): HeldLoopStyle {
+  return { animationDelay: `${-SIGN_MOMENTS[moment]}s`, animationPlayState: "paused" };
+}
+
 /** A 60 Hz frame, in milliseconds: the frame a glide's pace is read by. */
 const FRAME_MS = 1000 / 60;
 /** A second, in milliseconds. */

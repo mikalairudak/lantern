@@ -15,6 +15,7 @@ import {
 import { PORTLAND_MAINE, PORTLAND_OREGON, SAINT_PETERSBURGS } from "@/lib/fixtures/city-readings";
 import { BOLOGNA_START_DAY } from "@/lib/days/written/bologna";
 import { BOLOGNA_START_REQUEST, KANAZAWA_START_REQUEST } from "@/lib/days/written/quick-starts";
+import { PARIS_REQUEST } from "@/lib/days/written/city-days";
 import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { simulateDayStream } from "@/lib/stream/simulate-day-stream";
 import { Day, START_WORDS_CAP_MS, type WrittenGist } from "./day";
@@ -589,6 +590,23 @@ describe("the day under its start screen", () => {
     expect(screen.getByRole("button", { name: "Plan this day" })).toBeInTheDocument();
   });
 
+  it("reads again at the next press after a reader that failed", async () => {
+    const user = userEvent.setup();
+    const read = vi
+      .fn<IntakeReader>()
+      .mockRejectedValueOnce(new Error("The intake did not answer"))
+      .mockResolvedValueOnce({ kind: "unavailable" });
+    render(<Day start={{ pool: POOL, read }} />);
+    const field = screen.getByRole("textbox");
+
+    await user.type(field, "Paris{Enter}");
+    expect(await saysBack(NOT_YET_LINE)).toBeInTheDocument();
+    await user.type(field, "{Enter}");
+
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
+    expect(await saysBack(NOT_YET_LINE)).toBeInTheDocument();
+  });
+
   it("points to the written days when it can write none, and writes the one pressed", async () => {
     const { user } = renderStart({ kind: "unavailable" });
 
@@ -600,6 +618,224 @@ describe("the day under its start screen", () => {
     await waitForTheDay();
     expect(within(dayList()).getByText("Cornetti on Via Leonina")).toBeInTheDocument();
     expect(fetchDay).toHaveBeenCalledOnce();
+  });
+});
+
+// `docs/decisions.md`, "The index's pictures step back while Lantern reads and writes"; the tests
+// here run with reduced motion, so the sign in the button keeps its tally.
+describe("the wait that follows a typed text, with reduced motion", () => {
+  /** A reader that answers only when the test lands its answer. */
+  function landedReader() {
+    let land: (result: IntakeResult) => void = () => undefined;
+    const read = vi.fn<IntakeReader>(() => new Promise((resolve) => (land = resolve)));
+    return { read, land: (result: IntakeResult) => land(result) };
+  }
+  const planButton = () =>
+    screen.getByRole("button", { name: /^(Plan this day|Reading|Opening|Writing)$/ });
+  const signPart = (part: string) => planButton().querySelector(`[data-part="${part}"]`);
+  const steppedBack = () =>
+    [...document.querySelectorAll("svg[data-picture]")].map(
+      (plate) => plate.closest("[data-stepped-back]") !== null,
+    );
+
+  it("takes the focus to the button named Reading, its lantern's outline drawn, and the plates step back", async () => {
+    const user = userEvent.setup();
+    const release = holdDay();
+    const { read, land } = landedReader();
+    render(<Day start={{ pool: POOL, read }} />);
+
+    await user.type(screen.getByRole("textbox"), "Bologna{Enter}");
+    const button = screen.getByRole("button", { name: "Reading" });
+    expect(button).toHaveFocus();
+    expect(signPart("pen")).toHaveAttribute("stroke-dashoffset", "1");
+    expect(signPart("paper")).toHaveAttribute("transform", "scale(0)");
+    expect(steppedBack().length).toBeGreaterThan(0);
+    expect(steppedBack().every(Boolean)).toBe(true);
+
+    land({ kind: "request", request: BOLOGNA_START_REQUEST, readings: [], unplaced: [] });
+    expect(await saysBack("Opening a lively Saturday in Bologna, with friends")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Opening" })).toBe(button);
+    expect(button).toHaveFocus();
+    // Its ribs cut and its wick lit, with no loop.
+    expect(signPart("pen")).toHaveAttribute("stroke-dashoffset", "0");
+    expect(signPart("paper")).toHaveAttribute("transform", "scale(0.25)");
+    expect(signPart("pen")?.getAttribute("class")).not.toMatch(/animate-/);
+    release();
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A lively Saturday in Bologna/));
+  });
+
+  it("gives the focus back to the field and the plates their strength when the wait ends without a day", async () => {
+    const { user } = renderStart({ kind: "unavailable" });
+
+    await user.type(screen.getByRole("textbox"), "Paris{Enter}");
+    expect(await saysBack(NOT_YET_LINE)).toBeVisible();
+    await waitFor(() => expect(screen.getByRole("textbox")).toHaveFocus());
+    expect(screen.getByRole("button", { name: "Plan this day" })).toBeInTheDocument();
+    expect(signPart("pen")).toBeNull();
+    expect(steppedBack().some(Boolean)).toBe(false);
+  });
+
+  it("gives the focus to the city's field when the text asks for the city", async () => {
+    const { user } = renderStart({
+      kind: "question",
+      key: "city",
+      words: NO_WORDS,
+      readings: [],
+      unplaced: [],
+    });
+
+    await user.type(screen.getByRole("textbox"), "with friends{Enter}");
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Which city?" })).toHaveFocus());
+    expect(signPart("pen")).toBeNull();
+    expect(steppedBack().some(Boolean)).toBe(false);
+  });
+
+  /** A day that sends nothing, so the wait is seen as it is before the route's answer. */
+  const silent = (request: DayRequest): DaySource => ({
+    request,
+    open: () => new Promise(() => {}),
+  });
+
+  it("says no wait for a city answered with live generation off that no file holds, as its line says none", async () => {
+    const user = userEvent.setup();
+    const read = vi.fn<IntakeReader>(async () => ({
+      kind: "question",
+      key: "city",
+      words: { ...NO_WORDS, energy: "calm", energySource: "chosen", company: "family" },
+      readings: [],
+      unplaced: [],
+    }));
+    render(<Day start={{ pool: POOL, read }} sourceFor={silent} />);
+
+    await user.type(screen.getByRole("textbox"), "a quiet day with my kids{Enter}");
+    const city = await screen.findByRole("textbox", { name: "Which city?" });
+    await user.type(city, "Paris{Enter}");
+
+    // Paris on these words is no written day and nothing is written: the line still asks for
+    // the city, its field open, and nothing on the page says Lantern is at work.
+    await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
+    expect(screen.getByRole("textbox", { name: "Which city?" })).not.toHaveAttribute("readonly");
+    expect(screen.getByText(/Lantern needs a city to plan the day/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Plan this day" })).toBeInTheDocument();
+    expect(signPart("pen")).toBeNull();
+    expect(steppedBack().some(Boolean)).toBe(false);
+  });
+
+  it("says no wait for a text read before the next frame to a day no file holds, as its line says none", async () => {
+    const user = userEvent.setup();
+    const read = vi.fn<IntakeReader>(async () => ({
+      kind: "request",
+      request: { ...PARIS_REQUEST, company: "family" },
+      readings: [],
+      unplaced: [],
+    }));
+    render(<Day start={{ pool: POOL, read }} sourceFor={silent} />);
+
+    await user.type(screen.getByRole("textbox"), "Paris with my family{Enter}");
+
+    await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("readonly");
+    expect(startStatus()).not.toHaveTextContent(/Reading|Opening|Writing/);
+    expect(screen.getByRole("button", { name: "Plan this day" })).toBeInTheDocument();
+    expect(signPart("pen")).toBeNull();
+    expect(steppedBack().some(Boolean)).toBe(false);
+  });
+
+  it("stands at rest when the start screen comes back from hidden while its text was read", async () => {
+    const user = userEvent.setup();
+    // A reader that gives up when its reading is stopped, as the intake's call does.
+    const read = vi.fn<IntakeReader>(
+      (_, signal) =>
+        new Promise((_resolve, reject) => {
+          signal?.addEventListener("abort", () => reject(new Error("stopped")));
+        }),
+    );
+    const page = (mode: "visible" | "hidden") => (
+      <Activity mode={mode}>
+        <Day start={{ pool: POOL, read }} sourceFor={silent} />
+      </Activity>
+    );
+    const view = render(page("visible"));
+    await user.type(screen.getByRole("textbox"), "Bologna{Enter}");
+    await waitFor(() => expect(startStatus()).toHaveTextContent("Reading what you wrote"));
+
+    // Hidden by a link to another page, then shown again by Back, as the router does.
+    view.rerender(page("hidden"));
+    view.rerender(page("visible"));
+    await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
+
+    const field = screen.getByRole("textbox");
+    expect(field).toHaveValue("Bologna");
+    expect(field).not.toHaveAttribute("readonly");
+    expect(startStatus()).not.toHaveTextContent("Reading what you wrote");
+    expect(screen.getByRole("button", { name: "Plan this day" })).toBeInTheDocument();
+    expect(signPart("pen")).toBeNull();
+    expect(steppedBack().some(Boolean)).toBe(false);
+
+    await user.type(field, "{Enter}");
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
+  });
+
+  it("reads a text pressed twice in one moment once, and holds its wait", async () => {
+    // A reader that gives up when its reading is stopped, as the intake's call does.
+    const read = vi.fn<IntakeReader>(
+      (_, signal) =>
+        new Promise((_resolve, reject) => {
+          signal?.addEventListener("abort", () => reject(new Error("stopped")));
+        }),
+    );
+    const user = userEvent.setup();
+    render(<Day start={{ pool: POOL, read }} />);
+    await user.type(screen.getByRole("textbox"), "Bologna");
+    const form = screen.getByRole("textbox").closest("form");
+    if (!form) throw new Error("No form");
+
+    act(() => {
+      form.requestSubmit();
+      form.requestSubmit();
+    });
+    await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
+
+    expect(read).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "Reading" })).toBeInTheDocument();
+    expect(signPart("pen")).not.toBeNull();
+    expect(steppedBack().every(Boolean)).toBe(true);
+  });
+
+  it("keeps the wait at a press on the city whose day is already on its way", async () => {
+    const user = userEvent.setup();
+    const release = holdDay();
+    const { read, land } = landedReader();
+    render(<Day start={{ pool: POOL, read }} />);
+
+    await user.type(screen.getByRole("textbox"), "Paris{Enter}");
+    land({ kind: "request", request: PARIS_REQUEST, readings: [], unplaced: [] });
+    await waitFor(() => expect(startStatus()).toHaveTextContent(/^Opening a calm Sunday in Paris/));
+    await user.click(cityWord("Paris"));
+
+    // The same day is not asked twice, so it is still being opened; the city pressed stands
+    // whole under the pointer, every other plate stepped back.
+    expect(screen.getByRole("button", { name: "Opening" })).toBeInTheDocument();
+    expect(signPart("pen")).not.toBeNull();
+    expect(steppedBack().filter(Boolean)).toHaveLength(steppedBack().length - 1);
+    expect(fetchDay).toHaveBeenCalledOnce();
+    release();
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+  });
+
+  it("ends the wait at a press on a city: no sign, every plate whole", async () => {
+    const user = userEvent.setup();
+    stallDay();
+    const { read } = landedReader();
+    render(<Day start={{ pool: POOL, read }} />);
+
+    await user.type(screen.getByRole("textbox"), "Bologna{Enter}");
+    expect(steppedBack().every(Boolean)).toBe(true);
+    await user.click(cityWord("Paris"));
+
+    await waitFor(() => expect(startStatus()).toHaveTextContent(/^Opening a calm Sunday in Paris/));
+    expect(signPart("pen")).toBeNull();
+    expect(steppedBack().some(Boolean)).toBe(false);
   });
 });
 
