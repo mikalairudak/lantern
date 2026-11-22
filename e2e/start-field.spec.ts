@@ -1,5 +1,8 @@
+import type { JSHandle } from "@playwright/test";
 import { expect, test, type Page } from "./fixtures";
-import { MAX_INTAKE_TEXT_CHARS } from "../src/lib/schema/intake.schema";
+import { openLive } from "./live-page";
+import { PORTLAND_MAINE, PORTLAND_OREGON } from "../src/lib/fixtures/city-readings";
+import { MAX_INTAKE_TEXT_CHARS, type IntakeResult } from "../src/lib/schema/intake.schema";
 
 test.use({ reducedMotion: "reduce" });
 
@@ -76,7 +79,9 @@ test("an ending stands at the page's edge and moves the index no further than th
   // A city no written day is for: with live generation off it can write no day.
   await field.fill("Reykjavik");
   await field.press("Enter");
-  const ending = page.getByRole("status").filter({ hasText: "Start from one of the days below." });
+  const ending = page.locator("main form").getByText("Start from one of the days below.", {
+    exact: false,
+  });
   await expect(ending).toBeVisible();
 
   const moved = (await indexHeadingOf(page)) - rest;
@@ -87,4 +92,134 @@ test("an ending stands at the page's edge and moves the index no further than th
     return line.getBoundingClientRect().left - form.left;
   });
   expect(edges).toBe(0);
+});
+
+/** Every status added to the page already holding words, each by its words, since the last press. */
+interface StatusLog {
+  bornFull: string[];
+}
+
+/**
+ * Logs each status the page adds already holding its words: whether a screen reader says a
+ * status born full depends on the reader and the browser, where it says a change of words in
+ * a status that stood.
+ */
+async function logStatusesBornFull(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const log = window as unknown as StatusLog;
+    log.bornFull = [];
+    const STATUS = "[role=status], output";
+    new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (!(node instanceof Element)) continue;
+          const added = [...(node.matches(STATUS) ? [node] : []), ...node.querySelectorAll(STATUS)];
+          for (const status of added) {
+            const words = status.textContent ?? "";
+            if (/\S/.test(words)) log.bornFull.push(words);
+          }
+        }
+      }
+    }).observe(document, { childList: true, subtree: true });
+  });
+}
+
+/**
+ * Asks with `text` from the field once the page has hydrated, and returns the statuses that
+ * stood before the press, the log of those born full cleared for it.
+ */
+async function askKeepingStatuses(page: Page, text: string): Promise<JSHandle<Element[]>> {
+  // The index is drawn once the page has hydrated, and a field filled before then is emptied.
+  await expect(
+    page.getByRole("heading", { name: "No city in mind? Start from one of these" }),
+  ).toBeVisible();
+  const field = page.getByRole("textbox", { name: "Where, and anything else" });
+  await field.fill(text);
+  const standing = await page.evaluateHandle(() => {
+    (window as unknown as StatusLog).bornFull = [];
+    return [...document.querySelectorAll("[role=status], output")];
+  });
+  await field.press("Enter");
+  return standing;
+}
+
+/** `said` is the words of a status that stood before the press, and no status was born full. */
+async function expectSaidInPlace(
+  page: Page,
+  standing: JSHandle<Element[]>,
+  said: string,
+): Promise<void> {
+  await expect
+    .poll(() =>
+      page.evaluate(
+        ([statuses, words]) =>
+          statuses.some((status) => status.isConnected && status.textContent === words),
+        [standing, said] as const,
+      ),
+    )
+    .toBe(true);
+  expect(await page.evaluate(() => (window as unknown as StatusLog).bornFull)).toEqual([]);
+}
+
+/** Answers the page's reading of a text with `answer`, as the intake route would. */
+async function answerTheIntake(page: Page, answer: IntakeResult): Promise<void> {
+  await page.route("**/api/intake", (route) => route.fulfill({ json: answer }));
+}
+
+test.describe("each answer without a day, and the city's question, is said in a status that stood", () => {
+  test.beforeEach(async ({ page }) => {
+    await logStatusesBornFull(page);
+  });
+
+  test("with live generation off, as the site is served", async ({ page }) => {
+    await page.goto("/");
+    const standing = await askKeepingStatuses(page, "Reykjavik");
+
+    await expectSaidInPlace(
+      page,
+      standing,
+      "Lantern isn't writing new days right now. Start from one of the days below.",
+    );
+  });
+
+  test("with live generation on, a text Lantern will not plan", async ({ page }) => {
+    await answerTheIntake(page, { kind: "refused" });
+    await openLive(page, "/");
+    const standing = await askKeepingStatuses(page, "a quiet day somewhere");
+
+    await expectSaidInPlace(
+      page,
+      standing,
+      "Lantern can't plan that day. Start from one of the days below.",
+    );
+    await expect(page.getByRole("textbox", { name: "Where, and anything else" })).toBeFocused();
+  });
+
+  test("with live generation on, the city's question", async ({ page }) => {
+    await answerTheIntake(page, {
+      kind: "question",
+      key: "city",
+      readings: [PORTLAND_OREGON, PORTLAND_MAINE],
+      words: {
+        date: null,
+        energy: "lively",
+        energySource: "chosen",
+        travel: null,
+        start: null,
+        dinner: null,
+        end: null,
+        company: null,
+      },
+      unplaced: [],
+    });
+    await openLive(page, "/");
+    const standing = await askKeepingStatuses(page, "Portland, a lively day");
+
+    await expectSaidInPlace(
+      page,
+      standing,
+      "A lively day in …? Portland, Oregon, United States, or Portland, Maine, United States.",
+    );
+    await expect(page.getByRole("textbox", { name: "Which city?" })).toBeFocused();
+  });
 });

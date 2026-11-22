@@ -94,7 +94,9 @@ for (const { name, viewport } of SIZES) {
       await field(page).press("Enter");
       await expect(planButton(page)).toBeFocused();
 
-      await expect(page.getByText("Lantern can't plan that day.", { exact: false })).toBeVisible();
+      await expect(
+        page.locator("main form").getByText("Lantern can't plan that day.", { exact: false }),
+      ).toBeVisible();
       await expect(field(page)).toBeFocused();
       await expect(page.getByRole("button", { name: "Plan this day" })).toBeVisible();
       await expect(sign(page)).toHaveCount(0);

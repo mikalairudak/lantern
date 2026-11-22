@@ -3,6 +3,7 @@ import { renderToString } from "react-dom/server";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { PORTLAND_MAINE, PORTLAND_OREGON } from "@/lib/fixtures/city-readings";
 import { LISBON_REQUEST } from "@/lib/fixtures/curated/requests";
 import { INDEX_REQUESTS, PARIS_REQUEST } from "@/lib/days/written/city-days";
 import { MADRID_START_REQUEST } from "@/lib/days/written/quick-starts";
@@ -27,14 +28,24 @@ const waitOutADoublePress = () => new Promise((done) => setTimeout(done, FORGET_
 /** The written days as the index offers them. */
 const STARTS = startOffersOf(writtenPool());
 
-/** The start's own status: the theme's button in the masthead says its look in one too. */
-function startStatus(): HTMLElement {
-  const [line, ...others] = screen
+/**
+ * The start's own status in the form, or over it: the theme's button in the masthead says its
+ * look in one too.
+ */
+function startStatusWhere(isInForm: boolean): HTMLElement {
+  const [status, ...others] = screen
     .getAllByRole("status")
-    .filter((status) => !status.hasAttribute("data-theme-status"));
-  if (!line || others.length > 0) throw new Error("Not one status of the start's own");
-  return line;
+    .filter((status) => !status.hasAttribute("data-theme-status"))
+    .filter((status) => (status.closest("form") !== null) === isInForm);
+  if (!status || others.length > 0) throw new Error("Not one status of the start's own there");
+  return status;
 }
+
+/** The line under the field, in a status of its own. */
+const startStatus = () => startStatusWhere(true);
+
+/** What an answer to the question says to a screen reader, from the status over the form. */
+const answerStatus = () => startStatusWhere(false);
 
 const NO_WORDS: IntakeWords = {
   date: null,
@@ -359,7 +370,7 @@ describe("StartHeader", () => {
   it("marks an energy the text did not name as Lantern's", () => {
     renderStart({ line: { kind: "question", words: NO_WORDS, readings: [], unplaced: [] } });
 
-    expect(within(startStatus()).getByText("balanced")).toHaveClass("underline");
+    expect(screen.getByText("balanced")).toHaveClass("underline");
   });
 
   it("names the weekday only when the text named the date", () => {
@@ -430,8 +441,8 @@ describe("StartHeader", () => {
     const user = userEvent.setup();
     const { onChooseWritten } = renderStart({ line: { kind } });
 
-    const line = startStatus();
-    expect(line).toHaveTextContent(`${said} Start from one of the days below.`);
+    const line = screen.getByText(`${said} Start from one of the days below.`, { selector: "p" });
+    expect(answerStatus()).toHaveTextContent(`${said} Start from one of the days below.`);
     // Said once, in place of the note, and the days are offered once, as the index below.
     expect(screen.queryByText(NOT_LIVE_NOTE)).not.toBeInTheDocument();
     expect(within(line).queryByRole("button")).not.toBeInTheDocument();
@@ -443,7 +454,68 @@ describe("StartHeader", () => {
   it("says with live generation on that the text could not be read, rather than that no days are written", () => {
     renderStart({ line: { kind: "not-yet" }, isLive: true });
 
-    expect(startStatus()).toHaveTextContent("Lantern couldn't read that just now.");
+    expect(answerStatus()).toHaveTextContent("Lantern couldn't read that just now.");
+  });
+
+  it("says each answer as a change of words in one status that stands, empty, from the start", () => {
+    const question = {
+      kind: "question",
+      words: { ...NO_WORDS, energy: "lively", energySource: "chosen" },
+      readings: [PORTLAND_OREGON, PORTLAND_MAINE],
+      unplaced: [],
+    } as const;
+    const startOf = (line: StartHeaderProps["line"]) => (
+      <HeldStart
+        starts={STARTS}
+        line={line}
+        isLive
+        isCityFocused
+        onPlan={vi.fn()}
+        onChooseWritten={vi.fn()}
+        onChooseReading={vi.fn()}
+      />
+    );
+    const view = render(startOf(null));
+    const status = answerStatus();
+    expect(status.textContent).toBe("");
+
+    // The field drawn again for the city's answer leaves the status as it stands.
+    view.rerender(startOf(question));
+    expect(answerStatus()).toBe(status);
+    expect(status.textContent).toBe(
+      "A lively day in …? Portland, Oregon, United States, or Portland, Maine, United States.",
+    );
+
+    view.rerender(startOf({ kind: "refused" }));
+    expect(answerStatus()).toBe(status);
+    expect(status.textContent).toBe(
+      "Lantern can't plan that day. Start from one of the days below.",
+    );
+    // The line seen is said once, by the status.
+    const line = screen.getByText(
+      "Lantern can't plan that day. Start from one of the days below.",
+      { selector: "p" },
+    );
+    expect(line.closest("[role=status]")).toBeNull();
+  });
+
+  it("says the city's question in the words its lines show", () => {
+    renderStart({
+      line: {
+        kind: "question",
+        words: { ...NO_WORDS, energy: "calm", energySource: "chosen", company: "family" },
+        readings: [],
+        unplaced: ["by the sea"],
+      },
+    });
+
+    expect(answerStatus().textContent).toBe(
+      "A calm day in …?, with family. Lantern needs a city to plan the day. Name one, or pick one of the days below. Lantern can't plan around “by the sea”.",
+    );
+    // Seen in lines of their own, and said once, by the status.
+    expect(
+      screen.getByText("Lantern can't plan around “by the sea”.").closest("[role=status]"),
+    ).toBeNull();
   });
 });
 
@@ -891,7 +963,7 @@ describe("the field's room", () => {
     renderStart({ line: { kind: "limited" } });
     fireEvent.change(field(), { target: { value: textOf(MAX_INTAKE_TEXT_CHARS - 30) } });
 
-    expect(startStatus()).toHaveTextContent(/^Lantern has written all the days/);
+    expect(answerStatus()).toHaveTextContent(/^Lantern has written all the days/);
     expect(field()).toHaveAccessibleDescription("30 left");
   });
 

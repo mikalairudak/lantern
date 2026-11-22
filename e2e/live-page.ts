@@ -12,25 +12,28 @@ import type { Itinerary } from "../src/lib/schema/itinerary.schema";
 
 /**
  * The flag the page is sent, as its payload writes it, and what the test makes it say: as
- * long, should a row of the payload be counted by its length.
+ * long, should a row of the payload be counted by its length. A day's page sends it last of
+ * its props, the start screen before whether its view is counted.
  */
-const NOT_LIVE = '"isLive":false}';
-const LIVE = '"isLive":true }';
+const NOT_LIVE = /"isLive":false(?=}|,"isCounted")/;
+const LIVE = '"isLive":true ';
 
 /**
  * Opens a page as one with live generation on: the one flag the server sends it (`LiveFlag`,
- * or a kept day's page's own prop) is rewritten in the page's payload as React reads it, on
- * the queue Next's inline scripts push it on, before the page's own script takes the queue
- * over. Fails when the payload never said it, so a new shape of it is found here rather than
- * read as a page that is not live.
+ * a kept day's page's own prop, or the start screen's) is rewritten in the page's payload as
+ * React reads it, on the queue Next's inline scripts push it on, before the page's own script
+ * takes the queue over. Fails when the payload never said it, so a new shape of it is found
+ * here rather than read as a page that is not live. The start screen, whose first paint draws
+ * the flag's note, is drawn again on the client as it hydrates.
  */
 export async function openLive(page: Page, path: string): Promise<void> {
   await page.addInitScript(
-    ([notLive, live]) => {
+    ([notLiveSource, live]) => {
+      const notLive = new RegExp(notLiveSource);
       const state = window as unknown as { __next_f: unknown[]; liveRewritten: number };
       state.liveRewritten = 0;
       const rewrite = (item: unknown): unknown => {
-        if (!Array.isArray(item) || typeof item[1] !== "string" || !item[1].includes(notLive)) {
+        if (!Array.isArray(item) || typeof item[1] !== "string" || !notLive.test(item[1])) {
           return item;
         }
         state.liveRewritten += 1;
@@ -50,7 +53,7 @@ export async function openLive(page: Page, path: string): Promise<void> {
       });
       state.__next_f = chunks;
     },
-    [NOT_LIVE, LIVE] as const,
+    [NOT_LIVE.source, LIVE] as const,
   );
   await page.goto(path);
   await expect

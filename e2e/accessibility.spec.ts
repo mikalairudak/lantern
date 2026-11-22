@@ -162,9 +162,9 @@ const STATES: readonly State[] = [
       const field = page.getByRole("textbox", { name: "Where, and anything else" });
       await field.fill("a quiet day somewhere");
       await field.press("Enter");
-      await expect(page.locator("main form [role=status]").first()).toHaveText(/\S/, {
-        timeout: DAY_TIMEOUT_MS,
-      });
+      await expect(
+        page.locator("main form").getByText("Start from one of the days below.", { exact: false }),
+      ).toBeVisible({ timeout: DAY_TIMEOUT_MS });
     },
   },
   {

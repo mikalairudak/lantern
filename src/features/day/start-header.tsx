@@ -51,6 +51,8 @@ const TO_THE_INDEX = "Start from one of the days below.";
 const EXAMPLE = "For example: London, with friends";
 /** Under the field from the visitor's Enter, while Lantern reads their words. */
 const READING_SAID = "Reading what you wrote";
+/** Under the city's question when the text named no city at all. */
+const NEEDS_CITY = "Lantern needs a city to plan the day. Name one, or pick one of the days below.";
 
 /** Read in part, without a city: the sentence so far asks for one. */
 export interface CityQuestion {
@@ -176,6 +178,11 @@ export function StartHeader({
     setWasAskingCity(isAskingCity);
     setIsFocusHandedOn(!isAskingCity && isNoDay(line));
   }
+  // Set by the press that moves the focus to the button named "Reading" (`QuestionForm`), and
+  // held here, over the form the city's question draws again, as the status that keeps the
+  // read unheard for an answer is.
+  const [isReadingSaidByFocus, setIsReadingSaidByFocus] = useState(false);
+  if (wait === null && isReadingSaidByFocus) setIsReadingSaidByFocus(false);
 
   return (
     <header className="flex shrink-0 flex-col pt-5 pb-5">
@@ -186,6 +193,14 @@ export function StartHeader({
         <h1 ref={promise} tabIndex={-1} className={PROMISE_CLASSES}>
           {PROMISE}
         </h1>
+        {/* What Lantern answered, to a screen reader: an ending without a day, the city's
+            question, and what an answer to it is doing. A status in the page, empty, from its
+            first paint, and over the form the question draws again, so each answer is a change
+            of its words, heard where the focus stays and where it moves: a status born holding
+            its words is not said by every screen reader. */}
+        <div role="status" className="sr-only">
+          {heardOf(line, wait, isLive, isReadingSaidByFocus)}
+        </div>
         <QuestionForm
           // Asked for a city, the field starts again empty, with the focus, for the answer; it
           // stays the city's while the answer is read and its day sets off.
@@ -197,6 +212,8 @@ export function StartHeader({
           isCityFocused={isCityFocused}
           isFocusedOnMount={isFocusHandedOn}
           wait={wait}
+          isReadingSaidByFocus={isReadingSaidByFocus}
+          onReadingSaidByFocus={setIsReadingSaidByFocus}
           onPlan={onPlan}
           onChooseReading={onChooseReading}
           drawnAsPointed={drawnAsPointed}
@@ -226,6 +243,9 @@ interface QuestionFormProps {
   /** Drawn again in place of the city's field, it takes the focus that field had. */
   isFocusedOnMount: boolean;
   wait: StartWait | null;
+  /** The press moved the focus to the button, whose name says "Reading" as it lands. */
+  isReadingSaidByFocus: boolean;
+  onReadingSaidByFocus: (isSaid: boolean) => void;
   onPlan: (text: string) => void;
   onChooseReading: (reading: CityReading) => void;
   drawnAsPointed: DrawnAsPointed;
@@ -357,6 +377,8 @@ function QuestionForm({
   isCityFocused,
   isFocusedOnMount,
   wait,
+  isReadingSaidByFocus,
+  onReadingSaidByFocus,
   onPlan,
   onChooseReading,
   drawnAsPointed,
@@ -413,8 +435,6 @@ function QuestionForm({
   // it lands, so the status holds it unheard (`SaidLine`). Where it is on the button already, as a
   // press from the keyboard or a click in Chromium leaves it, nothing moves and the status says
   // it. The text is asked for first, so the button is named for the wait when the focus lands.
-  const [isReadingSaidByFocus, setIsReadingSaidByFocus] = useState(false);
-  if (wait === null && isReadingSaidByFocus) setIsReadingSaidByFocus(false);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (text.trim() === "" || isReading) return;
@@ -425,7 +445,7 @@ function QuestionForm({
     flushSync(() => onPlan(text.trim()));
     if (isWaitStarting) {
       const isNamedReading = button.current?.getAttribute("aria-label") === BUTTON_WORDS.reading;
-      setIsReadingSaidByFocus(isFocusMoving && isNamedReading);
+      onReadingSaidByFocus(isFocusMoving && isNamedReading);
     }
     button.current?.focus({ preventScroll: true });
   };
@@ -769,44 +789,26 @@ function QuestionLine({
     );
   }
   if (line.kind === "reading" || line.kind === "writing") {
-    // From the Enter the line says what Lantern does, lit as the field's words are: reading the
-    // words, then opening the day they ask for, or writing it, in under a minute. A day opened
-    // from its file, pressed or typed, is said back without the minute: it opens in seconds.
-    const said =
-      line.kind === "reading" ? (
-        READING_SAID
-      ) : (
-        <>
-          {BUTTON_WORDS[onItsWayOf(wait, isLive)]}{" "}
-          <AskedSentence request={line.request} isMidSentence />
-          {isLive && wait === "writing" && ` ${WHOLE_DAY_TAKES}`}
-        </>
-      );
-    // A typed text's read is heard where the focus lands, on the button named "Reading".
-    const isHeard = !(line.kind === "reading" && isReadingSaidByFocus);
     // An answer read and its day set off keep the question's lines as they stand, so nothing
-    // moves until the day takes the page; screen readers hear what is happening.
+    // moves until the day takes the page; the start's status says what is happening (`heardOf`).
     if (line.answering) {
       return (
         <QuestionLines
           question={line.answering}
-          answer={{
-            city: text,
-            said: isHeard ? said : null,
-            date: line.kind === "writing" ? line.request.date : null,
-          }}
+          answer={{ city: text, date: line.kind === "writing" ? line.request.date : null }}
           onChooseReading={onChooseReading}
           isLit
         />
       );
     }
+    // From the Enter the line says what Lantern does, lit as the field's words are.
     return (
       <SaidLine
         className={STEADY_WORDS_LIT_CLASSES("ink-soft")}
-        isHeard={isHeard}
+        isHeard={!isSaidByFocus(line, isReadingSaidByFocus)}
         isTwoLinesHeld={isLive}
       >
-        {said}
+        {saidOf(line, wait, isLive)}
       </SaidLine>
     );
   }
@@ -814,11 +816,59 @@ function QuestionLine({
   return null;
 }
 
+/**
+ * What Lantern does with a text under way: reading the words, then opening the day they ask
+ * for, or writing it, in under a minute. A day opened from its file, pressed or typed, is said
+ * back without the minute: it opens in seconds.
+ */
+function saidOf(
+  line: Extract<StartLine, { kind: "reading" | "writing" }>,
+  wait: StartWait | null,
+  isLive: boolean,
+): ReactNode {
+  if (line.kind === "reading") return READING_SAID;
+  return (
+    <>
+      {BUTTON_WORDS[onItsWayOf(wait, isLive)]}{" "}
+      <AskedSentence request={line.request} isMidSentence />
+      {isLive && wait === "writing" && ` ${WHOLE_DAY_TAKES}`}
+    </>
+  );
+}
+
+/** A typed text's read is heard where the focus lands, on the button named "Reading". */
+function isSaidByFocus(line: StartLine, isReadingSaidByFocus: boolean): boolean {
+  return line?.kind === "reading" && isReadingSaidByFocus;
+}
+
+/**
+ * What the start's status says: what an answer to the city's question is doing while it is read
+ * and its day sets off, and once a typed wait is over, the ending without a day or the question
+ * for a city, in the words they show. Empty while a wait is under way, so the same answer to a
+ * second press is heard again, and wherever the line under the field or the focus says it.
+ */
+function heardOf(
+  line: StartLine,
+  wait: StartWait | null,
+  isLive: boolean,
+  isReadingSaidByFocus: boolean,
+): ReactNode {
+  if (isUnderWay(line)) {
+    return line.answering && !isSaidByFocus(line, isReadingSaidByFocus)
+      ? saidOf(line, wait, isLive)
+      : null;
+  }
+  if (wait !== null) return null;
+  if (isNoDay(line)) return endingSaidOf(line.kind, isLive);
+  if (line?.kind === "question") return questionSaidOf(line);
+  return null;
+}
+
 /** Each ending without a day, which the start screen can show. */
 type Ending = "not-yet" | "refused" | "limited";
 
-/** A line that can write no day: what happened, and the way on, the index below. */
-function EndingLine({ ending, isLive }: { ending: Ending; isLive: boolean }) {
+/** What an ending says: what happened, and the way on, the index below. */
+function endingSaidOf(ending: Ending, isLive: boolean): string {
   const said = {
     // With live generation on the day cannot be written only when reading failed.
     "not-yet": isLive
@@ -827,22 +877,42 @@ function EndingLine({ ending, isLive }: { ending: Ending; isLive: boolean }) {
     refused: "Lantern can't plan that day.",
     limited: "Lantern has written all the days it can for now.",
   }[ending];
-  // The written days are offered once, as the index below, which this points to.
-  return (
-    <p role="status" className="mt-1 type-voice text-quote text-ink-soft">
-      {said} {TO_THE_INDEX}
-    </p>
-  );
+  return `${said} ${TO_THE_INDEX}`;
+}
+
+/**
+ * A line that can write no day, as it is seen; the start's status says it (`heardOf`). The
+ * written days are offered once, as the index below, which this points to.
+ */
+function EndingLine({ ending, isLive }: { ending: Ending; isLive: boolean }) {
+  return <p className="mt-1 type-voice text-quote text-ink-soft">{endingSaidOf(ending, isLive)}</p>;
+}
+
+/**
+ * The city's question in one line, in the words its lines show: the sentence so far, then the
+ * cities its name could be, or that it needs one, and what Lantern could not place.
+ */
+function questionSaidOf({ words, readings, unplaced }: CityQuestion): string {
+  const sentence = [
+    `A ${energyLabelOf(words.energy)} ${dayWordOf(words)} in …?`,
+    ...restLabelsOf(words),
+  ].join(", ");
+  const needed =
+    readings.length > 0
+      ? `${readings.map((reading) => `${reading.name}, ${reading.region}`).join(", or ")}.`
+      : NEEDS_CITY;
+  // The sentence ends at its "…?" where it names nothing after the city.
+  const asked = sentence.endsWith("?") ? sentence : `${sentence}.`;
+  return [asked, needed, unplacedLineOf(unplaced)].filter((part) => part !== null).join(" ");
 }
 
 interface QuestionLinesProps {
   question: CityQuestion;
   /**
-   * The city answered, while it is read and its day sets off, with what screen readers hear
-   * of that, and the date its day is planned for once the city's zone is known; null while
-   * the question waits for it.
+   * The city answered, while it is read and its day sets off, and the date its day is planned
+   * for once the city's zone is known; null while the question waits for it.
    */
-  answer: { city: string; said: ReactNode; date: string | null } | null;
+  answer: { city: string; date: string | null } | null;
   onChooseReading: (reading: CityReading) => void;
   /** The sentence, its city answered, carries the waiting line's light while the day is written. */
   isLit?: boolean;
@@ -852,14 +922,14 @@ interface QuestionLinesProps {
  * The sentence so far, asking "in …?", and under it what it needs: which of the cities a
  * name could be, or a city at all. While an answer is read, the answer stands in the
  * sentence where "…?" stood, and the lines under it hold their room unseen, so nothing moves
- * when the answer is read and the day sets off, or when the question asks again.
+ * when the answer is read and the day sets off, or when the question asks again. The start's
+ * status says them (`heardOf`).
  */
 function QuestionLines({ question, answer, onChooseReading, isLit = false }: QuestionLinesProps) {
   const isReading = answer !== null;
   const unplaced = unplacedLineOf(question.unplaced);
   return (
-    <div role="status" className="mt-1 flex flex-col gap-1">
-      {answer?.said && <span className="sr-only">{answer.said}</span>}
+    <div className="mt-1 flex flex-col gap-1">
       <QuestionSentence
         words={question.words}
         city={answer?.city ?? null}
@@ -895,9 +965,7 @@ function QuestionLines({ question, answer, onChooseReading, isLit = false }: Que
             ))}
           </p>
         ) : (
-          <p className="type-note text-muted">
-            Lantern needs a city to plan the day. Name one, or pick one of the days below.
-          </p>
+          <p className="type-note text-muted">{NEEDS_CITY}</p>
         )}
         {unplaced && <p className="type-note text-muted">{unplaced}</p>}
       </div>
@@ -929,10 +997,7 @@ function QuestionSentence({
   planned = null,
   isLit = false,
 }: QuestionSentenceProps) {
-  const rest = ASSUMABLE_FACT_KEYS.flatMap((key) => {
-    const label = optionOf({ options: FACT_OPTIONS[key] }, words[key])?.label;
-    return label === undefined ? [] : [label];
-  });
+  const rest = restLabelsOf(words);
   // Lit, the words inherit the light; at rest each is ink.
   const wordClasses = isLit ? undefined : "text-ink";
   return (
@@ -946,10 +1011,7 @@ function QuestionSentence({
       <span className={cn("text-energy", words.energySource === "assumed" && ASSUMED_CLASSES)}>
         {energyLabelOf(words.energy)}
       </span>{" "}
-      <span className={wordClasses}>
-        {words.date === null ? "day" : weekdayOf(planned ?? words.date)}
-      </span>{" "}
-      in{" "}
+      <span className={wordClasses}>{dayWordOf(words, planned)}</span> in{" "}
       {city ? <span className={wordClasses}>{city}</span> : <span className="text-muted">…?</span>}
       {rest.map((label) => (
         <span key={label}>
@@ -958,6 +1020,19 @@ function QuestionSentence({
       ))}
     </p>
   );
+}
+
+/** What the city's sentence says after its city: each fact the text named, by its label. */
+function restLabelsOf(words: IntakeWords): string[] {
+  return ASSUMABLE_FACT_KEYS.flatMap((key) => {
+    const label = optionOf({ options: FACT_OPTIONS[key] }, words[key])?.label;
+    return label === undefined ? [] : [label];
+  });
+}
+
+/** The city's sentence's day: "day", or the weekday the text named, as planned once known. */
+function dayWordOf(words: IntakeWords, planned: string | null = null): string {
+  return words.date === null ? "day" : weekdayOf(planned ?? words.date);
 }
 
 /** The question the field asks for a city, while it asks, while its answer is read and its day sets off. */
