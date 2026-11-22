@@ -1,5 +1,5 @@
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
-import { cloneElement } from "react";
+import { cloneElement, useState, type ReactNode } from "react";
 import userEvent from "@testing-library/user-event";
 import { motionValue, type MotionValue } from "motion/react";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -10,6 +10,7 @@ import type { PartialDay } from "@/lib/stream/outcome";
 import { noticeOf } from "./stream-ending";
 import { requestSentenceOf, sentenceFactsOf } from "./sentence";
 import { DayStageHeader, type ForkNoteShown, type HeaderNotice } from "./day-stage-header";
+import { NoticeStatus, NoticeStatusContext } from "./notice-status";
 import type { ReplanControls } from "./replan-controls";
 import { ASSUMED_NOTE } from "./sentence-word";
 
@@ -57,6 +58,8 @@ interface Handlers {
   isDayBeingWritten?: boolean;
   /** Nothing has arrived for a while. */
   isWaiting?: boolean;
+  /** The unseen copy the playing's first frame draws beside the header. */
+  isCopy?: boolean;
 }
 
 /** Kyoto's day as Lantern wrote it: every word but the company assumed, and that one asked. */
@@ -157,6 +160,7 @@ function headerOf(
     forkNote = null,
     isDayBeingWritten = false,
     isWaiting = false,
+    isCopy,
   }: Handlers = {},
 ) {
   const facts = sentenceFactsOf(request, assumptions);
@@ -196,7 +200,23 @@ function headerOf(
       onChoose={ignore}
       onLight={ignore}
       onRetry={onRetry}
+      isCopy={isCopy}
     />
+  );
+}
+
+interface UnderNoticeStatusProps {
+  children: ReactNode;
+}
+
+/** The page's notice status above the headers it holds, as the day's page draws it. */
+function UnderNoticeStatus({ children }: UnderNoticeStatusProps) {
+  const [line, setLine] = useState("");
+  return (
+    <NoticeStatusContext.Provider value={setLine}>
+      <NoticeStatus line={line} />
+      {children}
+    </NoticeStatusContext.Provider>
   );
 }
 
@@ -561,6 +581,29 @@ describe("DayStageHeader", () => {
     );
     expect(document.querySelector("header .opacity-0:not([data-theme-helper])")).toBeNull();
     expect(document.querySelector("header [inert]")).toBeNull();
+  });
+
+  it("leaves the page's status saying the notice when the header's unseen copy goes", () => {
+    const notice = noticeOf({ kind: "cut", itinerary: null }, KYOTO_REQUEST);
+    const seen = headerOf(KYOTO_REQUEST, null, notice);
+    const copy = headerOf(KYOTO_REQUEST, null, notice, { isCopy: true });
+    const view = render(
+      <UnderNoticeStatus>
+        {seen}
+        {copy}
+      </UnderNoticeStatus>,
+    );
+    const status = document.querySelector("[data-notice-status]");
+    expect(status).toHaveTextContent("Lantern couldn't finish this day.");
+
+    view.rerender(
+      <UnderNoticeStatus>
+        {seen}
+        {null}
+      </UnderNoticeStatus>,
+    );
+
+    expect(status).toHaveTextContent("Lantern couldn't finish this day.");
   });
 
   it("writes a notice that takes the day's place in, its line heard once and whole", async () => {

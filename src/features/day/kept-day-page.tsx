@@ -85,13 +85,15 @@ export function KeptDayPage({ id, stored: first, isLive }: KeptDayPageProps) {
   }, [view.kind]);
   // How the wait ended is said from a status that stands from the first look, above the
   // page that waits and the day that takes its place: the day's notice, which the day hands
-  // up, or, once the wait is over with none, the headline, held as long as a notice is.
+  // up, or, on any turn to no day (the wait over with none, or the day this browser asked
+  // gone from its list since), the headline, held as long as a notice is. The page never
+  // opens on no day: an address with no record waits first, so each no day is a turn.
   const [heardNotice, setHeardNotice] = useState("");
   const [lastKind, setLastKind] = useState(view.kind);
   const [isNoDaySaid, setIsNoDaySaid] = useState(false);
   if (lastKind !== view.kind) {
     setLastKind(view.kind);
-    setIsNoDaySaid(lastKind === "writing" && view.kind === "none");
+    setIsNoDaySaid(view.kind === "none");
   }
   useEffect(() => {
     if (!isNoDaySaid) return undefined;

@@ -1,4 +1,4 @@
-import { expect, waitMs, type Page } from "./fixtures";
+import { CPU_RATE, expect, waitMs, type Page } from "./fixtures";
 
 /** A status as a screen reader meets it: put on the page holding words, or its words changed. */
 interface StatusEntry {
@@ -75,14 +75,20 @@ export async function expectSaidOnceAsChange(
   const log = await logOf();
   const [said, ...again] = saying(log);
   expect(said!.kind, "a status put on the page already holding the line").toBe("changed");
+  // It stood before the line: on the page, empty, at an earlier moment than the line's.
+  const born = (await page.evaluate(() => window.statusLog)).find(
+    (entry) => entry.id === said!.id && entry.kind === "added",
+  );
+  expect(born?.text, "the status as it came onto the page").toBe("");
+  expect(born!.t, "the status came onto the page before the line").toBeLessThan(said!.t);
   expect(again, "said again").toEqual([]);
   const quiet = quietAfter(log, said!)!;
   expect(quiet.text).toBe("");
-  expect(quiet.t - said!.t).toBeGreaterThanOrEqual(heldMs - LOGGED_LATE_MS);
+  expect(quiet.t - said!.t).toBeGreaterThanOrEqual(heldMs - waitMs(LOGGED_LATE_MS) * CPU_RATE);
 }
 
 /**
  * The log notes a change after the task that made it is done, which may already have started
- * the timer that ends what it says.
+ * the timer that ends what it says; on a page whose CPU is slowed, that task is as much longer.
  */
 const LOGGED_LATE_MS = 50;

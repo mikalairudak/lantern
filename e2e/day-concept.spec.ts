@@ -87,8 +87,8 @@ function chart(page: Page) {
 
 /**
  * What a day that ends without one says in its header: the notice's line on screen, under
- * the headline, whatever its words are. A screen reader is told the same line from the
- * header's status.
+ * the headline, whatever its words are. A screen reader is told the same line from the page's
+ * notice status, which stands above the day.
  */
 function endingLine(page: Page) {
   return page.locator("header p.text-quote");

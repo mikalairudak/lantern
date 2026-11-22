@@ -25,7 +25,14 @@ import { LINK_EXPIRED, OPENS_HERE, STILL_WRITING, UNFINISHED } from "./not-yet";
 import { writtenDayAt } from "@/lib/days/written/days";
 import { isLeadSeen, watchLead } from "./lead-on-screen";
 import { keptSeenKeyOf, markSeen } from "./seen-days";
-import { keepYourDay, readYourDays, browserStorage, type YourDay } from "./your-days";
+import {
+  YOUR_DAYS_KEY,
+  browserStorage,
+  forgetYourDays,
+  keepYourDay,
+  readYourDays,
+  type YourDay,
+} from "./your-days";
 
 const ORIGIN = "http://lantern.test";
 const ID = "1b6f0c2e-4d3a-4f5b-9c7e-2a1d3e4f5a6b";
@@ -238,6 +245,27 @@ describe("a day's own address", () => {
     expect(waiting).toContain(status);
     expect(wordmark).toHaveFocus();
     // Then quiet, so a read-through meets the line once, in the headline.
+    await wait(NOTICE_HEARD_MS);
+    expect(status?.textContent).toBe("");
+  });
+
+  it("says Lantern has no day here when the day this browser asked is forgotten after the wait", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    keepYourDay(browserStorage(), asked());
+    render(<KeptDayPage id={ID} stored={UNKNOWN} isLive={false} />);
+    await wait(KEPT_WAIT_MS);
+    await waitFor(() => expect(notice()).toHaveTextContent(UNFINISHED), NOTICE_TIMEOUT);
+    await wait(NOTICE_HEARD_MS);
+
+    // Forgotten in another tab: the record goes, and the page has no day left to show.
+    await act(async () => {
+      forgetYourDays(browserStorage());
+      window.dispatchEvent(new StorageEvent("storage", { key: YOUR_DAYS_KEY }));
+    });
+
+    expect(headline()).toHaveTextContent(NO_DAY_HERE);
+    const [status, ...others] = statusesSaying(NO_DAY_HERE);
+    expect(others).toHaveLength(0);
     await wait(NOTICE_HEARD_MS);
     expect(status?.textContent).toBe("");
   });

@@ -8,7 +8,8 @@ export type SayNotice = (line: string) => void;
 /**
  * How long the status holds a line before it falls quiet: long enough for a screen reader to
  * finish what it says of the focus moved with it and come to the line, short enough that a
- * read-through after it meets the line once, on screen.
+ * read-through after it meets the line once, on screen (`docs/decisions.md`, "How a day ended is
+ * said from one status that stands before the ending").
  */
 export const NOTICE_HEARD_MS = 3000;
 

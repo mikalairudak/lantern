@@ -854,13 +854,13 @@ export function DayStageHeader({
   const heardNotice = noticeLine !== null && !isNoticeSaid ? noticeLine : "";
   // Said in the page's notice status where one stands above the header, so the line is a
   // change of a region that was there before the day ended; before the paint, so the step's
-  // own frame has it. A header alone says it in its own status.
+  // own frame has it. A header alone says it in its own status; an unseen copy says nothing.
   const sayNotice = useNoticeStatus();
   useLayoutEffect(() => {
-    if (sayNotice === null) return undefined;
+    if (sayNotice === null || isCopy) return undefined;
     sayNotice(heardNotice);
     return () => sayNotice("");
-  }, [sayNotice, heardNotice]);
+  }, [sayNotice, isCopy, heardNotice]);
   // The city is one of Lantern's assumptions too when it played the likeliest of its readings.
   const isCityAssumed = request.citySource === "assumed";
   // Read from the day on screen's words, not the re-plan's: the word changed may have been
