@@ -73,7 +73,8 @@ function bench(): Bench {
 }
 
 function storesOn(sql: Sql) {
-  const generationLog = new PostgresGenerationLog(sql, "preview");
+  // On the bench's clock, so the counts it writes are today's to the retention that clears them.
+  const generationLog = new PostgresGenerationLog(sql, "preview", { now: () => GOLDEN_NOW });
   return {
     visitorLimits: new PostgresVisitorLimits(sql),
     appSpend: new PostgresAppSpend(sql),
@@ -256,6 +257,7 @@ describe("the live routes on Postgres", () => {
     };
     const deps = intakeDeps(database.session, readsLisbon(), at);
     deps.generationLog = new PostgresGenerationLog(failingClear, "preview", {
+      now: () => GOLDEN_NOW,
       log: (event) => at.lines.push(event),
     });
 
