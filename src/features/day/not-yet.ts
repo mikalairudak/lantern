@@ -261,6 +261,18 @@ export function repickLineOf(changed: number, stops: number): string {
 }
 
 /**
+ * What an energy press did, said once it is done: "lively: four stops re-picked", "calm: every
+ * stop kept". `level` is the answer's word as the headline shows it, and `changed` the count its
+ * line gave beforehand (`repickLineOf`), so the two never disagree.
+ */
+export function repickedLineOf(level: string, changed: number, stops: number): string {
+  if (changed === 0) return `${level}: every stop kept`;
+  if (changed === 1) return `${level}: one stop re-picked`;
+  if (changed >= stops) return `${level}: every stop re-picked`;
+  return `${level}: ${PART_COUNTS[changed] ?? String(changed)} stops re-picked`;
+}
+
+/**
  * What the facts line says once such a word is chosen, in place of its hint, why no stop
  * changed: the day is planned a walk's way across whatever the travel word, and the model
  * planned no stop around who comes. Each shorter than the whole day's re-planning line.

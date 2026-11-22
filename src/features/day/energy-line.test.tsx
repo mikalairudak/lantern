@@ -5,7 +5,7 @@ import { KANAZAWA_START_REQUEST } from "@/lib/days/written/quick-starts";
 import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { Day } from "./day";
 import { PLACES } from "./energy-glyph";
-import { repickLineOf } from "./not-yet";
+import { repickedLineOf, repickLineOf } from "./not-yet";
 import { NOTICE_HEARD_MS } from "./notice-status";
 import { READING_LIST_LABEL } from "./reading-list";
 
@@ -204,21 +204,40 @@ describe("the energy word's list, against what its press does", () => {
   );
 });
 
-/** The status a screen reader is told `line` from, alone among the page's statuses. */
-function statusSaying(line: string): HTMLElement {
-  const [status, ...others] = screen
-    .getAllByRole("status")
-    .filter((each) => each.textContent === line);
-  if (!status || others.length > 0) throw new Error(`Not one status saying "${line}"`);
-  return status;
-}
-
 /** The page's statuses that say anything. */
 const saidNow = () =>
   screen
     .getAllByRole("status")
     .map((status) => status.textContent ?? "")
     .filter((text) => text !== "");
+
+/**
+ * Records what the page's statuses say, as they say it now and each time it changes: "" where
+ * they all are quiet. Stopped by the function it returns, which gives the record.
+ */
+function recordSaid(): () => string[] {
+  const said = [saidNow().join(" | ")];
+  const note = () => {
+    const now = saidNow().join(" | ");
+    if (said.at(-1) !== now) said.push(now);
+  };
+  const observer = new MutationObserver(note);
+  observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+  return () => {
+    observer.disconnect();
+    return said;
+  };
+}
+
+/** The arrow that shows a version on the plan, and the place it names. */
+function arrowNamed(name: RegExp, row?: HTMLElement): { arrow: HTMLElement; place: string } {
+  const [arrow] = (row ? within(row) : screen).getAllByRole("button", { name });
+  const label = arrow?.getAttribute("aria-label") ?? "";
+  return { arrow: arrow!, place: label.slice(label.indexOf(": ") + 2) };
+}
+
+/** The plan's row an element stands in. */
+const rowOf = (element: HTMLElement) => element.closest("li")!;
 
 describe("what a screen reader is told of the visitor's change to the day", () => {
   it("says nothing of the day as it landed", async () => {
@@ -227,33 +246,75 @@ describe("what a screen reader is told of the visitor's change to the day", () =
     expect(saidNow()).toEqual([]);
   });
 
-  it("says a swap on the plan as the headline's clause, then falls quiet", async () => {
+  it("says a swap on the plan as the place now standing and the clause it brought, then falls quiet", async () => {
     const user = await landOnThePlan();
-    await user.click(screen.getAllByRole("button", { name: /^Livelier: / })[0]!);
+    const { arrow, place } = arrowNamed(/^Livelier: /);
+    await user.click(arrow);
 
     await waitFor(() => expect(saidNow()).toHaveLength(1));
-    const [clause] = saidNow();
-    expect(headline()).toHaveTextContent(`, ${clause}, in`);
-    expect(statusSaying(clause!)).toBeInTheDocument();
+    const [line] = saidNow();
+    expect(line!.startsWith(`${place}, `)).toBe(true);
+    expect(headline()).toHaveTextContent(`, ${line!.slice(place.length + 2)}, in`);
     await waitFor(() => expect(saidNow()).toEqual([]), { timeout: NOTICE_HEARD_MS + 1000 });
   });
 
-  it("says what the headline's energy press re-picked, in its option's words", async () => {
+  it("says a swap back to the plan as the place and the day as first planned", async () => {
     const user = await landOnThePlan();
-    const line = await chooseEnergy(user, LANDED_LEVEL, EARLIER_LEVEL);
+    const { arrow } = arrowNamed(/^Livelier: /);
+    const row = rowOf(arrow);
+    const planned = within(row).getByRole("heading").textContent ?? "";
+    await user.click(arrow);
+    await waitFor(() => expect(saidNow()).toHaveLength(1));
 
-    await waitFor(() => expect(statusSaying(line)).toBeInTheDocument());
+    await user.click(arrowNamed(new RegExp(`: ${planned}$`), row).arrow);
+    await waitFor(() => expect(saidNow()).toEqual([`${planned}, as first planned`]));
   });
 
-  it("says what the plan's energy press re-picked, as the headline's list says it", async () => {
+  it("says a same-energy swap as its place alone, not the clause another stop's change set", async () => {
     const user = await landOnThePlan();
-    await user.click(within(headline()).getByRole("button", { name: LANDED_LEVEL }));
-    const option = screen.getByRole("option", { name: EARLIER_LEVEL });
-    const line = document.getElementById(option.getAttribute("aria-describedby")!)!.textContent!;
-    await user.keyboard("{Escape}");
+    const livelier = arrowNamed(/^Livelier: /);
+    await user.click(livelier.arrow);
+    await waitFor(() => expect(saidNow()).toHaveLength(1));
 
+    const elsewhere = planRows().find(
+      (row) =>
+        row !== rowOf(livelier.arrow) &&
+        within(row).queryAllByRole("button", { name: /^Same energy: / }).length > 0,
+    );
+    const { arrow, place } = arrowNamed(/^Same energy: /, elsewhere);
+    await user.click(arrow);
+    await waitFor(() => expect(saidNow()).toEqual([place]));
+  });
+
+  it("says what the headline's energy press re-picked, counted as its answer's line counted it", async () => {
+    const user = await landOnThePlan();
+    const before = shownNames();
+    await chooseEnergy(user, LANDED_LEVEL, EARLIER_LEVEL);
+    await waitForTheDay();
+
+    const line = repickedLineOf(EARLIER_LEVEL, differing(before, shownNames()), before.length);
+    expect(line).toBe("lively: four stops re-picked");
+    await waitFor(() => expect(saidNow()).toEqual([line]));
+  });
+
+  it("says each energy press of the plan's bar, two within the hold, the status emptied between", async () => {
+    const user = await landOnThePlan();
     const bar = screen.getByRole("group", { name: "How lively the day is" });
+    const landed = shownNames();
+    const stopRecording = recordSaid();
+
     await user.click(within(bar).getByRole("button", { name: EARLIER_LEVEL }));
-    await waitFor(() => expect(statusSaying(line)).toBeInTheDocument());
+    await waitFor(() => expect(saidNow()).toHaveLength(1));
+    const lively = shownNames();
+    await user.click(within(bar).getByRole("button", { name: LANDED_LEVEL }));
+    await waitFor(() => expect(saidNow()).toEqual([expect.stringMatching(/^calm: /)]));
+    const said = stopRecording();
+
+    expect(said).toEqual([
+      "",
+      repickedLineOf(EARLIER_LEVEL, differing(landed, lively), landed.length),
+      "",
+      repickedLineOf(LANDED_LEVEL, differing(lively, shownNames()), landed.length),
+    ]);
   });
 });

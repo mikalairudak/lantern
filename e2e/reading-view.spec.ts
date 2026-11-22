@@ -1,10 +1,10 @@
-import { expect, test, type Page, waitMs } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
 import { BROWSER_STORAGE } from "../src/lib/browser-storage";
 import { NOTICE_HEARD_MS } from "../src/features/day/notice-status";
 import type { StoredDay } from "../src/lib/days/stored-day";
 import { writtenVersionOf } from "../src/lib/days/written/version";
 import { writtenDayAt } from "../src/lib/days/written/days";
-import { ENERGY_LEVELS } from "../src/lib/schema/itinerary.schema";
+import { candidatesOf, keyStepOf } from "../src/features/abacus/curve";
 import { KYOTO_REQUEST } from "../src/lib/fixtures/curated/requests";
 import { KYOTO_ITINERARY } from "../src/lib/fixtures/replan/kyoto-morning";
 
@@ -130,12 +130,32 @@ for (const view of ["Plan", "Chart"] as const) {
 }
 
 const KANAZAWA = writtenDayAt("kanazawa")!.itinerary;
-/** The first of Kanazawa's stops with a version livelier than its own, which a key steps to. */
-const LIVELIER_STOP = KANAZAWA.stops.find((stop) => {
-  const levelOf = (place: typeof stop.primary) => ENERGY_LEVELS.indexOf(place.sensory.energy);
-  const own = [stop.primary, ...stop.alternatives].find(({ id }) => id === stop.selectedPlaceId)!;
-  return stop.alternatives.some((place) => levelOf(place) > levelOf(own));
-})!;
+/** Where a stop's planned place stands among its versions. */
+const plannedAt = (stop: (typeof KANAZAWA.stops)[number]) =>
+  candidatesOf(stop).findIndex(({ id }) => id === stop.selectedPlaceId);
+/** The first of Kanazawa's stops whose right arrow key bends the curve to a livelier version. */
+const LIVELIER_STOP = KANAZAWA.stops.find(
+  (stop) => keyStepOf(stop, plannedAt(stop), "livelier")?.kind === "energy",
+)!;
+/**
+ * Another of Kanazawa's stops, with an arrow key that swaps it to a version at its own energy,
+ * which changes nothing the headline says.
+ */
+const TWIN = KANAZAWA.stops.flatMap((stop) =>
+  stop === LIVELIER_STOP
+    ? []
+    : (
+        [
+          ["ArrowRight", "livelier"],
+          ["ArrowLeft", "quieter"],
+        ] as const
+      ).flatMap(([key, step]) => {
+        const next = keyStepOf(stop, plannedAt(stop), step);
+        return next?.kind === "version"
+          ? [{ stop, key, place: candidatesOf(stop)[next.index]! }]
+          : [];
+      }),
+)[0]!;
 
 /** Kanazawa's written day, seen on this device so it opens whole, shown in this view. */
 async function openSeenKanazawa(page: Page, view: View): Promise<void> {
@@ -158,26 +178,41 @@ async function saidNow(page: Page): Promise<string[]> {
   return said.filter((text) => text !== "");
 }
 
+/** The place a version's arrow on the plan, or a stop's slider on the chart, names. */
+async function placeNamedBy(control: Locator, attribute: string): Promise<string> {
+  const label = (await control.getAttribute(attribute)) ?? "";
+  return label.slice(label.indexOf(": ") + 2);
+}
+
+/** Swaps Kanazawa's first livelier stop, on the plan by its arrow or on the chart by its key. */
+async function swapLivelier(page: Page, view: View): Promise<string> {
+  if (view === "Plan") {
+    const arrow = page.getByRole("button", { name: /^Livelier: / }).first();
+    const place = await placeNamedBy(arrow, "aria-label");
+    await arrow.click();
+    return place;
+  }
+  const slider = page.getByRole("slider", { name: `Energy at ${LIVELIER_STOP.startTime}` });
+  const before = await slider.getAttribute("aria-valuetext");
+  await slider.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(slider).not.toHaveAttribute("aria-valuetext", before!);
+  return placeNamedBy(slider, "aria-valuetext");
+}
+
 for (const view of ["Plan", "Chart"] as const) {
-  test(`${view}: a swap is said once from a status, as the headline's clause, and not when the day opens with it`, async ({
+  test(`${view}: a swap is said once from a status, as the place and the clause it brought, and not when the day opens with it`, async ({
     page,
   }) => {
     test.setTimeout(3 * DAY_TIMEOUT_MS);
     await openSeenKanazawa(page, view);
     expect(await saidNow(page)).toEqual([]);
 
-    // On the plan a version's arrow; on the chart a stop's arrow key, which bends the curve.
-    if (view === "Plan") {
-      await page
-        .getByRole("button", { name: /^Livelier: / })
-        .first()
-        .click();
-    } else {
-      await page.getByRole("slider", { name: `Energy at ${LIVELIER_STOP.startTime}` }).focus();
-      await page.keyboard.press("ArrowRight");
-    }
+    const place = await swapLivelier(page, view);
     await expect.poll(() => saidNow(page)).toHaveLength(1);
-    const [clause] = await saidNow(page);
+    const [line] = await saidNow(page);
+    expect(line!.startsWith(`${place}, `)).toBe(true);
+    const clause = line!.slice(place.length + 2);
     await expect(page.getByRole("heading", { level: 1 })).toContainText(`, ${clause}, in`);
     await expect(page.getByRole("status").filter({ hasText: clause })).toHaveCount(1);
     // Then quiet, so a read-through meets the clause once, in the headline.
@@ -191,22 +226,51 @@ for (const view of ["Plan", "Chart"] as const) {
   });
 }
 
-test("an energy press on the plan's bar is said from a status, in the headline's list's words", async ({
+test("Plan: a swap back to the plan is said as the place and the day as first planned", async ({
   page,
 }) => {
   await openSeenKanazawa(page, "Plan");
-  const headline = page.getByRole("heading", { level: 1 });
-  await headline.getByRole("button", { name: "calm", exact: true }).click();
-  const option = page.getByRole("option", { name: "lively", exact: true });
-  const noteId = await option.getAttribute("aria-describedby");
-  const line = await page.locator(`[id="${noteId}"]`).textContent();
-  await page.keyboard.press("Escape");
+  const rows = viewOf(page, "Plan").getByRole("listitem");
+  const livelierIn = (index: number) =>
+    rows.nth(index).getByRole("button", { name: /^Livelier: / });
+  // Held by its place in the plan, as its arrows and heading change with the swap.
+  const count = await rows.count();
+  let at = 0;
+  while (at < count && (await livelierIn(at).count()) === 0) at += 1;
+  const row = rows.nth(at);
+  const arrow = livelierIn(at).first();
+  const planned = (await row.getByRole("heading").textContent()) ?? "";
+  await arrow.click();
+  await expect.poll(() => saidNow(page)).toHaveLength(1);
 
+  await row.getByRole("button", { name: planned }).click();
+  await expect.poll(() => saidNow(page)).toEqual([`${planned}, as first planned`]);
+});
+
+test("Chart: a stop's key to a version at its own energy says the place alone, not another stop's clause", async ({
+  page,
+}) => {
+  await openSeenKanazawa(page, "Chart");
+  await swapLivelier(page, "Chart");
+  await expect.poll(() => saidNow(page)).toHaveLength(1);
+
+  const slider = page.getByRole("slider", { name: `Energy at ${TWIN.stop.startTime}` });
+  await slider.focus();
+  await page.keyboard.press(TWIN.key);
+  const { name, sensory } = TWIN.place;
+  await expect(slider).toHaveAttribute("aria-valuetext", `${sensory.energy}: ${name}`);
+  await expect.poll(() => saidNow(page)).toEqual([name]);
+});
+
+test("an energy press on the plan's bar is said from a status, as the headline's list counts it", async ({
+  page,
+}) => {
+  await openSeenKanazawa(page, "Plan");
   await page
     .getByRole("group", { name: "How lively the day is" })
     .getByRole("button", { name: "lively", exact: true })
     .click();
-  await expect(page.getByRole("status").filter({ hasText: line! })).toHaveCount(1);
+  await expect.poll(() => saidNow(page)).toEqual(["lively: four stops re-picked"]);
 });
 
 test("an energy press on the headline's word is said from a status on the chart too", async ({
@@ -215,12 +279,9 @@ test("an energy press on the headline's word is said from a status on the chart 
   await openSeenKanazawa(page, "Chart");
   const headline = page.getByRole("heading", { level: 1 });
   await headline.getByRole("button", { name: "calm", exact: true }).click();
-  const option = page.getByRole("option", { name: "lively", exact: true });
-  const noteId = await option.getAttribute("aria-describedby");
-  const line = await page.locator(`[id="${noteId}"]`).textContent();
-  await option.click();
+  await page.getByRole("option", { name: "lively", exact: true }).click();
 
-  await expect(page.getByRole("status").filter({ hasText: line! })).toHaveCount(1);
+  await expect.poll(() => saidNow(page)).toEqual(["lively: four stops re-picked"]);
 });
 
 test.describe("with motion", { tag: "@frame" }, () => {

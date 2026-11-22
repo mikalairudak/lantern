@@ -42,6 +42,7 @@ import {
 } from "./facts";
 import { GlidingHeight } from "@/components/ui/gliding-height";
 import type { BestLight } from "@/features/abacus/light";
+import { AS_FIRST_PLANNED } from "./change-heard";
 import { ClauseText, owedClauseOf, setOff, useHasStood } from "./clause-text";
 import {
   ASSUMED_CLASSES,
@@ -238,7 +239,7 @@ export interface HeaderNotice {
  * it was written for: the line names the planned places, as the visitor's swaps do not. The
  * product's words, set upright before the model's italic, as a note before a quotation.
  */
-const PLANNED_LEAD = "As first planned: ";
+const PLANNED_LEAD = `${AS_FIRST_PLANNED}: `;
 /** The lead is said lighter than the line it leads. */
 const LEAD_CLASSES = "text-muted";
 /** The hint, a step quieter than the date beside it; the caption's size is the credits'. */
@@ -309,8 +310,9 @@ interface DayStageHeaderProps {
    */
   clause: string | null;
   /**
-   * The visitor's own last change to the day while it is heard: the clause a swap or a pull
-   * set, or what an energy press re-picked; null when there is none to say.
+   * What is said of the visitor's own last change to the day while it is heard, "" or null for
+   * nothing: a swap's place and what it did to the clause, a drag's clause, an energy press's
+   * re-pick (`changeLineOf`).
    */
   changeHeard?: string | null;
   /** The line about the day once the pen has reached it, which then writes itself in. */
