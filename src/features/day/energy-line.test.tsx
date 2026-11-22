@@ -6,12 +6,14 @@ import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { Day } from "./day";
 import { PLACES } from "./energy-glyph";
 import { repickLineOf } from "./not-yet";
+import { NOTICE_HEARD_MS } from "./notice-status";
 import { READING_LIST_LABEL } from "./reading-list";
 
 /**
  * The line under each answer of the energy word's list against what its press then does: the
  * stops it says it re-picks are the stops whose place changes, on Kanazawa's written day as
- * landed and after each way the visitor can change what it shows.
+ * landed and after each way the visitor can change what it shows; and what a screen reader is
+ * told of each change the visitor makes.
  */
 
 const ORIGIN = "http://lantern.test";
@@ -200,4 +202,58 @@ describe("the energy word's list, against what its press does", () => {
     },
     15_000,
   );
+});
+
+/** The status a screen reader is told `line` from, alone among the page's statuses. */
+function statusSaying(line: string): HTMLElement {
+  const [status, ...others] = screen
+    .getAllByRole("status")
+    .filter((each) => each.textContent === line);
+  if (!status || others.length > 0) throw new Error(`Not one status saying "${line}"`);
+  return status;
+}
+
+/** The page's statuses that say anything. */
+const saidNow = () =>
+  screen
+    .getAllByRole("status")
+    .map((status) => status.textContent ?? "")
+    .filter((text) => text !== "");
+
+describe("what a screen reader is told of the visitor's change to the day", () => {
+  it("says nothing of the day as it landed", async () => {
+    await landOnThePlan();
+
+    expect(saidNow()).toEqual([]);
+  });
+
+  it("says a swap on the plan as the headline's clause, then falls quiet", async () => {
+    const user = await landOnThePlan();
+    await user.click(screen.getAllByRole("button", { name: /^Livelier: / })[0]!);
+
+    await waitFor(() => expect(saidNow()).toHaveLength(1));
+    const [clause] = saidNow();
+    expect(headline()).toHaveTextContent(`, ${clause}, in`);
+    expect(statusSaying(clause!)).toBeInTheDocument();
+    await waitFor(() => expect(saidNow()).toEqual([]), { timeout: NOTICE_HEARD_MS + 1000 });
+  });
+
+  it("says what the headline's energy press re-picked, in its option's words", async () => {
+    const user = await landOnThePlan();
+    const line = await chooseEnergy(user, LANDED_LEVEL, EARLIER_LEVEL);
+
+    await waitFor(() => expect(statusSaying(line)).toBeInTheDocument());
+  });
+
+  it("says what the plan's energy press re-picked, as the headline's list says it", async () => {
+    const user = await landOnThePlan();
+    await user.click(within(headline()).getByRole("button", { name: LANDED_LEVEL }));
+    const option = screen.getByRole("option", { name: EARLIER_LEVEL });
+    const line = document.getElementById(option.getAttribute("aria-describedby")!)!.textContent!;
+    await user.keyboard("{Escape}");
+
+    const bar = screen.getByRole("group", { name: "How lively the day is" });
+    await user.click(within(bar).getByRole("button", { name: EARLIER_LEVEL }));
+    await waitFor(() => expect(statusSaying(line)).toBeInTheDocument());
+  });
 });

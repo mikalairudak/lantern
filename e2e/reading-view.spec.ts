@@ -1,5 +1,10 @@
 import { expect, test, type Page, waitMs } from "./fixtures";
+import { BROWSER_STORAGE } from "../src/lib/browser-storage";
+import { NOTICE_HEARD_MS } from "../src/features/day/notice-status";
 import type { StoredDay } from "../src/lib/days/stored-day";
+import { writtenVersionOf } from "../src/lib/days/written/version";
+import { writtenDayAt } from "../src/lib/days/written/days";
+import { ENERGY_LEVELS } from "../src/lib/schema/itinerary.schema";
 import { KYOTO_REQUEST } from "../src/lib/fixtures/curated/requests";
 import { KYOTO_ITINERARY } from "../src/lib/fixtures/replan/kyoto-morning";
 
@@ -123,6 +128,100 @@ for (const view of ["Plan", "Chart"] as const) {
     await expectTheView(page, view);
   });
 }
+
+const KANAZAWA = writtenDayAt("kanazawa")!.itinerary;
+/** The first of Kanazawa's stops with a version livelier than its own, which a key steps to. */
+const LIVELIER_STOP = KANAZAWA.stops.find((stop) => {
+  const levelOf = (place: typeof stop.primary) => ENERGY_LEVELS.indexOf(place.sensory.energy);
+  const own = [stop.primary, ...stop.alternatives].find(({ id }) => id === stop.selectedPlaceId)!;
+  return stop.alternatives.some((place) => levelOf(place) > levelOf(own));
+})!;
+
+/** Kanazawa's written day, seen on this device so it opens whole, shown in this view. */
+async function openSeenKanazawa(page: Page, view: View): Promise<void> {
+  const day = `kanazawa:${writtenVersionOf(KANAZAWA)}`;
+  await page.addInitScript(
+    ([seenKey, seen, viewKey, shown]) => {
+      localStorage.setItem(seenKey!, JSON.stringify([seen]));
+      localStorage.setItem(viewKey!, shown!);
+    },
+    [BROWSER_STORAGE.seen.key, day, "lantern-day-view", view === "Plan" ? "read" : "chart"],
+  );
+  await page.goto("/day/kanazawa");
+  await waitForTheDay(page);
+  await expectTheView(page, view);
+}
+
+/** What the page's statuses say now, each that says anything. */
+async function saidNow(page: Page): Promise<string[]> {
+  const said = await page.getByRole("status").allTextContents();
+  return said.filter((text) => text !== "");
+}
+
+for (const view of ["Plan", "Chart"] as const) {
+  test(`${view}: a swap is said once from a status, as the headline's clause, and not when the day opens with it`, async ({
+    page,
+  }) => {
+    test.setTimeout(3 * DAY_TIMEOUT_MS);
+    await openSeenKanazawa(page, view);
+    expect(await saidNow(page)).toEqual([]);
+
+    // On the plan a version's arrow; on the chart a stop's arrow key, which bends the curve.
+    if (view === "Plan") {
+      await page
+        .getByRole("button", { name: /^Livelier: / })
+        .first()
+        .click();
+    } else {
+      await page.getByRole("slider", { name: `Energy at ${LIVELIER_STOP.startTime}` }).focus();
+      await page.keyboard.press("ArrowRight");
+    }
+    await expect.poll(() => saidNow(page)).toHaveLength(1);
+    const [clause] = await saidNow(page);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(`, ${clause}, in`);
+    await expect(page.getByRole("status").filter({ hasText: clause })).toHaveCount(1);
+    // Then quiet, so a read-through meets the clause once, in the headline.
+    await expect.poll(() => saidNow(page), { timeout: waitMs(NOTICE_HEARD_MS * 2) }).toEqual([]);
+
+    // Opened again as it was left, the day shows the clause and says nothing of it.
+    await page.reload();
+    await waitForTheDay(page);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(`, ${clause}, in`);
+    expect(await saidNow(page)).toEqual([]);
+  });
+}
+
+test("an energy press on the plan's bar is said from a status, in the headline's list's words", async ({
+  page,
+}) => {
+  await openSeenKanazawa(page, "Plan");
+  const headline = page.getByRole("heading", { level: 1 });
+  await headline.getByRole("button", { name: "calm", exact: true }).click();
+  const option = page.getByRole("option", { name: "lively", exact: true });
+  const noteId = await option.getAttribute("aria-describedby");
+  const line = await page.locator(`[id="${noteId}"]`).textContent();
+  await page.keyboard.press("Escape");
+
+  await page
+    .getByRole("group", { name: "How lively the day is" })
+    .getByRole("button", { name: "lively", exact: true })
+    .click();
+  await expect(page.getByRole("status").filter({ hasText: line! })).toHaveCount(1);
+});
+
+test("an energy press on the headline's word is said from a status on the chart too", async ({
+  page,
+}) => {
+  await openSeenKanazawa(page, "Chart");
+  const headline = page.getByRole("heading", { level: 1 });
+  await headline.getByRole("button", { name: "calm", exact: true }).click();
+  const option = page.getByRole("option", { name: "lively", exact: true });
+  const noteId = await option.getAttribute("aria-describedby");
+  const line = await page.locator(`[id="${noteId}"]`).textContent();
+  await option.click();
+
+  await expect(page.getByRole("status").filter({ hasText: line! })).toHaveCount(1);
+});
 
 test.describe("with motion", { tag: "@frame" }, () => {
   test.use({ reducedMotion: "no-preference" });

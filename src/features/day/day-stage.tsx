@@ -99,11 +99,13 @@ import {
   forkNoteOf,
   keptStopsLineOf,
   notReplanningYetOf,
+  repickLineOf,
   SEE_IT,
   setAsideNoteOf,
   type EnergyRepicks,
   type SetAside,
 } from "./not-yet";
+import { NOTICE_HEARD_MS } from "./notice-status";
 import { replannedRequestOf } from "./replan-request";
 import type { ReplanControls } from "./replan-controls";
 import { endedDayOf, noticeOf, phaseOf, slotOf } from "./stream-ending";
@@ -903,10 +905,21 @@ export function DayStage({
     const timer = window.setTimeout(() => setHeldGesture(0), VIEW_HELD_AFTER_GESTURE_MS);
     return () => window.clearTimeout(timer);
   }, [heldGesture, isHeaderGliding]);
+  // The visitor's own last change to the day, heard from the header's status for as long as
+  // a notice's line is held: a gesture's clause, as the headline comes to say it, or what an
+  // energy press re-picked, in its option's words. A clause restored as the day loads, or
+  // with a day brought back, is the page as it stands, and is not said.
+  const [changeHeard, setChangeHeard] = useState<{ line: string | null } | null>(null);
+  useEffect(() => {
+    if (changeHeard === null) return undefined;
+    const quiet = window.setTimeout(() => setChangeHeard(null), NOTICE_HEARD_MS);
+    return () => window.clearTimeout(quiet);
+  }, [changeHeard]);
   const countGesture = (kind: GestureKind) => {
     // A gesture on the day is the visitor acting on it: a re-plan's receipt makes way, and so
     // does what a change set aside.
     setIsActedOn(true);
+    setChangeHeard({ line: null });
     actAfterSetAside();
     setHeldGesture((count) => count + 1);
     // One who has bent the curve needs showing how no more, on any page.
@@ -1349,6 +1362,9 @@ export function DayStage({
       }
     }
     if (key === "energy") {
+      // Counted before the re-pick, as the option counted it.
+      const changed = energyRepicks.changedBy(value as EnergyLevel);
+      setChangeHeard({ line: repickLineOf(changed, energyRepicks.stops) });
       energy.replan(repickedFor(value as EnergyLevel));
       setLocal((words) => ({ ...words, energy: value as EnergyLevel }));
       setNotYet(null);
@@ -1462,6 +1478,7 @@ export function DayStage({
       facts={heldBack(facts, reached)}
       reservedFacts={facts}
       clause={clause}
+      changeHeard={changeHeard === null ? null : (changeHeard.line ?? clause)}
       dek={reached.includes("dek") ? dek : undefined}
       reservedDek={dek}
       isDekWriting={draft.writing === DEK}

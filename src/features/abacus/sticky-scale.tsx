@@ -158,11 +158,6 @@ export function StickyScale({
         inert={isUnderSheet && !isHeld}
         style={{ height }}
       >
-        {/* Mounted from the start, so a screen reader hears the change as it comes; polite, and
-            no second status on a page that has its own. */}
-        <span aria-live="polite" className="sr-only">
-          {isChanged ? clause : ""}
-        </span>
         {isChanged ? (
           <div className={cn(LINE_CLASSES, "w-full justify-between gap-3")} style={changedInset}>
             <span aria-hidden className="min-w-0 truncate text-energy">

@@ -308,6 +308,11 @@ interface DayStageHeaderProps {
    * energy moves the chart.
    */
   clause: string | null;
+  /**
+   * The visitor's own last change to the day while it is heard: the clause a swap or a pull
+   * set, or what an energy press re-picked; null when there is none to say.
+   */
+  changeHeard?: string | null;
   /** The line about the day once the pen has reached it, which then writes itself in. */
   dek: string | undefined;
   /** The line about the day as far as it has arrived: the header holds its room. */
@@ -545,6 +550,7 @@ export function DayStageHeader({
   facts: givenFacts,
   reservedFacts: givenReservedFacts,
   clause,
+  changeHeard = null,
   dek,
   reservedDek,
   isDekWriting,
@@ -1248,7 +1254,8 @@ export function DayStageHeader({
                 the step, the notice's whole line, before the page shows it, and no more once
                 its hold is over and the page says it: read through, the header holds the line
                 once. What a change set aside is heard with what the new word re-plans, in one
-                line that stays as the note on screen steps on. */}
+                line that stays as the note on screen steps on. Below all of these, the
+                visitor's own change to the day, while it is heard. */}
               <p role="status" className="sr-only">
                 {noticeLine !== null
                   ? sayNotice === null
@@ -1264,7 +1271,7 @@ export function DayStageHeader({
                       ? setAsideHeard
                       : isWritingSaid
                         ? "Writing the day"
-                        : ""}
+                        : (changeHeard ?? "")}
               </p>
             </div>
             {!notice && (
