@@ -36,7 +36,7 @@ function renderRow(
   }: { example?: typeof ELCHE; lineAt?: "under" | "margin"; onMeasure?: () => void } = {},
 ) {
   const acts = { onChoose: vi.fn(), onCompare: vi.fn(), onAskAgain: vi.fn() };
-  render(
+  const view = render(
     <ForkRow
       view={forkViewAt(example, moment)}
       index={example.index}
@@ -49,10 +49,14 @@ function renderRow(
       {...acts}
     />,
   );
-  return acts;
+  return { ...acts, unmount: view.unmount };
 }
 
-const answer = (name: RegExp) => screen.getByRole("radio", { name });
+/** An answer by the words it shows, and its state, which its name says after them. */
+const answer = (words: string | RegExp, state?: string) =>
+  screen.getByRole("radio", {
+    name: typeof words === "string" && state ? `${words}, ${state}` : words,
+  });
 
 describe("ForkRow", () => {
   it("says both answers as a group of two, the visitor's day chosen, and which part it is", () => {
@@ -60,8 +64,8 @@ describe("ForkRow", () => {
 
     const group = screen.getByRole("radiogroup");
     expect(group).toHaveAccessibleName("early dinner or eating late, 1 of 2");
-    expect(answer(/^early dinner, your day$/)).toHaveAttribute("aria-checked", "true");
-    expect(answer(/^eating late, being written$/)).toHaveAttribute("aria-checked", "false");
+    expect(answer("early dinner", "your day")).toHaveAttribute("aria-checked", "true");
+    expect(answer("eating late", "being written")).toHaveAttribute("aria-checked", "false");
     expect(screen.getByText("1 of 2")).toBeInTheDocument();
     // Only the chosen answer is in the Tab order, as a radio group's is.
     expect(answer(/^early dinner/)).toHaveAttribute("tabindex", "0");
@@ -72,7 +76,7 @@ describe("ForkRow", () => {
     const user = userEvent.setup();
     const acts = renderRow(momentOf("writing: its new stops"));
 
-    const proposal = answer(/^eating late, being written$/);
+    const proposal = answer("eating late", "being written");
     expect(proposal).toHaveAttribute("aria-disabled", "true");
     expect(within(proposal).getByText("eating late").className).toContain("animate-pass-steady");
     await user.click(proposal);
@@ -100,7 +104,7 @@ describe("ForkRow", () => {
     const user = userEvent.setup();
     const acts = renderRow(momentOf("ready: take it"));
 
-    const proposal = answer(/^eating late, proposed$/);
+    const proposal = answer("eating late Take", "proposed");
     expect(proposal).toHaveTextContent("eating late· Take");
     expect(screen.getByText("Dinner 21:00, not 18:15 · 3 new stops")).toBeInTheDocument();
     expect(screen.getByText("ends 23:45, not 20:45")).toBeInTheDocument();
@@ -109,6 +113,19 @@ describe("ForkRow", () => {
 
     await user.click(proposal);
     expect(acts.onChoose).toHaveBeenCalledWith("to");
+  });
+
+  it('names "Take" in an answer exactly while it is drawn, in every moment', () => {
+    for (const { label, moment } of FORK_MOMENTS) {
+      const { unmount } = renderRow(moment);
+      for (const radio of screen.queryAllByRole("radio")) {
+        const take = within(radio).queryByText("Take", { exact: true });
+        const isDrawn = take !== null && take.closest(".invisible") === null;
+        const name = radio.getAttribute("aria-label") ?? "";
+        expect(/ Take, /.test(name), `${label}: ${name}`).toBe(isDrawn);
+      }
+      unmount();
+    }
   });
 
   it("moves between the answers with the arrows and takes the one it lands on", async () => {
@@ -126,9 +143,9 @@ describe("ForkRow", () => {
     const user = userEvent.setup();
     const acts = renderRow(momentOf("taken, folded"));
 
-    expect(answer(/^eating late, your day$/)).toHaveAttribute("aria-checked", "true");
+    expect(answer("eating late", "your day")).toHaveAttribute("aria-checked", "true");
     expect(screen.queryByText(/not 18:15/)).toBeNull();
-    await user.click(answer(/^early dinner, the day before$/));
+    await user.click(answer("early dinner", "the day before"));
     expect(acts.onChoose).toHaveBeenCalledWith("from");
 
     const compare = screen.getByRole("button", { name: "Compare" });
@@ -255,7 +272,7 @@ describe("FORK_ROW_MATRIX", () => {
 
     for (const width of ["phone", "wide"] as const) {
       const view = render(<>{FORK_ROW_MATRIX.renderCell([3, 0], width)}</>);
-      expect(screen.getByRole("radio", { name: /^eating late, proposed$/ })).toBeInTheDocument();
+      expect(screen.getByRole("radio", { name: "eating late Take, proposed" })).toBeInTheDocument();
       // On a laptop the receipt stands in the margin beside the row.
       expect(screen.getByText("Dinner 21:00, not 18:15 · 3 new stops")).toBeInTheDocument();
       view.unmount();

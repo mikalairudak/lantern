@@ -181,7 +181,7 @@ function workSaid(page: Page, line: string) {
 
 /** Takes the proposal from the fork's first row once it is whole, as a hollow bead is taken. */
 async function takeProposal(page: Page, answer: string): Promise<void> {
-  const radio = page.getByRole("radio", { name: `${answer}, proposed`, exact: true }).first();
+  const radio = page.getByRole("radio", { name: `${answer} Take, proposed`, exact: true }).first();
   await expect(radio).toBeVisible({ timeout: DAY_TIMEOUT_MS });
   await radio.click();
 }

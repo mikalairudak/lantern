@@ -71,7 +71,25 @@ describe("PartSlip", () => {
 
     const group = screen.getByRole("radiogroup", { name: "early dinner or eating late, 1 of 2" });
     expect(within(group).getByRole("radio", { name: "early dinner, your day" })).toBeChecked();
-    expect(within(group).getByRole("radio", { name: "eating late, proposed" })).not.toBeChecked();
+    expect(
+      within(group).getByRole("radio", { name: "eating late Take, proposed" }),
+    ).not.toBeChecked();
+  });
+
+  it("names each answer by the words it shows, and says what each version is beside it", () => {
+    const { rerender, props } = renderSlip(LUNCH, momentOf("writing: no line"));
+    const other = () => screen.getByRole("radio", { checked: false });
+
+    // While written, "Take" is held unseen, and the name is the answer alone.
+    expect(other()).toHaveAccessibleName("eating late, being written");
+
+    rerender(<PartSlip {...props} {...slipStillOf(LUNCH, momentOf("whole"))} />);
+    expect(other()).toHaveAccessibleName("eating late Take, proposed");
+
+    rerender(<PartSlip {...props} {...slipStillOf(LUNCH, momentOf("taken"))} />);
+    expect(other()).toHaveAccessibleName("early dinner Take, the day before");
+    const shown = screen.getByRole("radio", { checked: true });
+    expect(shown).toHaveAccessibleName("eating late, your day");
   });
 
   it("draws the part's count for the eye alone, since the group's name says it", () => {
@@ -118,7 +136,7 @@ describe("PartSlip", () => {
     const user = userEvent.setup();
     const { onChoose } = renderSlip(LUNCH, momentOf("whole"));
 
-    await user.click(screen.getByRole("radio", { name: "eating late, proposed" }));
+    await user.click(screen.getByRole("radio", { name: "eating late Take, proposed" }));
     await user.click(screen.getByRole("radio", { name: "early dinner, your day" }));
 
     expect(onChoose.mock.calls).toEqual([["to"], ["from"]]);
@@ -127,7 +145,9 @@ describe("PartSlip", () => {
   it("takes no second press of a double press on the same control", async () => {
     const user = userEvent.setup();
     const { onChoose, rerender, props } = renderSlip(EVENING, momentOf("whole"));
-    const control = screen.getByRole("radio", { name: "eating late, proposed" });
+    const control = screen.getByRole("radio", {
+      name: "eating late Take, proposed",
+    });
 
     await user.click(control);
     // Taken, the same control now offers the day before, where the finger still is.
@@ -143,7 +163,7 @@ describe("PartSlip", () => {
 
     await user.click(screen.getByRole("radio", { name: "eating late, being written" }));
     rerender(<PartSlip {...props} {...slipStillOf(LUNCH, momentOf("whole"))} />);
-    await user.click(screen.getByRole("radio", { name: "eating late, proposed" }));
+    await user.click(screen.getByRole("radio", { name: "eating late Take, proposed" }));
 
     expect(onChoose.mock.calls).toEqual([["to"]]);
   });
@@ -165,7 +185,7 @@ describe("PartSlip", () => {
     const user = userEvent.setup();
     const { rerender, props } = renderSlip(LUNCH, momentOf("whole"));
 
-    await user.click(screen.getByRole("radio", { name: "eating late, proposed" }));
+    await user.click(screen.getByRole("radio", { name: "eating late Take, proposed" }));
     const taken = slipStillOf(LUNCH, momentOf("taken"));
     rerender(<PartSlip {...props} {...taken} />);
 
@@ -266,7 +286,7 @@ describe("PartSlip", () => {
     const { container, onChoose } = renderSlip(EVENING, momentOf("taken"));
 
     expect(screen.getByRole("radio", { name: "eating late, your day" })).toBeChecked();
-    await user.click(screen.getByRole("radio", { name: "early dinner, the day before" }));
+    await user.click(screen.getByRole("radio", { name: "early dinner Take, the day before" }));
     expect(onChoose).toHaveBeenCalledWith("from");
     expect(linesOf(container)).toEqual([
       "16:30Huerto del Cura\u00a0·\u00a0stays",
@@ -287,7 +307,9 @@ describe("PartSlip", () => {
     const { container } = renderSlip(LUNCH, momentOf("kept"));
 
     expect(screen.getByRole("radio", { name: "early dinner, your day" })).toBeChecked();
-    expect(screen.getByRole("radio", { name: "eating late, proposed" })).toHaveTextContent("Take");
+    expect(screen.getByRole("radio", { name: "eating late Take, proposed" })).toHaveTextContent(
+      "Take",
+    );
     expect(linesOf(container)).toHaveLength(1);
   });
 

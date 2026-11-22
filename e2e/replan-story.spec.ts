@@ -80,7 +80,9 @@ async function eatLate(page: Page): Promise<void> {
 
 /** The proposal's answer on a fork row, once its proposal is whole. */
 function proposalOn(page: Page, part = 0): Locator {
-  return forkRow(page, part).getByRole("radio", { name: "eating late, proposed" });
+  return forkRow(page, part).getByRole("radio", {
+    name: "eating late Take, proposed",
+  });
 }
 
 /** Each row of the day's chart by its words, and its wire's place under the chart's top. */

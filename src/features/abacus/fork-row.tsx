@@ -270,6 +270,8 @@ function Answer({
   onChoose,
 }: AnswerProps) {
   const isBlue = !isChecked;
+  // One condition draws "Take" and names it, so the two cannot part.
+  const isTakeShown = isReady;
   return (
     <button
       ref={ref}
@@ -277,7 +279,9 @@ function Answer({
       role="radio"
       aria-checked={isChecked}
       aria-disabled={(!isChecked && !isTakeable) || undefined}
-      aria-label={`${label}, ${description}`}
+      // The name repeats the words shown, in their order, "Take" among them while it is drawn,
+      // so a visitor who says what they see finds the control (WCAG 2.5.3); the state follows.
+      aria-label={`${label}${isTakeShown ? " Take" : ""}, ${description}`}
       tabIndex={isChecked ? 0 : -1}
       onClick={() => onChoose(side)}
       className={cn(
@@ -300,7 +304,7 @@ function Answer({
       {(isReady || isWriting) && (
         // "Take" is the answer's own words, one control with it, as the decision has it; its
         // room is held unseen while the proposal is written.
-        <span aria-hidden className={cn(!isReady && "invisible")}>
+        <span aria-hidden className={cn(!isTakeShown && "invisible")}>
           <span className="text-muted">· </span>
           <span className="text-ink underline decoration-1 underline-offset-4">Take</span>
         </span>

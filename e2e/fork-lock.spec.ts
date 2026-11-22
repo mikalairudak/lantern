@@ -51,7 +51,10 @@ test("the energy waits while a proposal is written, on the plan's bar and in the
   ).toHaveCount(1, { timeout: DAY_TIMEOUT_MS });
   await expect(chart).toHaveAttribute("aria-busy", "false");
   await expect(
-    shownForkRow(page).getByRole("radio", { name: "eating late, being written" }),
+    shownForkRow(page).getByRole("radio", {
+      name: "eating late, being written",
+      exact: true,
+    }),
   ).toBeVisible();
 
   // The bar's word pressed while the proposal is written: nothing changes, and the facts line
@@ -71,7 +74,7 @@ test("the energy waits while a proposal is written, on the plan's bar and in the
 
   // The proposal still arrives whole, and the day's energy is as it was.
   await expect(
-    shownForkRow(page).getByRole("radio", { name: "eating late, proposed" }),
+    shownForkRow(page).getByRole("radio", { name: "eating late Take, proposed" }),
   ).toBeVisible({ timeout: DAY_TIMEOUT_MS });
   await expect(headline).toHaveText(/^A balanced /);
   await expect(energyBar(page).getByRole("button", { name: "balanced" })).toHaveAttribute(
@@ -91,7 +94,7 @@ test("the energy waits while a proposal is written, on the plan's bar and in the
     "true",
   );
   await expect(
-    shownForkRow(page).getByRole("radio", { name: "eating late, proposed" }),
+    shownForkRow(page).getByRole("radio", { name: "eating late Take, proposed" }),
   ).toBeVisible();
   await expect(factsLine(page)).not.toContainText("set aside");
   await expect(factsLine(page)).not.toContainText("not kept");
