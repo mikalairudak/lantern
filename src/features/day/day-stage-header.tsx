@@ -876,9 +876,10 @@ export function DayStageHeader({
   // Escape on the new day is Escape in the list it opened: the list closes, and the focus goes
   // to the city word, which owns it.
   const closeNewDay = () => {
-    if (cityOpenAt === null) return;
+    if (cityOpenAt === null) return false;
     cityWordButton.current?.focus();
     onCityOpenChange(null);
+    return true;
   };
   // Opened at its field, "elsewhere", the list is the new day's, and a city chosen in it is
   // counted as changed at the new day (`cityControl` in `day-stage.tsx`).

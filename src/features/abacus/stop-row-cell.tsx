@@ -1,7 +1,7 @@
 "use client";
 
 import { MotionConfig } from "motion/react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useElementSize, type ElementSize } from "@/components/ui/use-element-size";
 import { useSprung } from "@/components/ui/use-sprung";
 import { CellNote, StillNote, useStill } from "@/features/itinerary/use-still";
@@ -277,6 +277,8 @@ export function StillRows({
     (index, at, all): index is number => index !== null && all.indexOf(index) === at,
   );
   const toggleStop = (index: number) => setOpenStop((open) => (open === index ? null : index));
+  // Steady across renders: the day listens on the document while a stop is open.
+  const closeStop = useCallback(() => setOpenStop(null), []);
 
   return (
     <div className="relative min-w-0">
@@ -328,7 +330,7 @@ export function StillRows({
               }
               onToggleStop={toggleStop}
               onTapStop={setOpenStop}
-              onCloseStop={() => setOpenStop(null)}
+              onCloseStop={closeStop}
               onHoverStop={setHoveredStop}
               onHoverPlace={setHoveredPlace}
             />

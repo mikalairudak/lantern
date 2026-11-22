@@ -373,15 +373,32 @@ export function DayRows({
   }, [openStop, outer, header, rowSizes]);
 
   // A press anywhere outside the day closes an open stop; inside it, the rows and the chart
-  // say what a press means. A still's open stop stays open, whatever the matrix's page does.
+  // say what a press means. While the chart is on show, Escape wherever the focus is folds it and
+  // leaves the focus where it is, so a bead, a name or the day's foot the sheet lies over is seen
+  // without moving on (WCAG 2.4.11); an Escape the open row, its sheet or a word's list has
+  // already answered is left to them, and behind the plan a sheet no one sees takes none. A
+  // still's open stop stays open whatever the matrix's page does, and folds only on an Escape
+  // inside its day.
   useEffect(() => {
-    if (openStop === null || !outer || isStill) return undefined;
+    if (openStop === null || !outer) return undefined;
+    const isInside = (target: EventTarget | null) =>
+      target instanceof Node && outer.contains(target);
     const closeOutside = (event: PointerEvent) => {
-      if (event.target instanceof Node && !outer.contains(event.target)) onCloseStop();
+      if (!isInside(event.target)) onCloseStop();
     };
-    document.addEventListener("pointerdown", closeOutside);
-    return () => document.removeEventListener("pointerdown", closeOutside);
-  }, [openStop, outer, isStill, onCloseStop]);
+    const foldOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (isStill && !isInside(event.target)) return;
+      event.preventDefault();
+      onCloseStop();
+    };
+    if (!isStill) document.addEventListener("pointerdown", closeOutside);
+    if (isOnShow) document.addEventListener("keydown", foldOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", foldOnEscape);
+    };
+  }, [openStop, outer, isStill, isOnShow, onCloseStop]);
 
   // Each row measures its own words; the rows are laid out around what they report. A row
   // being written again keeps its last box while it is empty, so it holds its place.
