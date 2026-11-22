@@ -6,7 +6,8 @@ import type { StoredDay } from "@/lib/days/stored-day";
 import { Day } from "./day";
 import { pageTitleOf } from "./day-title";
 import { KEPT_POLL_MS, KEPT_WAIT_MS, askKeptDay, keptViewOf, restatedYourDayOf } from "./kept-day";
-import { NO_DAY_TITLE, NoDayHere, StillWritingHere } from "./no-day-here";
+import { NO_DAY_HERE, NO_DAY_TITLE, StillWritingHere } from "./no-day-here";
+import { NOTICE_HEARD_MS, NoticeStatus, NoticeStatusContext } from "./notice-status";
 import { restateDay, useYourDays } from "./use-your-days";
 
 export interface KeptDayPageProps {
@@ -82,8 +83,31 @@ export function KeptDayPage({ id, stored: first, isLive }: KeptDayPageProps) {
   useEffect(() => {
     if (view.kind === "none") document.title = pageTitleOf(NO_DAY_TITLE);
   }, [view.kind]);
-  if (isUnknown && !isHydrated) return null;
-  if (view.kind === "writing") return <StillWritingHere />;
-  if (view.kind === "none") return <NoDayHere />;
-  return <Day kept={view.landing} isLive={isLive} isAddressed isCounted />;
+  // How the wait ended is said from a status that stands from the first look, above the
+  // page that waits and the day that takes its place: the day's notice, which the day hands
+  // up, or, once the wait is over with none, the headline, held as long as a notice is.
+  const [heardNotice, setHeardNotice] = useState("");
+  const [lastKind, setLastKind] = useState(view.kind);
+  const [isNoDaySaid, setIsNoDaySaid] = useState(false);
+  if (lastKind !== view.kind) {
+    setLastKind(view.kind);
+    setIsNoDaySaid(lastKind === "writing" && view.kind === "none");
+  }
+  useEffect(() => {
+    if (!isNoDaySaid) return undefined;
+    const quiet = window.setTimeout(() => setIsNoDaySaid(false), NOTICE_HEARD_MS);
+    return () => window.clearTimeout(quiet);
+  }, [isNoDaySaid]);
+  return (
+    <>
+      <NoticeStatus line={isNoDaySaid ? NO_DAY_HERE : heardNotice} />
+      <NoticeStatusContext value={setHeardNotice}>
+        {isUnknown && !isHydrated ? null : view.kind === "day" ? (
+          <Day kept={view.landing} isLive={isLive} isAddressed isCounted />
+        ) : (
+          <StillWritingHere isWaitOver={view.kind === "none"} />
+        )}
+      </NoticeStatusContext>
+    </>
+  );
 }

@@ -7,6 +7,8 @@ import {
   waitMs,
   chooseTheChart,
 } from "./fixtures";
+import { NOTICE_HEARD_MS } from "../src/features/day/notice-status";
+import { expectSaidOnceAsChange, logStatuses } from "./status-log";
 
 // These tests drive the chart: each page opens as for a visitor who chose it, since a day
 // opens on its plan otherwise.
@@ -145,7 +147,7 @@ interface Frame {
   noticeOpacity: number | null;
   /** The role the notice's line on screen has, if any. */
   noticeRole: string | null;
-  /** What a screen reader is told from the header's status. */
+  /** What a screen reader is told from the page's notice status. */
   heard: string | null;
   /** What the pen has written of the days the notice offers, and all they say. */
   offered: string | null;
@@ -332,7 +334,7 @@ async function sampleEveryFrame(page: Page): Promise<void> {
         noticeWhole: notice?.textContent ?? null,
         noticeOpacity: notice ? composedOpacity(notice) : null,
         noticeRole: notice?.getAttribute("role") ?? null,
-        heard: header?.querySelector("p.sr-only[role=status]")?.textContent ?? null,
+        heard: document.querySelector("[data-notice-status]")?.textContent ?? null,
         offered: seenTextOf(offered),
         offeredWhole: offered?.textContent ?? null,
         isNoticeInert: notice?.closest("[inert]") != null,
@@ -350,6 +352,15 @@ async function sampleEveryFrame(page: Page): Promise<void> {
     };
     requestAnimationFrame(tick);
   });
+}
+
+/**
+ * The notice's line was said once, as a change of the page's status that stood before the
+ * day ended, held long enough to be heard, then not again.
+ */
+async function expectNoticeSaidOnce(page: Page): Promise<void> {
+  const line = (await framesOf(page)).at(-1)!.noticeWhole!;
+  await expectSaidOnceAsChange(page, line, NOTICE_HEARD_MS);
 }
 
 async function framesOf(page: Page): Promise<Frame[]> {
@@ -698,9 +709,9 @@ function expectTheExit(all: readonly Frame[], visitors: string): { hasGlided: bo
   }
 
   // Screen and hearing apart: the line on screen is no live region, and a screen reader is
-  // told the notice's whole line once, in the step. It stands until the pen has written the
-  // notice, then falls quiet for good, as the page says it: never a fragment. The notice is
-  // out of reach until the pen has written it whole.
+  // told the notice's whole line once, in the step. It stands at least until the pen has
+  // written the notice, then falls quiet for good, as the page says it: never a fragment. The
+  // notice is out of reach until the pen has written it whole.
   const line = frames.at(-1)!.noticeWhole;
   let isQuiet = false;
   for (const frame of frames.slice(step)) {
@@ -857,6 +868,7 @@ test.describe("with motion", { tag: "@frame" }, () => {
     await page.setViewportSize(isMobile ? PHONE : LAPTOP);
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await sampleEveryFrame(page);
+    await page.addInitScript(logStatuses);
     await page.goto(URL);
   });
 
@@ -873,6 +885,7 @@ test.describe("with motion", { tag: "@frame" }, () => {
         await waitForTheNotice(page);
 
         expectTheExit(await framesOf(page), visitors);
+        await expectNoticeSaidOnce(page);
       });
     }
     for (const ending of ENDINGS_BEFORE_THE_ROOM) {
@@ -881,6 +894,7 @@ test.describe("with motion", { tag: "@frame" }, () => {
         await waitForTheNotice(page);
 
         expectNoChartDrawn(await framesOf(page));
+        await expectNoticeSaidOnce(page);
       });
     }
   }

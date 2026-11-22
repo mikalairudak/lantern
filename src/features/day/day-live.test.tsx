@@ -1775,7 +1775,7 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     expect(headline()).toHaveTextContent(/^A calm /);
     expect(factsLineText()).toContain(ONE_CHANGE_AT_A_TIME);
     // Said to a screen reader too, where the facts line has scrolled away above the bar.
-    const status = screen.getAllByRole("status").find((each) => each.tagName === "P");
+    const status = document.querySelector('header p[role="status"]');
     expect(status).toHaveTextContent(ONE_CHANGE_AT_A_TIME);
 
     const energyWord = within(headline()).getByRole("button", { name: "calm" });

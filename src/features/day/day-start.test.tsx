@@ -42,11 +42,17 @@ import { TAKE_THIS_DAY } from "./day-menu";
 /** "Forget" takes a press only once a double press on "Forget these days" is over. */
 const waitOutADoublePress = () => new Promise((done) => setTimeout(done, FORGET_ANSWER_WAIT_MS));
 
-/** The start's own status: the theme's button in the masthead says its look in one too. */
+/**
+ * The start's own status: the theme's button in the masthead says its look in one too, and
+ * the page holds one for how a day ended.
+ */
 function startStatus(): HTMLElement {
   const [line, ...others] = screen
     .getAllByRole("status")
-    .filter((status) => !status.hasAttribute("data-theme-status"));
+    .filter(
+      (status) =>
+        !status.hasAttribute("data-theme-status") && !status.hasAttribute("data-notice-status"),
+    );
   if (!line || others.length > 0) throw new Error("Not one status of the start's own");
   return line;
 }

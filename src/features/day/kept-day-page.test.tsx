@@ -20,6 +20,7 @@ import { shownEnergiesOf } from "./day-shape";
 import { KEPT_POLL_MS, KEPT_WAIT_MS, keptViewOf, type KeptLanding } from "./kept-day";
 import { KeptDayPage } from "./kept-day-page";
 import { NO_DAY_HERE } from "./no-day-here";
+import { NOTICE_HEARD_MS } from "./notice-status";
 import { LINK_EXPIRED, OPENS_HERE, STILL_WRITING, UNFINISHED } from "./not-yet";
 import { writtenDayAt } from "@/lib/days/written/days";
 import { isLeadSeen, watchLead } from "./lead-on-screen";
@@ -102,6 +103,9 @@ const headline = () => screen.getByRole("heading", { level: 1 });
 /** The notice in the header, in place of the day's lines. */
 const notice = () => document.querySelector<HTMLElement>("header p.text-quote");
 const NOTICE_TIMEOUT = { timeout: 5000 };
+/** The statuses whose words hold `line`. */
+const statusesSaying = (line: string) =>
+  screen.getAllByRole("status").filter((status) => status.textContent?.includes(line));
 const logAsks = () => fetchAny.mock.calls.filter(([path]) => path === `/api/day/${ID}`).length;
 const dayAsks = () => fetchAny.mock.calls.filter(([path]) => path === DAY_ROUTE).length;
 
@@ -220,10 +224,44 @@ describe("a day's own address", () => {
     expect(document.title).toBe("No day here · Lantern");
   });
 
+  it("says the wait ended with no day from a status that stood through the wait, the focus kept on the wordmark", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    render(<KeptDayPage id={ID} stored={UNKNOWN} isLive={false} />);
+    const wordmark = screen.getAllByRole("link")[0]!;
+    wordmark.focus();
+    const waiting = screen.getAllByRole("status");
+
+    await wait(KEPT_WAIT_MS);
+    expect(headline()).toHaveTextContent(NO_DAY_HERE);
+    const [status, ...others] = statusesSaying(NO_DAY_HERE);
+    expect(others).toHaveLength(0);
+    expect(waiting).toContain(status);
+    expect(wordmark).toHaveFocus();
+    // Then quiet, so a read-through meets the line once, in the headline.
+    await wait(NOTICE_HEARD_MS);
+    expect(status?.textContent).toBe("");
+  });
+
+  it("says a day's ending from a status that stood while the page waited for it", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    logAnswers = [Response.json({ status: "failed", request: KYOTO.request })];
+    render(<KeptDayPage id={ID} stored={UNKNOWN} isLive={false} />);
+    const waiting = screen.getAllByRole("status");
+
+    await wait(KEPT_POLL_MS);
+    await waitFor(() => expect(notice()).toHaveTextContent(UNFINISHED), NOTICE_TIMEOUT);
+    const [status, ...others] = statusesSaying(UNFINISHED);
+    expect(others).toHaveLength(0);
+    expect(waiting).toContain(status);
+  });
+
   it("draws nothing on the server for a day not found yet, so no stranger's headline comes first", () => {
     keepYourDay(browserStorage(), asked());
 
-    expect(renderToString(<KeptDayPage id={ID} stored={UNKNOWN} isLive={false} />)).toBe("");
+    // Only the page's notice status, empty, stands before the page is read in the browser.
+    const drawn = renderToString(<KeptDayPage id={ID} stored={UNKNOWN} isLive={false} />);
+    expect(drawn).not.toContain("<h1");
+    expect(drawn.replace(/<[^>]*>/g, "")).toBe("");
     // A day found is drawn on the server as it ended.
     expect(renderToString(<KeptDayPage id={ID} stored={WRITTEN} isLive={false} />)).toContain(
       "Kyoto",

@@ -60,6 +60,7 @@ import { CityWord, type CityFocus, type TypedCity } from "./city-word";
 import { LINK_CLASSES, TARGET_CLASSES } from "./link-classes";
 import { unplacedLineOf } from "./start";
 import { PEN_BEAT_MS } from "./use-pen";
+import { NOTICE_HEARD_MS, useNoticeStatus } from "./notice-status";
 import { ROOM_REACH_PX, SPRINGS } from "@/lib/tokens/motion";
 import {
   chosenLabelsOf,
@@ -838,18 +839,28 @@ export function DayStageHeader({
     };
   }, [isRoomClosedAtOnce, isNoticeReleased, isReducedMotion]);
   const isNoticeWritten = !isNoticeWrittenIn || isReducedMotion || isNoticeReleased;
-  // The status says a notice once, in the step, and is quiet once the page says it: when it
-  // stands whole, and no sooner than a beat after it was said, so a notice whole at once, as
-  // under reduced motion, is still heard.
+  // A notice is heard once, in the step, and falls quiet once the page says it: when it
+  // stands whole, and no sooner than its hold, so a screen reader still has it to read after
+  // what it says of the focus moved with it.
   const [isNoticeWhole, setIsNoticeWhole] = useState(false);
   const noticeLine = notice ? noticeLineOf(notice) : null;
   const [saidLine, setSaidLine] = useState<string | null>(null);
   useEffect(() => {
     if (noticeLine === null) return undefined;
-    const said = window.setTimeout(() => setSaidLine(noticeLine), PEN_BEAT_MS);
+    const said = window.setTimeout(() => setSaidLine(noticeLine), NOTICE_HEARD_MS);
     return () => window.clearTimeout(said);
   }, [noticeLine]);
   const isNoticeSaid = isNoticeWhole && noticeLine !== null && saidLine === noticeLine;
+  const heardNotice = noticeLine !== null && !isNoticeSaid ? noticeLine : "";
+  // Said in the page's notice status where one stands above the header, so the line is a
+  // change of a region that was there before the day ended; before the paint, so the step's
+  // own frame has it. A header alone says it in its own status.
+  const sayNotice = useNoticeStatus();
+  useLayoutEffect(() => {
+    if (sayNotice === null) return undefined;
+    sayNotice(heardNotice);
+    return () => sayNotice("");
+  }, [sayNotice, heardNotice]);
   // The city is one of Lantern's assumptions too when it played the likeliest of its readings.
   const isCityAssumed = request.citySource === "assumed";
   // Read from the day on screen's words, not the re-plan's: the word changed may have been
@@ -1233,16 +1244,16 @@ export function DayStageHeader({
                 </motion.div>
               )}
               {/* What a screen reader hears: once a wait, from its first silence to its end, that
-                the day is being written; or once, in the step, the notice's whole line, before
-                the page shows it. Once the notice stands whole, the page says it, so this says
-                it no more: read through, the header holds the line once. What a change set aside
-                is heard with what the new word re-plans, in one line that stays as the note on
-                screen steps on. */}
+                the day is being written; or, with no notice status above the header, once, in
+                the step, the notice's whole line, before the page shows it, and no more once
+                its hold is over and the page says it: read through, the header holds the line
+                once. What a change set aside is heard with what the new word re-plans, in one
+                line that stays as the note on screen steps on. */}
               <p role="status" className="sr-only">
                 {noticeLine !== null
-                  ? isNoticeSaid
-                    ? ""
-                    : noticeLine
+                  ? sayNotice === null
+                    ? heardNotice
+                    : ""
                   : replanningLine !== null
                     ? isLockedSaid
                       ? ONE_CHANGE_AT_A_TIME
@@ -1719,7 +1730,7 @@ function Notice({
   const isWhole = isWritten;
   const write = noticeRunsOf(isWhole);
   // Out of reach until it stands whole, so the focus never lands on a control that is not
-  // there to the eye; its words are heard from the header's status meanwhile.
+  // there to the eye; its words are heard from the notice status meanwhile.
   useEffect(() => onWhole(isWhole), [isWhole, onWhole]);
   // Written whole, it takes the focus when nothing else holds it, as when it was in a stop's
   // sheet the fading chart took with it: its first way on, so the next Tab is not the foot
@@ -1823,7 +1834,7 @@ function sentenceRunsOf(request: DayRequest): {
 /**
  * Sets each run of the notice: said, as it is; until then in its place unseen, so the notice's
  * lines break where they will stand. A screen reader is told the line meanwhile from the
- * header's status, and finds every word here once it is said.
+ * notice status, and finds every word here once it is said.
  */
 function noticeRunsOf(isSaid: boolean): (run: string) => ReactNode {
   return function write(run) {

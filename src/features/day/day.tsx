@@ -90,6 +90,7 @@ import { endedDayOf, phaseOf } from "./stream-ending";
 import { isSentenceStreamed } from "./header-ready";
 import { readIntakeRoute } from "./intake-route";
 import { FootLine } from "./foot-line";
+import { NoticeStatus, NoticeStatusContext, useNoticeStatus } from "./notice-status";
 import { replanningOf, replanningPartOf, type SetAside } from "./not-yet";
 import { requestFor, standInZoneOf } from "./start";
 import {
@@ -693,6 +694,12 @@ export function Day({
   // writes on in memory; Forward shows the day again as it stands (`docs/decisions.md`, "Back goes
   // to the day before").
   const [isStartShown, setIsStartShown] = useState(false);
+  // How a day ended, said from a status that stands above the start screen and every run of
+  // the day, so a day that ends as the page turns from the start screen is a change of its
+  // text; the page around the day renders it instead where it turns between views of its own.
+  const sayAbove = useNoticeStatus();
+  const [heardNotice, setHeardNotice] = useState("");
+  const sayNotice = sayAbove ?? setHeardNotice;
   const [line, setLine] = useState<StartLine>(null);
   // What the visitor has typed: held here, so a day on its way keeps it.
   const [text, setText] = useState("");
@@ -2215,108 +2222,112 @@ export function Day({
 
   return (
     <MotionConfig reducedMotion="user" transition={SPRINGS.layout}>
+      {sayAbove === null && <NoticeStatus line={heardNotice} />}
       {asked && (
         // Kept under the start screen after Back, writing on and as the visitor left it, its
         // energy, open stop and curve included, so Forward brings it back as it stands: out
-        // of the page's flow at the size it had, unseen and out of reach.
+        // of the page's flow at the size it had, unseen and out of reach. Behind the start
+        // screen it says its notice in its own unheard status.
         <div
           className={isStartShown ? BEHIND_START_CLASSES : undefined}
           inert={isStartShown}
           aria-hidden={isStartShown || undefined}
         >
-          <DayStage
-            // A new run remounts the day, so it is written from the empty frame.
-            key={asked.run}
-            request={mergedShown?.request ?? asked.request}
-            // A day put back from memory is drawn anew, header and all: the word changed takes
-            // the focus it had as its answer was chosen.
-            focusedWord={
-              mergedShown?.changed ??
-              (asked.isFromMemory && changeShown !== null ? changeShown.word : null)
-            }
-            partial={partial}
-            outcome={outcome}
-            isStreaming={isStreaming}
-            isChosen={asked.isChosen}
-            isAfterExit={asked.isAfterExit}
-            isBehindStart={isStartShown}
-            isFromStart={asked.isStreamed && asked.kept === null}
-            isDrawnWhole={asked.whole !== null || asked.isKeptWhole}
-            onPlayedThrough={notePlayedThrough}
-            picksKey={picksKey}
-            placeHint={asked.request === first ? firstPlace : undefined}
-            keptNotice={asked.kept?.notice ?? null}
-            checks={checks}
-            // A day at the start screen's address has no link that would open it.
-            address={dayAddress === START_ADDRESS ? null : dayAddress}
-            replanFrame={replanFrame ?? forkFrameShown ?? foldingShown}
-            onReplanFaded={letFoldingGo}
-            forkOther={forkOther}
-            forkPresses={forkPresses}
-            replanRoom={targetedShown?.room ?? null}
-            heldRoom={asked.heldRoom}
-            roomRef={room}
-            unplaced={saidBack}
-            confirmed={asked.confirmed}
-            readings={asked.readings}
-            playedReading={asked.playedReading}
-            onChooseReading={(request, reading) =>
-              playDay(request, true, { unplaced: saidBack, played: reading.placeId })
-            }
-            onChooseCity={isLive ? (typed) => void chooseTypedCity(typed) : undefined}
-            isLive={isLive}
-            onEnergyPicked={(energy) => {
-              setRepicked({ run: asked.run, energy });
-              if (!replanning) setReplanLine(null);
-              // A part's proposal whole and not yet answered stands through the re-pick: both of
-              // its versions re-pick to the new energy, the slip's names and the chart's rows with
-              // them. Any other fork settles at once, as a changed word settles it: a whole day
-              // taken is a run of its own, drawn as it was written.
-              if (changeShown?.status === "proposed" && partForkShown !== null) return;
-              settleFork(false);
-            }}
-            // Once live, a changed word asks for the day again with it, under the same city's
-            // signature, while the day holds its place, and plays it as a day chosen from the
-            // city word: its said-back phrases stay. With live generation off the word says what it
-            // would have re-planned.
-            onReplan={isLive ? changeWord : undefined}
-            isReplanning={isThisRun(replanning, asked) || targetedShown !== null}
-            // A changed word's fork, while Lantern writes its proposal and after: either version
-            // is taken from memory until the next word changes.
-            replan={replanControls}
-            replanLine={isThisRun(replanLine, asked) ? replanLine.text : null}
-            setAside={isThisRun(setAside, asked) ? setAside : null}
-            isReplanLimited={isReplanLimited}
-            // A written day chosen from a list plays on the date it is shown on.
-            onPlay={(request) => playDay(shownRequestOf(request, new Date()), true)}
-            onOpenWritten={(request) =>
-              playDay(shownRequestOf(request, new Date()), true, { via: "pressed" })
-            }
-            // Asked again as it was asked, and counted as reached the same way: its said-back
-            // phrases and confirmed words stay, and as after choosing a written day, the focus
-            // comes back to its city word.
-            onRetry={() =>
-              playDay(asked.request, true, {
-                via: asked.via,
-                unplaced: saidBack,
-                confirmed: asked.confirmed,
-                isAgain: true,
-              })
-            }
-            typedCity={typedCity}
-            // Closed while a typed city is read, the list stops the reading.
-            onTypedCityDropped={() => {
-              stopReading();
-              setTypedCity(null);
-            }}
-            onEvent={events.send}
-            onDayAct={events.act}
-            onDayAnswer={events.answer}
-            dayAnswered={events.answered}
-            // The chart's invitation to drag shows once a page load, not on each day that lands
-            // here nor again after a client navigation away and back (`useInvitation`).
-            invitationMemory={PAGE_INVITATION_MEMORY}
-          />
+          <NoticeStatusContext value={isStartShown ? null : sayNotice}>
+            <DayStage
+              // A new run remounts the day, so it is written from the empty frame.
+              key={asked.run}
+              request={mergedShown?.request ?? asked.request}
+              // A day put back from memory is drawn anew, header and all: the word changed takes
+              // the focus it had as its answer was chosen.
+              focusedWord={
+                mergedShown?.changed ??
+                (asked.isFromMemory && changeShown !== null ? changeShown.word : null)
+              }
+              partial={partial}
+              outcome={outcome}
+              isStreaming={isStreaming}
+              isChosen={asked.isChosen}
+              isAfterExit={asked.isAfterExit}
+              isBehindStart={isStartShown}
+              isFromStart={asked.isStreamed && asked.kept === null}
+              isDrawnWhole={asked.whole !== null || asked.isKeptWhole}
+              onPlayedThrough={notePlayedThrough}
+              picksKey={picksKey}
+              placeHint={asked.request === first ? firstPlace : undefined}
+              keptNotice={asked.kept?.notice ?? null}
+              checks={checks}
+              // A day at the start screen's address has no link that would open it.
+              address={dayAddress === START_ADDRESS ? null : dayAddress}
+              replanFrame={replanFrame ?? forkFrameShown ?? foldingShown}
+              onReplanFaded={letFoldingGo}
+              forkOther={forkOther}
+              forkPresses={forkPresses}
+              replanRoom={targetedShown?.room ?? null}
+              heldRoom={asked.heldRoom}
+              roomRef={room}
+              unplaced={saidBack}
+              confirmed={asked.confirmed}
+              readings={asked.readings}
+              playedReading={asked.playedReading}
+              onChooseReading={(request, reading) =>
+                playDay(request, true, { unplaced: saidBack, played: reading.placeId })
+              }
+              onChooseCity={isLive ? (typed) => void chooseTypedCity(typed) : undefined}
+              isLive={isLive}
+              onEnergyPicked={(energy) => {
+                setRepicked({ run: asked.run, energy });
+                if (!replanning) setReplanLine(null);
+                // A part's proposal whole and not yet answered stands through the re-pick: both of
+                // its versions re-pick to the new energy, the slip's names and the chart's rows with
+                // them. Any other fork settles at once, as a changed word settles it: a whole day
+                // taken is a run of its own, drawn as it was written.
+                if (changeShown?.status === "proposed" && partForkShown !== null) return;
+                settleFork(false);
+              }}
+              // Once live, a changed word asks for the day again with it, under the same city's
+              // signature, while the day holds its place, and plays it as a day chosen from the
+              // city word: its said-back phrases stay. With live generation off the word says what it
+              // would have re-planned.
+              onReplan={isLive ? changeWord : undefined}
+              isReplanning={isThisRun(replanning, asked) || targetedShown !== null}
+              // A changed word's fork, while Lantern writes its proposal and after: either version
+              // is taken from memory until the next word changes.
+              replan={replanControls}
+              replanLine={isThisRun(replanLine, asked) ? replanLine.text : null}
+              setAside={isThisRun(setAside, asked) ? setAside : null}
+              isReplanLimited={isReplanLimited}
+              // A written day chosen from a list plays on the date it is shown on.
+              onPlay={(request) => playDay(shownRequestOf(request, new Date()), true)}
+              onOpenWritten={(request) =>
+                playDay(shownRequestOf(request, new Date()), true, { via: "pressed" })
+              }
+              // Asked again as it was asked, and counted as reached the same way: its said-back
+              // phrases and confirmed words stay, and as after choosing a written day, the focus
+              // comes back to its city word.
+              onRetry={() =>
+                playDay(asked.request, true, {
+                  via: asked.via,
+                  unplaced: saidBack,
+                  confirmed: asked.confirmed,
+                  isAgain: true,
+                })
+              }
+              typedCity={typedCity}
+              // Closed while a typed city is read, the list stops the reading.
+              onTypedCityDropped={() => {
+                stopReading();
+                setTypedCity(null);
+              }}
+              onEvent={events.send}
+              onDayAct={events.act}
+              onDayAnswer={events.answer}
+              dayAnswered={events.answered}
+              // The chart's invitation to drag shows once a page load, not on each day that lands
+              // here nor again after a client navigation away and back (`useInvitation`).
+              invitationMemory={PAGE_INVITATION_MEMORY}
+            />
+          </NoticeStatusContext>
         </div>
       )}
       {(asked === null || isStartShown) && start && (
