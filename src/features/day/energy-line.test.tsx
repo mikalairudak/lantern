@@ -297,6 +297,13 @@ describe("what a screen reader is told of the visitor's change to the day", () =
     await waitFor(() => expect(saidNow()).toEqual([line]));
   });
 
+  it("names the level by the word the headline shows for it", async () => {
+    const user = await landOnThePlan();
+    await chooseEnergy(user, LANDED_LEVEL, "quiet");
+
+    await waitFor(() => expect(saidNow()).toEqual([expect.stringMatching(/^quiet: /)]));
+  });
+
   it("says each energy press of the plan's bar, two within the hold, the status emptied between", async () => {
     const user = await landOnThePlan();
     const bar = screen.getByRole("group", { name: "How lively the day is" });
