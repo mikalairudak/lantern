@@ -564,14 +564,19 @@ async function takeProposal(
   answer: string,
 ): Promise<void> {
   const radio = await waitFor(() => {
-    const found = screen.getAllByRole("radio", { name: `${answer}, proposed` })[0];
+    const found = screen.getAllByRole("radio", {
+      name: `${answer} Take, proposed`,
+    })[0];
     if (!found) throw new Error(`No proposal of ${answer} to take`);
     return found;
   }, DAY_TIMEOUT);
   await user.click(radio);
 }
 
-/** Takes the day before back from the fork's first row, once the proposal is taken. */
+/**
+ * Takes the day before back from the chart's fork row, once the proposal is taken: the row,
+ * folded, shows no "Take", so the answer is named by its words and its state alone.
+ */
 async function takeBack(user: ReturnType<typeof userEvent.setup>, answer: string): Promise<void> {
   const radio = screen.getAllByRole("radio", { name: `${answer}, the day before` })[0];
   if (!radio) throw new Error(`No day before of ${answer} to take back`);
@@ -1154,7 +1159,9 @@ describe("a changed time word with live generation on", () => {
     // morning's beside them, the sentence saying both answers, the address the day's own.
     await waitFor(
       () =>
-        expect(screen.getAllByRole("radio", { name: "slow morning, proposed" })[0]).toBeDefined(),
+        expect(
+          screen.getAllByRole("radio", { name: "slow morning Take, proposed" })[0],
+        ).toBeDefined(),
       DAY_TIMEOUT,
     );
     expect(before.every((text) => rowTexts().includes(text))).toBe(true);
@@ -1369,7 +1376,9 @@ describe("a changed time word with live generation on", () => {
 
     await waitFor(
       () =>
-        expect(screen.getAllByRole("radio", { name: "slow morning, proposed" })[0]).toBeDefined(),
+        expect(
+          screen.getAllByRole("radio", { name: "slow morning Take, proposed" })[0],
+        ).toBeDefined(),
       DAY_TIMEOUT,
     );
     expect(readYourDays(window.localStorage)).toEqual([]);
@@ -1515,7 +1524,9 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
       DAY_TIMEOUT,
     );
     // The proposal cannot be taken until it is whole; the day keeps its address.
-    const proposal = screen.getAllByRole("radio", { name: "slow morning, being written" })[0];
+    const proposal = screen.getAllByRole("radio", {
+      name: "slow morning, being written",
+    })[0];
     expect(proposal).toHaveAttribute("aria-disabled", "true");
     expect(window.location.pathname).toBe(`/day/${KYOTO_DAY_ID}`);
     // The facts line's "see it" leads to the proposal, and says so to a screen reader.
@@ -1728,7 +1739,7 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     expect(day.current?.replan().status).toBe("proposed");
     expect(within(dayList()).getByText(/^Shoren-in$/)).toBeInTheDocument();
     expect(
-      within(planList()).getByRole("radio", { name: "slow morning, proposed" }),
+      within(planList()).getByRole("radio", { name: "slow morning Take, proposed" }),
     ).toBeInTheDocument();
     expect(headline()).toHaveTextContent(/^A lively Saturday in Kyoto, on foot, /);
     expect(factsLineText()).not.toMatch(/set aside|not kept/);
@@ -2982,7 +2993,8 @@ describe("a changed word's fork on the plan, with live generation on", () => {
     within(planList())
       .getAllByRole("heading", { level: 2 })
       .map((heading) => heading.textContent);
-  const slipRadio = (name: string) => within(planList()).getByRole("radio", { name });
+  const slipRadio = (name: string, description: string) =>
+    within(planList()).getByRole("radio", { name: `${name}, ${description}` });
   /** The names the slip lists, a line each, without the unseen lines holding its room. */
   const slipNames = () =>
     [
@@ -3012,7 +3024,7 @@ describe("a changed word's fork on the plan, with live generation on", () => {
     await changeWord(user, "early start", "slow morning");
 
     await waitFor(() => expect(day.current?.replan().status).toBe("writing"));
-    expect(slipRadio("slow morning, being written")).toHaveAttribute("aria-disabled", "true");
+    expect(slipRadio("slow morning", "being written")).toHaveAttribute("aria-disabled", "true");
     expect(planNames()).toEqual(before);
     expect(planNames()).not.toContain("Shoren-in");
     await waitFor(() =>
@@ -3032,16 +3044,16 @@ describe("a changed word's fork on the plan, with live generation on", () => {
     // Whole: the slip lists the proposal's morning; the plan is still the day.
     expect(within(planList()).getByText("Shoren-in")).toBeInTheDocument();
     expect(planNames()).toEqual(before);
-    const take = slipRadio("slow morning, proposed");
+    const take = slipRadio("slow morning Take", "proposed");
     expect(take).toHaveTextContent("slow morning· Take");
     take.focus();
     await user.keyboard("{Enter}");
 
     await waitFor(() => expect(day.current?.replan().status).toBe("taken"), DAY_TIMEOUT);
-    await waitFor(() => expect(slipRadio("slow morning, your day")).toHaveFocus());
+    await waitFor(() => expect(slipRadio("slow morning", "your day")).toHaveFocus());
     await waitFor(() => expect(planNames()).toContain("Shoren-in"));
     // The day before stands in the slip under the same control, to take back.
-    const back = slipRadio("early start, the day before");
+    const back = slipRadio("early start Take", "the day before");
     expect(back).toHaveTextContent("early start· Take");
 
     await pastADoublePress();
@@ -3049,7 +3061,7 @@ describe("a changed word's fork on the plan, with live generation on", () => {
 
     await waitFor(() => expect(day.current?.replan().status).toBe("left"), DAY_TIMEOUT);
     await waitFor(() => expect(planNames()).toEqual(before), DAY_TIMEOUT);
-    expect(slipRadio("slow morning, proposed")).toBeInTheDocument();
+    expect(slipRadio("slow morning Take", "proposed")).toBeInTheDocument();
   });
 
   it("re-picks a proposal standing on the chart as in its slip, and takes it as both say", async () => {
@@ -3097,7 +3109,7 @@ describe("a changed word's fork on the plan, with live generation on", () => {
     ].map((name) => name.textContent);
 
     await pastADoublePress();
-    await user.click(slipRadio("early start, the day before"));
+    await user.click(slipRadio("early start Take", "the day before"));
 
     await waitFor(() => expect(day.current?.replan().status).toBe("left"), DAY_TIMEOUT);
     await waitFor(() => expect(planNames().slice(0, listed.length)).toEqual(listed), DAY_TIMEOUT);
@@ -3120,7 +3132,7 @@ describe("a changed word's fork on the plan, with live generation on", () => {
     watch.observe(document.body, { subtree: true, childList: true, characterData: true });
     onTestFinished(() => watch.disconnect());
     await changeWord(user, "with friends", "with family");
-    const take = await waitFor(() => slipRadio("with family, proposed"), DAY_TIMEOUT);
+    const take = await waitFor(() => slipRadio("with family Take", "proposed"), DAY_TIMEOUT);
     watch.disconnect();
     const listed = slipNames();
     const strays = [...said].filter((each) => {
@@ -3139,7 +3151,7 @@ describe("a changed word's fork on the plan, with live generation on", () => {
     // Taken, the slip lists the day before as taking it back draws it.
     const before = slipNames();
     await pastADoublePress();
-    await user.click(slipRadio("with friends, the day before"));
+    await user.click(slipRadio("with friends Take", "the day before"));
     await waitFor(() => expect(headline()).toHaveTextContent(/with friends$/), DAY_TIMEOUT);
     await waitForTheDay();
     expect(planNames()).toEqual(before);
@@ -3149,13 +3161,13 @@ describe("a changed word's fork on the plan, with live generation on", () => {
     const user = await landOnMadrid();
     dayReplies.push(KANAZAWA_START_REQUEST);
     await changeWord(user, "with friends", "with family");
-    const take = await waitFor(() => slipRadio("with family, proposed"), DAY_TIMEOUT);
+    const take = await waitFor(() => slipRadio("with family Take", "proposed"), DAY_TIMEOUT);
 
     // The two presses of a double press, 300 ms apart on the clock their events carry, however
     // long the day between them takes to be drawn anew.
     pressAt(take, FIRST_PRESS_AT);
     // The day taken is drawn anew, its slip in the same place; the finger presses again.
-    const back = await waitFor(() => slipRadio("with friends, the day before"), DAY_TIMEOUT);
+    const back = await waitFor(() => slipRadio("with friends Take", "the day before"), DAY_TIMEOUT);
     pressAt(back, FIRST_PRESS_AT + 300);
 
     await waitForTheDay();
@@ -3240,7 +3252,7 @@ describe("a changed word's fork on the plan, with live generation on", () => {
     await waitFor(() => expect(planNames()).toEqual(expect.arrayContaining(outside)), DAY_TIMEOUT);
 
     await pastADoublePress();
-    await user.click(slipRadio("early start, the day before"));
+    await user.click(slipRadio("early start Take", "the day before"));
     await waitFor(() => expect(planNames()).toEqual(repicked), DAY_TIMEOUT);
   });
 

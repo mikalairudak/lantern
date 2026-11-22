@@ -97,7 +97,7 @@ test("a sun's minute never stands on a stop's time, as the fork is taken and com
     .click();
   await page.getByRole("option", { name: "early start" }).click();
   const row = page.locator('[data-fork-row="0"]').filter({ visible: true });
-  await expect(row.getByRole("radio", { name: "early start, proposed" })).toBeVisible({
+  await expect(row.getByRole("radio", { name: "early start Take, proposed" })).toBeVisible({
     timeout: DAY_TIMEOUT_MS,
   });
   const compare = row.getByRole("button", { name: "Compare" });

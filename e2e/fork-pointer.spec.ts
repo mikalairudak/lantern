@@ -36,7 +36,7 @@ async function proposeLateDinner(page: Page): Promise<void> {
   await page.locator("h1").getByRole("button", { name: "early dinner", exact: true }).click();
   await page.getByRole("option", { name: "eating late" }).click();
   await expect(
-    shownForkRow(page).getByRole("radio", { name: "eating late, proposed" }),
+    shownForkRow(page).getByRole("radio", { name: "eating late Take, proposed" }),
   ).toBeVisible({ timeout: DAY_TIMEOUT_MS });
   await page.evaluate(() => window.scrollTo(0, 0));
 }

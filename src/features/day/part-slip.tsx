@@ -446,13 +446,17 @@ function SlipAnswer({ view, side, onPress }: SlipAnswerProps) {
   const isWriting = view.isWriting;
   const isRinged = view.isReady || view.chosen === "to";
   const description = isWriting ? "being written" : side === "to" ? "proposed" : "the day before";
+  // One condition draws "Take" and names it, so the two cannot part.
+  const isTakeShown = !isWriting;
   return (
     <button
       type="button"
       role="radio"
       aria-checked={false}
       aria-disabled={isWriting || undefined}
-      aria-label={`${label}, ${description}`}
+      // The name repeats the words shown, in their order, "Take" among them while it is drawn,
+      // so a visitor who says what they see finds the control (WCAG 2.5.3); the state follows.
+      aria-label={`${label}${isTakeShown ? " Take" : ""}, ${description}`}
       tabIndex={-1}
       onClick={(event) => onPress(side, event)}
       className={cn(
@@ -468,7 +472,7 @@ function SlipAnswer({ view, side, onPress }: SlipAnswerProps) {
       </span>
       {/* "Take" is the answer's own words, one control with it; its room is held unseen while
           the version is written. */}
-      <span aria-hidden className={cn(isWriting && "invisible")}>
+      <span aria-hidden className={cn(!isTakeShown && "invisible")}>
         <span className="text-muted">· </span>
         <span className="text-ink underline decoration-1 underline-offset-4">Take</span>
       </span>

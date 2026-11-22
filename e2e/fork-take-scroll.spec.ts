@@ -64,7 +64,7 @@ async function eatLateInElche(page: Page): Promise<void> {
 /** Waits for the proposal to stand whole beside the day. */
 async function waitForTheProposal(page: Page): Promise<void> {
   await expect(
-    shownForkRow(page, 0).getByRole("radio", { name: "eating late, proposed" }),
+    shownForkRow(page, 0).getByRole("radio", { name: "eating late Take, proposed" }),
   ).toBeVisible({ timeout: DAY_TIMEOUT_MS });
   await expect(theDay(page)).toHaveAttribute("aria-busy", "false");
 }
@@ -186,7 +186,9 @@ test.describe("with motion", () => {
     test.setTimeout(2 * DAY_TIMEOUT_MS);
     await eatLateInElche(page);
     await waitForTheProposal(page);
-    const take = shownForkRow(page, 0).getByRole("radio", { name: "eating late, proposed" });
+    const take = shownForkRow(page, 0).getByRole("radio", {
+      name: "eating late Take, proposed",
+    });
     await bringToPress(page, take);
     // Short of the page's end, so a page that grows shorter does not move it.
     expect(

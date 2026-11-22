@@ -283,7 +283,7 @@ describe("ReadingList", () => {
     expect(row).toHaveAttribute("data-stop", KYOTO.stops[1]!.id);
     const group = within(head!).getByRole("radiogroup");
     expect(group).toHaveAccessibleName("early dinner or eating late, 1 of 2");
-    await user.click(within(group).getByRole("radio", { name: "eating late, proposed" }));
+    await user.click(within(group).getByRole("radio", { name: "eating late Take, proposed" }));
     expect(onChoose).toHaveBeenCalledWith("to");
     expect(within(rowsOf()[0]!).queryByRole("radiogroup")).toBeNull();
   });
@@ -563,7 +563,7 @@ describe("ReadingList", () => {
       />,
     );
     const head = screen.getByRole("radiogroup").closest("li");
-    screen.getByRole("radio", { name: "eating late, proposed" }).focus();
+    screen.getByRole("radio", { name: "eating late Take, proposed" }).focus();
 
     // Taken: the day's row folds away under the head, and the version taken's comes in.
     rerender(
@@ -615,7 +615,10 @@ describe("ReadingList", () => {
     rerender(<ReadingList {...KYOTO} parts={null} />);
 
     // The slip still stands as its fork folds out, its closures those of the proposal.
-    const leaving = screen.getByRole("radio", { name: "eating late, proposed", hidden: true });
+    const leaving = screen.getByRole("radio", {
+      name: "eating late Take, proposed",
+      hidden: true,
+    });
     expect(leaving.closest("[inert]")).not.toBeNull();
   });
 

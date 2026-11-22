@@ -44,9 +44,12 @@ async function eatLate(page: Page): Promise<void> {
 }
 
 async function waitForTheProposal(page: Page): Promise<void> {
-  await expect(plan(page).getByRole("radio", { name: "eating late, proposed" })).toHaveCount(2, {
-    timeout: DAY_TIMEOUT_MS,
-  });
+  await expect(plan(page).getByRole("radio", { name: "eating late Take, proposed" })).toHaveCount(
+    2,
+    {
+      timeout: DAY_TIMEOUT_MS,
+    },
+  );
 }
 
 /** Whether the day's column is whole by the rule the page keys on: its width against 64 rems. */
@@ -67,9 +70,12 @@ test("lists the day alone through the proposal's writing and a take, each part's
   expect(before).toContain(OWN_LUNCH);
 
   await eatLate(page);
-  await expect(plan(page).getByRole("radio", { name: "eating late, being written" })).toHaveCount(
-    2,
-  );
+  await expect(
+    plan(page).getByRole("radio", {
+      name: "eating late, being written",
+      exact: true,
+    }),
+  ).toHaveCount(2);
   await expect(slip(page, 0)).toContainText(NEW_LUNCH, { timeout: DAY_TIMEOUT_MS });
   expect(await rowNames(page)).toEqual(before);
 
@@ -77,7 +83,7 @@ test("lists the day alone through the proposal's writing and a take, each part's
   expect(await rowNames(page)).toEqual(before);
   await expect(slip(page, 0)).toContainText("in place of 13:15");
 
-  await plan(page).getByRole("radio", { name: "eating late, proposed" }).first().click();
+  await plan(page).getByRole("radio", { name: "eating late Take, proposed" }).first().click();
 
   await expect.poll(() => rowNames(page), { timeout: DAY_TIMEOUT_MS }).toContain(NEW_LUNCH);
   expect(await rowNames(page)).not.toContain(OWN_LUNCH);
@@ -85,7 +91,10 @@ test("lists the day alone through the proposal's writing and a take, each part's
   await expect(slip(page, 0)).toContainText(OWN_LUNCH);
   // A second press on the same control within a double press's time does nothing.
   await page.waitForTimeout(DOUBLE_PRESS_MS);
-  await plan(page).getByRole("radio", { name: "early dinner, the day before" }).first().click();
+  await plan(page)
+    .getByRole("radio", { name: "early dinner Take, the day before" })
+    .first()
+    .click();
   await expect.poll(() => rowNames(page), { timeout: DAY_TIMEOUT_MS }).toEqual(before);
 });
 
@@ -621,8 +630,11 @@ async function sampleForkLines(page: Page, part: number, answer: string): Promis
             : [],
         );
         const live = lines.find((line) => line.closest("[inert]") === null);
+        // Named by its words, "Take" among them while it is drawn, then its state.
         const answers = lines.flatMap((line) => [
-          ...line.querySelectorAll(`[role="radio"][aria-label^="${named},"]`),
+          ...line.querySelectorAll(
+            `[role="radio"][aria-label^="${named},"], [role="radio"][aria-label^="${named} Take,"]`,
+          ),
         ]);
         const answerInk = Math.max(
           0,
@@ -688,7 +700,8 @@ async function pressThroughRest(
   description: string,
 ): Promise<{ at: number; frames: ForkFrame[] }> {
   const fork = plan(page).locator(`[data-fork-row="${part}"]:not([inert] *)`);
-  const control = fork.getByRole("radio", { name: `${answer}, ${description}` });
+  // The slip's answer shows "Take" whichever version it offers.
+  const control = fork.getByRole("radio", { name: `${answer} Take, ${description}`, exact: true });
   await control.evaluate((element, at) => {
     const box = element.getBoundingClientRect();
     window.scrollTo({ top: box.top + box.height / 2 + scrollY - at, behavior: "instant" });
@@ -798,7 +811,9 @@ test.describe("with motion", { tag: "@frame" }, () => {
       .filter({ hasText: /friends/ })
       .first()
       .click();
-    const take = plan(page).getByRole("radio", { name: "with friends, proposed" });
+    const take = plan(page).getByRole("radio", {
+      name: "with friends Take, proposed",
+    });
     await expect(take).toBeVisible({ timeout: DAY_TIMEOUT_MS });
     await take.scrollIntoViewIfNeeded();
 
@@ -843,13 +858,13 @@ test.describe("with motion", { tag: "@frame" }, () => {
       await eatLate(page);
       await waitForTheProposal(page);
       const evening = (name: string) =>
-        plan(page).locator(`[data-fork-row="1"]`).getByRole("radio", { name }).last();
+        plan(page).locator(`[data-fork-row="1"]`).getByRole("radio", { name, exact: true }).last();
       // The evening's answer near the top of the screen, where a reader presses it.
-      await evening("eating late, proposed").evaluate((element) =>
+      await evening("eating late Take, proposed").evaluate((element) =>
         window.scrollTo(0, element.getBoundingClientRect().top + window.scrollY - 205),
       );
       await sampleView(page);
-      await pressWhereItStands(page, evening("eating late, proposed"));
+      await pressWhereItStands(page, evening("eating late Take, proposed"));
       // The take never moves the view at once, and hardly at all until its rows rest: the rows
       // it changes fold in and out where they stand.
       const taken = await sampledView(page);
@@ -859,7 +874,7 @@ test.describe("with motion", { tag: "@frame" }, () => {
       expect(viewMoveOf(taken), "the view moved after the take").toBeLessThanOrEqual(
         VIEW_MOVE_TO_REST_PX,
       );
-      await expect(evening("early dinner, the day before")).toBeVisible();
+      await expect(evening("early dinner Take, the day before")).toBeVisible();
       // The day taken back where it was taken, or read to its foot: the page scrolled as far as
       // it goes, so a page that shrinks under the hand moves the view.
       if (isAtFoot) {
@@ -868,7 +883,7 @@ test.describe("with motion", { tag: "@frame" }, () => {
 
       await sampleRows(page);
       if (!isAtFoot) await sampleView(page);
-      await pressWhereItStands(page, evening("early dinner, the day before"));
+      await pressWhereItStands(page, evening("early dinner Take, the day before"));
 
       const frames = await sampledRows(page);
       // Taken back: a press that missed would leave every row still.

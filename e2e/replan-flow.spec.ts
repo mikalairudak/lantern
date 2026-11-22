@@ -1,6 +1,14 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { expect, test, type Page, type Route, waitMs, chooseTheChart } from "./fixtures";
+import {
+  expect,
+  test,
+  type Locator,
+  type Page,
+  type Route,
+  waitMs,
+  chooseTheChart,
+} from "./fixtures";
 import { openLive, seeWrittenDay } from "./live-page";
 import { writtenDayAt } from "../src/lib/days/written/days";
 import { YOUR_DAYS_KEY } from "../src/features/day/your-days";
@@ -120,13 +128,26 @@ async function changeWord(page: Page, word: string, option: string): Promise<voi
 
 /** Takes the proposal from the fork's first row once it is whole, as a hollow bead is taken. */
 async function takeProposal(page: Page, answer: string): Promise<void> {
-  const radio = page.getByRole("radio", { name: `${answer}, proposed`, exact: true }).first();
+  const radio = page.getByRole("radio", { name: `${answer} Take, proposed`, exact: true }).first();
   await expect(radio).toBeVisible({ timeout: DAY_TIMEOUT_MS });
   await radio.click();
 }
 
 function rowNamed(page: Page, name: string) {
   return page.locator('ol[aria-label="The day"] > li').filter({ hasText: name });
+}
+
+/**
+ * "Take" is in an answer's name exactly while it is drawn, seen: the name repeats the words
+ * shown, so a word drawn and unnamed, or named and undrawn, fails here.
+ */
+async function expectTakeNamedAsDrawn(answer: Locator): Promise<void> {
+  const take = answer.getByText("Take", { exact: true });
+  const isDrawn =
+    (await take.count()) > 0 &&
+    (await take.evaluate((element) => element.checkVisibility({ visibilityProperty: true })));
+  if (isDrawn) await expect(answer).toHaveAccessibleName(/ Take, /);
+  else await expect(answer).not.toHaveAccessibleName(/Take/);
 }
 
 /** The visitor's days as the browser keeps them: each one's id and how it stands. */
@@ -193,6 +214,52 @@ test("a proposal taken and taken back puts each day and its address back, each t
   await expect(page).toHaveURL(/\/privacy$/);
 });
 
+test("each answer of the fork is named by the words it shows and told apart by what it is, on the chart and the plan", async ({
+  page,
+}) => {
+  await seeKanazawa(page);
+  await openLive(page, KANAZAWA_ADDRESS);
+  await waitForTheDay(page);
+  await page.route(REPLAN_ROUTE, (route) => answerReplan(route, REPLAN_ID));
+  const views = page.getByRole("group", { name: "View" });
+  const fork = page.locator('[data-fork-row="0"]').filter({ visible: true });
+  const other = fork.getByRole("radio", { checked: false });
+  const shown = fork.getByRole("radio", { checked: true });
+
+  await changeWord(page, "early dinner", "eating late");
+
+  // Whole, the proposal's answer reads "eating late · Take", and its name says both words, then
+  // its state.
+  await expect(other).toHaveAccessibleName("eating late Take, proposed", {
+    timeout: DAY_TIMEOUT_MS,
+  });
+  await expect(shown).toHaveAccessibleName("early dinner, your day");
+  await expectTakeNamedAsDrawn(other);
+  await expectTakeNamedAsDrawn(shown);
+
+  await views.getByRole("button", { name: "Plan" }).click();
+  await expect(other).toHaveAccessibleName("eating late Take, proposed");
+  await expect(shown).toHaveAccessibleName("early dinner, your day");
+  await expectTakeNamedAsDrawn(other);
+  await expectTakeNamedAsDrawn(shown);
+
+  await other.click();
+
+  // Taken, the plan's slip offers the day before to take back.
+  await expect(page).toHaveURL(new RegExp(`/day/${REPLAN_ID}$`), { timeout: DAY_TIMEOUT_MS });
+  await expect(other).toHaveAccessibleName("early dinner Take, the day before");
+  await expect(shown).toHaveAccessibleName("eating late, your day");
+  await expectTakeNamedAsDrawn(other);
+  await expectTakeNamedAsDrawn(shown);
+
+  // The chart's fork folds to its two answers, with no "Take" shown.
+  await views.getByRole("button", { name: "Chart" }).click();
+  await expect(other).toHaveAccessibleName("early dinner, the day before");
+  await expect(shown).toHaveAccessibleName("eating late, your day");
+  await expectTakeNamedAsDrawn(other);
+  await expectTakeNamedAsDrawn(shown);
+});
+
 test("a re-plan merged after an energy re-picked shows its own rows, not the re-picked day's", async ({
   page,
 }) => {
@@ -236,10 +303,15 @@ test("a proposal being written leaves the day the visitor's: its rows, its word 
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "early dinner or eating late",
   );
-  // The proposal cannot be taken until it is whole; the day can be dragged meanwhile.
-  await expect(
-    page.getByRole("radio", { name: "eating late, being written", exact: true }).first(),
-  ).toHaveAttribute("aria-disabled", "true");
+  // The proposal cannot be taken until it is whole; the day can be dragged meanwhile. Its
+  // "Take" is held unseen, so its name is the answer and its state alone.
+  const proposal = page
+    .locator('[data-fork-row="0"]')
+    .filter({ visible: true })
+    .getByRole("radio", { checked: false });
+  await expect(proposal).toHaveAttribute("aria-disabled", "true");
+  await expect(proposal).toHaveAccessibleName("eating late, being written");
+  await expectTakeNamedAsDrawn(proposal);
   await waitForTheDay(page);
   // Named as its answer came: one of the visitor's days, before it is written.
   expect(await yourDays(page)).toEqual([[REPLAN_ID, "writing"]]);

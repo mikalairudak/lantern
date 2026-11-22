@@ -99,7 +99,7 @@ for (const view of ["Plan", "Chart"] as const) {
     await headline.getByRole("button", { name: "early dinner", exact: true }).click();
     await page.getByRole("option", { name: /eating late/ }).click();
     const take = page
-      .getByRole("radio", { name: "eating late, proposed", exact: true })
+      .getByRole("radio", { name: "eating late Take, proposed", exact: true })
       .filter({ visible: true })
       .first();
     await expect(take).toBeVisible({ timeout: DAY_TIMEOUT_MS });

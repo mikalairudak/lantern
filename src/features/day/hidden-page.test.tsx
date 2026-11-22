@@ -381,7 +381,10 @@ const livelyButton = () =>
 /** The proposal whole beside the day, and the fork's other words free again. */
 async function expectProposalWhole(): Promise<void> {
   await waitFor(
-    () => expect(screen.getAllByRole("radio", { name: "slow morning, proposed" })[0]).toBeDefined(),
+    () =>
+      expect(
+        screen.getAllByRole("radio", { name: "slow morning Take, proposed" })[0],
+      ).toBeDefined(),
     DAY_TIMEOUT,
   );
   expect(screen.queryAllByRole("radio", { name: "slow morning, being written" })).toHaveLength(0);
