@@ -145,6 +145,8 @@ interface CityWordProps {
    */
   isLocked?: boolean;
   onLockedPress?: () => void;
+  /** The id of the header's `ASSUMED_NOTE`, the word's description while it is dotted. */
+  assumedNoteId?: string;
 }
 
 /**
@@ -177,6 +179,7 @@ export function CityWord({
   isAssumptionMarked = true,
   isLocked = false,
   onLockedPress,
+  assumedNoteId,
 }: CityWordProps) {
   const isMarked = isAssumptionMarked && current.citySource === "assumed";
   const ownButton = useRef<HTMLButtonElement>(null);
@@ -235,6 +238,7 @@ export function CityWord({
         aria-expanded={openAt !== null}
         aria-controls={openAt !== null ? panelId : undefined}
         aria-disabled={isLocked || undefined}
+        aria-describedby={isMarked ? assumedNoteId : undefined}
         // Pressed again, the word rolls its list back into itself, as Escape does.
         onClick={() => {
           if (isLocked) return onLockedPress?.();

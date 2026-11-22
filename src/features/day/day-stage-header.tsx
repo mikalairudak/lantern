@@ -12,6 +12,7 @@ import {
   Fragment,
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -44,6 +45,7 @@ import type { BestLight } from "@/features/abacus/light";
 import { ClauseText, owedClauseOf, setOff, useHasStood } from "./clause-text";
 import {
   ASSUMED_CLASSES,
+  ASSUMED_NOTE,
   SentenceWord,
   wordClassesOf,
   type OptionView,
@@ -854,6 +856,7 @@ export function DayStageHeader({
   // Lantern's only assumption, and its key stays until the day asked for lands.
   const hasAssumed =
     isCityAssumed || Object.values(givenFacts).some((fact) => fact?.source === "assumed");
+  const assumedNoteId = useId();
   // While a word is re-planned, and until its change settles, the end of the facts line is
   // the one it had at the press, so no letter of it is written over: faded in its own room
   // while the re-plan is written, as no word can be changed then, or saying why when a locked
@@ -1003,6 +1006,7 @@ export function DayStageHeader({
         onChoose={(value) => choose(key, value)}
         onLight={(isLit) => onLight(isLit ? key : null)}
         onOpenChange={(isOpen) => setOpenWord((now) => (isOpen ? key : now === key ? null : now))}
+        assumedNoteId={assumedNoteId}
       />
     );
   };
@@ -1125,6 +1129,7 @@ export function DayStageHeader({
                       isAssumptionMarked={notice === null}
                       isLocked={isReplanWriting}
                       onLockedPress={sayLocked}
+                      assumedNoteId={assumedNoteId}
                     />
                   </VisitorsWord>
                   {/* Once a notice says no day is coming, Lantern's words leave with the lines
@@ -1292,6 +1297,11 @@ export function DayStageHeader({
           </div>
         </GlidingHeight>
       </div>
+      {/* Heard only as each dotted word's description, so the dots' key is read with the words
+        it marks. */}
+      <span id={assumedNoteId} hidden>
+        {ASSUMED_NOTE}
+      </span>
     </header>
   );
 }
