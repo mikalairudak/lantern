@@ -1,4 +1,7 @@
 import { expect, test, type CDPSession, type Locator, type Page, waitMs } from "./fixtures";
+import { BROWSER_STORAGE } from "../src/lib/browser-storage";
+import { writtenDayAt } from "../src/lib/days/written/days";
+import { writtenVersionOf } from "../src/lib/days/written/version";
 
 /**
  * The day's plan: a day opens on its plan, lit by its light; the energy's five words move it; the
@@ -124,6 +127,50 @@ test("a stop swipes along its versions, from a drag and from the keys", async ({
   await page.keyboard.press("ArrowLeft");
   await expect.poll(names).toEqual(before);
   await expect(stop).toBeFocused();
+});
+
+/** Kanazawa's coffee stop as written, and the livelier version beside it. */
+const WRITTEN_COFFEE = "Coffee in Kenrokumachi";
+const LIVELIER_COFFEE = "Coffee near Hirosaka";
+
+test("an arrow pressed hands the focus to its stop once the stop carries the version taken", async ({
+  page,
+}) => {
+  const kanazawa = writtenDayAt("kanazawa")!.itinerary;
+  await page.addInitScript(({ key, day }) => localStorage.setItem(key, JSON.stringify([day])), {
+    key: BROWSER_STORAGE.seen.key,
+    day: `kanazawa:${writtenVersionOf(kanazawa)}`,
+  });
+  await page.goto("/day/kanazawa");
+  await dayIsWhole(page);
+  const plan = page.getByRole("list", { name: "The day, to read" });
+  // The name each stop carries as the focus reaches it, which is what a screen reader says.
+  await page.evaluate(() => {
+    const w = window as unknown as { focusedNames: string[] };
+    w.focusedNames = [];
+    document.addEventListener(
+      "focusin",
+      (event) => {
+        const target = event.target as HTMLElement;
+        if (target.getAttribute("role") === "group") {
+          w.focusedNames.push(target.getAttribute("aria-label") ?? "");
+        }
+      },
+      true,
+    );
+  });
+
+  await plan.getByRole("button", { name: `Livelier: ${LIVELIER_COFFEE}` }).focus();
+  await page.keyboard.press("Enter");
+  const stop = plan.getByRole("group", { name: LIVELIER_COFFEE });
+  await expect(stop).toBeFocused();
+  expect(
+    await page.evaluate(() => (window as unknown as { focusedNames: string[] }).focusedNames),
+  ).toEqual([LIVELIER_COFFEE]);
+
+  // The arrow keys on the stop swap it where the focus already is.
+  await page.keyboard.press("ArrowLeft");
+  await expect(plan.getByRole("group", { name: WRITTEN_COFFEE })).toBeFocused();
 });
 
 /** A finger on the page at a point, moved by `by` in steps, and lifted unless it is to stay. */

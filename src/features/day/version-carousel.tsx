@@ -239,6 +239,8 @@ export function VersionCarousel({
   const [isDragging, setIsDragging] = useState(false);
   /** A drag let go ends in a click on the stop, which is the drag's and nothing else's. */
   const isClickDragged = useRef(false);
+  /** The version an arrow pressed named, which the stop takes the focus with once it shows it. */
+  const focusWith = useRef<number | null>(null);
 
   useLayoutEffect(() => {
     const box = boxRef.current;
@@ -249,6 +251,15 @@ export function VersionCarousel({
     observer.observe(box);
     return () => observer.disconnect();
   }, [canSwipe]);
+
+  // An arrow pressed may go with the version it named, so the focus stays with the stop. It
+  // reaches the stop once the stop carries the version's name, which a screen reader then says;
+  // a version taken any other way leaves the focus where it is.
+  useLayoutEffect(() => {
+    const isFocusHanded = focusWith.current === pick;
+    focusWith.current = null;
+    if (isFocusHanded) groupRef.current?.focus();
+  }, [pick]);
 
   // The version taken is now the stop: drawn where it stood as it waited, a stride off, in the
   // same paint, then brought home on the layout spring.
@@ -354,9 +365,8 @@ export function VersionCarousel({
     pointedLean.current = null;
     // The version on the left waits a stride to the left, so once taken it starts from there.
     shift.current = side === "before" ? -stride : stride;
+    focusWith.current = isPressed ? version.index : null;
     onPick(version.index);
-    // An arrow pressed may go with the version it named: the focus stays with the stop.
-    if (isPressed) groupRef.current?.focus();
   };
 
   const goHome = () => {

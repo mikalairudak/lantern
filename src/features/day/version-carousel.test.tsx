@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { candidatesOf } from "@/features/abacus/curve";
 import { completeDraftOf } from "@/features/abacus/day-draft";
 import { itineraryOf } from "@/features/abacus/stop-row-examples";
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
@@ -63,7 +64,44 @@ function Picking() {
   );
 }
 
+/** The carousel named, as the list names it, after the version it shows. */
+function Renaming() {
+  const [pick, setPick] = useState(0);
+  const name = candidatesOf(BOTH)[pick]?.name ?? "";
+  return (
+    <VersionCarousel
+      stop={BOTH}
+      pick={pick}
+      name={name}
+      onPick={setPick}
+      renderVersion={(candidate) => <p>{`version ${candidate}`}</p>}
+    >
+      <h2>{name}</h2>
+    </VersionCarousel>
+  );
+}
+
 describe("the carousel", () => {
+  it("hands the focus to the stop from an arrow pressed once it carries the version's name", async () => {
+    const user = userEvent.setup();
+    render(<Renaming />);
+    const { after } = neighboursOf(BOTH, 0);
+    const named: string[] = [];
+    const noteName = (event: FocusEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.getAttribute("role") === "group") named.push(target.getAttribute("aria-label")!);
+    };
+    document.addEventListener("focusin", noteName, true);
+    await user.click(screen.getByRole("button", { name: `Livelier: ${after?.name}` }));
+    expect(named).toEqual([after?.name]);
+    expect(screen.getByRole("group", { name: after?.name })).toHaveFocus();
+
+    // The arrow keys on the stop swap it where the focus already is.
+    await user.keyboard("{ArrowLeft}");
+    expect(screen.getByRole("group", { name: candidatesOf(BOTH)[0]?.name })).toHaveFocus();
+    document.removeEventListener("focusin", noteName, true);
+  });
+
   it("keeps the focus on the stop when the arrow pressed goes with the version it named", async () => {
     const user = userEvent.setup();
     render(<Picking />);
