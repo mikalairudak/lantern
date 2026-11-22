@@ -38,8 +38,11 @@ const SHOWN_FROM_MASTHEAD_CLASSES = "hidden @masthead:inline-flex";
 interface NewDayButtonProps {
   /** Opens the headline's city word at its field. */
   onPress: () => void;
-  /** Escape on the button, which closes the city's list it opened, as Escape in the list does. */
-  onEscape?: () => void;
+  /**
+   * Escape on the button, which closes the city's list it opened, as Escape in the list does;
+   * true when there was a list to close, so an Escape that closed nothing is left to the page.
+   */
+  onEscape?: () => boolean;
   /**
    * The button stopped being drawn with the focus on it, as a narrowed window's row puts it in
    * the menu: the focus needs a place that is drawn.
@@ -82,9 +85,7 @@ export function NewDayButton({
         data-pointed={isPointedDrawn || undefined}
         onClick={onPress}
         onKeyDown={(event) => {
-          if (event.key !== "Escape" || !onEscape) return;
-          event.preventDefault();
-          onEscape();
+          if (event.key === "Escape" && onEscape?.()) event.preventDefault();
         }}
         onBlur={(event) => {
           if (isFocusDropped(event.relatedTarget, event.currentTarget)) onHiddenWithFocus?.();

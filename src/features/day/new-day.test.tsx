@@ -176,6 +176,19 @@ describe("the new day on a day's page", () => {
     expect(city).toHaveFocus();
   });
 
+  it("leaves Escape to the rest of the page while it has no list open", async () => {
+    const user = renderDay();
+    let isAnswered: boolean | null = null;
+    const listen = (event: KeyboardEvent) => {
+      isAnswered = event.defaultPrevented;
+    };
+    document.addEventListener("keydown", listen);
+    act(() => newDay().focus());
+    await user.keyboard("{Escape}");
+    document.removeEventListener("keydown", listen);
+    expect(isAnswered).toBe(false);
+  });
+
   it("hands the focus to the menu's button when the menu's new day row stops being drawn", async () => {
     const user = renderDay();
     await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));

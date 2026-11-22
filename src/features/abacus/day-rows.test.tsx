@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { revealedOf } from "@/features/itinerary/revealed";
 import { firstAt, partialAt } from "@/features/itinerary/stream-frames";
@@ -409,6 +409,57 @@ describe("a stop's name", () => {
     fireEvent.click(beach, { detail: 1 });
     now.mockRestore();
     expect(beach).toHaveAttribute("aria-expanded", "true");
+  });
+});
+
+// A still of the lab's matrix: Escape folds its open stop from inside its day alone, so the
+// matrix's other cells and its page leave it as it stands. On a day's page it folds from
+// anywhere (`src/features/day/stop-sheet-escape.test.tsx`).
+describe("Escape in a still's day, a stop open", () => {
+  async function openBeach(): Promise<HTMLElement> {
+    render(<StopRowCell example={0} state="complete" density={null} />);
+    const list = await placedDay();
+    fireEvent.click(beachWords(list), { detail: 1 });
+    expect(await screen.findByRole("region", { name: /^About / })).toBeInTheDocument();
+    return list;
+  }
+
+  it("folds it from another stop's name, and the focus stays on that name", async () => {
+    const list = await openBeach();
+    const [, next] = within(list).getAllByRole("listitem");
+    const name = within(next ?? list).getByRole("button");
+    name.focus();
+
+    fireEvent.keyDown(name, { key: "Escape" });
+
+    await waitFor(() => expect(screen.queryByRole("region")).not.toBeInTheDocument());
+    expect(beachWords(list)).toHaveAttribute("aria-expanded", "false");
+    expect(name).toHaveFocus();
+  });
+
+  it("folds it from a bead's slider, and the focus stays on the slider", async () => {
+    const list = await openBeach();
+    const [slider] = screen.getAllByRole("slider");
+    if (!slider) throw new Error("The day drew no slider");
+    slider.focus();
+
+    fireEvent.keyDown(slider, { key: "Escape" });
+
+    await waitFor(() => expect(screen.queryByRole("region")).not.toBeInTheDocument());
+    expect(beachWords(list)).toHaveAttribute("aria-expanded", "false");
+    expect(slider).toHaveFocus();
+  });
+
+  it("keeps it open on an Escape outside its day", async () => {
+    const list = await openBeach();
+
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    expect(beachWords(list)).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("region", { name: /^About / })).toBeInTheDocument();
   });
 });
 
