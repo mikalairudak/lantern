@@ -73,6 +73,13 @@ export interface WordView {
  */
 export const ASSUMED_CLASSES = "underline decoration-muted decoration-dotted underline-offset-4";
 
+/**
+ * The dots' key in words, as the facts line spells it: the description of every dotted word
+ * of a day's headline, so a screen reader hears which of its words are Lantern's as a sighted
+ * visitor sees them.
+ */
+export const ASSUMED_NOTE = "assumed by Lantern";
+
 /** How each word reads at rest: energy in its colour, the visitor's ink, Lantern's dotted, the question. */
 export function wordClassesOf(view: Pick<WordView, "key" | "source">): string {
   const ink = view.key === "energy" ? "text-energy" : "text-ink";
@@ -207,6 +214,8 @@ interface SentenceWordProps {
   onLight: (isLit: boolean) => void;
   /** Told when its list opens, and when it closes or the word goes. */
   onOpenChange?: (isOpen: boolean) => void;
+  /** The id of the header's `ASSUMED_NOTE`, the word's description while it is dotted. */
+  assumedNoteId?: string;
 }
 
 /**
@@ -239,6 +248,7 @@ export function SentenceWord({
   onChoose,
   onLight,
   onOpenChange,
+  assumedNoteId,
 }: SentenceWordProps) {
   const [isOpen, setIsOpen] = useState(false);
   useEffect(() => {
@@ -422,6 +432,8 @@ export function SentenceWord({
               aria-expanded={isOpenable}
               aria-controls={isOpenable ? listId : undefined}
               aria-disabled={!isEnabled || undefined}
+              // Dotted by its source alone, locked or not, as both its classes are.
+              aria-describedby={view.source === "assumed" ? assumedNoteId : undefined}
               // Pressed again, the word rolls its list back into itself, as Escape does.
               onClick={() => {
                 // Locked, a press says so and does nothing else, whatever the day allows.

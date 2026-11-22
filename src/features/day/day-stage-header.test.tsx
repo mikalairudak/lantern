@@ -11,6 +11,7 @@ import { noticeOf } from "./stream-ending";
 import { requestSentenceOf, sentenceFactsOf } from "./sentence";
 import { DayStageHeader, type ForkNoteShown, type HeaderNotice } from "./day-stage-header";
 import type { ReplanControls } from "./replan-controls";
+import { ASSUMED_NOTE } from "./sentence-word";
 
 const ignore = () => undefined;
 /** Two `gentle` springs, one in and one out, settle well within this. */
@@ -259,8 +260,31 @@ describe("DayStageHeader", () => {
       name: "Portland",
     });
     expect(city).toHaveClass("decoration-dotted");
+    expect(city).toHaveAccessibleDescription(ASSUMED_NOTE);
     // Shown, and held in the unseen copies that keep the facts line's and the header's height.
-    expect(screen.getAllByText("assumed")).toHaveLength(3);
+    const keys = screen.getAllByText("assumed");
+    expect(keys).toHaveLength(3);
+    // The facts line's key reads as the words each dotted word is described by.
+    for (const key of keys) {
+      expect(`${key.textContent}${key.nextSibling?.textContent ?? ""}`).toBe(ASSUMED_NOTE);
+    }
+  });
+
+  it("says each word Lantern assumed is its own, as its dots show, and nothing of the visitor's", () => {
+    const assumptions = { ...KYOTO_ASSUMPTIONS, company: undefined };
+    renderHeader(LISBON_REQUEST, null, null, { assumptions });
+    const headline = screen.getByRole("heading", { level: 1 });
+
+    for (const word of ["on foot", "early start", "early dinner", "home by eleven"]) {
+      expect(within(headline).getByRole("button", { name: word })).toHaveAccessibleDescription(
+        "assumed by Lantern",
+      );
+    }
+    for (const word of ["lively", "Lisbon", "with friends"]) {
+      expect(
+        within(headline).getByRole("button", { name: word }),
+      ).not.toHaveAccessibleDescription();
+    }
   });
 
   it("holds room for the longest clause the curve could say of any day", () => {
@@ -492,9 +516,9 @@ describe("DayStageHeader", () => {
 
     const headline = screen.getByRole("heading", { level: 1 });
     expect(headline.querySelector(".decoration-dotted")).toBeNull();
-    expect(within(headline).getByRole("button", { name: "Portland" })).not.toHaveClass(
-      "decoration-dotted",
-    );
+    const city = within(headline).getByRole("button", { name: "Portland" });
+    expect(city).not.toHaveClass("decoration-dotted");
+    expect(city).not.toHaveAccessibleDescription();
     expect(screen.queryByText("assumed")).not.toBeInTheDocument();
   });
 

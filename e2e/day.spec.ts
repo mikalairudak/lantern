@@ -75,6 +75,24 @@ test("a written day's address writes it from the route, with no lab chrome", asy
   expect(errors).toEqual([]);
 });
 
+test("a written day's headline says which of its words Lantern assumed, as their dots show", async ({
+  page,
+}) => {
+  await page.goto("/day/kanazawa");
+  const headline = page.getByRole("main").getByRole("heading", { level: 1 });
+  const word = (name: string) => headline.getByRole("button", { name, exact: true });
+
+  for (const name of ["on foot", "early dinner", "home by eleven"]) {
+    await expect(word(name)).toHaveAccessibleDescription("assumed by Lantern", {
+      timeout: DAY_TIMEOUT_MS,
+    });
+  }
+  // The visitor's own words, and the question left open, carry none.
+  for (const name of ["calm", "Kanazawa", "early start", "with anyone"]) {
+    await expect(word(name)).toHaveAccessibleDescription("");
+  }
+});
+
 /** Longer than the curve's demonstration took, when there was one, from the ring's landing. */
 const UNTOUCHED_MS = 5_000;
 

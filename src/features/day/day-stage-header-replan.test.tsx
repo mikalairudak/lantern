@@ -348,6 +348,9 @@ describe("DayStageHeader through a word's fork", () => {
     expect(onFoot).toHaveAttribute("aria-disabled", "true");
     expect(onFoot).toHaveClass("text-muted");
     expect(onFoot).not.toHaveClass("hover:underline");
+    // Lantern's word keeps its dots, and so its description.
+    expect(onFoot).toHaveClass("decoration-dotted");
+    expect(onFoot).toHaveAccessibleDescription("assumed by Lantern");
     // So is the date, and the energy, though a re-pick asks for no day.
     expect(within(headline()).getByText("Thursday")).toHaveClass("text-muted");
     const energy = within(headline()).getByRole("button", { name: "balanced" });
