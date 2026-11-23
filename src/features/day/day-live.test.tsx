@@ -1624,6 +1624,35 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     await waitFor(() => expect(sayingThePlace()).toEqual([]), { timeout: NOTICE_HEARD_MS / 3 });
   });
 
+  it("keeps a swap's line through a press of the version already taken", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "early start", "slow morning");
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("taken"), DAY_TIMEOUT);
+    await waitForTheDay();
+    const slider = screen.getAllByRole("slider").at(-1);
+    if (slider === undefined) throw new Error("Kyoto's day has stops on its curve");
+    slider.focus();
+    await user.keyboard("{ArrowRight}");
+    const shown = slider.getAttribute("aria-valuetext") ?? "";
+    const place = shown.slice(shown.indexOf(": ") + 2);
+    const sayingThePlace = () =>
+      screen.getAllByRole("status").filter((status) => status.textContent?.startsWith(place));
+    await waitFor(() => expect(sayingThePlace()).toHaveLength(1));
+
+    // The version the day already has: nothing is taken, so the line is no one's to let go.
+    const taken = screen.getAllByRole("radio", { name: "slow morning, your day" })[0];
+    if (!taken) throw new Error("The version taken has its radio");
+    await user.click(taken);
+
+    expect(day.current?.replan().status).toBe("taken");
+    await new Promise((done) => setTimeout(done, NOTICE_HEARD_MS / 3));
+    expect(sayingThePlace()).toHaveLength(1);
+  });
+
   it("comes Back to a day left with its fork standing as the day on screen was, the fork settled, with no call", async () => {
     replanReplies.push(KYOTO_SLOW_MORNING);
     dayIds.push(KYOTO_DAY_ID);

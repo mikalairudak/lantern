@@ -1,24 +1,33 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { changeLineOf, useChangeHeard, type DayAfterChange, type DayChange } from "./change-heard";
+import {
+  changeLineOf,
+  useChangeHeard,
+  type DayAfterChange,
+  type DayChange,
+  type ShownPlace,
+} from "./change-heard";
 
-const PLACES = ["Coffee near Hirosaka", "Oyama Shrine"];
-/** A place a stop showed before a swap took it to one of `PLACES`. */
-const PLACE_BEFORE = "Kenroku Garden";
+const PLACES: readonly ShownPlace[] = [
+  { id: "coffee-hirosaka", name: "Coffee near Hirosaka" },
+  { id: "oyama-shrine", name: "Oyama Shrine" },
+];
+/** The id of a place a stop showed before a swap took it to one of `PLACES`. */
+const PLACE_BEFORE = "kenroku-garden";
 const CLAUSE = "livelier at breakfast";
 /** The day after a change, its clause and whether it is the plan as given. */
 const dayAfter = (clause: string | null, isAsPlanned = false): DayAfterChange => ({
   clause,
   isAsPlanned,
-  placeAt: (stopIndex) => PLACES[stopIndex] ?? "",
+  placeAt: (stopIndex) => PLACES[stopIndex] ?? null,
 });
 /** A swap at a stop, from the day as it stood: its clause, and whether it was the plan. */
 const swapAt = (
   stopIndex: number,
   clauseBefore: string | null,
   wasAsPlanned = false,
-  placeBefore = PLACE_BEFORE,
-): DayChange => ({ kind: "stop", stopIndex, placeBefore, clauseBefore, wasAsPlanned });
+  placeIdBefore = PLACE_BEFORE,
+): DayChange => ({ kind: "stop", stopIndex, placeIdBefore, clauseBefore, wasAsPlanned });
 /** A drag of the curve, from the day as it stood. */
 const dragFrom = (clauseBefore: string | null, wasAsPlanned = false): DayChange => ({
   kind: "curve",
@@ -54,7 +63,14 @@ describe("changeLineOf", () => {
   });
 
   it("says nothing of an act that leaves the stop's place and the clause as they were", () => {
-    expect(changeLineOf(swapAt(0, CLAUSE, false, PLACES[0]), dayAfter(CLAUSE))).toBe("");
+    expect(changeLineOf(swapAt(0, CLAUSE, false, PLACES[0]!.id), dayAfter(CLAUSE))).toBe("");
+  });
+
+  it("says a swap between two versions of one name, told apart by their ids", () => {
+    // The place before shares the name of the place now standing, not its id.
+    expect(changeLineOf(swapAt(0, CLAUSE, false, "coffee-hirosaka-2"), dayAfter(CLAUSE))).toBe(
+      "Coffee near Hirosaka",
+    );
   });
 
   it("says the clause alone where there is no place to name", () => {

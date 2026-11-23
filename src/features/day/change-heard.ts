@@ -19,8 +19,8 @@ export type DayChange =
   | {
       kind: "stop";
       stopIndex: number;
-      /** The name of the place the stop showed at the act. */
-      placeBefore: string;
+      /** The id of the place the stop showed at the act, "" for a stop there is not. */
+      placeIdBefore: string;
       clauseBefore: string | null;
       wasAsPlanned: boolean;
     }
@@ -29,21 +29,27 @@ export type DayChange =
   /** An energy press, said as its line counted it before the re-pick. */
   | { kind: "energy"; line: string };
 
+/** A place a stop shows: its id, unique in the day, and its name, "" where it has none. */
+export interface ShownPlace {
+  id: string;
+  name: string;
+}
+
 /** The day after a change, as the page shows it. */
 export interface DayAfterChange {
   /** The headline's clause, null when it has none. */
   clause: string | null;
   /** Whether every stop shows the place the line about the day was written around. */
   isAsPlanned: boolean;
-  /** The name of the place a stop shows, "" for a stop or a name there is not. */
-  placeAt: (stopIndex: number) => string;
+  /** The place a stop shows, null for a stop there is not. */
+  placeAt: (stopIndex: number) => ShownPlace | null;
 }
 
 /**
  * What a screen reader is told of a change, "" for nothing: the place now standing at a swapped
  * stop, then what the change did to the day, the plan regained or the headline's new clause,
- * never a clause it left as it was. A place the act left as it was, as at an act the curve
- * refuses while a drag is held, is not said, nor is a place with no name, which leaves what the
+ * never a clause it left as it was. A place the act left as it was (the same place, by its id),
+ * as at an act the curve refuses while a drag is held, is not said, nor is a place with no name, which leaves what the
  * act did to the day said alone (`docs/decisions.md`, "The visitor's own change to the day is
  * said from the header's status").
  */
@@ -52,8 +58,8 @@ export function changeLineOf(change: DayChange, after: DayAfterChange): string {
   const dayLine = dayChangeOf(change, after);
   if (change.kind === "curve") return dayLine;
   const place = after.placeAt(change.stopIndex);
-  if (place === "" || place === change.placeBefore) return dayLine;
-  return dayLine === "" ? place : `${place}, ${dayLine}`;
+  if (place === null || place.name === "" || place.id === change.placeIdBefore) return dayLine;
+  return dayLine === "" ? place.name : `${place.name}, ${dayLine}`;
 }
 
 /**
