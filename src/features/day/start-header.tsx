@@ -21,7 +21,7 @@ import { useHydrated } from "@/components/ui/use-hydrated";
 import { SignOfWork } from "@/components/ui/sign-of-work";
 import type { SignWork } from "@/components/ui/sign-tally";
 import { FACT_OPTIONS, optionOf } from "./facts";
-import { ASSUMED_CLASSES } from "./sentence-word";
+import { ASSUMED_CLASSES, ASSUMED_NOTE } from "./sentence-word";
 import { energyLabelOf, weekdayOf } from "./sentence";
 import {
   MAX_INTAKE_TEXT_CHARS,
@@ -179,8 +179,8 @@ export function StartHeader({
     setWasAskingCity(isAskingCity);
     setIsFocusHandedOn(!isAskingCity && isNoDay(line));
   }
-  // Held here rather than in the form, which the city's question draws again, so it lasts
-  // through the answer's read, as the status over the form does.
+  // Held here rather than in the form: the status over the form reads it too (`heardOf`), so
+  // a press the focus says is not said again from there.
   const [isReadingSaidByFocus, setIsReadingSaidByFocus] = useState(false);
   if (wait === null && isReadingSaidByFocus) setIsReadingSaidByFocus(false);
   // An ending's or the question's words stand in the status for `NOTICE_HEARD_MS`, then it falls
@@ -210,7 +210,9 @@ export function StartHeader({
             question, and what an answer to it is doing. A status in the page, empty, from its
             first paint, and over the form the question draws again, so each answer is a change
             of its words, heard where the focus stays and where it moves: a status born holding
-            its words is not said by every screen reader. */}
+            its words is not said by every screen reader. A start screen drawn again with its
+            answer still standing, as on the way back from a day, draws it holding that answer,
+            as a notice the page opens with, for as long. */}
         <div role="status" className="sr-only">
           {heardAnswer ?? heardOf(line, wait, isLive, isReadingSaidByFocus)}
         </div>
@@ -918,8 +920,9 @@ function EndingLine({ ending, isLive }: { ending: Ending; isLive: boolean }) {
 }
 
 /**
- * The city's question in one line, in the words its lines show: the sentence so far, then the
- * cities its name could be, or that it needs one, and what Lantern could not place.
+ * The city's question in one line, in the words its lines show: the sentence so far, the key
+ * of an energy Lantern assumed, then the cities its name could be, or that it needs one, and
+ * what Lantern could not place.
  */
 function questionSaidOf({ words, readings, unplaced }: CityQuestion): string {
   const sentence = [
@@ -932,7 +935,8 @@ function questionSaidOf({ words, readings, unplaced }: CityQuestion): string {
       : NEEDS_CITY;
   // The sentence ends at its "…?" where it names nothing after the city.
   const asked = sentence.endsWith("?") ? sentence : `${sentence}.`;
-  return [asked, needed, unplacedLineOf(unplaced)].filter((part) => part !== null).join(" ");
+  const key = words.energySource === "assumed" ? `${ASSUMED_NOTE}.` : null;
+  return [asked, key, needed, unplacedLineOf(unplaced)].filter((part) => part !== null).join(" ");
 }
 
 interface QuestionLinesProps {

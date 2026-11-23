@@ -17,6 +17,7 @@ import {
 } from "./start-header";
 import { INDEX_LABEL } from "./start-index";
 import { NOTICE_HEARD_MS } from "./notice-status";
+import { ASSUMED_NOTE } from "./sentence-word";
 import { startOffersOf } from "./start-offers";
 import { writtenPool } from "./written-pool";
 import type { YourDay } from "./your-days";
@@ -513,10 +514,22 @@ describe("StartHeader", () => {
     expect(answerStatus().textContent).toBe(
       "A calm day in …?, with family. Lantern needs a city to plan the day. Name one, or pick one of the days below. Lantern can't plan around “by the sea”.",
     );
+    // An energy the text chose has no key under the sentence, and none is said.
+    expect(answerStatus().textContent).not.toContain(ASSUMED_NOTE);
     // Seen in lines of their own, and said once, by the status.
     expect(
       screen.getByText("Lantern can't plan around “by the sea”.").closest("[role=status]"),
     ).toBeNull();
+  });
+
+  it("says the key of an energy Lantern assumed where its lines show it, before the cities", () => {
+    renderStart({
+      line: { kind: "question", words: NO_WORDS, readings: [PORTLAND_OREGON], unplaced: [] },
+    });
+
+    expect(answerStatus().textContent).toBe(
+      `A balanced day in …? ${ASSUMED_NOTE}. Portland, Oregon, United States.`,
+    );
   });
 });
 
