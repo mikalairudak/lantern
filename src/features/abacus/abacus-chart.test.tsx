@@ -118,6 +118,7 @@ describe("a version's name on the chart and Escape", () => {
     fireEvent.keyDown(document.body, { key: "Enter" });
 
     // Still named: the next Escape is the one that puts the name away.
+    expect(namesShown()).toHaveLength(1);
     expect(fireEvent.keyDown(document.body, { key: "Escape" })).toBe(false);
     await waitFor(() => expect(namesShown()).toHaveLength(0));
   });
@@ -151,6 +152,19 @@ describe("a version's name on the chart and Escape", () => {
 
     act(() => slider.blur());
     await focusASlider(slider);
+  });
+
+  it("names a slider's versions again at its next step, the focus kept on it", async () => {
+    await drawTheDay();
+    const slider = sliderWithVersions();
+    await focusASlider(slider);
+    fireEvent.keyDown(slider, { key: "Escape" });
+    await waitFor(() => expect(namesShown()).toHaveLength(0));
+
+    fireEvent.keyDown(slider, { key: "ArrowLeft" });
+
+    await waitFor(() => expect(namesShown().length).toBeGreaterThan(0));
+    expect(slider).toHaveFocus();
   });
 
   it("leaves an Escape that puts nothing away to the page", async () => {

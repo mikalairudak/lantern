@@ -305,8 +305,9 @@ export function AbacusChart({
     })),
   );
 
-  // What named the versions Escape last put away: a slider's stop, or a bead's place.
-  const [namesAwayFrom, setNamesAwayFrom] = useState<number | string | null>(null);
+  // What named the versions Escape last put away: a slider's stop at its version, or a bead's
+  // place.
+  const [namesAwayFrom, setNamesAwayFrom] = useState<string | null>(null);
   // The chart itself, which says whether a pointer is on it.
   const chartBox = useRef<SVGSVGElement>(null);
   // The stop whose slider has the keys' focus, whose arrows' versions are named; and whether
@@ -573,8 +574,9 @@ export function AbacusChart({
     ? draggedVersionOf(stops, mids, energy.selected, energy.committed, heldAt)
     : null;
   const keyed = keyedStop ?? inHand?.keyedStop ?? null;
-  // What names versions now: the focused slider's stop, or else the bead a pointer rests on.
-  const namedBy = keyed ?? hoveredPlace;
+  // What names versions now: the focused slider's stop at the version it shows, so a key's step
+  // names anew, or else the bead a pointer rests on.
+  const namedBy = keyed !== null ? `${keyed}:${energy.selected[keyed] ?? 0}` : hoveredPlace;
   // Names put away by Escape stay away until the pointer or the focus names anew (WCAG 1.4.13).
   if (namesAwayFrom !== null && namesAwayFrom !== namedBy) setNamesAwayFrom(null);
   const isNamingAway = namesAwayFrom !== null;
