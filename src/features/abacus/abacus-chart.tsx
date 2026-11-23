@@ -305,6 +305,10 @@ export function AbacusChart({
     })),
   );
 
+  // What named the versions Escape last put away: a slider's stop, or a bead's place.
+  const [namesAwayFrom, setNamesAwayFrom] = useState<number | string | null>(null);
+  // The chart itself, which says whether a pointer is on it.
+  const chartBox = useRef<SVGSVGElement>(null);
   // The stop whose slider has the keys' focus, whose arrows' versions are named; and whether
   // the last pointer over the chart was a finger, which never hovers, so names nothing.
   const [keyedStop, setKeyedStop] = useState<number | null>(null);
@@ -471,6 +475,7 @@ export function AbacusChart({
         energy.choose(index, candidate);
       },
       isKeyed: inHand?.keyedStop === index,
+      onEscape: () => putNamesAway(),
       onFocusChange: (isFocused, isFromKeys) => {
         onHoverStop(isFocused ? index : null);
         setKeyedStop((current) =>
@@ -568,9 +573,14 @@ export function AbacusChart({
     ? draggedVersionOf(stops, mids, energy.selected, energy.committed, heldAt)
     : null;
   const keyed = keyedStop ?? inHand?.keyedStop ?? null;
+  // What names versions now: the focused slider's stop, or else the bead a pointer rests on.
+  const namedBy = keyed ?? hoveredPlace;
+  // Names put away by Escape stay away until the pointer or the focus names anew (WCAG 1.4.13).
+  if (namesAwayFrom !== null && namesAwayFrom !== namedBy) setNamesAwayFrom(null);
+  const isNamingAway = namesAwayFrom !== null;
   // An open stop's sheet is what is being read: nothing is named over it.
   const named: NamedVersion[] =
-    !isInteractive || energy.isDragging || openStop !== null
+    !isInteractive || energy.isDragging || openStop !== null || isNamingAway
       ? []
       : keyed !== null
         ? keyedVersionsOf(stops, energy.selected, keyed)
@@ -580,6 +590,28 @@ export function AbacusChart({
   const tags: TagRequest[] = dragged
     ? [tagOf(dragged, "dragged")]
     : named.map((version) => tagOf(version, "named"));
+  /** Puts the names shown away; true when there were names to put away, so Escape is taken. */
+  const putNamesAway = (): boolean => {
+    if (named.length === 0) return false;
+    setNamesAwayFrom(namedBy);
+    return true;
+  };
+  // Escape with a pointer on the chart puts its names away wherever the focus is, the pointer
+  // left where it is; a still's names, which no pointer holds, stay whatever its page does. An
+  // Escape something else has answered is left to it, and one that puts nothing away is left
+  // to the page: an open stop's sheet, over which nothing is named, folds on it.
+  const isNaming = named.length > 0;
+  useEffect(() => {
+    if (!isNaming) return undefined;
+    const putAwayOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (!chartBox.current?.matches(":hover")) return;
+      event.preventDefault();
+      setNamesAwayFrom(namedBy);
+    };
+    document.addEventListener("keydown", putAwayOnEscape);
+    return () => document.removeEventListener("keydown", putAwayOnEscape);
+  }, [isNaming, namedBy]);
   // The stops whose beads an open sheet's edge crosses: the wire above it where it opens
   // down, and wherever its edges fall among the wires it lies over.
   const covered = beadsOverSheet
@@ -597,6 +629,7 @@ export function AbacusChart({
   return (
     <>
       <svg
+        ref={chartBox}
         width={scale.width}
         height={scale.height}
         role="group"

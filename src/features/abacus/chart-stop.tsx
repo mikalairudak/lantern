@@ -72,6 +72,11 @@ interface ChartStopProps {
   onChoose: (candidate: number) => void;
   /** Its slider took or lost the focus; `isFromKeys` where the browser shows that focus. */
   onFocusChange: (isFocused: boolean, isFromKeys: boolean) => void;
+  /**
+   * Escape on its slider: puts away the versions' names shown, the focus left on the slider;
+   * true when there were names to put away.
+   */
+  onEscape: () => boolean;
   /** A still's slider held as the keys' focus holds it, its knob ringed. */
   isKeyed?: boolean;
 }
@@ -96,6 +101,7 @@ export function ChartStop({
   onPullTo,
   onChoose,
   onFocusChange,
+  onEscape,
   isKeyed = false,
 }: ChartStopProps) {
   const slider = useRef<SVGGElement>(null);
@@ -125,6 +131,11 @@ export function ChartStop({
   };
 
   const handleKeyDown = (event: KeyboardEvent<SVGGElement>) => {
+    // Escape that puts names away is taken; one that puts none away is left to the page.
+    if (event.key === "Escape") {
+      if (onEscape()) event.preventDefault();
+      return;
+    }
     const step = KEY_STEPS[event.key];
     if (step === undefined || !curveStop) return;
     event.preventDefault();
