@@ -363,3 +363,31 @@ test("Escape folds an open sheet from the day's foot it covers, and the focus st
   }
   throw new Error("No stop's open sheet lies over anything of the day's foot");
 });
+
+/** Kanazawa's second stop, whose open sheet's edge crosses beads. */
+const SECOND_STOP = "Coffee in Kenrokumachi";
+
+// The beads an open sheet's edge crosses are drawn again over it, a picture alone: once a sheet
+// has opened and folded, Tab from the day's last stop still goes straight to the next control.
+test("after a sheet over beads has opened and folded, Tab from the last stop goes to the day's answer", async ({
+  page,
+}) => {
+  await page.goto("/day/kanazawa");
+  await waitForTheDay(page);
+  const names = page.getByRole("list", { name: "The day" }).getByRole("button");
+  const sheet = page.getByRole("region", { name: `About ${SECOND_STOP}` });
+
+  await names.filter({ hasText: SECOND_STOP }).focus();
+  await page.keyboard.press("Enter");
+  await expect(sheet).toBeFocused();
+  // The sheet's edges cross beads, so their copies are drawn over it: the drawing that would
+  // otherwise take a Tab is on the page.
+  await expect(page.locator("svg.z-20 circle").first()).toBeAttached();
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
+
+  await expect(page.getByRole("button", { name: "Yes" })).toBeVisible();
+  await names.last().focus();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Yes" })).toBeFocused();
+});

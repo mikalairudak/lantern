@@ -1151,10 +1151,13 @@ export function DayRows({
           </div>
         )}
         {/* Over the rows and their open sheet: the beads its edges cross, drawn again where
-            the sheet lies over them. A picture only; the chart under it is the day. */}
+            the sheet lies over them. A picture only; the chart under it is the day. Out of the
+            Tab order too: as the beads' portal container it carries React's focus listeners,
+            which make Chromium stop on it, and inert does not apply to an svg. */}
         <svg
           ref={setBeadsOverSheet}
           aria-hidden
+          tabIndex={-1}
           width={scale.width}
           height={scale.height}
           className="pointer-events-none absolute inset-0 z-20 overflow-visible"
