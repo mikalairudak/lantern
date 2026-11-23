@@ -64,6 +64,7 @@ function drawStop(
         onChoose={onChoose}
         isKeyed={isKeyed}
         onFocusChange={() => undefined}
+        onEscape={() => false}
       />
     </svg>,
   );

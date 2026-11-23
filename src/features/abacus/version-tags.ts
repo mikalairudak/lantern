@@ -14,7 +14,9 @@ import { placeLabel, type LabelPlacement, type LabelSide } from "./rows";
  * A version named on the chart before it is taken: by a pointer resting on its bead, by the
  * arrow keys of its stop's focused slider, or by a drag that has just switched its stop to
  * it. Its row's words still name what the stop shows; the name stands under the wire, beside
- * the version's bead, until the hand moves on.
+ * the version's bead, until the hand moves on. The names a resting pointer or a focused
+ * slider shows are put away by Escape until that pointer or focus names anew; a drag's name
+ * stays with the hand.
  */
 export interface NamedVersion {
   stopIndex: number;

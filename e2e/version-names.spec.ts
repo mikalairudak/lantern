@@ -102,6 +102,129 @@ test("a stop's slider focused from the keys names the versions its arrows reach"
   await expect(tagOf(page)).toHaveCount(0);
 });
 
+/** More than the frame a name takes to be drawn once its words are measured. */
+const DRAWING_FRAMES = 10;
+
+/** Lets the page draw a few frames, in which a name the chart would show is drawn. */
+async function letFramesPass(page: Page): Promise<void> {
+  await page.evaluate(async (frames) => {
+    for (let frame = 0; frame < frames; frame += 1) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+  }, DRAWING_FRAMES);
+}
+
+/** Rests the pointer on the day's first version's bead, aimed at again as the page settles. */
+async function restOnABead(page: Page): Promise<Locator> {
+  const bead = page.getByRole("button", { name: /, (quieter|livelier)$/ }).first();
+  await bead.scrollIntoViewIfNeeded();
+  for (let aim = 0; aim < 2; aim += 1) {
+    const { x, y } = await middleOf(bead);
+    await page.mouse.move(x, y);
+  }
+  return bead;
+}
+
+// A name may lie over a row's words: Escape puts it away, the pointer and the focus left where
+// they are (WCAG 1.4.13), and an open sheet, over which nothing is named, still folds on it.
+test("Escape puts away a pointer's name, the pointer still on its bead", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "A finger never rests on a bead: a tap takes it.");
+  await page.setViewportSize(LAPTOP);
+  await openTheDay(page, "/day/kanazawa");
+  const bead = await restOnABead(page);
+  await expect(tagOf(page)).toHaveCount(1);
+
+  await page.keyboard.press("Escape");
+
+  await expect(tagOf(page)).toHaveCount(0);
+  expect(await bead.evaluate((element) => element.matches(":hover"))).toBe(true);
+});
+
+test("a pointer's name Escape put away stays away while the keys' focus comes and goes", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "A finger never rests on a bead: a tap takes it.");
+  await page.setViewportSize(LAPTOP);
+  await openTheDay(page, "/day/kanazawa");
+  const bead = await restOnABead(page);
+  await expect(tagOf(page)).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  await expect(tagOf(page)).toHaveCount(0);
+  const slider = page.getByRole("slider", { name: /^Energy at/ }).first();
+  await slider.focus();
+  await expect(tagOf(page).first()).toBeVisible();
+
+  await slider.blur();
+
+  // The focus's names leave, and the pointer's do not come back in their place.
+  await expect(tagOf(page)).toHaveCount(0);
+  await letFramesPass(page);
+  expect(await tagOf(page).count()).toBe(0);
+  expect(await bead.evaluate((element) => element.matches(":hover"))).toBe(true);
+});
+
+test("a pointer resting on a bead names it once Escape has put the focus's names away", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "A finger never rests on a bead: a tap takes it.");
+  await page.setViewportSize(LAPTOP);
+  await openTheDay(page, "/day/kanazawa");
+  const slider = page.getByRole("slider", { name: /^Energy at/ }).first();
+  await slider.focus();
+  await expect(tagOf(page).first()).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(tagOf(page)).toHaveCount(0);
+
+  await restOnABead(page);
+
+  await expect(tagOf(page)).toHaveCount(1);
+  await expect(slider).toBeFocused();
+});
+
+test("Escape puts away the names a slider's focus shows, the focus still on it", async ({
+  page,
+}) => {
+  await openTheDay(page, "/day/kanazawa");
+  const slider = page.getByRole("slider", { name: /^Energy at/ }).first();
+  await slider.focus();
+  await expect(tagOf(page).first()).toBeVisible();
+
+  await page.keyboard.press("Escape");
+
+  await expect(tagOf(page)).toHaveCount(0);
+  await expect(slider).toBeFocused();
+});
+
+/** A stop on Kanazawa's day whose sheet is opened. */
+const OPENED_STOP = "Seafood Bowls at Omicho Market";
+
+test("Escape on a slider folds an open sheet as before, the focus still on the slider", async ({
+  page,
+}) => {
+  await openTheDay(page, "/day/kanazawa");
+  const name = page
+    .getByRole("list", { name: "The day" })
+    .getByRole("button", { name: new RegExp(`^${OPENED_STOP}`) });
+  const sheet = page.getByRole("region", { name: `About ${OPENED_STOP}` });
+  await name.click();
+  await expect(sheet).toBeVisible();
+  const slider = page.getByRole("slider", { name: /^Energy at/ }).nth(1);
+  await slider.focus();
+  // Nothing is named over an open sheet.
+  await expect(tagOf(page)).toHaveCount(0);
+
+  await page.keyboard.press("Escape");
+
+  await expect(sheet).toHaveCount(0);
+  await expect(name).toHaveAttribute("aria-expanded", "false");
+  await expect(slider).toBeFocused();
+});
+
 /** A phone, where most of the keys' names are cards. */
 const PHONE = { width: 390, height: 844 };
 /** How far a ring round a bead reaches from its middle: the knob's radius and its stroke. */
