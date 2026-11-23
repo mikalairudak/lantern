@@ -42,6 +42,7 @@ import {
 } from "./facts";
 import { GlidingHeight } from "@/components/ui/gliding-height";
 import type { BestLight } from "@/features/abacus/light";
+import { AS_FIRST_PLANNED } from "./change-heard";
 import { ClauseText, owedClauseOf, setOff, useHasStood } from "./clause-text";
 import {
   ASSUMED_CLASSES,
@@ -238,7 +239,7 @@ export interface HeaderNotice {
  * it was written for: the line names the planned places, as the visitor's swaps do not. The
  * product's words, set upright before the model's italic, as a note before a quotation.
  */
-const PLANNED_LEAD = "As first planned: ";
+const PLANNED_LEAD = `${AS_FIRST_PLANNED}: `;
 /** The lead is said lighter than the line it leads. */
 const LEAD_CLASSES = "text-muted";
 /** The hint, a step quieter than the date beside it; the caption's size is the credits'. */
@@ -308,6 +309,12 @@ interface DayStageHeaderProps {
    * energy moves the chart.
    */
   clause: string | null;
+  /**
+   * What is said of the visitor's own last change to the day while it is heard, "" for
+   * nothing: a swap's place and what it did to the clause, a drag's clause, an energy press's
+   * re-pick (`useChangeHeard`). Never said once a higher line of the status has stood over it.
+   */
+  changeHeard?: string;
   /** The line about the day once the pen has reached it, which then writes itself in. */
   dek: string | undefined;
   /** The line about the day as far as it has arrived: the header holds its room. */
@@ -545,6 +552,7 @@ export function DayStageHeader({
   facts: givenFacts,
   reservedFacts: givenReservedFacts,
   clause,
+  changeHeard = "",
   dek,
   reservedDek,
   isDekWriting,
@@ -946,6 +954,35 @@ export function DayStageHeader({
     isReplanWriting && change !== null
       ? replanningLineOf(change, replan.reach, replanDay, request, givenReservedFacts)
       : null;
+  // What the status says above the visitor's own change, null when nothing stands there: a
+  // notice, said here or in the notice status above the header, a re-plan being written, a
+  // locked word, what a change set aside, or the day being written.
+  const higherLine =
+    noticeLine !== null
+      ? sayNotice === null
+        ? heardNotice
+        : ""
+      : replanningLine !== null
+        ? isLockedSaid
+          ? ONE_CHANGE_AT_A_TIME
+          : setAsideHeard !== null
+            ? `${setAsideHeard}; ${replanningLine}`
+            : replanningLine
+        : status === "idle" && setAsideHeard !== null
+          ? setAsideHeard
+          : isWritingSaid
+            ? "Writing the day"
+            : null;
+  // A change line a higher line has stood over is let go, never said once that line leaves,
+  // as it would come late or a second time; every act empties the line first, so the next
+  // act's line is said (`docs/decisions.md`, "The visitor's own change to the day is said
+  // from the header's status").
+  const [overstoodChange, setOverstoodChange] = useState("");
+  if (changeHeard === "" && overstoodChange !== "") setOverstoodChange("");
+  if (changeHeard !== "" && higherLine !== null && overstoodChange !== changeHeard) {
+    setOverstoodChange(changeHeard);
+  }
+  const heardChange = changeHeard === overstoodChange ? "" : changeHeard;
   /**
    * An answer chosen from a word's list: the fork's two take either version from memory, as its
    * rows do, and while the proposal is written neither changes anything; any other answer is a
@@ -1248,23 +1285,11 @@ export function DayStageHeader({
                 the step, the notice's whole line, before the page shows it, and no more once
                 its hold is over and the page says it: read through, the header holds the line
                 once. What a change set aside is heard with what the new word re-plans, in one
-                line that stays as the note on screen steps on. */}
+                line that stays as the note on screen steps on. Below all of these, the
+                visitor's own change to the day, while it is heard and none of them has stood
+                over it. */}
               <p role="status" className="sr-only">
-                {noticeLine !== null
-                  ? sayNotice === null
-                    ? heardNotice
-                    : ""
-                  : replanningLine !== null
-                    ? isLockedSaid
-                      ? ONE_CHANGE_AT_A_TIME
-                      : setAsideHeard !== null
-                        ? `${setAsideHeard}; ${replanningLine}`
-                        : replanningLine
-                    : status === "idle" && setAsideHeard !== null
-                      ? setAsideHeard
-                      : isWritingSaid
-                        ? "Writing the day"
-                        : ""}
+                {higherLine ?? heardChange}
               </p>
             </div>
             {!notice && (

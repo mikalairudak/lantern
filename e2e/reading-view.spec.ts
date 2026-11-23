@@ -1,5 +1,11 @@
-import { expect, test, type Page, waitMs } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
+import { logStatuses } from "./status-log";
+import { BROWSER_STORAGE } from "../src/lib/browser-storage";
+import { NOTICE_HEARD_MS } from "../src/features/day/notice-status";
 import type { StoredDay } from "../src/lib/days/stored-day";
+import { writtenVersionOf } from "../src/lib/days/written/version";
+import { writtenDayAt } from "../src/lib/days/written/days";
+import { candidatesOf, keyStepOf } from "../src/features/abacus/curve";
 import { KYOTO_REQUEST } from "../src/lib/fixtures/curated/requests";
 import { KYOTO_ITINERARY } from "../src/lib/fixtures/replan/kyoto-morning";
 
@@ -123,6 +129,260 @@ for (const view of ["Plan", "Chart"] as const) {
     await expectTheView(page, view);
   });
 }
+
+const KANAZAWA = writtenDayAt("kanazawa")!.itinerary;
+/** Where a stop's planned place stands among its versions. */
+const plannedAt = (stop: (typeof KANAZAWA.stops)[number]) =>
+  candidatesOf(stop).findIndex(({ id }) => id === stop.selectedPlaceId);
+/** The first of Kanazawa's stops whose right arrow key bends the curve to a livelier version. */
+const LIVELIER_STOP = KANAZAWA.stops.find(
+  (stop) => keyStepOf(stop, plannedAt(stop), "livelier")?.kind === "energy",
+)!;
+/**
+ * Another of Kanazawa's stops, with an arrow key that swaps it to a version at its own energy,
+ * which changes nothing the headline says.
+ */
+const TWIN = KANAZAWA.stops.flatMap((stop) =>
+  stop === LIVELIER_STOP
+    ? []
+    : (
+        [
+          ["ArrowRight", "livelier"],
+          ["ArrowLeft", "quieter"],
+        ] as const
+      ).flatMap(([key, step]) => {
+        const next = keyStepOf(stop, plannedAt(stop), step);
+        return next?.kind === "version"
+          ? [{ stop, key, place: candidatesOf(stop)[next.index]! }]
+          : [];
+      }),
+)[0]!;
+
+/** Kanazawa's written day, seen on this device so it opens whole, shown in this view. */
+async function openSeenKanazawa(page: Page, view: View): Promise<void> {
+  const day = `kanazawa:${writtenVersionOf(KANAZAWA)}`;
+  await page.addInitScript(
+    ([seenKey, seen, viewKey, shown]) => {
+      localStorage.setItem(seenKey!, JSON.stringify([seen]));
+      localStorage.setItem(viewKey!, shown!);
+    },
+    [BROWSER_STORAGE.seen.key, day, "lantern-day-view", view === "Plan" ? "read" : "chart"],
+  );
+  await page.goto("/day/kanazawa");
+  await waitForTheDay(page);
+  await expectTheView(page, view);
+}
+
+/** What the page's statuses say now, each that says anything. */
+async function saidNow(page: Page): Promise<string[]> {
+  const said = await page.getByRole("status").allTextContents();
+  return said.filter((text) => text !== "");
+}
+
+/** The place a version's arrow on the plan, or a stop's slider on the chart, names. */
+async function placeNamedBy(control: Locator, attribute: string): Promise<string> {
+  const label = (await control.getAttribute(attribute)) ?? "";
+  return label.slice(label.indexOf(": ") + 2);
+}
+
+/** Swaps Kanazawa's first livelier stop, on the plan by its arrow or on the chart by its key. */
+async function swapLivelier(page: Page, view: View): Promise<string> {
+  if (view === "Plan") {
+    const arrow = page.getByRole("button", { name: /^Livelier: / }).first();
+    const place = await placeNamedBy(arrow, "aria-label");
+    await arrow.click();
+    return place;
+  }
+  const slider = page.getByRole("slider", { name: `Energy at ${LIVELIER_STOP.startTime}` });
+  const before = await slider.getAttribute("aria-valuetext");
+  await slider.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(slider).not.toHaveAttribute("aria-valuetext", before!);
+  return placeNamedBy(slider, "aria-valuetext");
+}
+
+for (const view of ["Plan", "Chart"] as const) {
+  test(`${view}: a swap is said once from a status, as the place and the clause it brought, and not when the day opens with it`, async ({
+    page,
+  }) => {
+    test.setTimeout(3 * DAY_TIMEOUT_MS);
+    await openSeenKanazawa(page, view);
+    expect(await saidNow(page)).toEqual([]);
+
+    const place = await swapLivelier(page, view);
+    await expect.poll(() => saidNow(page)).toHaveLength(1);
+    const [line] = await saidNow(page);
+    expect(line!.startsWith(`${place}, `)).toBe(true);
+    const clause = line!.slice(place.length + 2);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(`, ${clause}, in`);
+    await expect(page.getByRole("status").filter({ hasText: clause })).toHaveCount(1);
+    // Then quiet, so a read-through meets the clause once, in the headline.
+    await expect.poll(() => saidNow(page), { timeout: waitMs(NOTICE_HEARD_MS * 2) }).toEqual([]);
+
+    // Opened again as it was left, the day shows the clause and says nothing of it.
+    await page.reload();
+    await waitForTheDay(page);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(`, ${clause}, in`);
+    expect(await saidNow(page)).toEqual([]);
+  });
+}
+
+test("Plan: a swap back to the plan is said as the place and the day as first planned", async ({
+  page,
+}) => {
+  await openSeenKanazawa(page, "Plan");
+  const rows = viewOf(page, "Plan").getByRole("listitem");
+  const livelierIn = (index: number) =>
+    rows.nth(index).getByRole("button", { name: /^Livelier: / });
+  // Held by its place in the plan, as its arrows and heading change with the swap.
+  const count = await rows.count();
+  let at = 0;
+  while (at < count && (await livelierIn(at).count()) === 0) at += 1;
+  const row = rows.nth(at);
+  const arrow = livelierIn(at).first();
+  const planned = (await row.getByRole("heading").textContent()) ?? "";
+  await arrow.click();
+  await expect.poll(() => saidNow(page)).toHaveLength(1);
+
+  await row.getByRole("button", { name: planned }).click();
+  await expect.poll(() => saidNow(page)).toEqual([`${planned}, as first planned`]);
+});
+
+test("Chart: a stop's key to a version at its own energy says the place alone, not another stop's clause", async ({
+  page,
+}) => {
+  await openSeenKanazawa(page, "Chart");
+  await swapLivelier(page, "Chart");
+  await expect.poll(() => saidNow(page)).toHaveLength(1);
+
+  const slider = page.getByRole("slider", { name: `Energy at ${TWIN.stop.startTime}` });
+  await slider.focus();
+  await page.keyboard.press(TWIN.key);
+  const { name, sensory } = TWIN.place;
+  await expect(slider).toHaveAttribute("aria-valuetext", `${sensory.energy}: ${name}`);
+  await expect.poll(() => saidNow(page)).toEqual([name]);
+});
+
+test("Chart: a stop's key back to its planned place says the place and the day as first planned", async ({
+  page,
+}) => {
+  await openSeenKanazawa(page, "Chart");
+  const slider = page.getByRole("slider", { name: `Energy at ${LIVELIER_STOP.startTime}` });
+  const planned = await placeNamedBy(slider, "aria-valuetext");
+  await swapLivelier(page, "Chart");
+  await expect.poll(() => saidNow(page)).toHaveLength(1);
+
+  await page.keyboard.press("ArrowLeft");
+  await expect.poll(() => placeNamedBy(slider, "aria-valuetext")).toBe(planned);
+  await expect.poll(() => saidNow(page)).toEqual([`${planned}, as first planned`]);
+});
+
+/** A drag of a knob moves the mouse in this many steps, as a hand does. */
+const DRAG_MOVES = 10;
+
+/** Presses a stop's knob on the chart and drags it this far along the scale, still held. */
+async function holdKnobDragged(page: Page, slider: Locator, by: number): Promise<void> {
+  await slider.scrollIntoViewIfNeeded();
+  const knob = await slider.locator("circle").boundingBox();
+  if (!knob) throw new Error("The knob has no box");
+  const from = { x: knob.x + knob.width / 2, y: knob.y + knob.height / 2 };
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  for (let move = 1; move <= DRAG_MOVES; move += 1) {
+    await page.mouse.move(from.x + (by * move) / DRAG_MOVES, from.y);
+  }
+}
+
+/** Drags a stop's knob on the chart this far along the scale, and lets it go. */
+async function dragKnob(page: Page, slider: Locator, by: number): Promise<void> {
+  await holdKnobDragged(page, slider, by);
+  await page.mouse.up();
+}
+
+/** Another of Kanazawa's stops than the one the right arrow key makes livelier. */
+const OTHER_STOP = KANAZAWA.stops.find((stop) => stop.startTime !== LIVELIER_STOP.startTime)!;
+/** Far enough along the scale to be a drag, and short of a lane, as a hand still dragging. */
+const HELD_DRAG_PX = 24;
+/** Frames the page is given to say an act, which it writes a frame after the act. */
+const FRAMES_TO_SAY = 3;
+
+test("Chart: a stop's arrow key while a drag of the curve is held changes nothing and says nothing", async ({
+  page,
+}) => {
+  await page.addInitScript(logStatuses);
+  await openSeenKanazawa(page, "Chart");
+  const keyed = page.getByRole("slider", { name: `Energy at ${LIVELIER_STOP.startTime}` });
+  const before = await keyed.getAttribute("aria-valuetext");
+
+  await holdKnobDragged(
+    page,
+    page.getByRole("slider", { name: `Energy at ${OTHER_STOP.startTime}` }),
+    HELD_DRAG_PX,
+  );
+  await keyed.focus();
+  const since = await page.evaluate(() => performance.now());
+  await page.keyboard.press("ArrowRight");
+  await page.evaluate(async (frames) => {
+    for (let frame = 0; frame < frames; frame += 1) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+  }, FRAMES_TO_SAY);
+  const said = await page.evaluate(
+    (since) => window.statusLog.filter(({ t, text }) => t >= since && text !== ""),
+    since,
+  );
+  const after = await keyed.getAttribute("aria-valuetext");
+  await page.mouse.up();
+
+  expect(after).toBe(before);
+  expect(said).toEqual([]);
+});
+
+test("Chart: a drag is said as the clause it changed, and a drag back as the day as first planned", async ({
+  page,
+}) => {
+  await openSeenKanazawa(page, "Chart");
+  const chartBox = await viewOf(page, "Chart").boundingBox();
+  if (!chartBox) throw new Error("The chart has no box");
+  const rows = page.getByRole("list", { name: "The day" });
+  const written = await rows.getByRole("listitem").allTextContents();
+  const slider = page.getByRole("slider", { name: /^Energy at/ }).nth(3);
+  const knob = await slider.locator("circle").boundingBox();
+  if (!knob) throw new Error("The knob has no box");
+  const toward = knob.x < chartBox.x + chartBox.width / 2 ? 1 : -1;
+  const reach = (chartBox.width / 5) * 1.5 * toward;
+
+  await dragKnob(page, slider, reach);
+  await expect.poll(() => saidNow(page)).toHaveLength(1);
+  const [clause] = await saidNow(page);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(`, ${clause}, in`);
+
+  await dragKnob(page, slider, -reach);
+  await expect.poll(() => rows.getByRole("listitem").allTextContents()).toEqual(written);
+  await expect.poll(() => saidNow(page)).toEqual(["as first planned"]);
+});
+
+test("an energy press on the plan's bar is said from a status, as the headline's list counts it", async ({
+  page,
+}) => {
+  await openSeenKanazawa(page, "Plan");
+  await page
+    .getByRole("group", { name: "How lively the day is" })
+    .getByRole("button", { name: "lively", exact: true })
+    .click();
+  await expect.poll(() => saidNow(page)).toEqual(["lively: four stops re-picked"]);
+});
+
+test("an energy press on the headline's word is said from a status on the chart too", async ({
+  page,
+}) => {
+  await openSeenKanazawa(page, "Chart");
+  const headline = page.getByRole("heading", { level: 1 });
+  await headline.getByRole("button", { name: "calm", exact: true }).click();
+  await page.getByRole("option", { name: "lively", exact: true }).click();
+
+  await expect.poll(() => saidNow(page)).toEqual(["lively: four stops re-picked"]);
+});
 
 test.describe("with motion", { tag: "@frame" }, () => {
   test.use({ reducedMotion: "no-preference" });

@@ -26,6 +26,7 @@ import {
   replanningPartOf,
   replanningReachOf,
   repickLineOf,
+  repickedLineOf,
   setAsideNoteOf,
 } from "./not-yet";
 import { replannedRequestOf } from "./replan-request";
@@ -244,6 +245,23 @@ describe("repickLineOf", () => {
   it("says one stop or none on a day of one stop, never every stop", () => {
     expect(repickLineOf(1, 1)).toBe("re-picks one stop · at\u00A0once");
     expect(repickLineOf(0, 1)).toBe(KEEPS_EVERY_STOP);
+  });
+});
+
+describe("repickedLineOf", () => {
+  it("says what an energy press did, in the words its line counted beforehand", () => {
+    expect(repickedLineOf("lively", 4, 8)).toBe("lively: four stops re-picked");
+    expect(repickedLineOf("quiet", 11, 12)).toBe("quiet: 11 stops re-picked");
+    expect(repickedLineOf("calm", 1, 8)).toBe("calm: one stop re-picked");
+  });
+
+  it("says every stop where the press changed them all, or kept them all", () => {
+    expect(repickedLineOf("lively", 8, 8)).toBe("lively: every stop re-picked");
+    expect(repickedLineOf("calm", 0, 8)).toBe("calm: every stop kept");
+  });
+
+  it("says one stop on a day of one stop, never every stop", () => {
+    expect(repickedLineOf("social", 1, 1)).toBe("social: one stop re-picked");
   });
 });
 

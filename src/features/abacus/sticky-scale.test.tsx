@@ -26,9 +26,7 @@ describe("the sticky scale", () => {
     const view = render(
       <StickyScale scale={SCALE} isCurveNamed clause={null} onBackToPlan={onBackToPlan} />,
     );
-    // The live region is there before the change, so a screen reader hears it come.
-    const status = view.container.querySelector("[aria-live='polite']");
-    expect(status).toHaveTextContent("");
+    expect(screen.queryByText("livelier at lunch")).not.toBeInTheDocument();
 
     view.rerender(
       <StickyScale
@@ -38,8 +36,9 @@ describe("the sticky scale", () => {
         onBackToPlan={onBackToPlan}
       />,
     );
-    expect(view.container.querySelector("[aria-live='polite']")).toBe(status);
-    expect(status).toHaveTextContent("livelier at lunch");
+    expect(screen.getByText("livelier at lunch")).toBeInTheDocument();
+    // Heard from the header's status, which every view and width exposes, so never twice.
+    expect(view.container.querySelector("[aria-live], [role=status]")).toBeNull();
     expect(screen.queryByText("drag the curve")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Back to the plan" }));

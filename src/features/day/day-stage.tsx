@@ -85,6 +85,7 @@ import { useSprung } from "@/components/ui/use-sprung";
 import { SPRINGS, gentleOver } from "@/lib/tokens/motion";
 import { bareStopOf, waitingInBareRow, waitingOver } from "@/features/abacus/waiting";
 import {
+  candidatesOf,
   isAsWritten,
   midOf,
   plannedPlacesOf,
@@ -99,17 +100,20 @@ import {
   forkNoteOf,
   keptStopsLineOf,
   notReplanningYetOf,
+  repickedLineOf,
   SEE_IT,
   setAsideNoteOf,
   type EnergyRepicks,
   type SetAside,
 } from "./not-yet";
+import { useChangeHeard, type DayChange, type ShownPlace } from "./change-heard";
 import { replannedRequestOf } from "./replan-request";
 import type { ReplanControls } from "./replan-controls";
 import { endedDayOf, noticeOf, phaseOf, slotOf } from "./stream-ending";
 import { revealedOf } from "@/features/itinerary/revealed";
 import {
   NO_LOCAL_WORDS,
+  energyLabelOf,
   heldBack,
   penPiecesOf,
   sentenceFactsOf,
@@ -433,7 +437,7 @@ export function DayStage({
   onReplan,
   isReplanning = false,
   replanLine = null,
-  replan,
+  replan: givenReplan,
   setAside = null,
   isReplanLimited = false,
   onEvent,
@@ -708,6 +712,18 @@ export function DayStage({
   // springs took frames from the chart's on a busy machine. Drawn again, the rows let in so
   // far stand whole, and the ones after are written in.
   const view = useSyncExternalStore(subscribeDayView, readDayView, serverDayView);
+  // A press that changes a fork, on its row, its slip, its bead or its word's list (a version
+  // taken, the day as it was kept, a compare folded), is the visitor's next act: the line of a
+  // change before it tells of a day the press has moved on from. A press that changes nothing
+  // leaves the line to its hold.
+  const replan: ReplanControls | undefined = givenReplan && {
+    ...givenReplan,
+    choose: (side) => {
+      const isForkChanged = givenReplan.choose(side);
+      if (isForkChanged) changeHeard.drop();
+      return isForkChanged;
+    },
+  };
   // A changed word's fork, a row over each part it rewrites: what Lantern is doing, what the
   // proposal would change, or why it failed, which stays until the visitor next acts on the day.
   const changeKey = replan ? `${replan.status}|${replan.change?.word}|${replan.change?.to}` : "";
@@ -903,10 +919,11 @@ export function DayStage({
     const timer = window.setTimeout(() => setHeldGesture(0), VIEW_HELD_AFTER_GESTURE_MS);
     return () => window.clearTimeout(timer);
   }, [heldGesture, isHeaderGliding]);
-  const countGesture = (kind: GestureKind) => {
+  const countGesture = (kind: GestureKind, act: DayChange) => {
     // A gesture on the day is the visitor acting on it: a re-plan's receipt makes way, and so
     // does what a change set aside.
     setIsActedOn(true);
+    changeHeard.hear(act);
     actAfterSetAside();
     setHeldGesture((count) => count + 1);
     // One who has bent the curve needs showing how no more, on any page.
@@ -915,14 +932,20 @@ export function DayStage({
   };
   const energy: EnergyCurve = {
     ...curve,
+    // "Back to the plan" says nothing itself, as the focus it moves names the stop, and the
+    // status empties: the line of the change before it tells of a day the page has left.
+    reset: () => {
+      changeHeard.drop();
+      curve.reset();
+    },
     // Called only once a press has become a drag; let go, the curve was dragged.
     endDrag: () => {
-      countGesture("curve-dragged");
+      countGesture("curve-dragged", { kind: "curve", ...dayAtAct() });
       curve.endDrag();
     },
-    // A stop's arrow key bends the curve at it, as a drag there does.
+    // A stop's arrow key bends the curve at it, as a drag there does, and swaps that stop alone.
     pullTo: (stopIndex, level) => {
-      countGesture("curve-dragged");
+      countGesture("curve-dragged", stopChangeAt(stopIndex));
       curve.pullTo(stopIndex, level);
     },
     choose: (stopIndex, candidateIndex) => {
@@ -932,7 +955,9 @@ export function DayStage({
         replan?.choose(replan.status === "taken" ? "from" : "to");
         return;
       }
-      if (candidateIndex !== curve.selected[stopIndex]) countGesture("stop-swapped");
+      if (candidateIndex !== curve.selected[stopIndex]) {
+        countGesture("stop-swapped", stopChangeAt(stopIndex));
+      }
       curve.choose(stopIndex, candidateIndex);
     },
   };
@@ -983,6 +1008,26 @@ export function DayStage({
   // each kept stop on the place it showed at the press, so the plan reads the same on any device.
   const linePlaces = useMemo(() => plannedPlacesOf(writtenStops), [writtenStops]);
   const isAsPlanned = isAsWritten(stops, energy.committed, linePlaces);
+  // The place a stop shows once the curve has settled, named as the plan's row names it: the
+  // same at the act and a frame after it, so an act the curve refuses changes no place.
+  const placeShownAt = (stopIndex: number): ShownPlace | null => {
+    const stop = stops[stopIndex];
+    if (!stop) return null;
+    const shown = candidatesOf(stop)[energy.committed[stopIndex] ?? 0] ?? stop.primary;
+    return { id: shown.id, name: shown.name ?? "" };
+  };
+  // The visitor's own last change to the day, said from the header's status while it is held.
+  // A clause restored as the day loads, or with a day brought back, is the page as it stands,
+  // and is not said.
+  const changeHeard = useChangeHeard({ clause, isAsPlanned, placeAt: placeShownAt });
+  // The day as an act finds it, which what is said of the act is told against.
+  const dayAtAct = () => ({ clauseBefore: clause, wasAsPlanned: isAsPlanned });
+  const stopChangeAt = (stopIndex: number): DayChange => ({
+    kind: "stop",
+    stopIndex,
+    placeIdBefore: placeShownAt(stopIndex)?.id ?? "",
+    ...dayAtAct(),
+  });
   // What each energy answer would change on screen, counted from the re-pick its press makes,
   // so the line under an answer and the press never disagree.
   const energyRepicks: EnergyRepicks = {
@@ -1332,6 +1377,9 @@ export function DayStage({
       else setLocal((words) => ({ ...words, confirmed: [...words.confirmed, key] }));
       return;
     }
+    // A changed word is the visitor's next act: the line of the change before it tells of a day
+    // the word moves on from.
+    changeHeard.drop();
     countWord(key, control);
     setOpenStop(null);
     // A change of the energy or a word says what it sets aside, if anything, in place of this.
@@ -1349,6 +1397,13 @@ export function DayStage({
       }
     }
     if (key === "energy") {
+      // Counted before the re-pick, as the answer's line counted it.
+      const changed = energyRepicks.changedBy(value as EnergyLevel);
+      const level = energyLabelOf(value as EnergyLevel);
+      changeHeard.hear({
+        kind: "energy",
+        line: repickedLineOf(level, changed, energyRepicks.stops),
+      });
       energy.replan(repickedFor(value as EnergyLevel));
       setLocal((words) => ({ ...words, energy: value as EnergyLevel }));
       setNotYet(null);
@@ -1462,6 +1517,7 @@ export function DayStage({
       facts={heldBack(facts, reached)}
       reservedFacts={facts}
       clause={clause}
+      changeHeard={changeHeard.line}
       dek={reached.includes("dek") ? dek : undefined}
       reservedDek={dek}
       isDekWriting={draft.writing === DEK}

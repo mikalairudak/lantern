@@ -5,13 +5,15 @@ import { KANAZAWA_START_REQUEST } from "@/lib/days/written/quick-starts";
 import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { Day } from "./day";
 import { PLACES } from "./energy-glyph";
-import { repickLineOf } from "./not-yet";
+import { repickedLineOf, repickLineOf } from "./not-yet";
+import { NOTICE_HEARD_MS } from "./notice-status";
 import { READING_LIST_LABEL } from "./reading-list";
 
 /**
  * The line under each answer of the energy word's list against what its press then does: the
  * stops it says it re-picks are the stops whose place changes, on Kanazawa's written day as
- * landed and after each way the visitor can change what it shows.
+ * landed and after each way the visitor can change what it shows; and what a screen reader is
+ * told of each change the visitor makes.
  */
 
 const ORIGIN = "http://lantern.test";
@@ -200,4 +202,194 @@ describe("the energy word's list, against what its press does", () => {
     },
     15_000,
   );
+});
+
+/** The page's statuses that say anything. */
+const saidNow = () =>
+  screen
+    .getAllByRole("status")
+    .map((status) => status.textContent ?? "")
+    .filter((text) => text !== "");
+
+/**
+ * Records what the page's statuses say, as they say it now and each time it changes: "" where
+ * they all are quiet. Stopped by the function it returns, which gives the record.
+ */
+function recordSaid(): () => string[] {
+  const said = [saidNow().join(" | ")];
+  const note = () => {
+    const now = saidNow().join(" | ");
+    if (said.at(-1) !== now) said.push(now);
+  };
+  const observer = new MutationObserver(note);
+  observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+  return () => {
+    observer.disconnect();
+    return said;
+  };
+}
+
+/** The arrow that shows a version on the plan, and the place it names. */
+function arrowNamed(name: RegExp, row?: HTMLElement): { arrow: HTMLElement; place: string } {
+  const [arrow] = (row ? within(row) : screen).getAllByRole("button", { name });
+  const label = arrow?.getAttribute("aria-label") ?? "";
+  return { arrow: arrow!, place: label.slice(label.indexOf(": ") + 2) };
+}
+
+/** The plan's row an element stands in. */
+const rowOf = (element: HTMLElement) => element.closest("li")!;
+
+describe("what a screen reader is told of the visitor's change to the day", () => {
+  it("says nothing of the day as it landed", async () => {
+    await landOnThePlan();
+
+    expect(saidNow()).toEqual([]);
+  });
+
+  it("says a swap on the plan as the place now standing and the clause it brought, then falls quiet", async () => {
+    const user = await landOnThePlan();
+    const { arrow, place } = arrowNamed(/^Livelier: /);
+    await user.click(arrow);
+
+    await waitFor(() => expect(saidNow()).toHaveLength(1));
+    const [line] = saidNow();
+    expect(line!.startsWith(`${place}, `)).toBe(true);
+    expect(headline()).toHaveTextContent(`, ${line!.slice(place.length + 2)}, in`);
+    await waitFor(() => expect(saidNow()).toEqual([]), { timeout: NOTICE_HEARD_MS + 1000 });
+  });
+
+  it("says a swap back to the plan as the place and the day as first planned", async () => {
+    const user = await landOnThePlan();
+    const { arrow } = arrowNamed(/^Livelier: /);
+    const row = rowOf(arrow);
+    const planned = within(row).getByRole("heading").textContent ?? "";
+    await user.click(arrow);
+    await waitFor(() => expect(saidNow()).toHaveLength(1));
+
+    await user.click(arrowNamed(new RegExp(`: ${planned}$`), row).arrow);
+    await waitFor(() => expect(saidNow()).toEqual([`${planned}, as first planned`]));
+  });
+
+  it("says a swap back to the plan as the day as first planned where no clause came or went", async () => {
+    const user = await landOnThePlan();
+    const { arrow, place } = arrowNamed(/^Same energy: /);
+    const row = rowOf(arrow);
+    const planned = within(row).getByRole("heading").textContent ?? "";
+    await user.click(arrow);
+    await waitFor(() => expect(saidNow()).toEqual([place]));
+
+    await user.click(arrowNamed(new RegExp(`: ${planned}$`), row).arrow);
+    await waitFor(() => expect(saidNow()).toEqual([`${planned}, as first planned`]));
+  });
+
+  it("says a same-energy swap as its place alone, not the clause another stop's change set", async () => {
+    const user = await landOnThePlan();
+    const livelier = arrowNamed(/^Livelier: /);
+    await user.click(livelier.arrow);
+    await waitFor(() => expect(saidNow()).toHaveLength(1));
+
+    const elsewhere = planRows().find(
+      (row) =>
+        row !== rowOf(livelier.arrow) &&
+        within(row).queryAllByRole("button", { name: /^Same energy: / }).length > 0,
+    );
+    const { arrow, place } = arrowNamed(/^Same energy: /, elsewhere);
+    await user.click(arrow);
+    await waitFor(() => expect(saidNow()).toEqual([place]));
+  });
+
+  it("says what the headline's energy press re-picked, counted as its answer's line counted it", async () => {
+    const user = await landOnThePlan();
+    const before = shownNames();
+    await chooseEnergy(user, LANDED_LEVEL, EARLIER_LEVEL);
+    await waitForTheDay();
+
+    const line = repickedLineOf(EARLIER_LEVEL, differing(before, shownNames()), before.length);
+    expect(line).toBe("lively: four stops re-picked");
+    await waitFor(() => expect(saidNow()).toEqual([line]));
+  });
+
+  it("says a stop swapped back to its written place after an energy press as the clause it brings, not the plan regained", async () => {
+    const user = await landOnThePlan();
+    const written = planRows().map((row) => within(row).getByRole("heading").textContent ?? "");
+    await chooseEnergy(user, LANDED_LEVEL, EARLIER_LEVEL);
+    await waitForTheDay();
+    const rows = planRows();
+    const repicked = rows.findIndex(
+      (row, index) => (within(row).getByRole("heading").textContent ?? "") !== written[index],
+    );
+    expect(repicked).toBeGreaterThanOrEqual(0);
+    const writtenPlace = written[repicked]!;
+
+    // The energy's plan is the day now: the written place is a change from it.
+    await user.click(arrowNamed(new RegExp(`: ${writtenPlace}$`), rows[repicked]).arrow);
+    await waitFor(() => expect(saidNow()[0]?.startsWith(`${writtenPlace}, `)).toBe(true));
+    const [line] = saidNow();
+    expect(line).not.toContain("as first planned");
+    expect(headline()).toHaveTextContent(`, ${line!.slice(writtenPlace.length + 2)}, in`);
+  });
+
+  it("names the level by the word the headline shows for it", async () => {
+    const user = await landOnThePlan();
+    await chooseEnergy(user, LANDED_LEVEL, "quiet");
+
+    await waitFor(() => expect(saidNow()).toEqual([expect.stringMatching(/^quiet: /)]));
+  });
+
+  it("lets a swap's line go at Back to the plan inside its hold, and says nothing of Back", async () => {
+    const user = userEvent.setup();
+    render(<Day first={KANAZAWA_START_REQUEST} />);
+    await waitForTheDay();
+    const stopRecording = recordSaid();
+
+    screen.getAllByRole("slider")[1]!.focus();
+    await user.keyboard("{End}");
+    await waitFor(() => expect(saidNow()).toHaveLength(1));
+    const [line] = saidNow();
+    await user.click(screen.getByRole("button", { name: "Back to the plan" }));
+    // Well inside the hold, which would empty the status by itself.
+    await waitFor(() => expect(saidNow()).toEqual([]), { timeout: NOTICE_HEARD_MS / 3 });
+    const said = stopRecording();
+
+    expect(said).toEqual(["", line, ""]);
+  });
+
+  it("lets a swap's line go at a changed word inside its hold, the word being the next act", async () => {
+    const user = await landOnThePlan();
+    const stopRecording = recordSaid();
+    await user.click(arrowNamed(/^Livelier: /).arrow);
+    await waitFor(() => expect(saidNow()).toHaveLength(1));
+    const [line] = saidNow();
+
+    await user.click(within(headline()).getByRole("button", { name: "on foot" }));
+    await user.click(screen.getByRole("option", { name: /^by public transport/ }));
+    // Well inside the hold, which would empty the status by itself; the facts line says why
+    // every stop stays from a status of its own.
+    await waitFor(() => expect(saidNow()).not.toContain(line), { timeout: NOTICE_HEARD_MS / 3 });
+    const said = stopRecording();
+
+    expect(said.slice(0, 2)).toEqual(["", line]);
+    expect(said.slice(2).filter((text) => text.includes(line!))).toEqual([]);
+  });
+
+  it("says each energy press of the plan's bar, two within the hold, the status emptied between", async () => {
+    const user = await landOnThePlan();
+    const bar = screen.getByRole("group", { name: "How lively the day is" });
+    const landed = shownNames();
+    const stopRecording = recordSaid();
+
+    await user.click(within(bar).getByRole("button", { name: EARLIER_LEVEL }));
+    await waitFor(() => expect(saidNow()).toHaveLength(1));
+    const lively = shownNames();
+    await user.click(within(bar).getByRole("button", { name: LANDED_LEVEL }));
+    await waitFor(() => expect(saidNow()).toEqual([expect.stringMatching(/^calm: /)]));
+    const said = stopRecording();
+
+    expect(said).toEqual([
+      "",
+      repickedLineOf(EARLIER_LEVEL, differing(landed, lively), landed.length),
+      "",
+      repickedLineOf(LANDED_LEVEL, differing(lively, shownNames()), landed.length),
+    ]);
+  });
 });

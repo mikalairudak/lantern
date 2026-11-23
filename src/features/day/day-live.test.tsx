@@ -53,6 +53,7 @@ import { INDEX_LABEL } from "./start-index";
 import { YOUR_DAYS_HEADING } from "./your-days-ledger-words";
 import { TAKE_THIS_DAY } from "./day-menu";
 import { ONE_CHANGE_AT_A_TIME } from "./day-stage-header";
+import { NOTICE_HEARD_MS } from "./notice-status";
 import { sendProductEvent } from "@/lib/events/send-event";
 import type { ProductEvent } from "@/lib/events/event.schema";
 
@@ -1593,6 +1594,89 @@ describe("a changed word's fork: taken, left and taken back, with live generatio
     await waitFor(() =>
       expect(screen.getByRole("textbox", { name: "Where, and anything else" })).toBeVisible(),
     );
+  });
+
+  it("lets a swap's line go when a version of the fork is taken inside its hold", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "early start", "slow morning");
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("taken"), DAY_TIMEOUT);
+    await waitForTheDay();
+    const list = dayList();
+    const slider = screen.getAllByRole("slider").at(-1);
+    if (slider === undefined) throw new Error("Kyoto's day has stops on its curve");
+    slider.focus();
+    await user.keyboard("{ArrowRight}");
+    const shown = slider.getAttribute("aria-valuetext") ?? "";
+    const place = shown.slice(shown.indexOf(": ") + 2);
+    const sayingThePlace = () =>
+      screen.getAllByRole("status").filter((status) => status.textContent?.startsWith(place));
+    await waitFor(() => expect(sayingThePlace()).toHaveLength(1));
+
+    await takeBack(user, "early start");
+
+    expect(day.current?.replan().status).toBe("left");
+    expect(dayList()).toBe(list);
+    // Well inside the hold, which would empty the status by itself.
+    await waitFor(() => expect(sayingThePlace()).toEqual([]), { timeout: NOTICE_HEARD_MS / 3 });
+  });
+
+  it("lets a swap's line go when the day as it was is kept over a whole proposal inside its hold", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "early start", "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("proposed"), DAY_TIMEOUT);
+    const slider = screen.getAllByRole("slider").at(-1);
+    if (slider === undefined) throw new Error("Kyoto's day has stops on its curve");
+    slider.focus();
+    await user.keyboard("{ArrowRight}");
+    const shown = slider.getAttribute("aria-valuetext") ?? "";
+    const place = shown.slice(shown.indexOf(": ") + 2);
+    const sayingThePlace = () =>
+      screen.getAllByRole("status").filter((status) => status.textContent?.startsWith(place));
+    await waitFor(() => expect(sayingThePlace()).toHaveLength(1));
+
+    const kept = screen.getAllByRole("radio", { name: "early start, your day" })[0];
+    if (!kept) throw new Error("The day as it was has its radio");
+    await user.click(kept);
+
+    expect(day.current?.replan().status).toBe("left");
+    // Well inside the hold, which would empty the status by itself.
+    await waitFor(() => expect(sayingThePlace()).toEqual([]), { timeout: NOTICE_HEARD_MS / 3 });
+  });
+
+  it("keeps a swap's line through a press of the version already taken", async () => {
+    replanReplies.push(KYOTO_SLOW_MORNING);
+    dayIds.push(KYOTO_DAY_ID);
+    const day = createRef<DayHandle>();
+    const user = await askForKyoto(day);
+    await changeWord(user, "early start", "slow morning");
+    await takeProposal(user, "slow morning");
+    await waitFor(() => expect(day.current?.replan().status).toBe("taken"), DAY_TIMEOUT);
+    await waitForTheDay();
+    const slider = screen.getAllByRole("slider").at(-1);
+    if (slider === undefined) throw new Error("Kyoto's day has stops on its curve");
+    slider.focus();
+    await user.keyboard("{ArrowRight}");
+    const shown = slider.getAttribute("aria-valuetext") ?? "";
+    const place = shown.slice(shown.indexOf(": ") + 2);
+    const sayingThePlace = () =>
+      screen.getAllByRole("status").filter((status) => status.textContent?.startsWith(place));
+    await waitFor(() => expect(sayingThePlace()).toHaveLength(1));
+
+    // The version the day already has: nothing is taken, so the line is no one's to let go.
+    const taken = screen.getAllByRole("radio", { name: "slow morning, your day" })[0];
+    if (!taken) throw new Error("The version taken has its radio");
+    await user.click(taken);
+
+    expect(day.current?.replan().status).toBe("taken");
+    await new Promise((done) => setTimeout(done, NOTICE_HEARD_MS / 3));
+    expect(sayingThePlace()).toHaveLength(1);
   });
 
   it("comes Back to a day left with its fork standing as the day on screen was, the fork settled, with no call", async () => {
