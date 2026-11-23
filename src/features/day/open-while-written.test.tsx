@@ -15,6 +15,9 @@ const PACE = { deltaChars: 120, deltaDelayMs: 4 };
 /** A day written whole at that pace, its rows landing a beat apart, and the press in it. */
 const TEST_TIMEOUT_MS = 120_000;
 
+/** The line under the chart while the day is written: "Writing the day · 4 stops so far". */
+const WRITING_LINE = /^Writing [^·]+ · /;
+
 /** The day the route answers with in the current test; the repaired day when none is set. */
 const streamed = vi.hoisted(() => ({ day: null as GeneratedDay | null }));
 
@@ -165,9 +168,10 @@ describe("a stop opened while its day is written, on a day the normalizer repair
       });
       expect(chart).toHaveAttribute("aria-busy", "true");
       expect(button).toBeDisabled();
-      // The line under the chart says the day is still being written.
+      // The line under the chart says the day is still being written, found by its own words:
+      // the header's status, once the stream pauses, says the same first words.
       const credit = screen.getByRole("link", { name: "© OpenStreetMap contributors" });
-      expect(screen.getByText(/^Writing /)).toBeInTheDocument();
+      expect(screen.getByText(WRITING_LINE)).toBeInTheDocument();
       // The day's end waits for the day to be whole.
       expect(screen.queryByText(/^Home by/)).toBeNull();
 
@@ -176,7 +180,7 @@ describe("a stop opened while its day is written, on a day the normalizer repair
       });
       // Once written, the day's end takes the line's place, and nothing says how long it took.
       expect(await screen.findByText(/^Home by/)).toBeInTheDocument();
-      expect(screen.queryByText(/^Writing /)).toBeNull();
+      expect(screen.queryByText(WRITING_LINE)).toBeNull();
       expect(credit.closest("p")).toHaveTextContent(/^© OpenStreetMap contributors/);
       await user.click(button);
       expect(screen.getByRole("region", { name: /^About Curry/ })).toHaveTextContent(
