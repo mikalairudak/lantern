@@ -140,7 +140,8 @@ function seenTextOf(element: Element): string {
 /**
  * What follows each text of nothing but spaces that the server writes before another text:
  * React parts the two with a comment, and Chrome leaves such a space out of the name of the
- * element that holds it, "Saturdayin".
+ * element that holds it, "Saturdayin". One shape of the spaces Chrome drops; the heading's name
+ * as Chrome gives it is held by `e2e/seen-day.spec.ts`.
  */
 function spacesBeforeTextOf(element: Element): string[] {
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
@@ -331,7 +332,7 @@ describe("DayStageHeader", () => {
     ["with a clause", "after a slow start", {}],
     ["with Lantern's words", null, KYOTO_ASSUMPTIONS],
   ])(
-    "writes no space of the headline on the server as a text before another, %s, so Chrome's name for it keeps every space",
+    "writes no space of the headline on the server as a text of its own before another text, %s",
     (_, clause, assumptions) => {
       const page = document.createElement("div");
       page.innerHTML = renderToString(headerOf(LISBON_REQUEST, clause, null, { assumptions }));
