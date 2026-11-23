@@ -11,13 +11,21 @@ export const AS_FIRST_PLANNED = "As first planned";
 
 /**
  * The visitor's own change to the day, as it stood at the act: what is said of it is worked out
- * once, from the day as it stands a frame after the act (`useChangeHeard`).
+ * once, from the day as it stands a frame after the act (`useChangeHeard`), against the day as
+ * the act found it: its clause, and whether every stop showed its planned place.
  */
 export type DayChange =
   /** A swap at one stop: a version's arrow or swipe on the plan, a bead, a stop's arrow key. */
-  | { kind: "stop"; stopIndex: number; clauseBefore: string | null }
+  | {
+      kind: "stop";
+      stopIndex: number;
+      /** The name of the place the stop showed at the act. */
+      placeBefore: string;
+      clauseBefore: string | null;
+      wasAsPlanned: boolean;
+    }
   /** A drag of the curve, which can change several stops. */
-  | { kind: "curve"; clauseBefore: string | null }
+  | { kind: "curve"; clauseBefore: string | null; wasAsPlanned: boolean }
   /** An energy press, said as its line counted it before the re-pick. */
   | { kind: "energy"; line: string };
 
@@ -27,28 +35,38 @@ export interface DayAfterChange {
   clause: string | null;
   /** Whether every stop shows the place the line about the day was written around. */
   isAsPlanned: boolean;
-  /** The name of the place a stop shows. */
+  /** The name of the place a stop shows, "" for a stop or a name there is not. */
   placeAt: (stopIndex: number) => string;
 }
 
 /**
  * What a screen reader is told of a change, "" for nothing: the place now standing at a swapped
- * stop, then what the change did to the headline's clause, never a clause it left as it was
- * (`docs/decisions.md`, "The visitor's own change to the day is said from the header's status").
+ * stop, then what the change did to the day, the plan regained or the headline's new clause,
+ * never a clause it left as it was. A place the act left as it was, as at an act the curve
+ * refuses while a drag is held, is not said, nor is a place with no name, which leaves what the
+ * act did to the day said alone (`docs/decisions.md`, "The visitor's own change to the day is
+ * said from the header's status").
  */
 export function changeLineOf(change: DayChange, after: DayAfterChange): string {
   if (change.kind === "energy") return change.line;
-  const clauseLine = clauseChangeOf(change.clauseBefore, after);
-  if (change.kind === "curve") return clauseLine;
+  const dayLine = dayChangeOf(change, after);
+  if (change.kind === "curve") return dayLine;
   const place = after.placeAt(change.stopIndex);
-  return clauseLine === "" ? place : `${place}, ${clauseLine}`;
+  if (place === "" || place === change.placeBefore) return dayLine;
+  return dayLine === "" ? place : `${place}, ${dayLine}`;
 }
 
-/** What a change did to the headline's clause: its new words, the plan regained, or "". */
-function clauseChangeOf(before: string | null, after: DayAfterChange): string {
-  if (after.clause === before) return "";
-  if (after.clause !== null) return after.clause;
-  return after.isAsPlanned ? AS_FIRST_PLANNED.toLowerCase() : "";
+/**
+ * What a change did to the day: the plan regained where the act brought every stop back to its
+ * planned place, otherwise the headline's new clause where it has one, otherwise "".
+ */
+function dayChangeOf(
+  before: { clauseBefore: string | null; wasAsPlanned: boolean },
+  after: DayAfterChange,
+): string {
+  if (after.isAsPlanned && !before.wasAsPlanned) return AS_FIRST_PLANNED.toLowerCase();
+  if (after.clause !== null && after.clause !== before.clauseBefore) return after.clause;
+  return "";
 }
 
 /** The visitor's last change to the day, as the header's status says it. */

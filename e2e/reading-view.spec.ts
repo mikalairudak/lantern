@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
+import { logStatuses } from "./status-log";
 import { BROWSER_STORAGE } from "../src/lib/browser-storage";
 import { NOTICE_HEARD_MS } from "../src/features/day/notice-status";
 import type { StoredDay } from "../src/lib/days/stored-day";
@@ -276,19 +277,66 @@ test("Chart: a stop's key back to its planned place says the place and the day a
   await expect.poll(() => saidNow(page)).toEqual([`${planned}, as first planned`]);
 });
 
-/** Drags a stop's knob on the chart this far along the scale, and lets it go. */
-async function dragKnob(page: Page, slider: Locator, by: number): Promise<void> {
+/** A drag of a knob moves the mouse in this many steps, as a hand does. */
+const DRAG_MOVES = 10;
+
+/** Presses a stop's knob on the chart and drags it this far along the scale, still held. */
+async function holdKnobDragged(page: Page, slider: Locator, by: number): Promise<void> {
   await slider.scrollIntoViewIfNeeded();
   const knob = await slider.locator("circle").boundingBox();
   if (!knob) throw new Error("The knob has no box");
   const from = { x: knob.x + knob.width / 2, y: knob.y + knob.height / 2 };
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
-  for (let step = 1; step <= 10; step += 1) {
-    await page.mouse.move(from.x + (by * step) / 10, from.y);
+  for (let move = 1; move <= DRAG_MOVES; move += 1) {
+    await page.mouse.move(from.x + (by * move) / DRAG_MOVES, from.y);
   }
+}
+
+/** Drags a stop's knob on the chart this far along the scale, and lets it go. */
+async function dragKnob(page: Page, slider: Locator, by: number): Promise<void> {
+  await holdKnobDragged(page, slider, by);
   await page.mouse.up();
 }
+
+/** Another of Kanazawa's stops than the one the right arrow key makes livelier. */
+const OTHER_STOP = KANAZAWA.stops.find((stop) => stop.startTime !== LIVELIER_STOP.startTime)!;
+/** Far enough along the scale to be a drag, and short of a lane, as a hand still dragging. */
+const HELD_DRAG_PX = 24;
+/** Frames the page is given to say an act, which it writes a frame after the act. */
+const FRAMES_TO_SAY = 3;
+
+test("Chart: a stop's arrow key while a drag of the curve is held changes nothing and says nothing", async ({
+  page,
+}) => {
+  await page.addInitScript(logStatuses);
+  await openSeenKanazawa(page, "Chart");
+  const keyed = page.getByRole("slider", { name: `Energy at ${LIVELIER_STOP.startTime}` });
+  const before = await keyed.getAttribute("aria-valuetext");
+
+  await holdKnobDragged(
+    page,
+    page.getByRole("slider", { name: `Energy at ${OTHER_STOP.startTime}` }),
+    HELD_DRAG_PX,
+  );
+  await keyed.focus();
+  const since = await page.evaluate(() => performance.now());
+  await page.keyboard.press("ArrowRight");
+  await page.evaluate(async (frames) => {
+    for (let frame = 0; frame < frames; frame += 1) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+  }, FRAMES_TO_SAY);
+  const said = await page.evaluate(
+    (since) => window.statusLog.filter(({ t, text }) => t >= since && text !== ""),
+    since,
+  );
+  const after = await keyed.getAttribute("aria-valuetext");
+  await page.mouse.up();
+
+  expect(after).toBe(before);
+  expect(said).toEqual([]);
+});
 
 test("Chart: a drag is said as the clause it changed, and a drag back as the day as first planned", async ({
   page,

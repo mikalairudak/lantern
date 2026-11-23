@@ -270,6 +270,18 @@ describe("what a screen reader is told of the visitor's change to the day", () =
     await waitFor(() => expect(saidNow()).toEqual([`${planned}, as first planned`]));
   });
 
+  it("says a swap back to the plan as the day as first planned where no clause came or went", async () => {
+    const user = await landOnThePlan();
+    const { arrow, place } = arrowNamed(/^Same energy: /);
+    const row = rowOf(arrow);
+    const planned = within(row).getByRole("heading").textContent ?? "";
+    await user.click(arrow);
+    await waitFor(() => expect(saidNow()).toEqual([place]));
+
+    await user.click(arrowNamed(new RegExp(`: ${planned}$`), row).arrow);
+    await waitFor(() => expect(saidNow()).toEqual([`${planned}, as first planned`]));
+  });
+
   it("says a same-energy swap as its place alone, not the clause another stop's change set", async () => {
     const user = await landOnThePlan();
     const livelier = arrowNamed(/^Livelier: /);

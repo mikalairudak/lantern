@@ -928,12 +928,12 @@ export function DayStage({
     },
     // Called only once a press has become a drag; let go, the curve was dragged.
     endDrag: () => {
-      countGesture("curve-dragged", { kind: "curve", clauseBefore: clause });
+      countGesture("curve-dragged", { kind: "curve", ...dayAtAct() });
       curve.endDrag();
     },
     // A stop's arrow key bends the curve at it, as a drag there does, and swaps that stop alone.
     pullTo: (stopIndex, level) => {
-      countGesture("curve-dragged", { kind: "stop", stopIndex, clauseBefore: clause });
+      countGesture("curve-dragged", stopChangeAt(stopIndex));
       curve.pullTo(stopIndex, level);
     },
     choose: (stopIndex, candidateIndex) => {
@@ -944,7 +944,7 @@ export function DayStage({
         return;
       }
       if (candidateIndex !== curve.selected[stopIndex]) {
-        countGesture("stop-swapped", { kind: "stop", stopIndex, clauseBefore: clause });
+        countGesture("stop-swapped", stopChangeAt(stopIndex));
       }
       curve.choose(stopIndex, candidateIndex);
     },
@@ -999,16 +999,22 @@ export function DayStage({
   // The visitor's own last change to the day, said from the header's status while it is held.
   // A clause restored as the day loads, or with a day brought back, is the page as it stands,
   // and is not said.
-  const changeHeard = useChangeHeard({
-    clause,
-    isAsPlanned,
-    // Named as the plan's row names the stop.
-    placeAt: (stopIndex) => {
-      const stop = stops[stopIndex];
-      if (!stop) return "";
-      const shown = candidatesOf(stop)[energy.committed[stopIndex] ?? 0] ?? stop.primary;
-      return shown.name ?? "";
-    },
+  // The place a stop shows once the curve has settled, named as the plan's row names it: the
+  // same at the act and a frame after it, so an act the curve refuses changes no place.
+  const placeShownAt = (stopIndex: number): string => {
+    const stop = stops[stopIndex];
+    if (!stop) return "";
+    const shown = candidatesOf(stop)[energy.committed[stopIndex] ?? 0] ?? stop.primary;
+    return shown.name ?? "";
+  };
+  const changeHeard = useChangeHeard({ clause, isAsPlanned, placeAt: placeShownAt });
+  // The day as an act finds it, which what is said of the act is told against.
+  const dayAtAct = () => ({ clauseBefore: clause, wasAsPlanned: isAsPlanned });
+  const stopChangeAt = (stopIndex: number): DayChange => ({
+    kind: "stop",
+    stopIndex,
+    placeBefore: placeShownAt(stopIndex),
+    ...dayAtAct(),
   });
   // What each energy answer would change on screen, counted from the re-pick its press makes,
   // so the line under an answer and the press never disagree.
