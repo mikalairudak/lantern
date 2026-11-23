@@ -200,3 +200,66 @@ test.describe("each answer without a day, and the city's question, is said in a 
     await expect(page.getByRole("textbox", { name: "Which city?" })).toBeFocused();
   });
 });
+
+/** How long the intake takes to read a text the second time it is asked. */
+const SECOND_READ_MS = 2500;
+/**
+ * How long the read is said at least: well under its wait, so a stall between the press and the
+ * frame the line turns to reading, as on a slow machine, leaves it held long enough.
+ */
+const SECOND_READ_HELD_MS = 1000;
+
+test.describe("a text asked again after an ending is said as read from a status that stood", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(logStatuses);
+  });
+
+  const planButton = (page: Page) => page.getByRole("button", { name: "Plan this day" });
+  for (const [how, press] of [
+    [
+      "Enter on the button the focus is on",
+      async (page: Page) => {
+        await page.keyboard.press("Tab");
+        await expect(planButton(page)).toBeFocused();
+        await page.keyboard.press("Enter");
+      },
+    ],
+    ["a click on the button", (page: Page) => planButton(page).click()],
+  ] as const) {
+    test(`by ${how}`, async ({ page }) => {
+      // Refused, then read as the written intake reads it, into a written day's request: the line
+      // turns from the read to the day on its way, which the line says itself.
+      let reads = 0;
+      await page.route("**/api/intake", async (route) => {
+        reads += 1;
+        if (reads === 1) return route.fulfill({ json: { kind: "refused" } satisfies IntakeResult });
+        await new Promise((done) => setTimeout(done, SECOND_READ_MS));
+        return route.continue();
+      });
+      await openLive(page, "/");
+      await askFromTheField(page, "Kanazawa, on foot");
+      await expect(
+        page.locator("main form").getByText("Lantern can't plan that day.", { exact: false }),
+      ).toBeVisible();
+      await expect(page.getByRole("textbox", { name: "Where, and anything else" })).toBeFocused();
+
+      const pressedAt = await page.evaluate(() => performance.now());
+      await press(page);
+      await expectSaidOnceAsChange(page, "Reading what you wrote", SECOND_READ_HELD_MS, pressedAt);
+      // Until the read falls quiet: the day that takes the page then draws statuses of its own.
+      const log = await page.evaluate(() => window.statusLog);
+      const read = log.find((entry) => entry.t >= pressedAt && entry.text.includes("Reading"))!;
+      const born = log.find((entry) => entry.id === read.id && entry.kind === "added")!;
+      expect(born.t, "the status that says it stood before the press").toBeLessThan(pressedAt);
+      const readQuietAt = log.find((entry) => entry.id === read.id && entry.t > read.t)!.t;
+      const bornFull = log.filter(
+        (entry) =>
+          entry.t >= pressedAt &&
+          entry.t <= readQuietAt &&
+          entry.kind === "added" &&
+          /\S/.test(entry.text),
+      );
+      expect(bornFull, "a status came onto the page holding words").toEqual([]);
+    });
+  }
+});

@@ -598,8 +598,10 @@ describe("how long the status holds an answer", () => {
     waitMs(NOTICE_HEARD_MS);
     expect(answerStatus().textContent).toBe("");
 
-    view.rerender(startOf({ kind: "reading" }, "reading"));
+    // The press's wait empties it in the frame its line still draws the ending.
+    view.rerender(startOf({ kind: "refused" }, "reading"));
     expect(answerStatus().textContent).toBe("");
+    view.rerender(startOf({ kind: "reading" }, "reading"));
     view.rerender(startOf({ kind: "refused" }));
     expect(answerStatus().textContent).toBe(REFUSED_SAID);
   });
@@ -982,6 +984,71 @@ describe("the press that asks for a typed text", () => {
     );
     expect(button).toHaveFocus();
     expect(heardStatus()).toBe("Reading what you wrote");
+    expect(answerStatus().textContent).toBe("");
+  });
+
+  describe("after an ending, which takes the line under the field from the page", () => {
+    const handlers = { onPlan: vi.fn(), onChooseWritten: vi.fn(), onChooseReading: vi.fn() };
+    const startOf = (line: StartHeaderProps["line"], wait?: StartWait | null) => (
+      <HeldStart
+        starts={STARTS}
+        line={line}
+        wait={wait}
+        waitAtPlan="reading"
+        isLive
+        isCityFocused={false}
+        {...handlers}
+      />
+    );
+
+    it.each([
+      [
+        "a click",
+        (button: HTMLElement, user: ReturnType<typeof userEvent.setup>) => user.click(button),
+      ],
+      [
+        "Enter",
+        async (button: HTMLElement, user: ReturnType<typeof userEvent.setup>) => {
+          act(() => button.focus());
+          await user.keyboard("{Enter}");
+        },
+      ],
+    ] as const)(
+      "says Reading from the status over the form, once, at %s on the button the focus is on",
+      async (_, press) => {
+        const user = userEvent.setup();
+        const view = render(startOf({ kind: "refused" }));
+        await user.type(screen.getByRole("textbox"), "a quiet day");
+        const button = screen.getByRole("button", { name: "Plan this day" });
+
+        await press(button, user);
+        view.rerender(startOf({ kind: "reading" }));
+        expect(button).toHaveFocus();
+        expect(answerStatus().textContent).toBe("Reading what you wrote");
+        // Seen under the field, and unheard there: the line is drawn afresh holding it.
+        expect(startStatus()).toHaveTextContent("Reading what you wrote");
+        expect(heardStatus()).toBe("");
+
+        // The day set off is said by the line, now standing, and no longer over the form.
+        view.rerender(startOf(ON_ITS_WAY_LIVE, "writing"));
+        expect(answerStatus().textContent).toBe("");
+        expect(heardStatus()).toMatch(/^Writing a lively Saturday in Lisbon/);
+      },
+    );
+
+    it("says Reading where the focus lands at an Enter in the field, and from no status", async () => {
+      const user = userEvent.setup();
+      const view = render(startOf({ kind: "refused" }));
+      const button = screen.getByRole("button", { name: "Plan this day" });
+      const named: string[] = [];
+      button.addEventListener("focus", () => named.push(button.getAttribute("aria-label") ?? ""));
+
+      await user.type(screen.getByRole("textbox"), "a quiet day{Enter}");
+      view.rerender(startOf({ kind: "reading" }));
+      expect(named).toEqual(["Reading"]);
+      expect(answerStatus().textContent).toBe("");
+      expect(heardStatus()).toBe("");
+    });
   });
 });
 
