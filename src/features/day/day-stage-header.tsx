@@ -310,11 +310,11 @@ interface DayStageHeaderProps {
    */
   clause: string | null;
   /**
-   * What is said of the visitor's own last change to the day while it is heard, "" or null for
+   * What is said of the visitor's own last change to the day while it is heard, "" for
    * nothing: a swap's place and what it did to the clause, a drag's clause, an energy press's
-   * re-pick (`changeLineOf`).
+   * re-pick (`useChangeHeard`).
    */
-  changeHeard?: string | null;
+  changeHeard?: string;
   /** The line about the day once the pen has reached it, which then writes itself in. */
   dek: string | undefined;
   /** The line about the day as far as it has arrived: the header holds its room. */
@@ -552,7 +552,7 @@ export function DayStageHeader({
   facts: givenFacts,
   reservedFacts: givenReservedFacts,
   clause,
-  changeHeard = null,
+  changeHeard = "",
   dek,
   reservedDek,
   isDekWriting,
@@ -1273,7 +1273,7 @@ export function DayStageHeader({
                       ? setAsideHeard
                       : isWritingSaid
                         ? "Writing the day"
-                        : (changeHeard ?? "")}
+                        : changeHeard}
               </p>
             </div>
             {!notice && (

@@ -1,5 +1,6 @@
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { changeLineOf, type DayAfterChange } from "./change-heard";
+import { changeLineOf, useChangeHeard, type DayAfterChange } from "./change-heard";
 
 const PLACES = ["Coffee near Hirosaka", "Oyama Shrine"];
 /** The day after a change, its clause and whether it is the plan as given. */
@@ -57,5 +58,46 @@ describe("changeLineOf", () => {
     expect(
       changeLineOf({ kind: "energy", line: "lively: four stops re-picked" }, dayAfter(null)),
     ).toBe("lively: four stops re-picked");
+  });
+});
+
+describe("useChangeHeard", () => {
+  const SWAP = { kind: "stop", stopIndex: 0, clauseBefore: null } as const;
+  const SWAP_LINE = "Coffee near Hirosaka, livelier at breakfast";
+
+  /** Hears changes on a day that starts as given and changes as the test rerenders it. */
+  function hearOn(after: DayAfterChange) {
+    return renderHook((props: { after: DayAfterChange }) => useChangeHeard(props.after), {
+      initialProps: { after },
+    });
+  }
+
+  /** Hears a swap that brings a clause, the day taking it in the act's own render. */
+  async function hearSwap() {
+    const hearing = hearOn(dayAfter(null));
+    act(() => hearing.result.current.hear(SWAP));
+    expect(hearing.result.current.line).toBe("");
+    hearing.rerender({ after: dayAfter("livelier at breakfast") });
+    await waitFor(() => expect(hearing.result.current.line).toBe(SWAP_LINE));
+    return hearing;
+  }
+
+  it("empties at the act, then says it from the day as it stands a frame later", async () => {
+    await hearSwap();
+  });
+
+  it("keeps the line as written when the day changes with no act", async () => {
+    const { result, rerender } = await hearSwap();
+
+    rerender({ after: dayAfter(null) });
+    expect(result.current.line).toBe(SWAP_LINE);
+  });
+
+  it("empties when the line is dropped, and says nothing more", async () => {
+    const { result, rerender } = await hearSwap();
+
+    act(() => result.current.drop());
+    rerender({ after: dayAfter(null) });
+    expect(result.current.line).toBe("");
   });
 });

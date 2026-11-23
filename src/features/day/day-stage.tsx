@@ -106,14 +106,14 @@ import {
   type EnergyRepicks,
   type SetAside,
 } from "./not-yet";
-import { changeLineOf, type DayChange } from "./change-heard";
-import { NOTICE_HEARD_MS } from "./notice-status";
+import { useChangeHeard, type DayChange } from "./change-heard";
 import { replannedRequestOf } from "./replan-request";
 import type { ReplanControls } from "./replan-controls";
 import { endedDayOf, noticeOf, phaseOf, slotOf } from "./stream-ending";
 import { revealedOf } from "@/features/itinerary/revealed";
 import {
   NO_LOCAL_WORDS,
+  energyLabelOf,
   heldBack,
   penPiecesOf,
   sentenceFactsOf,
@@ -907,27 +907,11 @@ export function DayStage({
     const timer = window.setTimeout(() => setHeldGesture(0), VIEW_HELD_AFTER_GESTURE_MS);
     return () => window.clearTimeout(timer);
   }, [heldGesture, isHeaderGliding]);
-  // The visitor's own last change to the day, recorded at the act and said from the header's
-  // status for as long as a notice's line is held (`changeLineOf`). Each act is a new record:
-  // the status empties with it and takes its line a frame later, so an act that says the same
-  // words as the one before is still a change a screen reader hears. A clause restored as the
-  // day loads, or with a day brought back, is the page as it stands, and is not said.
-  const [change, setChange] = useState<DayChange | null>(null);
-  const [saidChange, setSaidChange] = useState<DayChange | null>(null);
-  useEffect(() => {
-    if (change === null) return undefined;
-    const said = window.requestAnimationFrame(() => setSaidChange(change));
-    const quiet = window.setTimeout(() => setChange(null), NOTICE_HEARD_MS);
-    return () => {
-      window.cancelAnimationFrame(said);
-      window.clearTimeout(quiet);
-    };
-  }, [change]);
   const countGesture = (kind: GestureKind, act: DayChange) => {
     // A gesture on the day is the visitor acting on it: a re-plan's receipt makes way, and so
     // does what a change set aside.
     setIsActedOn(true);
-    setChange(act);
+    changeHeard.hear(act);
     actAfterSetAside();
     setHeldGesture((count) => count + 1);
     // One who has bent the curve needs showing how no more, on any page.
@@ -936,6 +920,12 @@ export function DayStage({
   };
   const energy: EnergyCurve = {
     ...curve,
+    // "Back to the plan" says nothing itself, as the focus it moves names the stop, and the
+    // status empties: the line of the change before it tells of a day the page has left.
+    reset: () => {
+      changeHeard.drop();
+      curve.reset();
+    },
     // Called only once a press has become a drag; let go, the curve was dragged.
     endDrag: () => {
       countGesture("curve-dragged", { kind: "curve", clauseBefore: clause });
@@ -1006,20 +996,20 @@ export function DayStage({
   // each kept stop on the place it showed at the press, so the plan reads the same on any device.
   const linePlaces = useMemo(() => plannedPlacesOf(writtenStops), [writtenStops]);
   const isAsPlanned = isAsWritten(stops, energy.committed, linePlaces);
-  const changeLine =
-    change !== null && saidChange === change
-      ? changeLineOf(change, {
-          clause,
-          isAsPlanned,
-          // Named as the plan's row names the stop.
-          placeAt: (stopIndex) => {
-            const stop = stops[stopIndex];
-            if (!stop) return "";
-            const shown = candidatesOf(stop)[energy.committed[stopIndex] ?? 0] ?? stop.primary;
-            return shown.name ?? "";
-          },
-        })
-      : "";
+  // The visitor's own last change to the day, said from the header's status while it is held.
+  // A clause restored as the day loads, or with a day brought back, is the page as it stands,
+  // and is not said.
+  const changeHeard = useChangeHeard({
+    clause,
+    isAsPlanned,
+    // Named as the plan's row names the stop.
+    placeAt: (stopIndex) => {
+      const stop = stops[stopIndex];
+      if (!stop) return "";
+      const shown = candidatesOf(stop)[energy.committed[stopIndex] ?? 0] ?? stop.primary;
+      return shown.name ?? "";
+    },
+  });
   // What each energy answer would change on screen, counted from the re-pick its press makes,
   // so the line under an answer and the press never disagree.
   const energyRepicks: EnergyRepicks = {
@@ -1388,8 +1378,11 @@ export function DayStage({
     if (key === "energy") {
       // Counted before the re-pick, as the answer's line counted it.
       const changed = energyRepicks.changedBy(value as EnergyLevel);
-      const level = optionOf({ options: FACT_OPTIONS.energy }, value)?.label ?? value;
-      setChange({ kind: "energy", line: repickedLineOf(level, changed, energyRepicks.stops) });
+      const level = energyLabelOf(value as EnergyLevel);
+      changeHeard.hear({
+        kind: "energy",
+        line: repickedLineOf(level, changed, energyRepicks.stops),
+      });
       energy.replan(repickedFor(value as EnergyLevel));
       setLocal((words) => ({ ...words, energy: value as EnergyLevel }));
       setNotYet(null);
@@ -1503,7 +1496,7 @@ export function DayStage({
       facts={heldBack(facts, reached)}
       reservedFacts={facts}
       clause={clause}
-      changeHeard={changeLine}
+      changeHeard={changeHeard.line}
       dek={reached.includes("dek") ? dek : undefined}
       reservedDek={dek}
       isDekWriting={draft.writing === DEK}

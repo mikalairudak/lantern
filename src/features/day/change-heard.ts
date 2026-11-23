@@ -1,3 +1,8 @@
+"use client";
+
+import { useCallback, useEffect, useEffectEvent, useState } from "react";
+import { NOTICE_HEARD_MS } from "./notice-status";
+
 /**
  * The words that lead the line about the day while the day differs from its plan, said lower
  * case once a change brings the day back to it.
@@ -6,7 +11,7 @@ export const AS_FIRST_PLANNED = "As first planned";
 
 /**
  * The visitor's own change to the day, as it stood at the act: what is said of it is worked out
- * from the day after it (`changeLineOf`).
+ * once, from the day as it stands a frame after the act (`useChangeHeard`).
  */
 export type DayChange =
   /** A swap at one stop: a version's arrow or swipe on the plan, a bead, a stop's arrow key. */
@@ -44,4 +49,42 @@ function clauseChangeOf(before: string | null, after: DayAfterChange): string {
   if (after.clause === before) return "";
   if (after.clause !== null) return after.clause;
   return after.isAsPlanned ? AS_FIRST_PLANNED.toLowerCase() : "";
+}
+
+/** The visitor's last change to the day, as the header's status says it. */
+export interface ChangeHeard {
+  /** What the status says of the change, "" for nothing. */
+  line: string;
+  /** Records an act on the day: the status empties, and says it a frame later. */
+  hear: (change: DayChange) => void;
+  /** Lets the line go before its hold ends: the status empties and says nothing. */
+  drop: () => void;
+}
+
+/**
+ * What a screen reader is told of the visitor's last change to the day, for `NOTICE_HEARD_MS`.
+ * Each act empties the status, so one that says the same words as the one before is still a
+ * change heard; a frame later, once the day has taken the act, its line is worked out from the
+ * day as it stands and kept as written. Once written, the line only ever gives way to "": a
+ * change that is no act, a re-plan landing or picks brought back, never rewrites it
+ * (`docs/decisions.md`, "The visitor's own change to the day is said from the header's status").
+ */
+export function useChangeHeard(after: DayAfterChange): ChangeHeard {
+  const [change, setChange] = useState<DayChange | null>(null);
+  const [written, setWritten] = useState<{ change: DayChange; line: string } | null>(null);
+  const write = useEffectEvent((act: DayChange) =>
+    setWritten({ change: act, line: changeLineOf(act, after) }),
+  );
+  useEffect(() => {
+    if (change === null) return undefined;
+    const said = window.requestAnimationFrame(() => write(change));
+    const quiet = window.setTimeout(() => setChange(null), NOTICE_HEARD_MS);
+    return () => {
+      window.cancelAnimationFrame(said);
+      window.clearTimeout(quiet);
+    };
+  }, [change]);
+  const drop = useCallback(() => setChange(null), []);
+  const line = change !== null && written?.change === change ? written.line : "";
+  return { line, hear: setChange, drop };
 }

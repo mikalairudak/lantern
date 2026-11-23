@@ -304,6 +304,24 @@ describe("what a screen reader is told of the visitor's change to the day", () =
     await waitFor(() => expect(saidNow()).toEqual([expect.stringMatching(/^quiet: /)]));
   });
 
+  it("lets a swap's line go at Back to the plan inside its hold, and says nothing of Back", async () => {
+    const user = userEvent.setup();
+    render(<Day first={KANAZAWA_START_REQUEST} />);
+    await waitForTheDay();
+    const stopRecording = recordSaid();
+
+    screen.getAllByRole("slider")[1]!.focus();
+    await user.keyboard("{End}");
+    await waitFor(() => expect(saidNow()).toHaveLength(1));
+    const [line] = saidNow();
+    await user.click(screen.getByRole("button", { name: "Back to the plan" }));
+    // Well inside the hold, which would empty the status by itself.
+    await waitFor(() => expect(saidNow()).toEqual([]), { timeout: NOTICE_HEARD_MS / 3 });
+    const said = stopRecording();
+
+    expect(said).toEqual(["", line, ""]);
+  });
+
   it("says each energy press of the plan's bar, two within the hold, the status emptied between", async () => {
     const user = await landOnThePlan();
     const bar = screen.getByRole("group", { name: "How lively the day is" });
