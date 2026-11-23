@@ -1225,6 +1225,60 @@ describe("the press that asks for a typed text", () => {
   });
 });
 
+describe("a day set on its way straight after an ending, with no read drawn", () => {
+  const handlers = { onPlan: vi.fn(), onChooseWritten: vi.fn(), onChooseReading: vi.fn() };
+  const startOf = (line: StartHeaderProps["line"], isLive: boolean, wait?: StartWait | null) => (
+    <HeldStart
+      starts={STARTS}
+      line={line}
+      wait={wait}
+      waitAtPlan="reading"
+      isLive={isLive}
+      isCityFocused={false}
+      {...handlers}
+    />
+  );
+
+  it("says a city pressed in the index after a refusal from the status over the form", () => {
+    const view = render(startOf({ kind: "refused" }, true, null));
+    const overForm = answerStatus();
+
+    view.rerender(startOf({ ...ON_ITS_WAY_LIVE }, true, null));
+    expect(answerStatus()).toBe(overForm);
+    expect(overForm).toHaveTextContent(/^Writing a lively Saturday in Lisbon, with friends$/);
+    // Seen under the field, and unheard there: the line is drawn afresh holding it.
+    expect(startStatus()).toHaveTextContent(/^Writing a lively Saturday in Lisbon, with friends$/);
+    expect(heardStatus()).toBe("");
+
+    // Drawn again as it stands, it is said where it was.
+    view.rerender(startOf({ ...ON_ITS_WAY_LIVE }, true, null));
+    expect(overForm).toHaveTextContent(/^Writing a lively Saturday in Lisbon/);
+    expect(heardStatus()).toBe("");
+  });
+
+  it("says a typed text's day answered before its read is drawn from the status over the form", async () => {
+    const user = userEvent.setup();
+    const view = render(startOf({ kind: "not-yet" }, false));
+    await user.type(screen.getByRole("textbox"), "London, with friends{Enter}");
+
+    view.rerender(startOf(ON_ITS_WAY_LIVE, false, "opening"));
+    expect(screen.getByRole("button", { name: "Opening" })).toHaveFocus();
+    expect(answerStatus()).toHaveTextContent(/^Opening a lively Saturday in Lisbon, with friends$/);
+    expect(startStatus()).toHaveTextContent(/^Opening a lively Saturday in Lisbon/);
+    expect(heardStatus()).toBe("");
+  });
+
+  it("leaves a day set on its way from the line at rest to the line under the field", () => {
+    const view = render(startOf({ kind: "refused" }, true, null));
+    view.rerender(startOf(ON_ITS_WAY_LIVE, true, null));
+    view.rerender(startOf(null, true, null));
+
+    view.rerender(startOf(ON_ITS_WAY_LIVE, true, null));
+    expect(answerStatus().textContent).toBe("");
+    expect(heardStatus()).toMatch(/^Writing a lively Saturday in Lisbon/);
+  });
+});
+
 /** What the page draws the start screen as once a city is chosen: its line, and its wait. */
 interface Chosen {
   line: StartHeaderProps["line"];

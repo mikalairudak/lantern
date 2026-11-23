@@ -322,6 +322,70 @@ test.describe("a text asked again after an ending is said as read from a status 
   }
 });
 
+/**
+ * The day on its way, `said`, was said first as a change of words in a status that stood empty
+ * before the press, and no status came onto the page holding words from the press until then.
+ */
+async function expectOnItsWaySaidAsChange(
+  page: Page,
+  said: RegExp,
+  pressedAt: number,
+): Promise<void> {
+  const sinceThePress = () =>
+    page.evaluate((since) => window.statusLog.filter((entry) => entry.t >= since), pressedAt);
+  await expect
+    .poll(async () => (await sinceThePress()).some((entry) => said.test(entry.text)))
+    .toBe(true);
+  const log = await sinceThePress();
+  const saying = log.find((entry) => said.test(entry.text))!;
+  expect(saying.kind, "a status put on the page already holding the line").toBe("changed");
+  const born = (await page.evaluate(() => window.statusLog)).find(
+    (entry) => entry.id === saying.id && entry.kind === "added",
+  )!;
+  expect(born.text, "the status as it came onto the page").toBe("");
+  expect(born.t, "the status came onto the page before the press").toBeLessThan(pressedAt);
+  const bornFull = log.filter(
+    (entry) => entry.t <= saying.t && entry.kind === "added" && /\S/.test(entry.text),
+  );
+  expect(bornFull, "a status came onto the page holding words").toEqual([]);
+}
+
+test.describe("a day set on its way straight after an ending is said from a status that stood", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(logStatuses);
+  });
+
+  test("with live generation on, a city pressed in the index after a refusal", async ({ page }) => {
+    await answerTheIntake(page, { kind: "refused" });
+    await openLive(page, "/");
+    await askFromTheField(page, "a quiet day somewhere");
+    await expect(
+      page.locator("main form").getByText("Lantern can't plan that day.", { exact: false }),
+    ).toBeVisible();
+
+    const pressedAt = await page.evaluate(() => performance.now());
+    await page
+      .getByRole("list", { name: "No city in mind? Start from one of these" })
+      .getByRole("button")
+      .first()
+      .click();
+    await expectOnItsWaySaidAsChange(page, /^Writing a /, pressedAt);
+  });
+
+  test("with live generation off, a written day's text answered before its read is drawn", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await askFromTheField(page, "Reykjavik");
+    await expect(
+      page.locator("main form").getByText("Start from one of the days below.", { exact: false }),
+    ).toBeVisible();
+
+    const pressedAt = await askFromTheField(page, "London, with friends");
+    await expectOnItsWaySaidAsChange(page, /^Opening a /, pressedAt);
+  });
+});
+
 /** The focus as each frame finds it, by `performance.now()`. */
 interface FocusFrame {
   t: number;
