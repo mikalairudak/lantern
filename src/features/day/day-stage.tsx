@@ -437,7 +437,7 @@ export function DayStage({
   onReplan,
   isReplanning = false,
   replanLine = null,
-  replan,
+  replan: givenReplan,
   setAside = null,
   isReplanLimited = false,
   onEvent,
@@ -712,6 +712,15 @@ export function DayStage({
   // springs took frames from the chart's on a busy machine. Drawn again, the rows let in so
   // far stand whole, and the ones after are written in.
   const view = useSyncExternalStore(subscribeDayView, readDayView, serverDayView);
+  // Taking one of a fork's versions, on its row, its slip, its bead or its word's list, is the
+  // visitor's next act: the line of a change before it tells of a day the version replaces.
+  const replan: ReplanControls | undefined = givenReplan && {
+    ...givenReplan,
+    choose: (side) => {
+      changeHeard.drop();
+      return givenReplan.choose(side);
+    },
+  };
   // A changed word's fork, a row over each part it rewrites: what Lantern is doing, what the
   // proposal would change, or why it failed, which stays until the visitor next acts on the day.
   const changeKey = replan ? `${replan.status}|${replan.change?.word}|${replan.change?.to}` : "";
