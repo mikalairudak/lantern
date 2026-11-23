@@ -1,5 +1,9 @@
 import { expect, test, type Page } from "./fixtures";
-import { MAX_INTAKE_TEXT_CHARS } from "../src/lib/schema/intake.schema";
+import { openLive } from "./live-page";
+import { expectSaidOnceAsChange, logStatuses } from "./status-log";
+import { NOTICE_HEARD_MS } from "../src/features/day/notice-status";
+import { PORTLAND_MAINE, PORTLAND_OREGON } from "../src/lib/fixtures/city-readings";
+import { MAX_INTAKE_TEXT_CHARS, type IntakeResult } from "../src/lib/schema/intake.schema";
 
 test.use({ reducedMotion: "reduce" });
 
@@ -76,7 +80,9 @@ test("an ending stands at the page's edge and moves the index no further than th
   // A city no written day is for: with live generation off it can write no day.
   await field.fill("Reykjavik");
   await field.press("Enter");
-  const ending = page.getByRole("status").filter({ hasText: "Start from one of the days below." });
+  const ending = page.locator("main form").getByText("Start from one of the days below.", {
+    exact: false,
+  });
   await expect(ending).toBeVisible();
 
   const moved = (await indexHeadingOf(page)) - rest;
@@ -87,4 +93,110 @@ test("an ending stands at the page's edge and moves the index no further than th
     return line.getBoundingClientRect().left - form.left;
   });
   expect(edges).toBe(0);
+});
+
+/**
+ * Asks with `text` from the field once the page has hydrated, and returns the moment of the
+ * press on the page's clock.
+ */
+async function askFromTheField(page: Page, text: string): Promise<number> {
+  // The index is drawn once the page has hydrated, and a field filled before then is emptied.
+  await expect(
+    page.getByRole("heading", { name: "No city in mind? Start from one of these" }),
+  ).toBeVisible();
+  const field = page.getByRole("textbox", { name: "Where, and anything else" });
+  await field.fill(text);
+  const pressedAt = await page.evaluate(() => performance.now());
+  await field.press("Enter");
+  return pressedAt;
+}
+
+/**
+ * `said` was said once, as a change of words in a status that stood before the press, held for
+ * `NOTICE_HEARD_MS` and then quiet, and no status came onto the page holding words since: whether
+ * a screen reader says a status born full depends on the reader and the browser. The line seen,
+ * `seen`, stays once the status is quiet.
+ */
+async function expectSaidInPlace(
+  page: Page,
+  pressedAt: number,
+  said: string,
+  seen: string,
+): Promise<void> {
+  await expectSaidOnceAsChange(page, said, NOTICE_HEARD_MS, pressedAt);
+  const log = await page.evaluate(() => window.statusLog);
+  const saying = log.find((entry) => entry.t >= pressedAt && entry.text === said)!;
+  const born = log.find((entry) => entry.id === saying.id && entry.kind === "added")!;
+  expect(born.t, "the status that says it stood before the press").toBeLessThan(pressedAt);
+  const bornFull = log.filter(
+    (entry) => entry.t >= pressedAt && entry.kind === "added" && /\S/.test(entry.text),
+  );
+  expect(bornFull).toEqual([]);
+  await expect(page.locator("main form").getByText(seen, { exact: false })).toBeVisible();
+}
+
+/** Answers the page's reading of a text with `answer`, as the intake route would. */
+async function answerTheIntake(page: Page, answer: IntakeResult): Promise<void> {
+  await page.route("**/api/intake", (route) => route.fulfill({ json: answer }));
+}
+
+test.describe("each answer without a day, and the city's question, is said in a status that stood", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(logStatuses);
+  });
+
+  test("with live generation off, as the site is served", async ({ page }) => {
+    await page.goto("/");
+    const pressedAt = await askFromTheField(page, "Reykjavik");
+
+    await expectSaidInPlace(
+      page,
+      pressedAt,
+      "Lantern isn't writing new days right now. Start from one of the days below.",
+      "Lantern isn't writing new days right now.",
+    );
+  });
+
+  test("with live generation on, a text Lantern will not plan", async ({ page }) => {
+    await answerTheIntake(page, { kind: "refused" });
+    await openLive(page, "/");
+    const pressedAt = await askFromTheField(page, "a quiet day somewhere");
+
+    await expectSaidInPlace(
+      page,
+      pressedAt,
+      "Lantern can't plan that day. Start from one of the days below.",
+      "Lantern can't plan that day.",
+    );
+    await expect(page.getByRole("textbox", { name: "Where, and anything else" })).toBeFocused();
+  });
+
+  test("with live generation on, the city's question", async ({ page }) => {
+    await answerTheIntake(page, {
+      kind: "question",
+      key: "city",
+      readings: [PORTLAND_OREGON, PORTLAND_MAINE],
+      words: {
+        date: null,
+        energy: "lively",
+        energySource: "chosen",
+        travel: null,
+        start: null,
+        dinner: null,
+        end: null,
+        company: null,
+      },
+      unplaced: [],
+    });
+    await openLive(page, "/");
+    const pressedAt = await askFromTheField(page, "Portland, a lively day");
+
+    await expectSaidInPlace(
+      page,
+      pressedAt,
+      "A lively day in …? Portland, Oregon, United States, or Portland, Maine, United States.",
+      "A lively day in …?",
+    );
+    await expect(page.getByRole("textbox", { name: "Which city?" })).toBeFocused();
+  });
 });

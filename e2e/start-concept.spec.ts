@@ -632,7 +632,9 @@ test("asks for the city it could not read, with the words it did", async ({ page
   const city = page.getByRole("textbox", { name: "Which city?" });
   await expect(city).toBeFocused();
   // No weekday until the city gives the day its zone.
-  await expect(page.getByText("A calm day in …?, slow morning, with family")).toBeVisible();
+  await expect(
+    page.locator("main form").getByText("A calm day in …?, slow morning, with family"),
+  ).toBeVisible();
 });
 
 test("lists the others an assumed city's name could mean, undotted under a notice", async ({

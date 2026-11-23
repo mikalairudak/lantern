@@ -256,6 +256,7 @@ describe("a day's own address", () => {
     await wait(KEPT_WAIT_MS);
     await waitFor(() => expect(notice()).toHaveTextContent(UNFINISHED), NOTICE_TIMEOUT);
     await wait(NOTICE_HEARD_MS);
+    const standing = screen.getAllByRole("status");
 
     // Forgotten in another tab: the record goes, and the page has no day left to show.
     await act(async () => {
@@ -266,6 +267,7 @@ describe("a day's own address", () => {
     expect(headline()).toHaveTextContent(NO_DAY_HERE);
     const [status, ...others] = statusesSaying(NO_DAY_HERE);
     expect(others).toHaveLength(0);
+    expect(standing).toContain(status);
     await wait(NOTICE_HEARD_MS);
     expect(status?.textContent).toBe("");
   });

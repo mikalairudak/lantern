@@ -43,17 +43,21 @@ import { TAKE_THIS_DAY } from "./day-menu";
 const waitOutADoublePress = () => new Promise((done) => setTimeout(done, FORGET_ANSWER_WAIT_MS));
 
 /**
- * The start's own status: the theme's button in the masthead says its look in one too, and
+ * The start's own statuses: the theme's button in the masthead says its look in one too, and
  * the page holds one for how a day ended.
  */
-function startStatus(): HTMLElement {
-  const [line, ...others] = screen
+const startStatuses = () =>
+  screen
     .getAllByRole("status")
     .filter(
       (status) =>
         !status.hasAttribute("data-theme-status") && !status.hasAttribute("data-notice-status"),
     );
-  if (!line || others.length > 0) throw new Error("Not one status of the start's own");
+
+/** The line under the field, in a status of its own in the form. */
+function startStatus(): HTMLElement {
+  const [line, ...others] = startStatuses().filter((status) => status.closest("form") !== null);
+  if (!line || others.length > 0) throw new Error("Not one status of the start's own in its form");
   return line;
 }
 
@@ -721,7 +725,9 @@ describe("the wait that follows a typed text, with reduced motion", () => {
     // the city, its field open, and nothing on the page says Lantern is at work.
     await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
     expect(screen.getByRole("textbox", { name: "Which city?" })).not.toHaveAttribute("readonly");
-    expect(screen.getByText(/Lantern needs a city to plan the day/)).toBeVisible();
+    expect(
+      screen.getByText(/Lantern needs a city to plan the day/, { selector: "p" }),
+    ).toBeVisible();
     expect(screen.getByRole("button", { name: "Plan this day" })).toBeInTheDocument();
     expect(signPart("pen")).toBeNull();
     expect(steppedBack().some(Boolean)).toBe(false);
@@ -741,7 +747,9 @@ describe("the wait that follows a typed text, with reduced motion", () => {
 
     await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
     expect(screen.getByRole("textbox")).not.toHaveAttribute("readonly");
-    expect(startStatus()).not.toHaveTextContent(/Reading|Opening|Writing/);
+    for (const status of startStatuses()) {
+      expect(status).not.toHaveTextContent(/Reading|Opening|Writing/);
+    }
     expect(screen.getByRole("button", { name: "Plan this day" })).toBeInTheDocument();
     expect(signPart("pen")).toBeNull();
     expect(steppedBack().some(Boolean)).toBe(false);
