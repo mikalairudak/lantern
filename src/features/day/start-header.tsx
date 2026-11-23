@@ -185,10 +185,14 @@ export function StartHeader({
   if (wait === null && isReadingSaidByFocus) setIsReadingSaidByFocus(false);
   // Whether the wait under way followed an ending, read while no wait is: an ending takes the
   // line under the field from the page, so a read pressed after one draws that line afresh, and
-  // the status over the form says the read where the focus does not (`isReadingSaidOverForm`).
+  // the status over the form says the read where the focus does not (`readingSaidOverFormOf`).
   const [isWaitAfterEnding, setIsWaitAfterEnding] = useState(false);
   if (wait === null && isWaitAfterEnding !== isNoDay(line)) setIsWaitAfterEnding(isNoDay(line));
-  const isReadSaidOverForm = isReadingSaidOverForm(line, isReadingSaidByFocus, isWaitAfterEnding);
+  const isReadingSaidOverForm = readingSaidOverFormOf(
+    line,
+    isReadingSaidByFocus,
+    isWaitAfterEnding,
+  );
   // An ending's or the question's words stand in the status for `NOTICE_HEARD_MS`, then it falls
   // quiet while the line seen stays, so a read-through meets them once (`docs/decisions.md`,
   // "How a day ended is said from one status that stands before the ending"). Gone from it, as
@@ -214,14 +218,14 @@ export function StartHeader({
         </h1>
         {/* What Lantern answered, to a screen reader: an ending without a day, the city's
             question, what an answer to it is doing, and the read of a text asked again after an
-            ending (`isReadingSaidOverForm`). A status in the page, empty, from its first paint,
+            ending (`readingSaidOverFormOf`). A status in the page, empty, from its first paint,
             and over the form the question draws again, so each answer is a change of its words,
             heard where the focus stays and where it moves: a status born holding its words is
             not said by every screen reader. A start screen drawn again with its answer still
             standing, as on the way back from a day, draws it holding that answer, as a notice
             the page opens with, for as long. */}
         <div role="status" className="sr-only">
-          {heardAnswer ?? heardOf(line, wait, isLive, isReadingSaidByFocus, isReadSaidOverForm)}
+          {heardAnswer ?? heardOf(line, wait, isLive, isReadingSaidByFocus, isReadingSaidOverForm)}
         </div>
         <QuestionForm
           // Asked for a city, the field starts again empty, with the focus, for the answer; it
@@ -236,7 +240,7 @@ export function StartHeader({
           wait={wait}
           isReadingSaidByFocus={isReadingSaidByFocus}
           onReadingSaidByFocus={setIsReadingSaidByFocus}
-          isReadingSaidOverForm={isReadSaidOverForm}
+          isReadingSaidOverForm={isReadingSaidOverForm}
           onPlan={onPlan}
           onChooseReading={onChooseReading}
           drawnAsPointed={drawnAsPointed}
@@ -269,7 +273,7 @@ interface QuestionFormProps {
   /** The press moved the focus to the button, whose name says "Reading" as it lands. */
   isReadingSaidByFocus: boolean;
   onReadingSaidByFocus: (isSaid: boolean) => void;
-  /** The read is said from the status over the form (`isReadingSaidOverForm`). */
+  /** The read is said from the status over the form (`readingSaidOverFormOf`). */
   isReadingSaidOverForm: boolean;
   onPlan: (text: string) => void;
   onChooseReading: (reading: CityReading) => void;
@@ -734,7 +738,7 @@ interface QuestionLineProps {
   wait: StartWait | null;
   /** The press moved the focus to the button, whose name says "Reading" as it lands. */
   isReadingSaidByFocus: boolean;
-  /** The read is said from the status over the form (`isReadingSaidOverForm`). */
+  /** The read is said from the status over the form (`readingSaidOverFormOf`). */
   isReadingSaidOverForm: boolean;
   /** What the field holds: while an answer is read, the city it names. */
   text: string;
@@ -879,7 +883,7 @@ function isSaidByFocus(line: StartLine, isReadingSaidByFocus: boolean): boolean 
  * a status born full, so where the focus does not say it, the status that stood says it
  * (`docs/decisions.md`, "How a day ended is said from one status that stands before the ending").
  */
-function isReadingSaidOverForm(
+function readingSaidOverFormOf(
   line: StartLine,
   isReadingSaidByFocus: boolean,
   isWaitAfterEnding: boolean,
@@ -890,17 +894,17 @@ function isReadingSaidOverForm(
 /**
  * What the start's status says of a text under way: what an answer to the city's question is
  * doing while it is read and its day sets off, as long as it does, and a read pressed after an
- * ending (`isReadingSaidOverForm`). Nothing wherever the line under the field or the focus says it.
+ * ending (`readingSaidOverFormOf`). Nothing wherever the line under the field or the focus says it.
  */
 function heardOf(
   line: StartLine,
   wait: StartWait | null,
   isLive: boolean,
   isReadingSaidByFocus: boolean,
-  isReadSaidOverForm: boolean,
+  isReadingSaidOverForm: boolean,
 ): ReactNode {
   if (!isUnderWay(line)) return null;
-  if (!line.answering) return isReadSaidOverForm ? READING_SAID : null;
+  if (!line.answering) return isReadingSaidOverForm ? READING_SAID : null;
   return isSaidByFocus(line, isReadingSaidByFocus) ? null : saidOf(line, wait, isLive);
 }
 

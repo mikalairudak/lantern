@@ -246,6 +246,8 @@ test.describe("a text asked again after an ending is said as read from a status 
       // Until the read falls quiet: the day that takes the page then draws statuses of its own.
       const log = await page.evaluate(() => window.statusLog);
       const read = log.find((entry) => entry.t >= pressedAt && entry.text.includes("Reading"))!;
+      const born = log.find((entry) => entry.id === read.id && entry.kind === "added")!;
+      expect(born.t, "the status that says it stood before the press").toBeLessThan(pressedAt);
       const readQuietAt = log.find((entry) => entry.id === read.id && entry.t > read.t)!.t;
       const bornFull = log.filter(
         (entry) =>
