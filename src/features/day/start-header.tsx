@@ -465,7 +465,14 @@ function QuestionForm({
   // it lands, so the status holds it unheard (`SaidLine`). Where it is on the button already, as a
   // press from the keyboard or a click in Chromium leaves it, nothing moves and the status says
   // it: the line's own, or after an ending, which drew that line afresh, the status over the form.
-  // The text is asked for first, so the button is named for the wait when the focus lands.
+  // What the press asks is asked first, so the button is named for the wait when the focus lands.
+  const handFocusToButton = (isFocusMoving: boolean, isWaitStarting: boolean) => {
+    if (isWaitStarting) {
+      const isNamedReading = button.current?.getAttribute("aria-label") === BUTTON_WORDS.reading;
+      onReadingSaidByFocus(isFocusMoving && isNamedReading);
+    }
+    button.current?.focus({ preventScroll: true });
+  };
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (text.trim() === "" || isReading) return;
@@ -474,11 +481,16 @@ function QuestionForm({
     // the press that started the wait made heard stands.
     const isWaitStarting = wait === null;
     flushSync(() => onPlan(text.trim()));
-    if (isWaitStarting) {
-      const isNamedReading = button.current?.getAttribute("aria-label") === BUTTON_WORDS.reading;
-      onReadingSaidByFocus(isFocusMoving && isNamedReading);
-    }
-    button.current?.focus({ preventScroll: true });
+    handFocusToButton(isFocusMoving, isWaitStarting);
+  };
+  // One of the cities a shared name could be, pressed: the cities leave the hand with the press,
+  // the pressed one holding the focus, so the button takes it, as at a press of its own, rather
+  // than the page. It comes from the city, so it moves, and the question stands with no wait. A
+  // choice that sets nothing off leaves the cities, and the focus on the one pressed, as they are.
+  const chooseReading = (reading: CityReading) => {
+    flushSync(() => onChooseReading(reading));
+    if (button.current?.getAttribute("aria-label") === BUTTON_WORDS.plan) return;
+    handFocusToButton(true, true);
   };
   // The field takes a sentence, never a second line: Enter asks for the day, as a one-line
   // field's does, and a word being composed takes its own Enter, the one Safari sends after
@@ -559,7 +571,7 @@ function QuestionForm({
               // The city asked for: its lines take what room they need, the count beside them.
               <div className="mt-2 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <QuestionLines question={line} answer={null} onChooseReading={onChooseReading} />
+                  <QuestionLines question={line} answer={null} onChooseReading={chooseReading} />
                 </div>
                 {count}
               </div>

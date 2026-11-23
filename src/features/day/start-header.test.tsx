@@ -7,7 +7,11 @@ import { PORTLAND_MAINE, PORTLAND_OREGON } from "@/lib/fixtures/city-readings";
 import { LISBON_REQUEST } from "@/lib/fixtures/curated/requests";
 import { INDEX_REQUESTS, PARIS_REQUEST } from "@/lib/days/written/city-days";
 import { MADRID_START_REQUEST } from "@/lib/days/written/quick-starts";
-import { MAX_INTAKE_TEXT_CHARS, type IntakeWords } from "@/lib/schema/intake.schema";
+import {
+  MAX_INTAKE_TEXT_CHARS,
+  type CityReading,
+  type IntakeWords,
+} from "@/lib/schema/intake.schema";
 import {
   NOT_LIVE_NOTE,
   PROMISE,
@@ -1049,6 +1053,113 @@ describe("the press that asks for a typed text", () => {
       expect(answerStatus().textContent).toBe("");
       expect(heardStatus()).toBe("");
     });
+  });
+});
+
+/** What the page draws the start screen as once a city is chosen: its line, and its wait. */
+interface Chosen {
+  line: StartHeaderProps["line"];
+  wait: StartWait | null;
+}
+
+/**
+ * The city's question, its line and wait set as the choice of a city sets them, as `Day` sets
+ * them in the press's own handler; with nothing chosen, the question stands, as a choice that
+ * sets no day off leaves it.
+ */
+function ChoosingStart({
+  chosen,
+  onChooseReading,
+  ...props
+}: Omit<HeldStartProps, "line" | "wait" | "waitAtPlan"> & { chosen: Chosen | null }) {
+  const [shown, setShown] = useState<Chosen>({ line: PORTLAND_QUESTION, wait: null });
+  const choose = (reading: CityReading) => {
+    onChooseReading(reading);
+    if (chosen) setShown(chosen);
+  };
+  return <HeldStart {...props} line={shown.line} wait={shown.wait} onChooseReading={choose} />;
+}
+
+/** Portland, Oregon, chosen: its day set off, from the question it answers. */
+const PORTLAND_SET_OFF: Chosen = {
+  line: {
+    kind: "writing",
+    request: {
+      ...LISBON_REQUEST,
+      city: "Portland",
+      energy: "lively",
+      timezone: PORTLAND_OREGON.timezone,
+    },
+    answering: PORTLAND_QUESTION,
+  },
+  wait: "writing",
+};
+
+describe("a city chosen among those a shared name could be", () => {
+  function renderChoosing(chosen: Chosen | null) {
+    const handlers = { onPlan: vi.fn(), onChooseWritten: vi.fn(), onChooseReading: vi.fn() };
+    render(
+      <ChoosingStart starts={STARTS} isLive isCityFocused={false} chosen={chosen} {...handlers} />,
+    );
+    const button = screen.getByRole("button", { name: "Plan this day" });
+    const named: string[] = [];
+    button.addEventListener("focus", () => named.push(button.getAttribute("aria-label") ?? ""));
+    const reading = screen.getByRole("button", { name: "Portland, Oregon, United States" });
+    return { ...handlers, button, named, reading };
+  }
+
+  it.each([
+    [
+      "Enter",
+      async (reading: HTMLElement, user: ReturnType<typeof userEvent.setup>) => {
+        act(() => reading.focus());
+        await user.keyboard("{Enter}");
+      },
+    ],
+    [
+      "a click",
+      (reading: HTMLElement, user: ReturnType<typeof userEvent.setup>) => user.click(reading),
+    ],
+  ] as const)(
+    "hands the focus to the button, named Writing as it lands, at %s on a city",
+    async (_, press) => {
+      const user = userEvent.setup();
+      const { onChooseReading, button, named, reading } = renderChoosing(PORTLAND_SET_OFF);
+
+      await press(reading, user);
+      expect(onChooseReading).toHaveBeenCalledWith(PORTLAND_OREGON);
+      expect(reading).not.toBeInTheDocument();
+      expect(button).toHaveFocus();
+      expect(named).toEqual(["Writing"]);
+      // The day set off is said back from the status over the form, as for a city typed.
+      expect(answerStatus().textContent).toMatch(/^Writing a lively \w+ in Portland/);
+    },
+  );
+
+  it("leaves the focus on the city pressed when the choice sets no day off", async () => {
+    const user = userEvent.setup();
+    const { onChooseReading, button, named, reading } = renderChoosing(null);
+
+    act(() => reading.focus());
+    await user.keyboard("{Enter}");
+    expect(onChooseReading).toHaveBeenCalledWith(PORTLAND_OREGON);
+    expect(reading).toHaveFocus();
+    expect(button).toHaveAccessibleName("Plan this day");
+    expect(named).toEqual([]);
+  });
+
+  it("says Reading where the focus lands, and from no status, when the city chosen is read first", async () => {
+    const user = userEvent.setup();
+    const { button, named, reading } = renderChoosing({
+      line: { kind: "reading", answering: PORTLAND_QUESTION },
+      wait: "reading",
+    });
+
+    act(() => reading.focus());
+    await user.keyboard("{Enter}");
+    expect(button).toHaveFocus();
+    expect(named).toEqual(["Reading"]);
+    expect(answerStatus().textContent).toBe("");
   });
 });
 

@@ -135,6 +135,24 @@ async function expectSaidInPlace(
   await expect(page.locator("main form").getByText(seen, { exact: false })).toBeVisible();
 }
 
+/** The intake's answer to "Portland, a lively day": which of two Portlands. */
+const PORTLAND_ASKED: IntakeResult = {
+  kind: "question",
+  key: "city",
+  readings: [PORTLAND_OREGON, PORTLAND_MAINE],
+  words: {
+    date: null,
+    energy: "lively",
+    energySource: "chosen",
+    travel: null,
+    start: null,
+    dinner: null,
+    end: null,
+    company: null,
+  },
+  unplaced: [],
+};
+
 /** Answers the page's reading of a text with `answer`, as the intake route would. */
 async function answerTheIntake(page: Page, answer: IntakeResult): Promise<void> {
   await page.route("**/api/intake", (route) => route.fulfill({ json: answer }));
@@ -172,22 +190,7 @@ test.describe("each answer without a day, and the city's question, is said in a 
   });
 
   test("with live generation on, the city's question", async ({ page }) => {
-    await answerTheIntake(page, {
-      kind: "question",
-      key: "city",
-      readings: [PORTLAND_OREGON, PORTLAND_MAINE],
-      words: {
-        date: null,
-        energy: "lively",
-        energySource: "chosen",
-        travel: null,
-        start: null,
-        dinner: null,
-        end: null,
-        company: null,
-      },
-      unplaced: [],
-    });
+    await answerTheIntake(page, PORTLAND_ASKED);
     await openLive(page, "/");
     const pressedAt = await askFromTheField(page, "Portland, a lively day");
 
@@ -262,4 +265,101 @@ test.describe("a text asked again after an ending is said as read from a status 
       expect(bornFull, "a status came onto the page holding words").toEqual([]);
     });
   }
+});
+
+/** The focus as each frame finds it, by `performance.now()`. */
+interface FocusFrame {
+  t: number;
+  tag: string;
+  name: string;
+}
+
+declare global {
+  interface Window {
+    focusFrames: FocusFrame[];
+  }
+}
+
+/** Logs where the focus is at each frame from the page's start. Run as an init script. */
+function logFocusFrames(): void {
+  const frames: FocusFrame[] = [];
+  window.focusFrames = frames;
+  const sample = () => {
+    const focused = document.activeElement;
+    frames.push({
+      t: performance.now(),
+      tag: focused?.tagName ?? "",
+      name: focused?.getAttribute("aria-label") ?? focused?.textContent ?? "",
+    });
+    requestAnimationFrame(sample);
+  };
+  requestAnimationFrame(sample);
+}
+
+/** How long the day's route is held after a city is chosen: well inside the start's own cap. */
+const DAY_HELD_MS = 1500;
+/** Frames the wait must be sampled through at least, so an empty sample cannot pass. */
+const FRAMES_SAMPLED_AT_LEAST = 20;
+
+test.describe("a city chosen among those a shared name could be", () => {
+  /**
+   * Opens the city's question for "Portland, a lively day", live, with the day's route held until
+   * `release` is called; it then answers that it cannot write the day, as the e2e server would.
+   */
+  async function askWhichPortland(page: Page): Promise<{ release: () => void }> {
+    let release = () => {};
+    const held = new Promise<void>((done) => {
+      release = done;
+    });
+    await page.route("**/api/day", async (route) => {
+      await held;
+      await route.fulfill({ status: 503 });
+    });
+    await page.addInitScript(logFocusFrames);
+    await answerTheIntake(page, PORTLAND_ASKED);
+    await openLive(page, "/");
+    await askFromTheField(page, "Portland, a lively day");
+    await expect(page.getByRole("textbox", { name: "Which city?" })).toBeFocused();
+    return { release };
+  }
+
+  const oregon = (page: Page) =>
+    page.getByRole("button", { name: "Portland, Oregon, United States" });
+  const writing = (page: Page) => page.getByRole("button", { name: "Writing", exact: true });
+
+  test("at Enter, hands the focus to the button through the wait, then to the city word", async ({
+    page,
+  }) => {
+    const { release } = await askWhichPortland(page);
+    await oregon(page).focus();
+    const pressedAt = await page.evaluate(() => performance.now());
+    await page.keyboard.press("Enter");
+
+    await expect(writing(page)).toBeFocused();
+    await page.waitForTimeout(DAY_HELD_MS);
+    const releasedAt = await page.evaluate(() => performance.now());
+    const waited = await page.evaluate(
+      ([from, to]) => window.focusFrames.filter((frame) => frame.t > from && frame.t < to),
+      [pressedAt, releasedAt] as const,
+    );
+    expect(waited.length).toBeGreaterThanOrEqual(FRAMES_SAMPLED_AT_LEAST);
+    expect(waited.filter((frame) => frame.tag === "BODY")).toEqual([]);
+    expect(waited.at(-1)).toMatchObject({ tag: "BUTTON", name: "Writing" });
+
+    release();
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.activeElement?.closest('h1 [data-word="city"]') != null),
+      )
+      .toBe(true);
+  });
+
+  test("at a click, hands the focus to the button with no ring drawn", async ({ page }) => {
+    const { release } = await askWhichPortland(page);
+    await oregon(page).click();
+
+    await expect(writing(page)).toBeFocused();
+    expect(await writing(page).evaluate((button) => button.matches(":focus-visible"))).toBe(false);
+    release();
+  });
 });
