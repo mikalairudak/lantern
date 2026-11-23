@@ -7,6 +7,10 @@ import { writtenVersionOf } from "../src/lib/days/written/version";
 import type { StoredDay } from "../src/lib/days/stored-day";
 import { KYOTO_REQUEST } from "../src/lib/fixtures/curated/requests";
 import { KYOTO_ITINERARY } from "../src/lib/fixtures/replan/kyoto-morning";
+import { KEPT_POLL_MS, KEPT_WAIT_MS } from "../src/features/day/kept-day";
+import { NO_DAY_HERE } from "../src/features/day/no-day-here";
+import { NOTICE_HEARD_MS } from "../src/features/day/notice-status";
+import { expectSaidOnceAsChange, logStatuses } from "./status-log";
 
 // These tests drive the chart: each page opens as for a visitor who chose it, since a day
 // opens on its plan otherwise.
@@ -82,6 +86,38 @@ test("a link past its days says so, with the day to write again", async ({ page 
     "This day's link has expired",
   );
   await expect(page.getByRole("button", { name: "Write it again" })).toBeVisible();
+});
+
+test("a link whose day turns out past its days says so from a status that stood while it waited", async ({
+  page,
+}) => {
+  await page.addInitScript(logStatuses);
+  await answerTheLog(page, { status: "unknown" }, { status: "expired", request: KYOTO.request });
+  await page.goto(`/day/${ID}`);
+
+  await expect(page.locator("main header p.text-quote")).toContainText(
+    "This day's link has expired",
+    { timeout: LANDED_TIMEOUT_MS },
+  );
+  await expectSaidOnceAsChange(page, "This day's link has expired", NOTICE_HEARD_MS);
+});
+
+test("a link no day lands at says so from a status that stood while it waited, the focus kept", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await page.addInitScript(logStatuses);
+  await answerTheLog(page, { status: "unknown" });
+  await page.goto(`/day/${ID}`);
+  const headline = page.getByRole("heading", { level: 1 });
+  await expect(headline).toHaveText("Lantern is still writing this day.");
+  const wordmark = page.getByRole("link").first();
+  await wordmark.focus();
+
+  await page.clock.runFor(KEPT_WAIT_MS + KEPT_POLL_MS);
+  await expect(headline).toHaveText(NO_DAY_HERE);
+  await expect(wordmark).toBeFocused();
+  await expectSaidOnceAsChange(page, NO_DAY_HERE, NOTICE_HEARD_MS);
 });
 
 test("the start screen says how a day left while it was written ended", async ({ page }) => {

@@ -24,6 +24,33 @@ export const STILL_WRITING_TITLE = "A day being written";
 export function NoDayHere() {
   return (
     <AddressPage headline={NO_DAY_HERE}>
+      <NoDayWays />
+    </AddressPage>
+  );
+}
+
+/**
+ * A day's address while its day is still being written, for a visitor whose browser did not
+ * ask it, so nothing here says what it was asked for: the page waits, and the day takes it
+ * once its record lands. Once the wait is over with none, it is the page for no day: the same
+ * page, so the wordmark a visitor may have reached keeps the focus as the headline turns.
+ */
+export function StillWritingHere({ isWaitOver }: { isWaitOver: boolean }) {
+  return (
+    <AddressPage headline={isWaitOver ? NO_DAY_HERE : STILL_WRITING}>
+      {isWaitOver ? (
+        <NoDayWays />
+      ) : (
+        <p className="type-voice text-body text-ink-soft">{OPENS_HERE}</p>
+      )}
+    </AddressPage>
+  );
+}
+
+/** The ways on from no day: the days the quick starts open, each as its sentence, and one's own. */
+function NoDayWays() {
+  return (
+    <>
       <ul className="flex flex-wrap gap-x-5 gap-y-1">
         {START_REQUESTS.map((request) => (
           <li key={request.city}>
@@ -44,19 +71,6 @@ export function NoDayHere() {
           Plan your own day
         </Link>
       </p>
-    </AddressPage>
-  );
-}
-
-/**
- * A day's address while its day is still being written, for a visitor whose browser did not
- * ask it, so nothing here says what it was asked for: the page waits, and the day takes it
- * once its record lands.
- */
-export function StillWritingHere() {
-  return (
-    <AddressPage headline={STILL_WRITING}>
-      <p className="type-voice text-body text-ink-soft">{OPENS_HERE}</p>
-    </AddressPage>
+    </>
   );
 }

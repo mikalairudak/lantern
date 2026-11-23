@@ -1,5 +1,7 @@
 import { INDEX_REQUESTS } from "../src/lib/days/written/city-days";
+import { NOTICE_HEARD_MS } from "../src/features/day/notice-status";
 import { expect, test, type Page, waitMs } from "./fixtures";
+import { expectSaidOnceAsChange, logStatuses } from "./status-log";
 
 const URL = "/lab/concepts/start";
 /** A written day lands in about twelve seconds; a cold dev server adds a few. */
@@ -74,7 +76,7 @@ interface LinesFrame {
   /** Where the facts line's top, with the date, and the chart's stand on the page. */
   date: number | null;
   chartTop: number | null;
-  /** What a screen reader is told from the header's status. */
+  /** What a screen reader is told from the page's notice status. */
   heard: string;
   isCityFocused: boolean;
   /** Which element has the focus, numbered the first time it has it, and its words. */
@@ -142,8 +144,8 @@ function noticeLine(page: Page) {
 
 /**
  * Each frame from now, until the next press has played a day that ended in a notice of its
- * own, written whole and said: the header's lines, what stands under the headline, the date
- * and the chart. The press is noted on the frames' clock.
+ * own, written whole: the header's lines, what stands under the headline, the date and the
+ * chart. The press is noted on the frames' clock.
  */
 function sampleUntilTheNextNotice(page: Page, sampledMs = SAMPLED_MS): Promise<LinesFrame[]> {
   return page.evaluate(
@@ -244,7 +246,7 @@ function sampleUntilTheNextNotice(page: Page, sampledMs = SAMPLED_MS): Promise<L
             isNoticeInert: notice?.closest("[inert]") != null,
             date: facts ? facts.getBoundingClientRect().top + window.scrollY : null,
             chartTop: chart ? chart.getBoundingClientRect().top + window.scrollY : null,
-            heard: header?.querySelector("p.sr-only[role=status]")?.textContent ?? "",
+            heard: document.querySelector("[data-notice-status]")?.textContent ?? "",
             isCityFocused: document.activeElement?.closest('h1 [data-word="city"]') != null,
             focusId: focusIdOf(document.activeElement),
             focusName: nameOf(document.activeElement),
@@ -254,9 +256,8 @@ function sampleUntilTheNextNotice(page: Page, sampledMs = SAMPLED_MS): Promise<L
           });
           const last = frames.at(-1)!;
           const hasLeft = frames.some((frame) => frame.noticeWhole === null);
-          const isSaid =
-            last.notice !== null && last.notice === last.noticeWhole && last.heard === "";
-          if ((hasLeft && isSaid) || performance.now() - start > sampledMs) resolve(frames);
+          const isWritten = last.notice !== null && last.notice === last.noticeWhole;
+          if ((hasLeft && isWritten) || performance.now() - start > sampledMs) resolve(frames);
           else requestAnimationFrame(tick);
         };
         requestAnimationFrame(tick);
@@ -670,6 +671,7 @@ test(
   async ({ page, isMobile }) => {
     await page.setViewportSize(isMobile ? PHONE : TALL_LAPTOP);
     await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.addInitScript(logStatuses);
     await page.goto(URL);
     const field = page.getByRole("textbox", { name: "Where, and anything else" });
     await field.fill("portland, out late with friends");
@@ -766,20 +768,17 @@ test(
       }
     });
 
-    // Its own notice is heard once, in its step, until the pen has written it, then no more.
+    // Its own notice is heard from its step while the pen writes it, as a change of the
+    // status that stood before it, then once its hold is over no more.
     const notice = after.slice(ended);
     const line = notice.at(-1)!.noticeWhole;
     expect(notice.at(-1)!.notice).toBe(line);
-    let isQuiet = false;
     for (const frame of notice) {
       if (frame.notice !== frame.noticeWhole) expect(frame.isNoticeInert).toBe(true);
-      if (frame.heard === "") isQuiet = true;
-      else {
-        expect(isQuiet, "heard again").toBe(false);
-        expect(line?.startsWith(frame.heard)).toBe(true);
-      }
+      expect(frame.heard).not.toBe("");
+      expect(line?.startsWith(frame.heard)).toBe(true);
     }
-    expect(isQuiet).toBe(true);
+    await expectSaidOnceAsChange(page, "isn't writing new days", NOTICE_HEARD_MS, pressedAt);
   },
 );
 

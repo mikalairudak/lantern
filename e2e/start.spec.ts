@@ -1,7 +1,9 @@
 import { daySlugOf } from "../src/lib/days/slug";
 import { INDEX_REQUESTS } from "../src/lib/days/written/city-days";
 import { normalizedDayOf, WRITTEN_DAYS } from "../src/lib/days/written/days";
+import { NOTICE_HEARD_MS } from "../src/features/day/notice-status";
 import { expect, test } from "./fixtures";
+import { expectSaidOnceAsChange, logStatuses } from "./status-log";
 
 /** The start screen: the question and the index as two ways in, and no day until a press. */
 
@@ -120,4 +122,21 @@ test("a city's cell draws its plate from three files in either theme, its scene 
   for (const each of asked) {
     expect(each).toMatchObject({ status: 200, cache: "public, max-age=31536000, immutable" });
   }
+});
+
+test("a typed day that ends without the day is said from a status that stood before it ended", async ({
+  page,
+}) => {
+  await page.addInitScript(logStatuses);
+  await page.route("**/api/day", (route) => route.fulfill({ status: 503 }));
+  await page.goto("/");
+  const field = page.getByRole("textbox", { name: "Where, and anything else" });
+  await field.fill("Porto");
+  await field.press("Enter");
+
+  const line = "Lantern couldn't write this day just now.";
+  await expect(page.locator("main header p.text-quote")).toContainText(line);
+  // The page turned to the day's own address, and its status stood through the turn.
+  await expect(page).toHaveURL(/\/day\/porto$/);
+  await expectSaidOnceAsChange(page, line, NOTICE_HEARD_MS);
 });

@@ -160,10 +160,10 @@ function endingLine(): HTMLElement {
   return line;
 }
 
-/** What a screen reader is told from the header: the notice's line, once, from its status. */
+/** What a screen reader is told of the ending: the notice's line, once, from the page's status. */
 function heardLine(): HTMLElement {
-  const status = document.querySelector<HTMLElement>("header p.sr-only[role=status]");
-  if (!status) throw new Error("No status in the header");
+  const status = document.querySelector<HTMLElement>("[data-notice-status]");
+  if (!status) throw new Error("No notice status on the page");
   return status;
 }
 
@@ -171,6 +171,8 @@ function heardLine(): HTMLElement {
 async function expectNotice(line: string): Promise<void> {
   await waitFor(() => expect(endingLine()).toHaveTextContent(line), DAY_TIMEOUT);
   expect(heardLine()).toHaveTextContent(line);
+  // Said from one status alone: the header's own says nothing of it.
+  expect(document.querySelector("header p.sr-only[role=status]")?.textContent).toBe("");
   expect(endingLine()).not.toHaveAttribute("role");
 }
 
