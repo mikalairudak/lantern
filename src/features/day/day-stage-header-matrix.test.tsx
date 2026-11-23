@@ -354,7 +354,9 @@ describe("the day stage header's matrix", () => {
       "A calm Saturday in Kanazawa, on foot, early start, early dinner or eating late, home by eleven, with anyone",
     );
     // The proposal's answer is blue, and points to its fork; the visitor's word is theirs.
-    const pair = within(headline()).getByRole("button", { name: /^eating late, proposed/ });
+    const pair = within(headline()).getByRole("button", {
+      name: "eating late, being written: go to it",
+    });
     expect(pair).toHaveClass("text-swap");
     // The date is muted with the locked words.
     expect(within(headline()).getByText("Saturday")).toHaveClass("text-muted");

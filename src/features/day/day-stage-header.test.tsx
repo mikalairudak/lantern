@@ -1110,7 +1110,7 @@ describe("DayStageHeader", () => {
       expect(seenTextOf(headline)).toContain("on foot, early start or slow morning, early dinner"),
     );
     // The visitor's word stays theirs; the proposal's answer is blue, lit while it is written.
-    const pair = within(headline).getByRole("button", { name: /^slow morning, proposed/ });
+    const pair = within(headline).getByRole("button", { name: /^slow morning, being written/ });
     expect(pair).toHaveClass("text-swap");
     expect(headline.querySelector("del")).toBeNull();
     // Only the pair was written in: every line on the way says the rest as it was.
@@ -1165,6 +1165,36 @@ describe("DayStageHeader", () => {
     await waitFor(() =>
       expect(seenTextOf(headline)).toContain("slow morning or early start, early dinner"),
     );
+  });
+
+  it("names the fork's pair by the state of the version it shows, as the fork's answers do", async () => {
+    const slow = { ...KYOTO_REQUEST, start: "slow" as const };
+    const at = (request: DayRequest, step: Partial<ReplanControls>) =>
+      headerOf(request, null, null, {
+        assumptions: { ...KYOTO_ASSUMPTIONS, start: request.start },
+        replan: slowMorning(step),
+      });
+    const view = render(at(KYOTO_REQUEST, { status: "writing" }));
+    const headline = screen.getByRole("heading", { level: 1 });
+    const pairNamed = (name: string) => within(headline).findByRole("button", { name });
+
+    expect(await pairNamed("slow morning, being written: go to it")).toHaveClass("text-swap");
+
+    view.rerender(at(KYOTO_REQUEST, { status: "proposed", isCompared: true }));
+    expect(await pairNamed("slow morning, proposed: go to it")).toBeInTheDocument();
+
+    // Folded, the pair keeps the name it last had while the pen writes it out, so it never
+    // shares the bare name of the visitor's word.
+    view.rerender(at(KYOTO_REQUEST, { status: "left" }));
+    expect(headline.querySelector("[data-fork-pair]")).toHaveAccessibleName(
+      "slow morning, proposed: go to it",
+    );
+
+    view.rerender(at(slow, { status: "taken", isCompared: true }));
+    expect(await pairNamed("early start, the day before: go to it")).toBeInTheDocument();
+
+    view.rerender(at(KYOTO_REQUEST, { status: "left", isCompared: true }));
+    expect(await pairNamed("slow morning, proposed: go to it")).toBeInTheDocument();
   });
 
   it("lets Lantern's words go in one step when a notice takes the day's place", () => {

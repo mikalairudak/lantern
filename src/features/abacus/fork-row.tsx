@@ -94,6 +94,21 @@ const LINE_CLASSES = "min-h-5 w-fit max-w-full bg-ground text-muted";
 /** How far faded in a milestone's words come in, so a change of words reads as one. */
 const LINE_COMES_FROM = 0.3;
 
+/**
+ * What a screen reader hears after one of the fork's answers, wherever the answer stands (the
+ * fork row, the plan's slip, the headline's pair), so all three say one state: "your day" for
+ * the version on screen, "being written" for the proposal while it streams, "proposed" once it
+ * is whole, and "the day before" for the visitor's own once the proposal is taken.
+ */
+export function answerStateOf(
+  side: ForkSide,
+  view: Pick<ForkView, "chosen" | "isWriting">,
+): string {
+  if (side === view.chosen) return "your day";
+  if (side === "from") return "the day before";
+  return view.isWriting ? "being written" : "proposed";
+}
+
 export interface ForkRowProps {
   view: ForkView;
   /** Which of the fork's rows this is, from 0, and how many there are: "1 of 2" where two. */
@@ -194,7 +209,7 @@ export function ForkRow({
           label={view.from}
           isChecked={view.chosen === "from"}
           isTakeable={view.chosen !== "from"}
-          description={view.chosen === "from" ? "your day" : "the day before"}
+          description={answerStateOf("from", view)}
           drawing={drawing}
           onChoose={choose}
         />
@@ -209,9 +224,7 @@ export function ForkRow({
             isTakeable={view.chosen !== "to" && isToEnabled}
             isWriting={view.isWriting}
             isReady={view.isReady}
-            description={
-              view.chosen === "to" ? "your day" : view.isWriting ? "being written" : "proposed"
-            }
+            description={answerStateOf("to", view)}
             drawing={drawing}
             onChoose={choose}
           />

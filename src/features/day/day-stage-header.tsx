@@ -30,6 +30,7 @@ import {
 import type { CityReading } from "@/lib/schema/intake.schema";
 import { formatClock } from "@/lib/time/clock";
 import { SunMark } from "@/features/abacus/best-light-icon";
+import { answerStateOf } from "@/features/abacus/fork-row";
 import {
   ASKED_LABELS,
   FACT_KEYS,
@@ -1047,7 +1048,7 @@ export function DayStageHeader({
         onLockedPress={sayLocked}
         pair={
           pair !== null && key === pair.key
-            ? { label: pair.label, isLit: pair.isLit, onPoint: onPointToFork }
+            ? { label: pair.label, state: pair.state, isLit: pair.isLit, onPoint: onPointToFork }
             : null
         }
         isDrawnOpen={key === openedWord}
@@ -1508,10 +1509,14 @@ function withWidestEnergy(facts: SentenceFacts): SentenceFacts {
     : { ...facts, energy: { ...facts.energy, value: WIDEST_ENERGY } };
 }
 
-/** The fork's other answer after its word: its key, its label, and whether it is written. */
+/**
+ * The fork's other answer after its word: its key, its label, the state of its version as the
+ * fork's answers say it, and whether it is written.
+ */
 interface Pair {
   key: AssumableFactKey;
   label: string;
+  state: string;
   isLit: boolean;
 }
 
@@ -1525,11 +1530,16 @@ function pairOf({ status, change, isCompared }: ReplanControls): Pair | null {
   const isBeside =
     status === "writing" || status === "proposed" || (isCompared && status !== "failed");
   if (!isBeside) return null;
-  const other = status === "taken" ? change.from : change.to;
+  const fork = {
+    chosen: status === "taken" ? "to" : "from",
+    isWriting: status === "writing",
+  } as const;
+  const side = fork.chosen === "to" ? "from" : "to";
   return {
     key: change.word,
-    label: answerLabelOf(change.word, other),
-    isLit: status === "writing",
+    label: answerLabelOf(change.word, side === "from" ? change.from : change.to),
+    state: answerStateOf(side, fork),
+    isLit: fork.isWriting,
   };
 }
 

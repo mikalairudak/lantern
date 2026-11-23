@@ -45,6 +45,8 @@ export interface OptionView {
 /** The fork's other answer, set after a word as its pair. */
 export interface WordPair {
   label: string;
+  /** The state of the version it shows, as the fork's answers say it: "proposed". */
+  state: string;
   /** Its proposal is being written: the steady light runs through it. */
   isLit: boolean;
   /** Takes the visitor to the fork's first row. */
@@ -327,6 +329,10 @@ export function SentenceWord({
   const pairJoin = paired.text.slice(0, PAIR_JOIN.length).trim();
   const pairWord = paired.text.slice(PAIR_JOIN.length).trimEnd();
   const isPairShown = pairJoin !== "";
+  // The state the pair last stood for: once the fork folds, its words keep the name they had
+  // as the pen writes them out, never the bare word, which may then be the visitor's own.
+  const [pairState, setPairState] = useState(pair?.state ?? "");
+  if (pair !== null && pair.state !== pairState) setPairState(pair.state);
   // Written up to a space, the word waits for its next letter before showing it, so its
   // comma never stands apart.
   const word = written.text.slice(lead.length).trimEnd();
@@ -505,7 +511,8 @@ export function SentenceWord({
             <button
               type="button"
               data-fork-pair={view.key}
-              aria-label={`${pair?.label ?? pairWord}, proposed: go to it`}
+              // Named by the state of the version it shows, as the fork's answers are.
+              aria-label={`${pair?.label ?? pairWord}, ${pair?.state ?? pairState}: go to it`}
               onClick={() => pair?.onPoint()}
               className={cn(
                 BUTTON_CLASSES,
