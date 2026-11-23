@@ -316,6 +316,7 @@ test.describe("a city chosen among those a shared name could be", () => {
       await route.fulfill({ status: 503 });
     });
     await page.addInitScript(logFocusFrames);
+    await page.addInitScript(logStatuses);
     await answerTheIntake(page, PORTLAND_ASKED);
     await openLive(page, "/");
     await askFromTheField(page, "Portland, a lively day");
@@ -336,6 +337,8 @@ test.describe("a city chosen among those a shared name could be", () => {
     await page.keyboard.press("Enter");
 
     await expect(writing(page)).toBeFocused();
+    // A key's press draws the ring the typed path draws on the same button.
+    expect(await writing(page).evaluate((button) => button.matches(":focus-visible"))).toBe(true);
     await page.waitForTimeout(DAY_HELD_MS);
     const releasedAt = await page.evaluate(() => performance.now());
     const waited = await page.evaluate(
@@ -345,6 +348,15 @@ test.describe("a city chosen among those a shared name could be", () => {
     expect(waited.length).toBeGreaterThanOrEqual(FRAMES_SAMPLED_AT_LEAST);
     expect(waited.filter((frame) => frame.tag === "BODY")).toEqual([]);
     expect(waited.at(-1)).toMatchObject({ tag: "BUTTON", name: "Writing" });
+    // The day set off is said once, as a change of a status that stood before the press.
+    const log = await page.evaluate(() => window.statusLog);
+    const said = log.filter(
+      (entry) => entry.t >= pressedAt && entry.text.startsWith("Writing a lively"),
+    );
+    expect(said, "the day set off, said once").toHaveLength(1);
+    expect(said[0]!.kind, "a status put on the page already holding the line").toBe("changed");
+    const born = log.find((entry) => entry.id === said[0]!.id && entry.kind === "added")!;
+    expect(born.t, "the status that says it stood before the press").toBeLessThan(pressedAt);
 
     release();
     await expect

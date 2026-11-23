@@ -1149,6 +1149,8 @@ describe("a city chosen among those a shared name could be", () => {
   });
 
   it("says Reading where the focus lands, and from no status, when the city chosen is read first", async () => {
+    // The page sets a chosen city's day off at once, so its line is "writing" there; a header
+    // given a read first takes the typed path's guard through the same hand-off.
     const user = userEvent.setup();
     const { button, named, reading } = renderChoosing({
       line: { kind: "reading", answering: PORTLAND_QUESTION },
