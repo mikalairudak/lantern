@@ -222,8 +222,6 @@ async function expectTheDayKept(page: Page, isStill: boolean): Promise<void> {
   );
 }
 
-/** How long a re-plan that fails is held before its answer, so a swap is made while it is written. */
-const REPLAN_HELD_MS = 1500;
 const PORTO = writtenDayAt("porto")!.itinerary;
 /** The first of Porto's stops whose right arrow key on the chart shows another of its versions. */
 const SWAPPED_STOP = PORTO.stops.find((stop) => {
@@ -331,6 +329,9 @@ test.describe("under reduced motion", () => {
     const replanning = log.find(({ text }) => text.includes(REPLANNING));
     expect(replanning, "the re-plan's line").toBeDefined();
     expect(swap.t).toBeLessThan(replanning!.t);
+    expect(replanning!.t, "the re-plan's line came inside the swap's hold").toBeLessThan(
+      swap.t + NOTICE_HEARD_MS,
+    );
     const after = log.filter(({ t }) => t >= replanning!.t);
     expect(after.filter(({ text }) => text.includes(swap.text))).toEqual([]);
   });
@@ -340,9 +341,13 @@ test.describe("under reduced motion", () => {
   }) => {
     await page.addInitScript(logStatuses);
     await openLiveBench(page);
-    // Held long enough to swap while the re-plan is written, then unavailable.
+    // Held until the swap is made while the re-plan is written, then unavailable.
+    let release = (): void => {};
+    const swapped = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     await page.route(DAY_ROUTE, async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, REPLAN_HELD_MS));
+      await swapped;
       await route.fulfill({ status: HTTP_SERVICE_UNAVAILABLE, body: "" });
     });
 
@@ -350,6 +355,7 @@ test.describe("under reduced motion", () => {
     await expect(said(page, REPLANNING)).toBeVisible();
     const since = await page.evaluate(() => performance.now());
     const place = await swapByKey(page);
+    release();
     await expect(workSaid(page, NOT_JUST_NOW)).toBeVisible({ timeout: DAY_TIMEOUT_MS });
     await waitForPageClock(page, since + NOTICE_HEARD_MS);
 

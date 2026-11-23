@@ -791,6 +791,31 @@ describe("DayStageHeader", () => {
       expect(heard[0]).toMatch(/re-planning/);
       expect(heard[1]).toBe("");
     });
+
+    it("lets a change go once the page's notice has stood over it, said above the header", () => {
+      const notice = noticeOf({ kind: "cut", itinerary: null }, KYOTO_REQUEST);
+      const pageAt = (shown: HeaderNotice | null) => (
+        <UnderNoticeStatus>
+          {cloneElement(headerOf(KYOTO_REQUEST, null, shown), { changeHeard: CHANGE })}
+        </UnderNoticeStatus>
+      );
+      /** The header's own status, not the page's notice status above it. */
+      const own = () =>
+        screen
+          .getAllByRole("status")
+          .find((each) => each.tagName === "P" && !each.hasAttribute("data-notice-status"))!;
+      const view = render(pageAt(null));
+      expect(own()).toHaveTextContent(CHANGE);
+
+      view.rerender(pageAt(notice));
+      expect(document.querySelector("[data-notice-status]")).toHaveTextContent(
+        "Lantern couldn't finish this day.",
+      );
+      expect(own().textContent).toBe("");
+
+      view.rerender(pageAt(null));
+      expect(own().textContent).toBe("");
+    });
   });
 
   it("fades a notice that leaves for the next day as it stands, the focus on the control pressed", async () => {
