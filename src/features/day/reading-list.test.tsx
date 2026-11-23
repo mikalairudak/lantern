@@ -151,7 +151,16 @@ describe("ReadingList", () => {
   it("swaps a stop to a version the chart would show, says the original beside it, and keeps the focus", async () => {
     const user = userEvent.setup();
     const onChoose = vi.fn();
-    const { rerender } = render(<ReadingList {...KYOTO} onChoose={onChoose} />);
+    // The list as the page holds it: a version chosen is taken in the same press.
+    function Choosing() {
+      const [picks, setPicks] = useState(KYOTO.picks);
+      const choose = (stopIndex: number, candidate: number) => {
+        onChoose(stopIndex, candidate);
+        setPicks((shown) => shown.map((pick, at) => (at === stopIndex ? candidate : pick)));
+      };
+      return <ReadingList {...KYOTO} picks={picks} onChoose={choose} />;
+    }
+    render(<Choosing />);
     const [version] = KYOTO.stops[0]!.alternatives;
 
     await user.click(
@@ -159,13 +168,6 @@ describe("ReadingList", () => {
     );
     expect(onChoose).toHaveBeenCalledWith(0, 1);
 
-    rerender(
-      <ReadingList
-        {...KYOTO}
-        picks={KYOTO.picks.map((pick, at) => (at === 0 ? 1 : pick))}
-        onChoose={onChoose}
-      />,
-    );
     const swapped = rowsOf()[0]!;
     expect(within(swapped).getByRole("heading", { name: version!.name })).toBeVisible();
     // The planned place waits beside it, an arrow's press away.

@@ -134,13 +134,10 @@ const LIVELIER_COFFEE = "Coffee near Hirosaka";
 /** A livelier version shorter than the stop it replaces, and a quieter one. */
 const LIVELIER_GRILLS = "Seafood Grills in Omicho";
 const QUIETER_WORKSHOP = "Utatsuyama Craft Workshop";
-/**
- * How far above the window a stop's top is scrolled: on a laptop, the stop is then wholly under
- * the masthead.
- */
-const CLIPPED_PX = 60;
-/** How far, rounded, a stop brought to the masthead's edge may sit off it. */
-const MASTHEAD_EDGE_PX = 2;
+/** How far above the plan's bar's edge a stop's foot is scrolled, so the bar wholly covers it. */
+const UNDER_BAR_PX = 10;
+/** How far, rounded, a stop brought to the plan's bar's edge may sit off it. */
+const BAR_EDGE_PX = 2;
 
 /** Kanazawa's written day, seen before, so it opens whole. */
 async function openSeenKanazawa(page: Page): Promise<void> {
@@ -183,28 +180,33 @@ test("an arrow pressed hands the focus to its stop once the stop carries the ver
   await expect(plan.getByRole("group", { name: WRITTEN_COFFEE })).toBeFocused();
 });
 
-test("an arrow pressed brings its stop out from under the masthead the least way", async ({
+test("an arrow pressed brings its stop out from under the plan's bar the least way", async ({
   page,
 }) => {
   await openSeenKanazawa(page);
   const plan = page.getByRole("list", { name: "The day, to read" });
   const arrow = plan.getByRole("button", { name: `Livelier: ${LIVELIER_GRILLS}` });
-  await arrow.evaluate((element, clipped) => {
-    const stop = element.parentElement!.parentElement!.querySelector('[role="group"]')!;
-    window.scrollBy(0, stop.getBoundingClientRect().top + clipped);
-    (element as HTMLElement).focus({ preventScroll: true });
-  }, CLIPPED_PX);
-  await page.keyboard.press("Enter");
-
-  // The shorter version taken comes to the masthead's edge, not to the middle of the window.
-  const stop = plan.getByRole("group", { name: LIVELIER_GRILLS });
-  await expect(stop).toBeFocused();
-  const masthead = await page.evaluate(() =>
+  // The page's scroll padding is the plan's bar's edge, which focus scrolled to stays clear of.
+  const barEdge = await page.evaluate(() =>
     Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop),
   );
+  await arrow.evaluate(
+    (element, { barEdge, underBar }) => {
+      const stop = element.parentElement!.parentElement!.querySelector('[role="group"]')!;
+      const { top, height } = stop.getBoundingClientRect();
+      window.scrollBy(0, top + height - barEdge + underBar);
+      (element as HTMLElement).focus({ preventScroll: true });
+    },
+    { barEdge, underBar: UNDER_BAR_PX },
+  );
+  await page.keyboard.press("Enter");
+
+  // The shorter version taken comes to the plan's bar's edge, not to the middle of the window.
+  const stop = plan.getByRole("group", { name: LIVELIER_GRILLS });
+  await expect(stop).toBeFocused();
   await expect
-    .poll(async () => Math.abs((await stop.boundingBox())!.y - masthead))
-    .toBeLessThanOrEqual(MASTHEAD_EDGE_PX);
+    .poll(async () => Math.abs((await stop.boundingBox())!.y - barEdge))
+    .toBeLessThanOrEqual(BAR_EDGE_PX);
 });
 
 test("an arrow pressed while the stop leans scrolls nothing sideways", async ({ page }) => {

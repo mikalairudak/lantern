@@ -91,6 +91,32 @@ function Renaming() {
   );
 }
 
+/**
+ * The carousel while the page takes none of its versions, as during a drag on the curve, and a
+ * button that takes its livelier version from elsewhere.
+ */
+function IgnoringThenElsewhere() {
+  const [pick, setPick] = useState(0);
+  const name = candidatesOf(BOTH)[pick]?.name ?? "";
+  const { after } = neighboursOf(BOTH, 0);
+  return (
+    <>
+      <VersionCarousel
+        stop={BOTH}
+        pick={pick}
+        name={name}
+        onPick={() => undefined}
+        renderVersion={(candidate) => <p>{`version ${candidate}`}</p>}
+      >
+        <h2>{name}</h2>
+      </VersionCarousel>
+      <button type="button" onClick={() => setPick(after?.index ?? 0)}>
+        Take it from the curve
+      </button>
+    </>
+  );
+}
+
 describe("the carousel", () => {
   it("hands the focus to the stop from an arrow pressed once it carries the version's name", async () => {
     const user = userEvent.setup();
@@ -131,6 +157,21 @@ describe("the carousel", () => {
     } finally {
       focus.mockRestore();
     }
+  });
+
+  it("hands the focus for its own press alone, not to a later pick of that version from elsewhere", async () => {
+    const user = userEvent.setup();
+    render(<IgnoringThenElsewhere />);
+    const { after } = neighboursOf(BOTH, 0);
+    scrolledTo.length = 0;
+    // The press goes while the page takes no version, as during a drag on the curve.
+    await user.click(screen.getByRole("button", { name: `Livelier: ${after?.name}` }));
+    const elsewhere = screen.getByRole("button", { name: "Take it from the curve" });
+    await user.click(elsewhere);
+
+    expect(screen.getByRole("group", { name: after?.name })).toBeInTheDocument();
+    expect(elsewhere).toHaveFocus();
+    expect(scrolledTo).toEqual([]);
   });
 
   it("keeps the focus on the stop when the arrow pressed goes with the version it named", async () => {
