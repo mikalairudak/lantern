@@ -1251,7 +1251,7 @@ describe("DayStageHeader", () => {
     expect(pair()).toHaveAccessibleName(name);
   });
 
-  it("leaves no pair to share the word taken with no compare", async () => {
+  it("leaves no pair beside an assumed word taken with no compare, whose word is drawn anew", async () => {
     const view = render(pairAt(KYOTO_REQUEST, { status: "proposed", isCompared: true }));
     const headline = screen.getByRole("heading", { level: 1 });
     await within(headline).findByRole("button", { name: "slow morning, proposed: go to it" });
@@ -1261,6 +1261,22 @@ describe("DayStageHeader", () => {
 
     expect(headline.querySelector("[data-fork-pair]")).toBeNull();
     expect(within(headline).getAllByRole("button", { name: /^slow morning/ })).toHaveLength(1);
+  });
+
+  it("keeps a leftover pair's whole name apart from the visitor's own word taken with no compare", async () => {
+    const view = render(
+      pairAt({ ...KYOTO_REQUEST, start: "early" }, { status: "proposed", isCompared: true }),
+    );
+    const headline = screen.getByRole("heading", { level: 1 });
+    const name = "slow morning, proposed: go to it";
+    await within(headline).findByRole("button", { name });
+
+    // The visitor's own word, not one Lantern assumed: it is not drawn anew, and the pair is
+    // written out beside it.
+    view.rerender(pairAt({ ...KYOTO_REQUEST, start: "slow" }, { status: "taken" }));
+
+    expect(headline.querySelector("[data-fork-pair]")).toHaveAccessibleName(name);
+    expect(within(headline).getAllByRole("button", { name: "slow morning" })).toHaveLength(1);
   });
 
   it("lets Lantern's words go in one step when a notice takes the day's place", () => {
