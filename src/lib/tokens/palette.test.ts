@@ -282,6 +282,39 @@ describe("the palette", () => {
     );
   });
 
+  describe("the curve under a line of words", () => {
+    /** The muted words over the curve are 13 px: WCAG's bar for text that size. */
+    const OVER_CURVE_CONTRAST = 4.5;
+
+    /** How much of the curve the mask's grey lets through: its lightness as written. */
+    const shareOf = (grey: string): number => parseInt(grey.slice(1, 3), 16) / 255;
+
+    /** A colour laid over another at a share, blended as the page draws it, channel by channel. */
+    const blend = (over: string, under: string, share: number): string =>
+      `#${[1, 3, 5]
+        .map((offset) => {
+          const channel = (hex: string): number => parseInt(hex.slice(offset, offset + 2), 16);
+          const mixed = Math.round(share * channel(over) + (1 - share) * channel(under));
+          return mixed.toString(16).padStart(2, "0");
+        })
+        .join("")}`;
+
+    it.each(THEMES)("is a grey in the %s theme, so its lightness alone says the share", (theme) => {
+      const grey = color("curve-under-words", theme);
+      expect(grey.slice(3, 5)).toBe(grey.slice(1, 3));
+      expect(grey.slice(5, 7)).toBe(grey.slice(1, 3));
+    });
+
+    it.each(THEMES)("leaves the muted words 4.5:1 or more over it in the %s theme", (theme) => {
+      const under = blend(
+        color("curve", theme),
+        color("ground", theme),
+        shareOf(color("curve-under-words", theme)),
+      );
+      expect(contrast(color("muted", theme), under)).toBeGreaterThanOrEqual(OVER_CURVE_CONTRAST);
+    });
+  });
+
   describe("the index's plates", () => {
     /**
      * By day a plate's light is the whitest paper on the page: far enough over the page to read as

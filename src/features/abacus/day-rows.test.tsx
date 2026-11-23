@@ -341,6 +341,19 @@ describe("a quarter being written", () => {
   });
 });
 
+describe("the curve under a row's words", () => {
+  it("steps back by the mask's grey for the theme, blurred as written", async () => {
+    render(<StopRowCell example={0} state="complete" density={null} />);
+    await placedDay();
+    const words = document.querySelector("mask > g");
+    const soft = document.querySelector("filter");
+
+    expect(words).toHaveClass("fill-curve-under-words");
+    expect(words).not.toHaveAttribute("fill-opacity");
+    expect(soft).toHaveAttribute("color-interpolation-filters", "sRGB");
+  });
+});
+
 describe("a stop's name", () => {
   async function beachName() {
     render(<StopRowCell example={0} state="complete" density={null} />);
