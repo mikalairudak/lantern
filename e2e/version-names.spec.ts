@@ -1,3 +1,4 @@
+import { NAME_HOLD_GRACE_MS } from "../src/features/abacus/use-name-hold";
 import { expect, test, type Locator, type Page, waitMs, chooseTheChart } from "./fixtures";
 
 // These tests drive the chart: each page opens as for a visitor who chose it, since a day
@@ -66,6 +67,112 @@ test("a pointer resting on a version's bead names it there, and the rows stay as
 
   // Away from the beads, nothing is named.
   await page.mouse.move(0, 0);
+  await expect(tagOf(page)).toHaveCount(0);
+});
+
+/** Well past the moment a name stays once the pointer is off its bead and off the name. */
+const PAST_THE_GRACE_MS = NAME_HOLD_GRACE_MS * 3;
+/** A pointer's way from a bead to its name, in moves as a hand makes them. */
+const POINTER_STEPS = 8;
+/** On Kanazawa's day at a laptop's width, a version whose name is a card over the next row. */
+const NAMED_OVER_A_ROW = "Utatsuyama Craft Workshop Hill, quieter";
+/** The row whose name the card lies over. */
+const ROW_UNDER_THE_NAME = "Higashi Chaya District";
+
+/** Rests the pointer on a version's bead until its name shows. */
+async function restOn(page: Page, bead: Locator): Promise<void> {
+  await bead.scrollIntoViewIfNeeded();
+  // Aimed at again once the pointer is over the chart, as the page may still be settling.
+  for (let aim = 0; aim < 2; aim += 1) {
+    const { x, y } = await middleOf(bead);
+    await page.mouse.move(x, y);
+  }
+  await expect(tagOf(page)).toHaveCount(1);
+}
+
+/** The words of the name shown, where a pointer reads them. */
+function wordsOf(page: Page): Locator {
+  return tagOf(page).locator(":scope > span");
+}
+
+// A name may be read with the pointer on it (WCAG 1.4.13): it stays while the pointer is on its
+// bead or on the name, and takes no pointer itself, so a press under it reaches what is there.
+test("a pointer's name stays with the pointer moved onto it, and goes once it is away", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "A finger never rests on a bead: a tap takes it.");
+  await page.setViewportSize(LAPTOP);
+  await openTheDay(page, "/day/kanazawa");
+  await restOn(page, page.getByRole("button", { name: /, (quieter|livelier)$/ }).first());
+  const said = await tagOf(page).textContent();
+
+  const { x, y } = await middleOf(wordsOf(page));
+  await page.mouse.move(x, y, { steps: POINTER_STEPS });
+  await page.waitForTimeout(PAST_THE_GRACE_MS);
+
+  await expect(tagOf(page)).toHaveText(said ?? "");
+  await page.mouse.move(0, 0, { steps: POINTER_STEPS });
+  await expect(tagOf(page)).toHaveCount(0);
+});
+
+test("a press on a row under a pointer's name reaches the row, and the name stays away", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "A finger never rests on a bead: a tap takes it.");
+  await page.setViewportSize(LAPTOP);
+  await openTheDay(page, "/day/kanazawa");
+  const row = page
+    .getByRole("list", { name: "The day" })
+    .getByRole("button", { name: new RegExp(`^${ROW_UNDER_THE_NAME}`) });
+  await restOn(page, page.getByRole("button", { name: NAMED_OVER_A_ROW }));
+  // A point of the name that lies over the row's name.
+  const over = await wordsOf(page).evaluate((words) => {
+    const box = words.getBoundingClientRect();
+    for (let across = 0.95; across > 0; across -= 0.05) {
+      const point = { x: box.left + box.width * across, y: box.top + box.height / 2 };
+      const under = document.elementFromPoint(point.x, point.y);
+      if (under?.closest('ol[aria-label="The day"] button')) return point;
+    }
+    return null;
+  });
+  if (!over) throw new Error(`The name lies over no row's name: ${ROW_UNDER_THE_NAME}'s?`);
+
+  await page.mouse.move(over.x, over.y, { steps: POINTER_STEPS });
+  await page.waitForTimeout(PAST_THE_GRACE_MS);
+  await expect(tagOf(page)).toHaveCount(1);
+  await page.mouse.down();
+  await page.mouse.up();
+
+  const sheet = page.getByRole("region", { name: `About ${ROW_UNDER_THE_NAME}` });
+  await expect(sheet).toBeVisible();
+  await expect(row).toHaveAttribute("aria-expanded", "true");
+  await expect(tagOf(page)).toHaveCount(0);
+  // Folded under a pointer that has not moved, the sheet brings no name back.
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
+  await page.waitForTimeout(PAST_THE_GRACE_MS);
+  await expect(tagOf(page)).toHaveCount(0);
+});
+
+test("Escape puts away a name the pointer rests on, over a row's words", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "A finger never rests on a bead: a tap takes it.");
+  await page.setViewportSize(LAPTOP);
+  await openTheDay(page, "/day/kanazawa");
+  await restOn(page, page.getByRole("button", { name: NAMED_OVER_A_ROW }));
+  const box = await wordsOf(page).boundingBox();
+  if (!box) throw new Error("The name has no box");
+  // Its far end, over the next row's words.
+  await page.mouse.move(box.x + box.width * 0.9, box.y + box.height / 2, { steps: POINTER_STEPS });
+  await page.waitForTimeout(PAST_THE_GRACE_MS);
+  await expect(tagOf(page)).toHaveCount(1);
+
+  await page.keyboard.press("Escape");
+
   await expect(tagOf(page)).toHaveCount(0);
 });
 

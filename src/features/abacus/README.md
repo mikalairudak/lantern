@@ -16,6 +16,7 @@ The chart a day is drawn on. Time runs down and energy runs across five lanes, r
 ## The visitor's hands
 
 - `use-chart-pointer.ts` tells a drag from a tap (4 px), and a tap on a bead from one near a wire, on one captured pointer.
+- `use-name-hold.ts` keeps a version's name shown for a bead while the pointer moves onto the name and rests there, and 300 ms after it is off both, a scroll that carries the name away included (WCAG 1.4.13); a pointer that leaves the page, a window that loses the focus or Escape lets it go at once. The name takes no pointer, so a press under it reaches what is there.
 - `use-energy-curve.ts`. `useEnergyCurve` holds the curve's levels and the visitor's picks, by stop id and place id: `selected` is what the chart shows during a drag, `committed` what the words show once it ends. A swap lives here; `Stop.selectedPlaceId` stays the model's pick, where a reset returns.
 - `curve.ts`. The pure maths: a pull bends only the stops either side of the hand (`bendCurve`), a stop switches only when another version is clearly nearer (`SWITCH_MARGIN`), and the curve is a monotone cubic.
 - `chart-stop.tsx`. Each stop is a keyboard slider; its beads are hidden from assistive technology.

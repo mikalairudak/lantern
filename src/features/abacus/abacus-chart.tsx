@@ -37,9 +37,15 @@ import { coveredBeadsOf, isUnderSheet, type SheetBand } from "./sheet-placement"
 import { GONE, presentTrack, samplesWithin, sampleTrack, trackAt, type TrackPoint } from "./track";
 import type { Arrivals } from "./use-arrivals";
 import { useChartPointer } from "./use-chart-pointer";
+import { useNameHold, type ScreenBox } from "./use-name-hold";
 import type { Invitation as Invited } from "./use-invitation";
 import type { CurvePreview, EnergyCurve } from "./use-energy-curve";
-import { TAG_MASK_ATTRIBUTE, VersionTags, type TagRequest } from "./version-tag";
+import {
+  TAG_MASK_ATTRIBUTE,
+  TAG_PLACE_ATTRIBUTE,
+  VersionTags,
+  type TagRequest,
+} from "./version-tag";
 import {
   draggedVersionOf,
   hoveredVersionOf,
@@ -302,11 +308,12 @@ export function AbacusChart({
 
   // The names Escape last put away, each source's apart, so one naming anew leaves the other's
   // away: the keys' focus's, as its stop at the version it shows, and the pointer's, as the
-  // place whose bead it rests on.
+  // place it names.
   const [focusNamesAway, setFocusNamesAway] = useState<string | null>(null);
   const [pointerNamesAway, setPointerNamesAway] = useState<string | null>(null);
-  // The chart itself, which says whether a pointer is on it.
+  // The chart itself, which says whether a pointer is on it, and the layer its names are in.
   const chartBox = useRef<SVGSVGElement>(null);
+  const namesLayer = useRef<HTMLDivElement>(null);
   // The stop whose slider has the keys' focus, whose arrows' versions are named; and whether
   // the last pointer over the chart was a finger, which never hovers, so names nothing.
   const [keyedStop, setKeyedStop] = useState<number | null>(null);
@@ -462,8 +469,8 @@ export function AbacusChart({
       isFollowing: (arrival?.isArriving ?? false) && !(arrival?.isSettled ?? true),
       isInteractive,
       curveEnergy: energy.curve[index] ?? null,
-      hoveredPlace: previewPlaces[index] ?? hoveredPlace,
-      onHoverPlace,
+      hoveredPlace: previewPlaces[index] ?? pointedPlace,
+      onHoverPlace: (placeId) => nameHold.onHoverPlace(placeId, isNaming),
       onPullTo: (target) => {
         pointer.markInteracted();
         energy.pullTo(index, target);
@@ -485,9 +492,9 @@ export function AbacusChart({
   // Versions named before they are taken (2026-11-05), each beside its bead: under a drag,
   // the version it has just switched its grabbed stop to, away from the hand; else the
   // versions the focused slider's arrows would take its stop to, or the one whose bead a
-  // pointer rests on. A finger never rests, so names nothing until it drags. Escape puts the
-  // names a resting pointer or a focused slider shows away until that pointer or focus names
-  // anew; a drag's name stays with the hand.
+  // pointer rests on, kept while the pointer moves onto its name. A finger never rests, so
+  // names nothing until it drags. Escape puts the names a resting pointer or a focused slider
+  // shows away until that pointer or focus names anew; a drag's name stays with the hand.
   const beadXOf = (index: number, candidate: number): number => {
     const stop = stops[index] as StopDraft;
     const energyLevel = writtenEnergyOf(candidatesOf(stop)[candidate] ?? {}) ?? 0;
@@ -577,13 +584,31 @@ export function AbacusChart({
   // anew. A still's held slider has no focus, so the stop it holds is left out.
   const focusNaming = keyedStop !== null ? `${keyedStop}:${energy.selected[keyedStop] ?? 0}` : null;
   // Names put away by Escape stay away until their own source names anew (WCAG 1.4.13): the
-  // focus's until the focused stop or its version changes, the pointer's until it leaves the
-  // bead it rests on.
+  // focus's until the focused stop or its version changes, the pointer's until the place it
+  // names changes.
   if (focusNamesAway !== null && focusNamesAway !== focusNaming) setFocusNamesAway(null);
-  if (pointerNamesAway !== null && pointerNamesAway !== hoveredPlace) setPointerNamesAway(null);
   // The stop whose slider names its versions: the keys', unless Escape has put them away, and
-  // then the pointer names the bead it rests on.
+  // then the pointer names the place it is on.
   const keyedNaming = focusNamesAway === null ? keyed : null;
+  /** Where the name of a place a pointer named stands on the screen, if it is drawn. */
+  const nameBoxOf = (placeId: string): ScreenBox | null => {
+    const tags = namesLayer.current?.querySelectorAll(`[${TAG_PLACE_ATTRIBUTE}]`) ?? [];
+    const tag = [...tags].find((each) => each.getAttribute(TAG_PLACE_ATTRIBUTE) === placeId);
+    // The words themselves: a name over its wire is drawn up from where its box stands.
+    return tag?.firstElementChild?.getBoundingClientRect() ?? null;
+  };
+  // A pointer's name is held off its bead only while one can show: a finger, a drag, an open
+  // sheet or the keys' names let it go.
+  const nameHold = useNameHold({
+    hoveredPlace,
+    isNameable:
+      isInteractive && !energy.isDragging && openStop === null && keyedNaming === null && !isTouch,
+    onHoverPlace,
+    nameBoxOf,
+  });
+  // The place a pointer names: the bead it is on, or the one whose name it has moved onto.
+  const pointedPlace = hoveredPlace ?? nameHold.heldPlace;
+  if (pointerNamesAway !== null && pointerNamesAway !== pointedPlace) setPointerNamesAway(null);
   // An open stop's sheet is what is being read: nothing is named over it.
   const named: NamedVersion[] =
     !isInteractive || energy.isDragging || openStop !== null
@@ -593,7 +618,7 @@ export function AbacusChart({
         : [
             isTouch || pointerNamesAway !== null
               ? null
-              : hoveredVersionOf(stops, energy.selected, hoveredPlace),
+              : hoveredVersionOf(stops, energy.selected, pointedPlace),
           ].filter((version): version is NamedVersion => version !== null);
   const tags: TagRequest[] = dragged
     ? [tagOf(dragged, "dragged")]
@@ -605,7 +630,8 @@ export function AbacusChart({
   const putNamesAway = (): boolean => {
     if (named.length === 0) return false;
     if (keyedNaming === null) {
-      setPointerNamesAway(hoveredPlace);
+      setPointerNamesAway(pointedPlace);
+      nameHold.letGo();
       return true;
     }
     // A still's held stop, with no focus behind it, keeps its names: nothing is put away.
@@ -613,16 +639,16 @@ export function AbacusChart({
     setFocusNamesAway(focusNaming);
     return true;
   };
-  // Escape with a pointer on the chart puts its names away wherever the focus is, the pointer
-  // left where it is. An Escape a control has taken by preventing its default is left to it,
-  // and one that puts nothing away is left to the page: an open stop's sheet, over which
-  // nothing is named, folds on it. A still that holds a slider or a drag as a hand would keeps
-  // its names whatever its page does.
+  // Escape with a pointer on the chart, or on a name it holds, puts its names away wherever the
+  // focus is, the pointer left where it is. An Escape a control has taken by preventing its
+  // default is left to it, and one that puts nothing away is left to the page: an open stop's
+  // sheet, over which nothing is named, folds on it. A still that holds a slider or a drag as a
+  // hand would keeps its names whatever its page does.
   const isNaming = named.length > 0;
   const isStill = inHand !== undefined;
   const putAwayOnEscape = useEffectEvent((event: KeyboardEvent) => {
     if (event.key !== "Escape" || event.defaultPrevented) return;
-    if (!chartBox.current?.matches(":hover")) return;
+    if (nameHold.heldPlace === null && !chartBox.current?.matches(":hover")) return;
     if (putNamesAway()) event.preventDefault();
   });
   useEffect(() => {
@@ -835,6 +861,7 @@ export function AbacusChart({
         readWords={readWords}
         maskLayer={maskElement}
         maskPad={{ x: row.lineMaskPad, y: row.lineMaskPadY, radius: row.lineMaskRadius }}
+        layerRef={namesLayer}
       />
       {beadsOverSheet &&
         covered.length > 0 &&

@@ -1,7 +1,14 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { createPortal } from "react-dom";
 import { SPRINGS } from "@/lib/tokens/motion";
 import { cn } from "@/components/ui/cn";
@@ -42,6 +49,8 @@ export interface TagRequest {
 
 /** Marks a tag's box in the curve's mask, which the day's words are read from without it. */
 export const TAG_MASK_ATTRIBUTE = "data-tag-mask";
+/** Marks a pointer's or the keys' name with the place it names, for the chart to find it by. */
+export const TAG_PLACE_ATTRIBUTE = "data-tag-place";
 
 interface VersionTagsProps {
   tags: readonly TagRequest[];
@@ -63,6 +72,8 @@ interface VersionTagsProps {
   maskLayer: SVGGElement | null;
   /** The room the mask leaves round a line of words, and its corners. */
   maskPad: { x: number; y: number; radius: number };
+  /** The layer the names are drawn in, over the chart, for the chart to read where they stand. */
+  layerRef: RefObject<HTMLDivElement | null>;
 }
 
 /**
@@ -126,6 +137,7 @@ export function VersionTags({
   readWords,
   maskLayer,
   maskPad,
+  layerRef: layer,
 }: VersionTagsProps) {
   const isReducedMotion = useReducedMotion() ?? false;
   // Each tag's words on one line, as drawn on the wire and as a card, measured with the day's
@@ -133,22 +145,17 @@ export function VersionTags({
   // frame. Measured as the copies change, the fonts arriving too, after layout and before the
   // frame paints.
   const copies = useRef<Map<string, HTMLSpanElement>>(new Map());
-  const layer = useRef<HTMLDivElement>(null);
   // The screen's top, in the chart's pixels: a name stands under it, where it is seen. Read as
   // a name first shows, before that frame paints, as the names are measured, and as the page
   // scrolls while any is shown. Read a frame later, a drag that named the version a drag before
   // it named, at another scroll, placed its first frame by the screen as it was: 62 to 82 px
   // off on Bologna's and Kanazawa's phone, or 33 to 52 px past the top.
   const [screenTop, setScreenTop] = useState(-Infinity);
-  const readScreenTop = () => {
-    const chartTop = layer.current?.getBoundingClientRect().top;
-    if (chartTop !== undefined) setScreenTop(-chartTop);
-  };
   const isNaming = tags.length > 0;
   useLayoutEffect(() => {
     const chartTop = layer.current?.getBoundingClientRect().top;
     if (isNaming && chartTop !== undefined) setScreenTop(-chartTop);
-  }, [isNaming]);
+  }, [isNaming, layer]);
   useEffect(() => {
     if (!isNaming) return undefined;
     let pending = 0;
@@ -166,7 +173,7 @@ export function VersionTags({
       cancelAnimationFrame(pending);
       removeEventListener("scroll", schedule);
     };
-  }, [isNaming]);
+  }, [isNaming, layer]);
   const reading = useRef(readWords);
   useLayoutEffect(() => {
     reading.current = readWords;
@@ -184,11 +191,12 @@ export function VersionTags({
         sizes[key] = line === "wire" ? { ...known, wire: size } : { ...known, off: size };
       }
       setMeasured({ sizes, words: reading.current() });
-      readScreenTop();
+      const chartTop = layer.current?.getBoundingClientRect().top;
+      if (chartTop !== undefined) setScreenTop(-chartTop);
     });
     for (const copy of copies.current.values()) observer.observe(copy);
     return () => observer.disconnect();
-  }, [said]);
+  }, [said, layer]);
 
   // Each name in turn, the ones before it among what it keeps off, so a focused slider's two
   // never lie over each other. Sized by what it says, so a drag's name switching to another
@@ -265,6 +273,7 @@ export function VersionTags({
               data-tag={placement.line}
               data-card={placement.isCard || undefined}
               data-dragged={tag.kind === "dragged" || undefined}
+              {...(tag.kind === "named" && { [TAG_PLACE_ATTRIBUTE]: tag.key })}
               aria-hidden
               initial={isReducedMotion ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
