@@ -5,6 +5,7 @@ import {
   Fragment,
   useCallback,
   useEffect,
+  useEffectEvent,
   useId,
   useRef,
   useState,
@@ -305,9 +306,11 @@ export function AbacusChart({
     })),
   );
 
-  // What named the versions Escape last put away: a slider's stop at its version, or a bead's
-  // place.
-  const [namesAwayFrom, setNamesAwayFrom] = useState<string | null>(null);
+  // The names Escape last put away, each source's apart, so one naming anew leaves the other's
+  // away: the keys' focus's, as its stop at the version it shows, and the pointer's, as the
+  // place whose bead it rests on.
+  const [focusNamesAway, setFocusNamesAway] = useState<string | null>(null);
+  const [pointerNamesAway, setPointerNamesAway] = useState<string | null>(null);
   // The chart itself, which says whether a pointer is on it.
   const chartBox = useRef<SVGSVGElement>(null);
   // The stop whose slider has the keys' focus, whose arrows' versions are named; and whether
@@ -488,7 +491,8 @@ export function AbacusChart({
   // Versions named before they are taken (2026-11-05), each beside its bead: under a drag,
   // the version it has just switched its grabbed stop to, away from the hand; else the
   // versions the focused slider's arrows would take its stop to, or the one whose bead a
-  // pointer rests on. A finger never rests, so names nothing until it drags.
+  // pointer rests on. A finger never rests, so names nothing until it drags. Escape puts a
+  // name away until the pointer or the focus that showed it names anew.
   const beadXOf = (index: number, candidate: number): number => {
     const stop = stops[index] as StopDraft;
     const energyLevel = writtenEnergyOf(candidatesOf(stop)[candidate] ?? {}) ?? 0;
@@ -574,46 +578,59 @@ export function AbacusChart({
     ? draggedVersionOf(stops, mids, energy.selected, energy.committed, heldAt)
     : null;
   const keyed = keyedStop ?? inHand?.keyedStop ?? null;
-  // What names versions now: the focused slider's stop at the version it shows, so a key's step
-  // names anew, or else the bead a pointer rests on.
-  const namedBy = keyed !== null ? `${keyed}:${energy.selected[keyed] ?? 0}` : hoveredPlace;
-  // Names put away by Escape stay away until the pointer or the focus names anew (WCAG 1.4.13).
-  if (namesAwayFrom !== null && namesAwayFrom !== namedBy) setNamesAwayFrom(null);
-  const isNamingAway = namesAwayFrom !== null;
+  // What the keys' focus names now: its stop at the version it shows, so a key's step names
+  // anew. A still's held slider has no focus, so the stop it holds is left out.
+  const focusNaming = keyedStop !== null ? `${keyedStop}:${energy.selected[keyedStop] ?? 0}` : null;
+  // Names put away by Escape stay away until their own source names anew (WCAG 1.4.13): the
+  // focus's until the focused stop or its version changes, the pointer's until it leaves the
+  // bead it rests on.
+  if (focusNamesAway !== null && focusNamesAway !== focusNaming) setFocusNamesAway(null);
+  if (pointerNamesAway !== null && pointerNamesAway !== hoveredPlace) setPointerNamesAway(null);
+  // The stop whose slider names its versions: the keys', unless Escape has put them away, and
+  // then the pointer names the bead it rests on.
+  const keyedNaming = focusNamesAway === null ? keyed : null;
   // An open stop's sheet is what is being read: nothing is named over it.
   const named: NamedVersion[] =
-    !isInteractive || energy.isDragging || openStop !== null || isNamingAway
+    !isInteractive || energy.isDragging || openStop !== null
       ? []
-      : keyed !== null
-        ? keyedVersionsOf(stops, energy.selected, keyed)
-        : [isTouch ? null : hoveredVersionOf(stops, energy.selected, hoveredPlace)].filter(
-            (version): version is NamedVersion => version !== null,
-          );
+      : keyedNaming !== null
+        ? keyedVersionsOf(stops, energy.selected, keyedNaming)
+        : [
+            isTouch || pointerNamesAway !== null
+              ? null
+              : hoveredVersionOf(stops, energy.selected, hoveredPlace),
+          ].filter((version): version is NamedVersion => version !== null);
   const tags: TagRequest[] = dragged
     ? [tagOf(dragged, "dragged")]
     : named.map((version) => tagOf(version, "named"));
-  /** Puts the names shown away; true when there were names to put away, so Escape is taken. */
+  /**
+   * Puts away the names shown, the keys' focus's or the pointer's, the other's left as they
+   * are; true when there were names to put away, so Escape is taken.
+   */
   const putNamesAway = (): boolean => {
     if (named.length === 0) return false;
-    setNamesAwayFrom(namedBy);
+    if (keyedNaming !== null) setFocusNamesAway(focusNaming);
+    else setPointerNamesAway(hoveredPlace);
     return true;
   };
   // Escape with a pointer on the chart puts its names away wherever the focus is, the pointer
-  // left where it is; a still's names, which no pointer holds, stay whatever its page does. An
-  // Escape something else has answered is left to it, and one that puts nothing away is left
-  // to the page: an open stop's sheet, over which nothing is named, folds on it.
+  // left where it is. An Escape a control has taken by preventing its default is left to it,
+  // and one that puts nothing away is left to the page: an open stop's sheet, over which
+  // nothing is named, folds on it. A still holds its names as a hand would, and keeps them
+  // whatever its page does.
   const isNaming = named.length > 0;
+  const isStill = inHand !== undefined;
+  const putAwayOnEscape = useEffectEvent((event: KeyboardEvent) => {
+    if (event.key !== "Escape" || event.defaultPrevented) return;
+    if (!chartBox.current?.matches(":hover")) return;
+    if (putNamesAway()) event.preventDefault();
+  });
   useEffect(() => {
-    if (!isNaming) return undefined;
-    const putAwayOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
-      if (!chartBox.current?.matches(":hover")) return;
-      event.preventDefault();
-      setNamesAwayFrom(namedBy);
-    };
-    document.addEventListener("keydown", putAwayOnEscape);
-    return () => document.removeEventListener("keydown", putAwayOnEscape);
-  }, [isNaming, namedBy]);
+    if (!isNaming || isStill) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => putAwayOnEscape(event);
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isNaming, isStill]);
   // The stops whose beads an open sheet's edge crosses: the wire above it where it opens
   // down, and wherever its edges fall among the wires it lies over.
   const covered = beadsOverSheet
