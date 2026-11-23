@@ -616,8 +616,8 @@ export function AbacusChart({
   // Escape with a pointer on the chart puts its names away wherever the focus is, the pointer
   // left where it is. An Escape a control has taken by preventing its default is left to it,
   // and one that puts nothing away is left to the page: an open stop's sheet, over which
-  // nothing is named, folds on it. A still holds its names as a hand would, and keeps them
-  // whatever its page does.
+  // nothing is named, folds on it. A still that holds a slider or a drag as a hand would keeps
+  // its names whatever its page does.
   const isNaming = named.length > 0;
   const isStill = inHand !== undefined;
   const putAwayOnEscape = useEffectEvent((event: KeyboardEvent) => {
