@@ -240,6 +240,14 @@ function UnderNoticeStatus({ children }: UnderNoticeStatusProps) {
   );
 }
 
+/** Kyoto's header for `request` with its slow-morning fork at `step`. */
+function pairAt(request: DayRequest, step: Partial<ReplanControls>) {
+  return headerOf(request, null, null, {
+    assumptions: { ...KYOTO_ASSUMPTIONS, start: request.start },
+    replan: slowMorning(step),
+  });
+}
+
 /** Kyoto's start changed to a slow morning, its fork at a step, as the page tells the header. */
 function slowMorning(step: Partial<ReplanControls>): ReplanControls {
   return {
@@ -1195,6 +1203,64 @@ describe("DayStageHeader", () => {
 
     view.rerender(at(KYOTO_REQUEST, { status: "left", isCompared: true }));
     expect(await pairNamed("slow morning, proposed: go to it")).toBeInTheDocument();
+  });
+
+  it.each([
+    [
+      "the day before, taken and compared, then folded",
+      { status: "taken", isCompared: true },
+      { status: "taken" },
+      "early start, the day before: go to it",
+    ],
+    [
+      "being written, then failed",
+      { status: "writing" },
+      { status: "failed" },
+      "slow morning, being written: go to it",
+    ],
+  ] as const)("keeps the pair's name as it last stood, %s", async (_, before, folded, name) => {
+    const slow = { ...KYOTO_REQUEST, start: "slow" as const };
+    const request = before.status === "taken" ? slow : KYOTO_REQUEST;
+    const at = (step: Partial<ReplanControls>) =>
+      headerOf(request, null, null, {
+        assumptions: { ...KYOTO_ASSUMPTIONS, start: request.start },
+        replan: slowMorning(step),
+      });
+    const view = render(at(before));
+    const headline = screen.getByRole("heading", { level: 1 });
+    expect(await within(headline).findByRole("button", { name })).toBeInTheDocument();
+
+    view.rerender(at(folded));
+
+    // In the render that folds it, while the pen writes it out.
+    expect(headline.querySelector("[data-fork-pair]")).toHaveAccessibleName(name);
+  });
+
+  it("keeps the pair's whole name while the pen writes its words out", async () => {
+    const view = render(pairAt(KYOTO_REQUEST, { status: "proposed", isCompared: true }));
+    const headline = screen.getByRole("heading", { level: 1 });
+    const name = "slow morning, proposed: go to it";
+    expect(await within(headline).findByRole("button", { name })).toBeInTheDocument();
+
+    view.rerender(pairAt(KYOTO_REQUEST, { status: "left" }));
+    const pair = () => headline.querySelector("[data-fork-pair]");
+    expect(pair()).toHaveAccessibleName(name);
+
+    // A later frame of the write-out: fewer letters drawn, the name whole.
+    await waitFor(() => expect(pair()?.textContent?.length).toBeLessThan("slow morning".length));
+    expect(pair()).toHaveAccessibleName(name);
+  });
+
+  it("leaves no pair to share the word taken with no compare", async () => {
+    const view = render(pairAt(KYOTO_REQUEST, { status: "proposed", isCompared: true }));
+    const headline = screen.getByRole("heading", { level: 1 });
+    await within(headline).findByRole("button", { name: "slow morning, proposed: go to it" });
+
+    // Taken with no compare: the visitor's word is now "slow morning", in the same render.
+    view.rerender(pairAt({ ...KYOTO_REQUEST, start: "slow" }, { status: "taken" }));
+
+    expect(headline.querySelector("[data-fork-pair]")).toBeNull();
+    expect(within(headline).getAllByRole("button", { name: /^slow morning/ })).toHaveLength(1);
   });
 
   it("lets Lantern's words go in one step when a notice takes the day's place", () => {

@@ -264,7 +264,7 @@ interface AnswerProps {
   /** The proposal is whole and not yet chosen: "Take" stands in its pill. */
   isReady?: boolean;
   /** What a screen reader hears after the answer: "your day", "proposed". */
-  description: string;
+  description: AnswerState;
   drawing: Drawing;
   onChoose: (side: ForkSide) => void;
 }

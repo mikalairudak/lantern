@@ -294,7 +294,7 @@ function ShownAnswer({ view, onPress }: ShownAnswerProps) {
       type="button"
       role="radio"
       aria-checked
-      aria-label={`${label}, your day`}
+      aria-label={`${label}, ${answerStateOf(side, view)}`}
       // The checked answer is the group's stop in the tab order, which the sentence's pointer
       // finds by it.
       tabIndex={0}
