@@ -981,11 +981,19 @@ function questionSaidOf({ words, readings, unplaced }: CityQuestion): string {
       : NEEDS_CITY;
   // The sentence ends at its "…?" where it names nothing after the city.
   const asked = sentence.endsWith("?") ? sentence : `${sentence}.`;
-  const key =
-    words.energySource === "assumed"
-      ? `${energy.charAt(0).toUpperCase()}${energy.slice(1)} is ${ASSUMED_NOTE}.`
-      : null;
+  // The key as its line says it, set as a sentence of the status's own.
+  const keySaid = assumedKeyOf(words);
+  const key = keySaid === null ? null : `${keySaid.charAt(0).toUpperCase()}${keySaid.slice(1)}.`;
   return [asked, key, needed, unplacedLineOf(unplaced)].filter((part) => part !== null).join(" ");
+}
+
+/**
+ * The key of an energy Lantern assumed, naming the word it marks, "quiet is assumed by Lantern";
+ * null for an energy the text named. One text, so Chrome keeps its spaces in a hidden box.
+ */
+function assumedKeyOf(words: IntakeWords): string | null {
+  if (words.energySource !== "assumed") return null;
+  return `${energyLabelOf(words.energy)} is ${ASSUMED_NOTE}`;
 }
 
 interface QuestionLinesProps {
@@ -1010,6 +1018,7 @@ interface QuestionLinesProps {
 function QuestionLines({ question, answer, onChooseReading, isLit = false }: QuestionLinesProps) {
   const isReading = answer !== null;
   const unplaced = unplacedLineOf(question.unplaced);
+  const assumedKey = assumedKeyOf(question.words);
   return (
     <div className="mt-1 flex flex-col gap-1">
       <QuestionSentence
@@ -1023,12 +1032,15 @@ function QuestionLines({ question, answer, onChooseReading, isLit = false }: Que
         inert={isReading}
         className={cn("flex flex-col gap-1", isReading && "invisible")}
       >
-        {question.words.energySource === "assumed" && (
+        {assumedKey !== null && (
           // The dotted word's key, as the facts line under a day gives it, naming the word it
-          // marks for assistive technology, which hears no dots.
+          // marks for assistive technology, which hears no dots: heard whole from one hidden
+          // text, the words seen kept from it.
           <p className="type-note text-muted">
-            <span className="sr-only">{energyLabelOf(question.words.energy)} is </span>
-            <span className={ASSUMED_CLASSES}>assumed</span> by Lantern
+            <span className="sr-only">{assumedKey}</span>
+            <span aria-hidden>
+              <span className={ASSUMED_CLASSES}>assumed</span> by Lantern
+            </span>
           </p>
         )}
         {question.readings.length > 0 ? (

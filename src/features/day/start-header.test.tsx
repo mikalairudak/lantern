@@ -47,6 +47,16 @@ function startStatusWhere(isInForm: boolean): HTMLElement {
   return status;
 }
 
+/** An element's text, but not that of the nodes under `left` (a selector), in order. */
+function textOutside(element: Element, left: string): string {
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  let text = "";
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!node.parentElement?.closest(left)) text += node.textContent ?? "";
+  }
+  return text;
+}
+
 /** The line under the field, in a status of its own. */
 const startStatus = () => startStatusWhere(true);
 
@@ -384,12 +394,14 @@ describe("StartHeader", () => {
     const words = { ...NO_WORDS, energy: "reflective" } as const;
     renderStart({ line: { kind: "question", words, readings: [], unplaced: [] } });
 
-    const key = screen.getByText("assumed", { selector: "span" }).closest("p");
-    expect(key?.textContent).toBe("quiet is assumed by Lantern");
-    // The word is heard, never seen: the key reads as it is drawn.
-    const seen = key?.cloneNode(true) as HTMLElement;
-    for (const unseen of seen.querySelectorAll(".sr-only")) unseen.remove();
-    expect(seen.textContent).toBe("assumed by Lantern");
+    const key = screen.getByText("assumed", { selector: "span" }).closest("p")!;
+    // Heard whole, from one hidden text; seen as it is drawn, the word unseen.
+    const heard = textOutside(key, "[aria-hidden]");
+    expect(heard).toBe("quiet is assumed by Lantern");
+    expect(key.querySelector(".sr-only")?.childNodes).toHaveLength(1);
+    expect(textOutside(key, ".sr-only, .invisible")).toBe("assumed by Lantern");
+    // The status says the same key, as a sentence of its own.
+    expect(answerStatus().textContent).toContain("Quiet is assumed by Lantern.");
   });
 
   it("draws no key under the sentence for an energy the text chose", () => {
