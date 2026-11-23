@@ -712,14 +712,16 @@ export function DayStage({
   // springs took frames from the chart's on a busy machine. Drawn again, the rows let in so
   // far stand whole, and the ones after are written in.
   const view = useSyncExternalStore(subscribeDayView, readDayView, serverDayView);
-  // Taking one of a fork's versions, on its row, its slip, its bead or its word's list, is the
-  // visitor's next act: the line of a change before it tells of a day the version replaces.
+  // A press that changes a fork, on its row, its slip, its bead or its word's list (a version
+  // taken, the day as it was kept, a compare folded), is the visitor's next act: the line of a
+  // change before it tells of a day the press has moved on from. A press that changes nothing
+  // leaves the line to its hold.
   const replan: ReplanControls | undefined = givenReplan && {
     ...givenReplan,
     choose: (side) => {
-      const isTaken = givenReplan.choose(side);
-      if (isTaken) changeHeard.drop();
-      return isTaken;
+      const isForkChanged = givenReplan.choose(side);
+      if (isForkChanged) changeHeard.drop();
+      return isForkChanged;
     },
   };
   // A changed word's fork, a row over each part it rewrites: what Lantern is doing, what the

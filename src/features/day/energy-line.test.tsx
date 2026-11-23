@@ -309,6 +309,26 @@ describe("what a screen reader is told of the visitor's change to the day", () =
     await waitFor(() => expect(saidNow()).toEqual([line]));
   });
 
+  it("says a stop swapped back to its written place after an energy press as the clause it brings, not the plan regained", async () => {
+    const user = await landOnThePlan();
+    const written = planRows().map((row) => within(row).getByRole("heading").textContent ?? "");
+    await chooseEnergy(user, LANDED_LEVEL, EARLIER_LEVEL);
+    await waitForTheDay();
+    const rows = planRows();
+    const repicked = rows.findIndex(
+      (row, index) => (within(row).getByRole("heading").textContent ?? "") !== written[index],
+    );
+    expect(repicked).toBeGreaterThanOrEqual(0);
+    const writtenPlace = written[repicked]!;
+
+    // The energy's plan is the day now: the written place is a change from it.
+    await user.click(arrowNamed(new RegExp(`: ${writtenPlace}$`), rows[repicked]).arrow);
+    await waitFor(() => expect(saidNow()[0]?.startsWith(`${writtenPlace}, `)).toBe(true));
+    const [line] = saidNow();
+    expect(line).not.toContain("as first planned");
+    expect(headline()).toHaveTextContent(`, ${line!.slice(writtenPlace.length + 2)}, in`);
+  });
+
   it("names the level by the word the headline shows for it", async () => {
     const user = await landOnThePlan();
     await chooseEnergy(user, LANDED_LEVEL, "quiet");
