@@ -328,6 +328,10 @@ test.describe("a city chosen among those a shared name could be", () => {
     page.getByRole("button", { name: "Portland, Oregon, United States" });
   const writing = (page: Page) => page.getByRole("button", { name: "Writing", exact: true });
 
+  /** The city word in the headline has the focus, as it has once the day answers. */
+  const cityWordFocused = (page: Page) =>
+    page.evaluate(() => document.activeElement?.closest('h1 [data-word="city"]') != null);
+
   test("at Enter, hands the focus to the button through the wait, then to the city word", async ({
     page,
   }) => {
@@ -340,14 +344,7 @@ test.describe("a city chosen among those a shared name could be", () => {
     // A key's press draws the ring the typed path draws on the same button.
     expect(await writing(page).evaluate((button) => button.matches(":focus-visible"))).toBe(true);
     await page.waitForTimeout(DAY_HELD_MS);
-    const releasedAt = await page.evaluate(() => performance.now());
-    const waited = await page.evaluate(
-      ([from, to]) => window.focusFrames.filter((frame) => frame.t > from && frame.t < to),
-      [pressedAt, releasedAt] as const,
-    );
-    expect(waited.length).toBeGreaterThanOrEqual(FRAMES_SAMPLED_AT_LEAST);
-    expect(waited.filter((frame) => frame.tag === "BODY")).toEqual([]);
-    expect(waited.at(-1)).toMatchObject({ tag: "BUTTON", name: "Writing" });
+    await expect(writing(page)).toBeFocused();
     // The day set off is said once, as a change of a status that stood before the press.
     const log = await page.evaluate(() => window.statusLog);
     const said = log.filter(
@@ -359,12 +356,33 @@ test.describe("a city chosen among those a shared name could be", () => {
     expect(born.t, "the status that says it stood before the press").toBeLessThan(pressedAt);
 
     release();
-    await expect
-      .poll(() =>
-        page.evaluate(() => document.activeElement?.closest('h1 [data-word="city"]') != null),
-      )
-      .toBe(true);
+    await expect.poll(() => cityWordFocused(page)).toBe(true);
   });
+
+  test(
+    "at Enter, never lets the focus fall to the page in any frame of the wait",
+    { tag: "@frame" },
+    async ({ page }) => {
+      const { release } = await askWhichPortland(page);
+      await oregon(page).focus();
+      const pressedAt = await page.evaluate(() => performance.now());
+      await page.keyboard.press("Enter");
+
+      await expect(writing(page)).toBeFocused();
+      await page.waitForTimeout(DAY_HELD_MS);
+      const releasedAt = await page.evaluate(() => performance.now());
+      const waited = await page.evaluate(
+        ([from, to]) => window.focusFrames.filter((frame) => frame.t > from && frame.t < to),
+        [pressedAt, releasedAt] as const,
+      );
+      expect(waited.length).toBeGreaterThanOrEqual(FRAMES_SAMPLED_AT_LEAST);
+      expect(waited.filter((frame) => frame.tag === "BODY")).toEqual([]);
+      expect(waited.at(-1)).toMatchObject({ tag: "BUTTON", name: "Writing" });
+
+      release();
+      await expect.poll(() => cityWordFocused(page)).toBe(true);
+    },
+  );
 
   test("at a click, hands the focus to the button with no ring drawn", async ({ page }) => {
     const { release } = await askWhichPortland(page);
@@ -373,5 +391,6 @@ test.describe("a city chosen among those a shared name could be", () => {
     await expect(writing(page)).toBeFocused();
     expect(await writing(page).evaluate((button) => button.matches(":focus-visible"))).toBe(false);
     release();
+    await expect.poll(() => cityWordFocused(page)).toBe(true);
   });
 });
