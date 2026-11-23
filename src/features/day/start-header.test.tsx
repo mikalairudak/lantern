@@ -380,10 +380,12 @@ describe("StartHeader", () => {
   });
 
   it("names the word the key of an assumed energy marks, for assistive technology alone", () => {
-    renderStart({ line: { kind: "question", words: NO_WORDS, readings: [], unplaced: [] } });
+    // "reflective" is shown as "quiet": the key names the word the sentence shows.
+    const words = { ...NO_WORDS, energy: "reflective" } as const;
+    renderStart({ line: { kind: "question", words, readings: [], unplaced: [] } });
 
     const key = screen.getByText("assumed", { selector: "span" }).closest("p");
-    expect(key?.textContent).toBe("balanced is assumed by Lantern");
+    expect(key?.textContent).toBe("quiet is assumed by Lantern");
     // The word is heard, never seen: the key reads as it is drawn.
     const seen = key?.cloneNode(true) as HTMLElement;
     for (const unseen of seen.querySelectorAll(".sr-only")) unseen.remove();
