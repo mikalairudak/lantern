@@ -887,9 +887,9 @@ function answerSaidOf(line: StartLine, wait: StartWait | null, isLive: boolean):
 /** Each ending without a day, which the start screen can show. */
 type Ending = "not-yet" | "refused" | "limited";
 
-/** What an ending says: what happened, and the way on, the index below. */
-function endingSaidOf(ending: Ending, isLive: boolean): string {
-  const said = {
+/** What happened, the first half of an ending's line. */
+function endedOf(ending: Ending, isLive: boolean): string {
+  return {
     // With live generation on the day cannot be written only when reading failed.
     "not-yet": isLive
       ? "Lantern couldn't read that just now."
@@ -897,15 +897,24 @@ function endingSaidOf(ending: Ending, isLive: boolean): string {
     refused: "Lantern can't plan that day.",
     limited: "Lantern has written all the days it can for now.",
   }[ending];
-  return `${said} ${TO_THE_INDEX}`;
+}
+
+/** What an ending says: what happened, and the way on, the index below. */
+function endingSaidOf(ending: Ending, isLive: boolean): string {
+  return `${endedOf(ending, isLive)} ${TO_THE_INDEX}`;
 }
 
 /**
  * A line that can write no day, as it is seen; the start's status says it (`answerSaidOf`). The
- * written days are offered once, as the index below, which this points to.
+ * written days are offered once, as the index below, which this points to. Its halves stay
+ * separate texts: Chromium sets one joined string's glyphs a subpixel apart from these.
  */
 function EndingLine({ ending, isLive }: { ending: Ending; isLive: boolean }) {
-  return <p className="mt-1 type-voice text-quote text-ink-soft">{endingSaidOf(ending, isLive)}</p>;
+  return (
+    <p className="mt-1 type-voice text-quote text-ink-soft">
+      {endedOf(ending, isLive)} {TO_THE_INDEX}
+    </p>
+  );
 }
 
 /**
