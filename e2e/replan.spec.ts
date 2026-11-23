@@ -1,7 +1,11 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { expect, test, type Page, type Route, waitMs, chooseTheChart } from "./fixtures";
+import { logStatuses } from "./status-log";
 import { ROME_REQUEST } from "../src/lib/days/written/city-days";
+import { writtenDayAt } from "../src/lib/days/written/days";
+import { candidatesOf, keyStepOf } from "../src/features/abacus/curve";
+import { NOTICE_HEARD_MS } from "../src/features/day/notice-status";
 
 // These tests drive the chart: each page opens as for a visitor who chose it, since a day
 // opens on its plan otherwise.
@@ -218,6 +222,38 @@ async function expectTheDayKept(page: Page, isStill: boolean): Promise<void> {
   );
 }
 
+/** How long a re-plan that fails is held before its answer, so a swap is made while it is written. */
+const REPLAN_HELD_MS = 1500;
+const PORTO = writtenDayAt("porto")!.itinerary;
+/** The first of Porto's stops whose right arrow key on the chart shows another of its versions. */
+const SWAPPED_STOP = PORTO.stops.find((stop) => {
+  const planned = candidatesOf(stop).findIndex(({ id }) => id === stop.selectedPlaceId);
+  return keyStepOf(stop, planned, "livelier") !== null;
+})!;
+
+/** Swaps Porto's stop by its right arrow key on the chart: the place it now shows. */
+async function swapByKey(page: Page): Promise<string> {
+  const slider = page.getByRole("slider", { name: `Energy at ${SWAPPED_STOP.startTime}` });
+  const before = await slider.getAttribute("aria-valuetext");
+  await slider.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(slider).not.toHaveAttribute("aria-valuetext", before!);
+  const shown = (await slider.getAttribute("aria-valuetext")) ?? "";
+  return shown.slice(shown.indexOf(": ") + 2);
+}
+
+/** What the page's statuses said from `since` on its clock, in order, as `logStatuses` logged it. */
+function saidSince(page: Page, since: number): Promise<{ t: number; text: string }[]> {
+  return page.evaluate((since) => window.statusLog.filter((entry) => entry.t >= since), since);
+}
+
+/** Waits until the page's clock is past `at`, a hold or less from now. */
+async function waitForPageClock(page: Page, at: number): Promise<void> {
+  await expect
+    .poll(() => page.evaluate(() => performance.now()), { timeout: waitMs(NOTICE_HEARD_MS * 2) })
+    .toBeGreaterThan(at);
+}
+
 test.describe("under reduced motion", () => {
   test.beforeEach(async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
@@ -270,6 +306,56 @@ test.describe("under reduced motion", () => {
       await expectTheDayKept(page, true);
     });
   }
+
+  test("a swap's line is not said again once a re-plan's line has stood over it and failed", async ({
+    page,
+  }) => {
+    await page.addInitScript(logStatuses);
+    await openLiveBench(page);
+    await page.route(DAY_ROUTE, (route) =>
+      route.fulfill({ status: HTTP_SERVICE_UNAVAILABLE, body: "" }),
+    );
+    const since = await page.evaluate(() => performance.now());
+
+    const place = await swapByKey(page);
+    await expect
+      .poll(async () => (await saidSince(page, since)).some(({ text }) => text.startsWith(place)))
+      .toBe(true);
+    const swap = (await saidSince(page, since)).find(({ text }) => text.startsWith(place))!;
+    // Inside the swap's hold.
+    await changeWord(page, "slow morning", /early start/);
+    await expect(workSaid(page, NOT_JUST_NOW)).toBeVisible({ timeout: DAY_TIMEOUT_MS });
+    await waitForPageClock(page, swap.t + NOTICE_HEARD_MS);
+
+    const log = await saidSince(page, since);
+    const replanning = log.find(({ text }) => text.includes(REPLANNING));
+    expect(replanning, "the re-plan's line").toBeDefined();
+    expect(swap.t).toBeLessThan(replanning!.t);
+    const after = log.filter(({ t }) => t >= replanning!.t);
+    expect(after.filter(({ text }) => text.includes(swap.text))).toEqual([]);
+  });
+
+  test("a swap made while a re-plan is written is not said once the re-plan fails", async ({
+    page,
+  }) => {
+    await page.addInitScript(logStatuses);
+    await openLiveBench(page);
+    // Held long enough to swap while the re-plan is written, then unavailable.
+    await page.route(DAY_ROUTE, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, REPLAN_HELD_MS));
+      await route.fulfill({ status: HTTP_SERVICE_UNAVAILABLE, body: "" });
+    });
+
+    await changeWord(page, "slow morning", /early start/);
+    await expect(said(page, REPLANNING)).toBeVisible();
+    const since = await page.evaluate(() => performance.now());
+    const place = await swapByKey(page);
+    await expect(workSaid(page, NOT_JUST_NOW)).toBeVisible({ timeout: DAY_TIMEOUT_MS });
+    await waitForPageClock(page, since + NOTICE_HEARD_MS);
+
+    const log = await saidSince(page, since);
+    expect(log.filter(({ text }) => text.includes(place))).toEqual([]);
+  });
 
   test("a re-plan that comes back empty is asked for once more, then takes the page", async ({
     page,

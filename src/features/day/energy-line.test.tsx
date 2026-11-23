@@ -322,6 +322,24 @@ describe("what a screen reader is told of the visitor's change to the day", () =
     expect(said).toEqual(["", line, ""]);
   });
 
+  it("lets a swap's line go at a changed word inside its hold, the word being the next act", async () => {
+    const user = await landOnThePlan();
+    const stopRecording = recordSaid();
+    await user.click(arrowNamed(/^Livelier: /).arrow);
+    await waitFor(() => expect(saidNow()).toHaveLength(1));
+    const [line] = saidNow();
+
+    await user.click(within(headline()).getByRole("button", { name: "on foot" }));
+    await user.click(screen.getByRole("option", { name: /^by public transport/ }));
+    // Well inside the hold, which would empty the status by itself; the facts line says why
+    // every stop stays from a status of its own.
+    await waitFor(() => expect(saidNow()).not.toContain(line), { timeout: NOTICE_HEARD_MS / 3 });
+    const said = stopRecording();
+
+    expect(said.slice(0, 2)).toEqual(["", line]);
+    expect(said.slice(2).filter((text) => text.includes(line!))).toEqual([]);
+  });
+
   it("says each energy press of the plan's bar, two within the hold, the status emptied between", async () => {
     const user = await landOnThePlan();
     const bar = screen.getByRole("group", { name: "How lively the day is" });

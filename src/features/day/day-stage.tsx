@@ -1359,6 +1359,9 @@ export function DayStage({
       else setLocal((words) => ({ ...words, confirmed: [...words.confirmed, key] }));
       return;
     }
+    // A changed word is the visitor's next act: the line of the change before it tells of a day
+    // the word moves on from.
+    changeHeard.drop();
     countWord(key, control);
     setOpenStop(null);
     // A change of the energy or a word says what it sets aside, if anything, in place of this.

@@ -739,6 +739,60 @@ describe("DayStageHeader", () => {
     });
   });
 
+  describe("the visitor's own change, as a screen reader hears it", () => {
+    const CHANGE = "Ribeira at dusk, livelier at lunch";
+    /** A re-plan being written, which the status says above the change. */
+    const WRITING_REPLAN = { replan: slowMorning({ status: "writing" }) };
+
+    /** One render of the header: the change it is given to say, and what the page tells it. */
+    interface ChangeStep extends Handlers {
+      changeHeard: string;
+    }
+
+    /** Every text the header's status holds, each once in a row, as each step renders. */
+    function hearChanges(steps: readonly ChangeStep[]): string[] {
+      const headerAt = ({ changeHeard, ...handlers }: ChangeStep) =>
+        cloneElement(headerOf(KYOTO_REQUEST, null, null, handlers), { changeHeard });
+      const view = render(headerAt(steps[0]!));
+      const heard = [headerStatus().textContent ?? ""];
+      for (const step of steps.slice(1)) {
+        view.rerender(headerAt(step));
+        const text = headerStatus().textContent ?? "";
+        if (text !== heard.at(-1)) heard.push(text);
+      }
+      return heard;
+    }
+
+    it("lets a change go once a re-plan's line has stood over it, and says the next act's", () => {
+      const heard = hearChanges([
+        { changeHeard: CHANGE },
+        { changeHeard: CHANGE, ...WRITING_REPLAN },
+        { changeHeard: CHANGE },
+        // The next act empties the line first, then gives its own, here the same words.
+        { changeHeard: "" },
+        { changeHeard: CHANGE },
+      ]);
+
+      expect(heard).toHaveLength(4);
+      expect(heard[0]).toBe(CHANGE);
+      expect(heard[1]).toMatch(/re-planning/);
+      expect(heard.slice(2)).toEqual(["", CHANGE]);
+    });
+
+    it("never says a change made while a re-plan's line stands", () => {
+      const heard = hearChanges([
+        { changeHeard: "", ...WRITING_REPLAN },
+        { changeHeard: CHANGE, ...WRITING_REPLAN },
+        { changeHeard: CHANGE },
+        { changeHeard: "" },
+      ]);
+
+      expect(heard).toHaveLength(2);
+      expect(heard[0]).toMatch(/re-planning/);
+      expect(heard[1]).toBe("");
+    });
+  });
+
   it("fades a notice that leaves for the next day as it stands, the focus on the control pressed", async () => {
     const notice = noticeOf({ kind: "cut", itinerary: null }, KYOTO_REQUEST);
     const view = renderHeader(KYOTO_REQUEST, null, notice, { isNoticeWrittenIn: true });
