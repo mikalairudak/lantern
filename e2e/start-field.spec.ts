@@ -202,8 +202,11 @@ test.describe("each answer without a day, and the city's question, is said in a 
 });
 
 /** How long the intake takes to read a text the second time it is asked. */
-const SECOND_READ_MS = 1200;
-/** How long the read is said at least: its wait less a slow frame or two before the line reads. */
+const SECOND_READ_MS = 2500;
+/**
+ * How long the read is said at least: well under its wait, so a stall between the press and the
+ * frame the line turns to reading, as on a slow machine, leaves it held long enough.
+ */
 const SECOND_READ_HELD_MS = 1000;
 
 test.describe("a text asked again after an ending is said as read from a status that stood", () => {

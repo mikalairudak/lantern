@@ -17,9 +17,9 @@ declare global {
 
 /**
  * Logs every status on the page from its first byte, by `performance.now()`: each as it comes
- * onto the page, with the words it holds then, and each change of its words after. Its words are
- * those a screen reader is given, so words held under `aria-hidden` are left out. Run as an init
- * script, so it has no outside names.
+ * onto the page, with the words it holds then, and each change of its words after. Words under an
+ * `aria-hidden` element inside a status are left out of them. Run as an init script, so it has no
+ * outside names.
  */
 export function logStatuses(): void {
   const log: StatusEntry[] = [];
