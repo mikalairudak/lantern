@@ -379,6 +379,30 @@ describe("StartHeader", () => {
     expect(screen.getByText("balanced")).toHaveClass("underline");
   });
 
+  it("names the word the key of an assumed energy marks, for assistive technology alone", () => {
+    renderStart({ line: { kind: "question", words: NO_WORDS, readings: [], unplaced: [] } });
+
+    const key = screen.getByText("assumed", { selector: "span" }).closest("p");
+    expect(key?.textContent).toBe("balanced is assumed by Lantern");
+    // The word is heard, never seen: the key reads as it is drawn.
+    const seen = key?.cloneNode(true) as HTMLElement;
+    for (const unseen of seen.querySelectorAll(".sr-only")) unseen.remove();
+    expect(seen.textContent).toBe("assumed by Lantern");
+  });
+
+  it("draws no key under the sentence for an energy the text chose", () => {
+    renderStart({
+      line: {
+        kind: "question",
+        words: { ...NO_WORDS, energySource: "chosen" },
+        readings: [],
+        unplaced: [],
+      },
+    });
+
+    expect(screen.queryByText(/assumed/)).not.toBeInTheDocument();
+  });
+
   it("names the weekday only when the text named the date", () => {
     renderStart({
       line: {
@@ -532,7 +556,22 @@ describe("StartHeader", () => {
     });
 
     expect(answerStatus().textContent).toBe(
-      `A balanced day in …? ${ASSUMED_NOTE}. Portland, Oregon, United States.`,
+      `A balanced day in …? Balanced is ${ASSUMED_NOTE}. Portland, Oregon, United States.`,
+    );
+  });
+
+  it("names the assumed energy in its key, so a fact the text named never reads as assumed", () => {
+    renderStart({
+      line: {
+        kind: "question",
+        words: { ...NO_WORDS, energy: "reflective", company: "family" },
+        readings: [],
+        unplaced: [],
+      },
+    });
+
+    expect(answerStatus().textContent).toBe(
+      `A quiet day in …?, with family. Quiet is ${ASSUMED_NOTE}. Lantern needs a city to plan the day. Name one, or pick one of the days below.`,
     );
   });
 });

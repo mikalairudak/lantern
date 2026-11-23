@@ -969,21 +969,22 @@ function EndingLine({ ending, isLive }: { ending: Ending; isLive: boolean }) {
 
 /**
  * The city's question in one line, in the words its lines show: the sentence so far, the key
- * of an energy Lantern assumed, then the cities its name could be, or that it needs one, and
- * what Lantern could not place.
+ * of an energy Lantern assumed, naming the word it marks so no fact after it reads as assumed,
+ * then the cities its name could be, or that it needs one, and what Lantern could not place.
  */
 function questionSaidOf({ words, readings, unplaced }: CityQuestion): string {
-  const sentence = [
-    `A ${energyLabelOf(words.energy)} ${dayWordOf(words)} in …?`,
-    ...restLabelsOf(words),
-  ].join(", ");
+  const energy = energyLabelOf(words.energy);
+  const sentence = [`A ${energy} ${dayWordOf(words)} in …?`, ...restLabelsOf(words)].join(", ");
   const needed =
     readings.length > 0
       ? `${readings.map((reading) => `${reading.name}, ${reading.region}`).join(", or ")}.`
       : NEEDS_CITY;
   // The sentence ends at its "…?" where it names nothing after the city.
   const asked = sentence.endsWith("?") ? sentence : `${sentence}.`;
-  const key = words.energySource === "assumed" ? `${ASSUMED_NOTE}.` : null;
+  const key =
+    words.energySource === "assumed"
+      ? `${energy.charAt(0).toUpperCase()}${energy.slice(1)} is ${ASSUMED_NOTE}.`
+      : null;
   return [asked, key, needed, unplacedLineOf(unplaced)].filter((part) => part !== null).join(" ");
 }
 
@@ -1023,8 +1024,10 @@ function QuestionLines({ question, answer, onChooseReading, isLit = false }: Que
         className={cn("flex flex-col gap-1", isReading && "invisible")}
       >
         {question.words.energySource === "assumed" && (
-          // The dotted word's key, as the facts line under a day gives it.
+          // The dotted word's key, as the facts line under a day gives it, naming the word it
+          // marks for assistive technology, which hears no dots.
           <p className="type-note text-muted">
+            <span className="sr-only">{energyLabelOf(question.words.energy)} is </span>
             <span className={ASSUMED_CLASSES}>assumed</span> by Lantern
           </p>
         )}
