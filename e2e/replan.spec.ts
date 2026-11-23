@@ -355,11 +355,21 @@ test.describe("under reduced motion", () => {
     await expect(said(page, REPLANNING)).toBeVisible();
     const since = await page.evaluate(() => performance.now());
     const place = await swapByKey(page);
+    // The swap's line is written a frame after the act, while the re-plan's line stands.
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    );
     release();
     await expect(workSaid(page, NOT_JUST_NOW)).toBeVisible({ timeout: DAY_TIMEOUT_MS });
     await waitForPageClock(page, since + NOTICE_HEARD_MS);
 
     const log = await saidSince(page, since);
+    const failed = log.find(({ text }) => text.includes(NOT_JUST_NOW));
+    expect(failed, "the failure's line").toBeDefined();
+    // The swap came after `since`, so a failure inside this came inside the swap's hold.
+    expect(failed!.t, "the re-plan failed inside the swap's hold").toBeLessThan(
+      since + NOTICE_HEARD_MS,
+    );
     expect(log.filter(({ text }) => text.includes(place))).toEqual([]);
   });
 
