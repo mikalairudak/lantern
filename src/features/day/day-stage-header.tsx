@@ -1152,8 +1152,13 @@ export function DayStageHeader({
                     does not say what the day is. */}
                   <span aria-hidden={clause === null || undefined}>
                     <ClauseText text={writtenClause.text} isFaded />
-                  </span>{" "}
-                  in{" "}
+                  </span>
+                  {/* The space before "in" stands in a box of its own: written as a text beside
+                    "in", the server parts the two with a comment, and Chrome leaves the space
+                    out of the heading's name, "Saturdayin". A box around "in" would paint it
+                    twice under the headline's light, and one text, " in ", sets the line a 64th
+                    of a pixel narrower. */}
+                  <span> </span>in{" "}
                   <VisitorsWord word="city">
                     <CityWord
                       city={request.city}
