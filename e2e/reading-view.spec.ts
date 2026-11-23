@@ -262,6 +262,58 @@ test("Chart: a stop's key to a version at its own energy says the place alone, n
   await expect.poll(() => saidNow(page)).toEqual([name]);
 });
 
+test("Chart: a stop's key back to its planned place says the place and the day as first planned", async ({
+  page,
+}) => {
+  await openSeenKanazawa(page, "Chart");
+  const slider = page.getByRole("slider", { name: `Energy at ${LIVELIER_STOP.startTime}` });
+  const planned = await placeNamedBy(slider, "aria-valuetext");
+  await swapLivelier(page, "Chart");
+  await expect.poll(() => saidNow(page)).toHaveLength(1);
+
+  await page.keyboard.press("ArrowLeft");
+  await expect.poll(() => placeNamedBy(slider, "aria-valuetext")).toBe(planned);
+  await expect.poll(() => saidNow(page)).toEqual([`${planned}, as first planned`]);
+});
+
+/** Drags a stop's knob on the chart this far along the scale, and lets it go. */
+async function dragKnob(page: Page, slider: Locator, by: number): Promise<void> {
+  await slider.scrollIntoViewIfNeeded();
+  const knob = await slider.locator("circle").boundingBox();
+  if (!knob) throw new Error("The knob has no box");
+  const from = { x: knob.x + knob.width / 2, y: knob.y + knob.height / 2 };
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  for (let step = 1; step <= 10; step += 1) {
+    await page.mouse.move(from.x + (by * step) / 10, from.y);
+  }
+  await page.mouse.up();
+}
+
+test("Chart: a drag is said as the clause it changed, and a drag back as the day as first planned", async ({
+  page,
+}) => {
+  await openSeenKanazawa(page, "Chart");
+  const chartBox = await viewOf(page, "Chart").boundingBox();
+  if (!chartBox) throw new Error("The chart has no box");
+  const rows = page.getByRole("list", { name: "The day" });
+  const written = await rows.getByRole("listitem").allTextContents();
+  const slider = page.getByRole("slider", { name: /^Energy at/ }).nth(3);
+  const knob = await slider.locator("circle").boundingBox();
+  if (!knob) throw new Error("The knob has no box");
+  const toward = knob.x < chartBox.x + chartBox.width / 2 ? 1 : -1;
+  const reach = (chartBox.width / 5) * 1.5 * toward;
+
+  await dragKnob(page, slider, reach);
+  await expect.poll(() => saidNow(page)).toHaveLength(1);
+  const [clause] = await saidNow(page);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(`, ${clause}, in`);
+
+  await dragKnob(page, slider, -reach);
+  await expect.poll(() => rows.getByRole("listitem").allTextContents()).toEqual(written);
+  await expect.poll(() => saidNow(page)).toEqual(["as first planned"]);
+});
+
 test("an energy press on the plan's bar is said from a status, as the headline's list counts it", async ({
   page,
 }) => {
