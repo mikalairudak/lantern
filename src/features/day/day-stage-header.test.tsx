@@ -240,6 +240,14 @@ function UnderNoticeStatus({ children }: UnderNoticeStatusProps) {
   );
 }
 
+/** Kyoto's header for `request` with its slow-morning fork at `step`. */
+function pairAt(request: DayRequest, step: Partial<ReplanControls>) {
+  return headerOf(request, null, null, {
+    assumptions: { ...KYOTO_ASSUMPTIONS, start: request.start },
+    replan: slowMorning(step),
+  });
+}
+
 /** Kyoto's start changed to a slow morning, its fork at a step, as the page tells the header. */
 function slowMorning(step: Partial<ReplanControls>): ReplanControls {
   return {
@@ -1110,7 +1118,7 @@ describe("DayStageHeader", () => {
       expect(seenTextOf(headline)).toContain("on foot, early start or slow morning, early dinner"),
     );
     // The visitor's word stays theirs; the proposal's answer is blue, lit while it is written.
-    const pair = within(headline).getByRole("button", { name: /^slow morning, proposed/ });
+    const pair = within(headline).getByRole("button", { name: /^slow morning, being written/ });
     expect(pair).toHaveClass("text-swap");
     expect(headline.querySelector("del")).toBeNull();
     // Only the pair was written in: every line on the way says the rest as it was.
@@ -1154,7 +1162,7 @@ describe("DayStageHeader", () => {
     });
     const headline = screen.getByRole("heading", { level: 1 });
     expect(headline).toHaveTextContent("on foot, slow morning, early dinner");
-    expect(within(headline).queryByRole("button", { name: /proposed/ })).toBeNull();
+    expect(within(headline).queryByRole("button", { name: /: go to it$/ })).toBeNull();
 
     view.rerender(
       headerOf(taken, null, null, {
@@ -1165,6 +1173,110 @@ describe("DayStageHeader", () => {
     await waitFor(() =>
       expect(seenTextOf(headline)).toContain("slow morning or early start, early dinner"),
     );
+  });
+
+  it("names the fork's pair by the state of the version it shows, as the fork's answers do", async () => {
+    const slow = { ...KYOTO_REQUEST, start: "slow" as const };
+    const at = (request: DayRequest, step: Partial<ReplanControls>) =>
+      headerOf(request, null, null, {
+        assumptions: { ...KYOTO_ASSUMPTIONS, start: request.start },
+        replan: slowMorning(step),
+      });
+    const view = render(at(KYOTO_REQUEST, { status: "writing" }));
+    const headline = screen.getByRole("heading", { level: 1 });
+    const pairNamed = (name: string) => within(headline).findByRole("button", { name });
+
+    expect(await pairNamed("slow morning, being written: go to it")).toHaveClass("text-swap");
+
+    view.rerender(at(KYOTO_REQUEST, { status: "proposed", isCompared: true }));
+    expect(await pairNamed("slow morning, proposed: go to it")).toBeInTheDocument();
+
+    // Folded, the pair keeps the name it last had while the pen writes it out, so it never
+    // shares the bare name of the visitor's word.
+    view.rerender(at(KYOTO_REQUEST, { status: "left" }));
+    expect(headline.querySelector("[data-fork-pair]")).toHaveAccessibleName(
+      "slow morning, proposed: go to it",
+    );
+
+    view.rerender(at(slow, { status: "taken", isCompared: true }));
+    expect(await pairNamed("early start, the day before: go to it")).toBeInTheDocument();
+
+    view.rerender(at(KYOTO_REQUEST, { status: "left", isCompared: true }));
+    expect(await pairNamed("slow morning, proposed: go to it")).toBeInTheDocument();
+  });
+
+  it.each([
+    [
+      "the day before, taken and compared, then folded",
+      { status: "taken", isCompared: true },
+      { status: "taken" },
+      "early start, the day before: go to it",
+    ],
+    [
+      "being written, then failed",
+      { status: "writing" },
+      { status: "failed" },
+      "slow morning, being written: go to it",
+    ],
+  ] as const)("keeps the pair's name as it last stood, %s", async (_, before, folded, name) => {
+    const slow = { ...KYOTO_REQUEST, start: "slow" as const };
+    const request = before.status === "taken" ? slow : KYOTO_REQUEST;
+    const at = (step: Partial<ReplanControls>) =>
+      headerOf(request, null, null, {
+        assumptions: { ...KYOTO_ASSUMPTIONS, start: request.start },
+        replan: slowMorning(step),
+      });
+    const view = render(at(before));
+    const headline = screen.getByRole("heading", { level: 1 });
+    expect(await within(headline).findByRole("button", { name })).toBeInTheDocument();
+
+    view.rerender(at(folded));
+
+    // In the render that folds it, while the pen writes it out.
+    expect(headline.querySelector("[data-fork-pair]")).toHaveAccessibleName(name);
+  });
+
+  it("keeps the pair's whole name while the pen writes its words out", async () => {
+    const view = render(pairAt(KYOTO_REQUEST, { status: "proposed", isCompared: true }));
+    const headline = screen.getByRole("heading", { level: 1 });
+    const name = "slow morning, proposed: go to it";
+    expect(await within(headline).findByRole("button", { name })).toBeInTheDocument();
+
+    view.rerender(pairAt(KYOTO_REQUEST, { status: "left" }));
+    const pair = () => headline.querySelector("[data-fork-pair]");
+    expect(pair()).toHaveAccessibleName(name);
+
+    // A later frame of the write-out: fewer letters drawn, the name whole.
+    await waitFor(() => expect(pair()?.textContent?.length).toBeLessThan("slow morning".length));
+    expect(pair()).toHaveAccessibleName(name);
+  });
+
+  it("leaves no pair beside an assumed word taken with no compare, whose word is drawn anew", async () => {
+    const view = render(pairAt(KYOTO_REQUEST, { status: "proposed", isCompared: true }));
+    const headline = screen.getByRole("heading", { level: 1 });
+    await within(headline).findByRole("button", { name: "slow morning, proposed: go to it" });
+
+    // Taken with no compare: the visitor's word is now "slow morning", in the same render.
+    view.rerender(pairAt({ ...KYOTO_REQUEST, start: "slow" }, { status: "taken" }));
+
+    expect(headline.querySelector("[data-fork-pair]")).toBeNull();
+    expect(within(headline).getAllByRole("button", { name: /^slow morning/ })).toHaveLength(1);
+  });
+
+  it("keeps a leftover pair's whole name apart from the visitor's own word taken with no compare", async () => {
+    const view = render(
+      pairAt({ ...KYOTO_REQUEST, start: "early" }, { status: "proposed", isCompared: true }),
+    );
+    const headline = screen.getByRole("heading", { level: 1 });
+    const name = "slow morning, proposed: go to it";
+    await within(headline).findByRole("button", { name });
+
+    // The visitor's own word, not one Lantern assumed: it is not drawn anew, and the pair is
+    // written out beside it.
+    view.rerender(pairAt({ ...KYOTO_REQUEST, start: "slow" }, { status: "taken" }));
+
+    expect(headline.querySelector("[data-fork-pair]")).toHaveAccessibleName(name);
+    expect(within(headline).getAllByRole("button", { name: "slow morning" })).toHaveLength(1);
   });
 
   it("lets Lantern's words go in one step when a notice takes the day's place", () => {

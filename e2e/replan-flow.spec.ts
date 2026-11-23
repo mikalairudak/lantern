@@ -258,6 +258,14 @@ test("each answer of the fork is named by the words it shows and told apart by w
   await expect(shown).toHaveAccessibleName("eating late, your day");
   await expectTakeNamedAsDrawn(other);
   await expectTakeNamedAsDrawn(shown);
+
+  // Compared, the headline's pair names the day before as the fork does.
+  await fork.getByRole("button", { name: "Compare" }).click();
+  await expect(
+    page
+      .getByRole("heading", { level: 1 })
+      .getByRole("button", { name: "early dinner, the day before: go to it", exact: true }),
+  ).toBeVisible();
 });
 
 test("a re-plan merged after an energy re-picked shows its own rows, not the re-picked day's", async ({

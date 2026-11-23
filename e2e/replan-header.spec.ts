@@ -124,7 +124,9 @@ test("lights the proposal's answer with the steady light in its blue, and stands
     const section = grid
       .locator("section")
       .filter({ has: page.getByRole("heading", { level: 2, name: WRITING }) });
-    const word = section.locator("h1").getByRole("button", { name: /^eating late, proposed/ });
+    const word = section
+      .locator("h1")
+      .getByRole("button", { name: "eating late, being written: go to it" });
     const light = await word.evaluate((element) => {
       const style = getComputedStyle(element);
       // A plain span's background, which is none.

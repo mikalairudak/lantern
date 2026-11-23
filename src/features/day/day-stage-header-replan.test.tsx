@@ -387,8 +387,10 @@ describe("DayStageHeader through a word's fork", () => {
         replan: { status: "writing", change: ELCHE_CHANGE, reach: "part" },
       }),
     );
-    const pair = () => within(headline()).queryByRole("button", { name: /^eating late, proposed/ });
-    await waitFor(() => expect(pair()).not.toBeNull());
+    const pair = () => within(headline()).queryByRole("button", { name: /^eating late, / });
+    await waitFor(() =>
+      expect(pair()).toHaveAccessibleName("eating late, being written: go to it"),
+    );
     // The proposal's answer alone carries the light: the visitor's own word is their day.
     expect(
       within(headline())
@@ -403,6 +405,7 @@ describe("DayStageHeader through a word's fork", () => {
         replan: { status: "proposed", change: ELCHE_CHANGE, reach: "part", isCompared: true },
       }),
     );
+    expect(pair()).toHaveAccessibleName("eating late, proposed: go to it");
     expect(pair()).not.toHaveClass("word-lit");
   });
 

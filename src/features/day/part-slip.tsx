@@ -20,6 +20,7 @@ import {
   ANSWER_CLASSES,
   ASK_AGAIN_CLASSES,
   AnswerBead,
+  answerStateOf,
   FORK_ROW_ATTRIBUTE,
   ForkStatus,
   LIT_ANSWER_CLASSES,
@@ -293,7 +294,7 @@ function ShownAnswer({ view, onPress }: ShownAnswerProps) {
       type="button"
       role="radio"
       aria-checked
-      aria-label={`${label}, your day`}
+      aria-label={`${label}, ${answerStateOf(side, view)}`}
       // The checked answer is the group's stop in the tab order, which the sentence's pointer
       // finds by it.
       tabIndex={0}
@@ -445,7 +446,7 @@ function SlipAnswer({ view, side, onPress }: SlipAnswerProps) {
   const label = side === "to" ? view.to : view.from;
   const isWriting = view.isWriting;
   const isRinged = view.isReady || view.chosen === "to";
-  const description = isWriting ? "being written" : side === "to" ? "proposed" : "the day before";
+  const description = answerStateOf(side, view);
   // One condition draws "Take" and names it, so the two cannot part.
   const isTakeShown = !isWriting;
   return (
