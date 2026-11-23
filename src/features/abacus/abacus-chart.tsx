@@ -609,8 +609,13 @@ export function AbacusChart({
    */
   const putNamesAway = (): boolean => {
     if (named.length === 0) return false;
-    if (keyedNaming !== null) setFocusNamesAway(focusNaming);
-    else setPointerNamesAway(hoveredPlace);
+    if (keyedNaming === null) {
+      setPointerNamesAway(hoveredPlace);
+      return true;
+    }
+    // A still's held stop, with no focus behind it, keeps its names: nothing is put away.
+    if (focusNaming === null) return false;
+    setFocusNamesAway(focusNaming);
     return true;
   };
   // Escape with a pointer on the chart puts its names away wherever the focus is, the pointer

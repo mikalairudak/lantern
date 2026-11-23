@@ -157,6 +157,19 @@ describe("a version's name on the chart and Escape", () => {
     expect(namesShown()).toHaveLength(shown);
   });
 
+  it("leaves an Escape on a still's held slider with no focus behind it to the page", async () => {
+    render(<StopRowCell example={0} state="keyed" density={null} />);
+    await waitFor(() => expect(namesShown().length).toBeGreaterThan(0), SPRINGS_TIMEOUT);
+    const shown = namesShown().length;
+    const held = screen.getAllByRole("slider")[0];
+    if (!held) throw new Error("The still drew no slider for its stop");
+
+    expect(fireEvent.keyDown(held, { key: "Escape" })).toBe(true);
+    await nextFrames();
+
+    expect(namesShown()).toHaveLength(shown);
+  });
+
   it("names a still's held slider again once a focus that put them away has left it", async () => {
     render(<StopRowCell example={0} state="keyed" density={null} />);
     await waitFor(() => expect(namesShown().length).toBeGreaterThan(0), SPRINGS_TIMEOUT);
