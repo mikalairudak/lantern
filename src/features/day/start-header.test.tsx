@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { renderToString } from "react-dom/server";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { PORTLAND_MAINE, PORTLAND_OREGON } from "@/lib/fixtures/city-readings";
 import { LISBON_REQUEST } from "@/lib/fixtures/curated/requests";
 import { INDEX_REQUESTS, PARIS_REQUEST } from "@/lib/days/written/city-days";
@@ -16,6 +16,7 @@ import {
   type StartWait,
 } from "./start-header";
 import { INDEX_LABEL } from "./start-index";
+import { NOTICE_HEARD_MS } from "./notice-status";
 import { startOffersOf } from "./start-offers";
 import { writtenPool } from "./written-pool";
 import type { YourDay } from "./your-days";
@@ -338,7 +339,7 @@ describe("StartHeader", () => {
     const needed = screen.getByText(/Lantern needs a city to plan the day/);
     expect(needed.closest("[aria-hidden='true']")).not.toBeNull();
     // No press moved the focus to the button, so the status says the read to a screen reader.
-    expect(screen.getByText("Reading what you wrote")).toHaveClass("sr-only");
+    expect(answerStatus().textContent).toBe("Reading what you wrote");
 
     // Read, its day sets off from the same field.
     view.rerender(
@@ -516,6 +517,102 @@ describe("StartHeader", () => {
     expect(
       screen.getByText("Lantern can't plan around “by the sea”.").closest("[role=status]"),
     ).toBeNull();
+  });
+});
+
+/** The city's question, its name one of two cities. */
+const PORTLAND_QUESTION = {
+  kind: "question",
+  words: { ...NO_WORDS, energy: "lively", energySource: "chosen" },
+  readings: [PORTLAND_OREGON, PORTLAND_MAINE],
+  unplaced: [],
+} as const;
+const PORTLAND_SAID =
+  "A lively day in …? Portland, Oregon, United States, or Portland, Maine, United States.";
+const REFUSED_SAID = "Lantern can't plan that day. Start from one of the days below.";
+
+describe("how long the status holds an answer", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** The start as the page draws it for `line`, live, its wait set by the page. */
+  const startOf = (line: StartHeaderProps["line"], wait: StartWait | null = null) => (
+    <HeldStart
+      starts={STARTS}
+      line={line}
+      wait={wait}
+      isLive
+      isCityFocused
+      onPlan={vi.fn()}
+      onChooseWritten={vi.fn()}
+      onChooseReading={vi.fn()}
+    />
+  );
+  const waitMs = (ms: number) => act(() => vi.advanceTimersByTime(ms));
+
+  it.each([
+    ["an ending without a day", { kind: "refused" } as const, REFUSED_SAID, "Lantern can't plan"],
+    ["the city's question", PORTLAND_QUESTION, PORTLAND_SAID, "A lively day in"],
+  ])(
+    "holds %s for as long as it takes to be heard, then falls quiet while the line stays",
+    (_, line, said, seen) => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const view = render(startOf(null));
+      view.rerender(startOf(line));
+      const shown = screen.getByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          element.closest("form") !== null &&
+          (element.textContent ?? "").startsWith(seen),
+      );
+      const shownWords = shown.textContent;
+      expect(answerStatus().textContent).toBe(said);
+
+      waitMs(NOTICE_HEARD_MS - 1);
+      expect(answerStatus().textContent).toBe(said);
+
+      waitMs(1);
+      expect(answerStatus().textContent).toBe("");
+      expect(shown).toBeVisible();
+      expect(shown.textContent).toBe(shownWords);
+    },
+  );
+
+  it("holds the same answer afresh when a second press's wait has emptied the status", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const view = render(startOf({ kind: "refused" }));
+    waitMs(NOTICE_HEARD_MS);
+    expect(answerStatus().textContent).toBe("");
+
+    view.rerender(startOf({ kind: "reading" }, "reading"));
+    expect(answerStatus().textContent).toBe("");
+    view.rerender(startOf({ kind: "refused" }));
+    expect(answerStatus().textContent).toBe(REFUSED_SAID);
+  });
+
+  it("holds an answer that comes back inside the hold for as long again", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const view = render(startOf({ kind: "refused" }));
+    waitMs(NOTICE_HEARD_MS / 2);
+
+    view.rerender(startOf({ kind: "reading" }, "reading"));
+    view.rerender(startOf({ kind: "refused" }));
+    // Past the moment the first hold would have ended.
+    waitMs(NOTICE_HEARD_MS / 2 + 1);
+    expect(answerStatus().textContent).toBe(REFUSED_SAID);
+
+    waitMs(NOTICE_HEARD_MS / 2);
+    expect(answerStatus().textContent).toBe("");
+  });
+
+  it("says what an answer under way is doing for as long as its wait", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const view = render(startOf(PORTLAND_QUESTION));
+    view.rerender(startOf({ kind: "reading", answering: PORTLAND_QUESTION }, "reading"));
+
+    waitMs(NOTICE_HEARD_MS * 2);
+    expect(answerStatus().textContent).toBe("Reading what you wrote");
   });
 });
 
@@ -751,6 +848,36 @@ describe("the press that asks for a typed text", () => {
       ),
     );
     await waitFor(() => expect(screen.getByRole("textbox", { name: "Which city?" })).toHaveFocus());
+  });
+
+  it("says Reading where the focus lands at an Enter in the city's field, and leaves the status empty while the line reads", async () => {
+    const user = userEvent.setup();
+    const handlers = { onPlan: vi.fn(), onChooseWritten: vi.fn(), onChooseReading: vi.fn() };
+    const startOf = (line: StartHeaderProps["line"]) => (
+      <HeldStart
+        starts={STARTS}
+        line={line}
+        waitAtPlan="reading"
+        isLive
+        isCityFocused
+        {...handlers}
+      />
+    );
+    const view = render(startOf(PORTLAND_QUESTION));
+    await user.type(screen.getByRole("textbox", { name: "Which city?" }), "Portland, Oregon");
+    const named: string[] = [];
+    const button = screen.getByRole("button", { name: "Plan this day" });
+    button.addEventListener("focus", () => named.push(button.getAttribute("aria-label") ?? ""));
+
+    await user.keyboard("{Enter}");
+    view.rerender(startOf({ kind: "reading", answering: PORTLAND_QUESTION }));
+    expect(button).toHaveFocus();
+    expect(named).toEqual(["Reading"]);
+    expect(answerStatus().textContent).toBe("");
+    // The line still reads the answer in the sentence where "…?" stood.
+    expect(
+      screen.getByText((_, element) => element?.textContent === "A lively day in Portland, Oregon"),
+    ).toBeVisible();
   });
 
   it("says Reading once, on the button the focus moves to from the field, and Writing once, in the status", async () => {

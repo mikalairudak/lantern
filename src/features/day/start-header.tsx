@@ -34,6 +34,7 @@ import { WHOLE_DAY_TAKES } from "./not-yet";
 import { AskedSentence } from "./asked-sentence";
 import { Masthead } from "./masthead";
 import { STILL_RING_CLASSES, StartIndex } from "./start-index";
+import { NOTICE_HEARD_MS } from "./notice-status";
 import { YourDaysLedger, type YourDaysProps } from "./your-days-ledger";
 import type { StartOffer } from "./start-offers";
 
@@ -178,11 +179,23 @@ export function StartHeader({
     setWasAskingCity(isAskingCity);
     setIsFocusHandedOn(!isAskingCity && isNoDay(line));
   }
-  // Set by the press that moves the focus to the button named "Reading" (`QuestionForm`), and
-  // held here, over the form the city's question draws again, as the status that keeps the
-  // read unheard for an answer is.
+  // Held here rather than in the form, which the city's question draws again, so it lasts
+  // through the answer's read, as the status over the form does.
   const [isReadingSaidByFocus, setIsReadingSaidByFocus] = useState(false);
   if (wait === null && isReadingSaidByFocus) setIsReadingSaidByFocus(false);
+  // An ending's or the question's words stand in the status for `NOTICE_HEARD_MS`, then it falls
+  // quiet while the line seen stays, so a read-through meets them once (`docs/decisions.md`,
+  // "How a day ended is said from one status that stands before the ending"). Gone from it, as
+  // a wait empties it, they are held afresh when they come back.
+  const answer = answerSaidOf(line, wait, isLive);
+  const [answerHeardOut, setAnswerHeardOut] = useState<string | null>(null);
+  if (answerHeardOut !== null && answerHeardOut !== answer) setAnswerHeardOut(null);
+  useEffect(() => {
+    if (answer === null) return undefined;
+    const heardOut = window.setTimeout(() => setAnswerHeardOut(answer), NOTICE_HEARD_MS);
+    return () => window.clearTimeout(heardOut);
+  }, [answer]);
+  const heardAnswer = answer !== answerHeardOut ? answer : null;
 
   return (
     <header className="flex shrink-0 flex-col pt-5 pb-5">
@@ -199,7 +212,7 @@ export function StartHeader({
             of its words, heard where the focus stays and where it moves: a status born holding
             its words is not said by every screen reader. */}
         <div role="status" className="sr-only">
-          {heardOf(line, wait, isLive, isReadingSaidByFocus)}
+          {heardAnswer ?? heardOf(line, wait, isLive, isReadingSaidByFocus)}
         </div>
         <QuestionForm
           // Asked for a city, the field starts again empty, with the focus, for the answer; it
@@ -842,10 +855,9 @@ function isSaidByFocus(line: StartLine, isReadingSaidByFocus: boolean): boolean 
 }
 
 /**
- * What the start's status says: what an answer to the city's question is doing while it is read
- * and its day sets off, and once a typed wait is over, the ending without a day or the question
- * for a city, in the words they show. Empty while a wait is under way, so the same answer to a
- * second press is heard again, and wherever the line under the field or the focus says it.
+ * What the start's status says of an answer under way: what an answer to the city's question is
+ * doing while it is read and its day sets off, as long as it does. Nothing wherever the line
+ * under the field or the focus says it.
  */
 function heardOf(
   line: StartLine,
@@ -853,11 +865,19 @@ function heardOf(
   isLive: boolean,
   isReadingSaidByFocus: boolean,
 ): ReactNode {
-  if (isUnderWay(line)) {
-    return line.answering && !isSaidByFocus(line, isReadingSaidByFocus)
-      ? saidOf(line, wait, isLive)
-      : null;
-  }
+  if (!isUnderWay(line)) return null;
+  return line.answering && !isSaidByFocus(line, isReadingSaidByFocus)
+    ? saidOf(line, wait, isLive)
+    : null;
+}
+
+/**
+ * What the start's status says once a typed wait is over: the ending without a day or the
+ * question for a city, in the words they show. Null while a wait is under way, which empties
+ * the status, so the same answer to a second press is heard again where that empty status is
+ * drawn before the answer, as when the intake answers with live generation on.
+ */
+function answerSaidOf(line: StartLine, wait: StartWait | null, isLive: boolean): string | null {
   if (wait !== null) return null;
   if (isNoDay(line)) return endingSaidOf(line.kind, isLive);
   if (line?.kind === "question") return questionSaidOf(line);
@@ -881,7 +901,7 @@ function endingSaidOf(ending: Ending, isLive: boolean): string {
 }
 
 /**
- * A line that can write no day, as it is seen; the start's status says it (`heardOf`). The
+ * A line that can write no day, as it is seen; the start's status says it (`answerSaidOf`). The
  * written days are offered once, as the index below, which this points to.
  */
 function EndingLine({ ending, isLive }: { ending: Ending; isLive: boolean }) {
@@ -923,7 +943,7 @@ interface QuestionLinesProps {
  * name could be, or a city at all. While an answer is read, the answer stands in the
  * sentence where "…?" stood, and the lines under it hold their room unseen, so nothing moves
  * when the answer is read and the day sets off, or when the question asks again. The start's
- * status says them (`heardOf`).
+ * status says them (`answerSaidOf`).
  */
 function QuestionLines({ question, answer, onChooseReading, isLit = false }: QuestionLinesProps) {
   const isReading = answer !== null;
