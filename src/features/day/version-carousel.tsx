@@ -254,11 +254,17 @@ export function VersionCarousel({
 
   // An arrow pressed may go with the version it named, so the focus stays with the stop. It
   // reaches the stop once the stop carries the version's name, which a screen reader then says;
-  // a version taken any other way leaves the focus where it is.
+  // a version taken any other way leaves the focus where it is. This runs before the slide's
+  // shift effect below, while the stop still stands where it was, and the focus itself scrolls
+  // nothing: the page comes to the stop's box the least way, so a shorter version clipped under
+  // the masthead is not centred, and the box, which no lean or slide moves, scrolls nothing
+  // sideways.
   useLayoutEffect(() => {
     const isFocusHanded = focusWith.current === pick;
     focusWith.current = null;
-    if (isFocusHanded) groupRef.current?.focus();
+    if (!isFocusHanded) return;
+    groupRef.current?.focus({ preventScroll: true });
+    boxRef.current?.scrollIntoView({ block: "nearest" });
   }, [pick]);
 
   // The version taken is now the stop: drawn where it stood as it waited, a stride off, in the

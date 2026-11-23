@@ -27,8 +27,18 @@ class SilentObserver {
   unobserve(): void {}
   disconnect(): void {}
 }
-beforeAll(() => vi.stubGlobal("ResizeObserver", SilentObserver));
-afterAll(() => vi.unstubAllGlobals());
+/** The elements the page was asked to scroll into view, and how, as jsdom draws no page. */
+const scrolledTo: { element: Element; options: ScrollIntoViewOptions | boolean | undefined }[] = [];
+beforeAll(() => {
+  vi.stubGlobal("ResizeObserver", SilentObserver);
+  Element.prototype.scrollIntoView = function (this: Element, options) {
+    scrolledTo.push({ element: this, options });
+  };
+});
+afterAll(() => {
+  vi.unstubAllGlobals();
+  Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+});
 
 describe("a stop's versions along its wire", () => {
   it("names the version on each side, quieter on the left, livelier on the right", () => {
@@ -92,14 +102,35 @@ describe("the carousel", () => {
       if (target.getAttribute("role") === "group") named.push(target.getAttribute("aria-label")!);
     };
     document.addEventListener("focusin", noteName, true);
-    await user.click(screen.getByRole("button", { name: `Livelier: ${after?.name}` }));
-    expect(named).toEqual([after?.name]);
-    expect(screen.getByRole("group", { name: after?.name })).toHaveFocus();
+    try {
+      await user.click(screen.getByRole("button", { name: `Livelier: ${after?.name}` }));
+      expect(named).toEqual([after?.name]);
+      expect(screen.getByRole("group", { name: after?.name })).toHaveFocus();
 
-    // The arrow keys on the stop swap it where the focus already is.
-    await user.keyboard("{ArrowLeft}");
-    expect(screen.getByRole("group", { name: candidatesOf(BOTH)[0]?.name })).toHaveFocus();
-    document.removeEventListener("focusin", noteName, true);
+      // The arrow keys on the stop swap it where the focus already is.
+      await user.keyboard("{ArrowLeft}");
+      expect(screen.getByRole("group", { name: candidatesOf(BOTH)[0]?.name })).toHaveFocus();
+    } finally {
+      document.removeEventListener("focusin", noteName, true);
+    }
+  });
+
+  it("brings the stop's box into view the least way as an arrow pressed hands it the focus", async () => {
+    const user = userEvent.setup();
+    render(<Renaming />);
+    const { after } = neighboursOf(BOTH, 0);
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    scrolledTo.length = 0;
+    try {
+      await user.click(screen.getByRole("button", { name: `Livelier: ${after?.name}` }));
+      const stop = screen.getByRole("group", { name: after?.name });
+      // The focus scrolls nothing itself, and the box, which a lean never moves, is what scrolls.
+      const stopFocused = focus.mock.calls.filter((_, call) => focus.mock.contexts[call] === stop);
+      expect(stopFocused).toEqual([[{ preventScroll: true }]]);
+      expect(scrolledTo).toEqual([{ element: stop.parentElement, options: { block: "nearest" } }]);
+    } finally {
+      focus.mockRestore();
+    }
   });
 
   it("keeps the focus on the stop when the arrow pressed goes with the version it named", async () => {

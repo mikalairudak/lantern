@@ -104,10 +104,13 @@ beforeEach(() => {
       disconnect() {}
     },
   );
+  // An arrow pressed brings its stop into view, and jsdom draws no page to scroll.
+  Element.prototype.scrollIntoView = () => undefined;
 });
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  Reflect.deleteProperty(Element.prototype, "scrollIntoView");
 });
 
 describe("ReadingList", () => {

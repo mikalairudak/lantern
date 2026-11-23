@@ -1,7 +1,6 @@
 import { expect, test, type CDPSession, type Locator, type Page, waitMs } from "./fixtures";
-import { BROWSER_STORAGE } from "../src/lib/browser-storage";
+import { seeWrittenDay } from "./live-page";
 import { writtenDayAt } from "../src/lib/days/written/days";
-import { writtenVersionOf } from "../src/lib/days/written/version";
 
 /**
  * The day's plan: a day opens on its plan, lit by its light; the energy's five words move it; the
@@ -132,17 +131,28 @@ test("a stop swipes along its versions, from a drag and from the keys", async ({
 /** Kanazawa's coffee stop as written, and the livelier version beside it. */
 const WRITTEN_COFFEE = "Coffee in Kenrokumachi";
 const LIVELIER_COFFEE = "Coffee near Hirosaka";
+/** A livelier version shorter than the stop it replaces, and a quieter one. */
+const LIVELIER_GRILLS = "Seafood Grills in Omicho";
+const QUIETER_WORKSHOP = "Utatsuyama Craft Workshop";
+/**
+ * How far above the window a stop's top is scrolled: on a laptop, the stop is then wholly under
+ * the masthead.
+ */
+const CLIPPED_PX = 60;
+/** How far, rounded, a stop brought to the masthead's edge may sit off it. */
+const MASTHEAD_EDGE_PX = 2;
+
+/** Kanazawa's written day, seen before, so it opens whole. */
+async function openSeenKanazawa(page: Page): Promise<void> {
+  await seeWrittenDay(page, "kanazawa", writtenDayAt("kanazawa")!.itinerary);
+  await page.goto("/day/kanazawa");
+  await dayIsWhole(page);
+}
 
 test("an arrow pressed hands the focus to its stop once the stop carries the version taken", async ({
   page,
 }) => {
-  const kanazawa = writtenDayAt("kanazawa")!.itinerary;
-  await page.addInitScript(({ key, day }) => localStorage.setItem(key, JSON.stringify([day])), {
-    key: BROWSER_STORAGE.seen.key,
-    day: `kanazawa:${writtenVersionOf(kanazawa)}`,
-  });
-  await page.goto("/day/kanazawa");
-  await dayIsWhole(page);
+  await openSeenKanazawa(page);
   const plan = page.getByRole("list", { name: "The day, to read" });
   // The name each stop carries as the focus reaches it, which is what a screen reader says.
   await page.evaluate(() => {
@@ -171,6 +181,50 @@ test("an arrow pressed hands the focus to its stop once the stop carries the ver
   // The arrow keys on the stop swap it where the focus already is.
   await page.keyboard.press("ArrowLeft");
   await expect(plan.getByRole("group", { name: WRITTEN_COFFEE })).toBeFocused();
+});
+
+test("an arrow pressed brings its stop out from under the masthead the least way", async ({
+  page,
+}) => {
+  await openSeenKanazawa(page);
+  const plan = page.getByRole("list", { name: "The day, to read" });
+  const arrow = plan.getByRole("button", { name: `Livelier: ${LIVELIER_GRILLS}` });
+  await arrow.evaluate((element, clipped) => {
+    const stop = element.parentElement!.parentElement!.querySelector('[role="group"]')!;
+    window.scrollBy(0, stop.getBoundingClientRect().top + clipped);
+    (element as HTMLElement).focus({ preventScroll: true });
+  }, CLIPPED_PX);
+  await page.keyboard.press("Enter");
+
+  // The shorter version taken comes to the masthead's edge, not to the middle of the window.
+  const stop = plan.getByRole("group", { name: LIVELIER_GRILLS });
+  await expect(stop).toBeFocused();
+  const masthead = await page.evaluate(() =>
+    Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop),
+  );
+  await expect
+    .poll(async () => Math.abs((await stop.boundingBox())!.y - masthead))
+    .toBeLessThanOrEqual(MASTHEAD_EDGE_PX);
+});
+
+test("an arrow pressed while the stop leans scrolls nothing sideways", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await openSeenKanazawa(page);
+  const plan = page.getByRole("list", { name: "The day, to read" });
+  const arrow = plan.getByRole("button", { name: `Quieter: ${QUIETER_WORKSHOP}` });
+  await arrow.scrollIntoViewIfNeeded();
+  // The keyboard reaching the arrow leans the stop, past the edge of the box that holds it.
+  await page.keyboard.press("Shift");
+  await arrow.focus();
+  const leaned = arrow.locator("xpath=../..").locator('[role="group"]');
+  await expect
+    .poll(() => leaned.evaluate((stop) => getComputedStyle(stop).transform))
+    .not.toBe("none");
+  await page.keyboard.press("Enter");
+
+  const stop = plan.getByRole("group", { name: QUIETER_WORKSHOP });
+  await expect(stop).toBeFocused();
+  expect(await stop.evaluate((element) => element.parentElement!.scrollLeft)).toBe(0);
 });
 
 /** A finger on the page at a point, moved by `by` in steps, and lifted unless it is to stay. */
