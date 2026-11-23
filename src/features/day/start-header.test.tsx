@@ -47,6 +47,16 @@ function startStatusWhere(isInForm: boolean): HTMLElement {
   return status;
 }
 
+/** An element's text, but not that of the nodes under `left` (a selector), in order. */
+function textOutside(element: Element, left: string): string {
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  let text = "";
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!node.parentElement?.closest(left)) text += node.textContent ?? "";
+  }
+  return text;
+}
+
 /** The line under the field, in a status of its own. */
 const startStatus = () => startStatusWhere(true);
 
@@ -379,6 +389,34 @@ describe("StartHeader", () => {
     expect(screen.getByText("balanced")).toHaveClass("underline");
   });
 
+  it("names the word the key of an assumed energy marks, for assistive technology alone", () => {
+    // "reflective" is shown as "quiet": the key names the word the sentence shows.
+    const words = { ...NO_WORDS, energy: "reflective" } as const;
+    renderStart({ line: { kind: "question", words, readings: [], unplaced: [] } });
+
+    const key = screen.getByText("assumed", { selector: "span" }).closest("p")!;
+    // Heard whole, from one hidden text; seen as it is drawn, the word unseen.
+    const heard = textOutside(key, "[aria-hidden]");
+    expect(heard).toBe("quiet is assumed by Lantern");
+    expect(key.querySelector(".sr-only")?.childNodes).toHaveLength(1);
+    expect(textOutside(key, ".sr-only, .invisible")).toBe("assumed by Lantern");
+    // The status says the same key, as a sentence of its own.
+    expect(answerStatus().textContent).toContain("Quiet is assumed by Lantern.");
+  });
+
+  it("draws no key under the sentence for an energy the text chose", () => {
+    renderStart({
+      line: {
+        kind: "question",
+        words: { ...NO_WORDS, energySource: "chosen" },
+        readings: [],
+        unplaced: [],
+      },
+    });
+
+    expect(screen.queryByText(/assumed/)).not.toBeInTheDocument();
+  });
+
   it("names the weekday only when the text named the date", () => {
     renderStart({
       line: {
@@ -532,7 +570,22 @@ describe("StartHeader", () => {
     });
 
     expect(answerStatus().textContent).toBe(
-      `A balanced day in …? ${ASSUMED_NOTE}. Portland, Oregon, United States.`,
+      `A balanced day in …? Balanced is ${ASSUMED_NOTE}. Portland, Oregon, United States.`,
+    );
+  });
+
+  it("names the assumed energy in its key, so a fact the text named never reads as assumed", () => {
+    renderStart({
+      line: {
+        kind: "question",
+        words: { ...NO_WORDS, energy: "reflective", company: "family" },
+        readings: [],
+        unplaced: [],
+      },
+    });
+
+    expect(answerStatus().textContent).toBe(
+      `A quiet day in …?, with family. Quiet is ${ASSUMED_NOTE}. Lantern needs a city to plan the day. Name one, or pick one of the days below.`,
     );
   });
 });
