@@ -30,7 +30,7 @@ import {
 import type { CityReading } from "@/lib/schema/intake.schema";
 import { formatClock } from "@/lib/time/clock";
 import { SunMark } from "@/features/abacus/best-light-icon";
-import { answerStateOf } from "@/features/abacus/fork-row";
+import { answerStateOf, type AnswerState } from "@/features/abacus/fork-row";
 import {
   ASKED_LABELS,
   FACT_KEYS,
@@ -1516,7 +1516,7 @@ function withWidestEnergy(facts: SentenceFacts): SentenceFacts {
 interface Pair {
   key: AssumableFactKey;
   label: string;
-  state: string;
+  state: AnswerState;
   isLit: boolean;
 }
 

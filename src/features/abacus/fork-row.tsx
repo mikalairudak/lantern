@@ -94,6 +94,9 @@ const LINE_CLASSES = "min-h-5 w-fit max-w-full bg-ground text-muted";
 /** How far faded in a milestone's words come in, so a change of words reads as one. */
 const LINE_COMES_FROM = 0.3;
 
+/** The state a fork's answer is said in, after its words. */
+export type AnswerState = "your day" | "being written" | "proposed" | "the day before";
+
 /**
  * What a screen reader hears after one of the fork's answers, wherever the answer stands (the
  * fork row, the plan's slip, the headline's pair), so all three say one state: "your day" for
@@ -103,7 +106,7 @@ const LINE_COMES_FROM = 0.3;
 export function answerStateOf(
   side: ForkSide,
   view: Pick<ForkView, "chosen" | "isWriting">,
-): string {
+): AnswerState {
   if (side === view.chosen) return "your day";
   if (side === "from") return "the day before";
   return view.isWriting ? "being written" : "proposed";

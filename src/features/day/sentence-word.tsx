@@ -1,5 +1,6 @@
 "use client";
 
+import type { AnswerState } from "@/features/abacus/fork-row";
 import { AnimatePresence, useIsPresent, type MotionValue } from "motion/react";
 import {
   useCallback,
@@ -46,7 +47,7 @@ export interface OptionView {
 export interface WordPair {
   label: string;
   /** The state of the version it shows, as the fork's answers say it: "proposed". */
-  state: string;
+  state: AnswerState;
   /** Its proposal is being written: the steady light runs through it. */
   isLit: boolean;
   /** Takes the visitor to the fork's first row. */

@@ -1154,7 +1154,7 @@ describe("DayStageHeader", () => {
     });
     const headline = screen.getByRole("heading", { level: 1 });
     expect(headline).toHaveTextContent("on foot, slow morning, early dinner");
-    expect(within(headline).queryByRole("button", { name: /proposed/ })).toBeNull();
+    expect(within(headline).queryByRole("button", { name: /: go to it$/ })).toBeNull();
 
     view.rerender(
       headerOf(taken, null, null, {
