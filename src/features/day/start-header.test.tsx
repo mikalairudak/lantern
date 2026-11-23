@@ -688,6 +688,122 @@ describe("how long the status holds an answer", () => {
   });
 });
 
+describe("the field's description after an answer without a day", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** The question for a city when the text named none. */
+  const NO_CITY_QUESTION = {
+    kind: "question",
+    words: NO_WORDS,
+    readings: [],
+    unplaced: [],
+  } as const;
+  const NEEDS_CITY_SAID =
+    "Lantern needs a city to plan the day. Name one, or pick one of the days below.";
+
+  /** The start as the page draws it for `line` and `wait`. */
+  const startOf = (line: StartHeaderProps["line"], wait: StartWait | null, isLive = true) => (
+    <HeldStart
+      starts={STARTS}
+      line={line}
+      wait={wait}
+      isLive={isLive}
+      isCityFocused={line?.kind === "question"}
+      onPlan={vi.fn()}
+      onChooseWritten={vi.fn()}
+      onChooseReading={vi.fn()}
+    />
+  );
+  const waitMs = (ms: number) => act(() => vi.advanceTimersByTime(ms));
+  /** A typed text read, the focus on the button named for it, as a press leaves it. */
+  const renderRead = (isLive = true) => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const view = render(startOf({ kind: "reading" }, "reading", isLive));
+    act(() => screen.getByRole("button", { name: "Reading" }).focus());
+    return view;
+  };
+
+  it("names the ending's line once the status has said it, with the room left beside it", () => {
+    const view = renderRead();
+    view.rerender(startOf({ kind: "refused" }, null));
+    const field = screen.getByRole("textbox", { name: "Where, and anything else" });
+    expect(field).toHaveFocus();
+    // Said by the status as the focus lands, so not by the field too.
+    expect(field).not.toHaveAttribute("aria-describedby");
+
+    waitMs(NOTICE_HEARD_MS);
+    expect(field).toHaveAccessibleDescription(REFUSED_SAID);
+
+    fireEvent.change(field, { target: { value: "a".repeat(MAX_INTAKE_TEXT_CHARS) } });
+    expect(field).toHaveAccessibleDescription(`${REFUSED_SAID} 0 left`);
+  });
+
+  it.each([
+    ["a city", NO_CITY_QUESTION, NEEDS_CITY_SAID],
+    [
+      "one of the cities a name could be",
+      PORTLAND_QUESTION,
+      "Portland, Oregon, United States Portland, Maine, United States",
+    ],
+  ])("names what the city's question needs, %s, when a text turns to it", (_, question, said) => {
+    const view = renderRead();
+    view.rerender(startOf(question, null));
+    const field = screen.getByRole("textbox", { name: "Which city?" });
+    expect(field).toHaveFocus();
+
+    waitMs(NOTICE_HEARD_MS);
+    expect(field).toHaveAccessibleDescription(said);
+  });
+
+  it("names the ending's line when an answer to the city's question is read to no day", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const view = render(startOf(NO_CITY_QUESTION, null));
+    view.rerender(startOf({ kind: "reading", answering: NO_CITY_QUESTION }, "reading"));
+    act(() => screen.getByRole("button", { name: "Reading" }).focus());
+    view.rerender(startOf({ kind: "refused" }, null));
+    const field = screen.getByRole("textbox", { name: "Where, and anything else" });
+    expect(field).toHaveFocus();
+
+    waitMs(NOTICE_HEARD_MS);
+    expect(field).toHaveAccessibleDescription(REFUSED_SAID);
+  });
+
+  it("names nothing with live generation off, where the focus stays on the button", () => {
+    const view = renderRead(false);
+    // The read ends with no day on its way; the ending comes after, with no wait to end.
+    view.rerender(startOf({ kind: "reading" }, null, false));
+    view.rerender(startOf({ kind: "not-yet" }, null, false));
+
+    waitMs(NOTICE_HEARD_MS);
+    expect(screen.getByRole("button", { name: "Plan this day" })).toHaveFocus();
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("names nothing from the press that asks again, while the line still draws the ending", () => {
+    const view = renderRead();
+    view.rerender(startOf({ kind: "refused" }, null));
+    waitMs(NOTICE_HEARD_MS);
+    expect(screen.getByRole("textbox")).toHaveAttribute("aria-describedby");
+
+    view.rerender(startOf({ kind: "refused" }, "reading"));
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("names nothing once the line has left the ending the focus came back with", () => {
+    const view = renderRead();
+    view.rerender(startOf({ kind: "refused" }, null));
+    waitMs(NOTICE_HEARD_MS);
+    // A day pressed in the index, with no typed wait, that ends without a day too.
+    view.rerender(startOf(ON_ITS_WAY_LIVE, null));
+    view.rerender(startOf({ kind: "not-yet" }, null));
+
+    waitMs(NOTICE_HEARD_MS);
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-describedby");
+  });
+});
+
 /** The motion-safe loop of the sign, on its pen: present only while it runs. */
 const PEN_LOOP = "motion-safe:animate-sign-cut";
 

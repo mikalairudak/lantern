@@ -204,6 +204,61 @@ test.describe("each answer without a day, and the city's question, is said in a 
   });
 });
 
+/** What the start's status over the form holds, and what the field is described by, at once. */
+function saidAndDescribed(page: Page): Promise<{ said: string; describedBy: string | null }> {
+  return page.evaluate(() => {
+    const form = document.querySelector("main form")!;
+    return {
+      said: form.previousElementSibling?.textContent ?? "",
+      describedBy: form.querySelector("textarea")!.getAttribute("aria-describedby"),
+    };
+  });
+}
+
+test.describe("the field an answer without a day hands the focus back to is described by it", () => {
+  test("with live generation on, by the ending, once the status has said it", async ({ page }) => {
+    await answerTheIntake(page, { kind: "refused" });
+    await openLive(page, "/");
+    await askFromTheField(page, "a quiet day somewhere");
+    const field = page.getByRole("textbox", { name: "Where, and anything else" });
+    await expect(field).toBeFocused();
+    const atFocus = await saidAndDescribed(page);
+    if (atFocus.said !== "") expect(atFocus.describedBy, "described while said").toBeNull();
+
+    await expect(field).toHaveAccessibleDescription(
+      "Lantern can't plan that day. Start from one of the days below.",
+    );
+  });
+
+  test("with live generation on, by the cities the city's question offers", async ({ page }) => {
+    await answerTheIntake(page, PORTLAND_ASKED);
+    await openLive(page, "/");
+    await askFromTheField(page, "Portland, a lively day");
+    const field = page.getByRole("textbox", { name: "Which city?" });
+    await expect(field).toBeFocused();
+    const atFocus = await saidAndDescribed(page);
+    if (atFocus.said !== "") expect(atFocus.describedBy, "described while said").toBeNull();
+
+    await expect(field).toHaveAccessibleDescription(
+      "Portland, Oregon, United States Portland, Maine, United States",
+    );
+  });
+
+  test("with live generation off, by nothing, the focus staying on the button", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await askFromTheField(page, "Reykjavik");
+    await expect(
+      page.locator("main form").getByText("Start from one of the days below.", { exact: false }),
+    ).toBeVisible();
+    await expect.poll(async () => (await saidAndDescribed(page)).said).toBe("");
+
+    await expect(page.getByRole("button", { name: "Plan this day" })).toBeFocused();
+    await expect(page.getByRole("textbox")).toHaveAccessibleDescription("");
+  });
+});
+
 /** How long the intake takes to read a text the second time it is asked. */
 const SECOND_READ_MS = 2500;
 /**

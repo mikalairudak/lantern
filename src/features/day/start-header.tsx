@@ -241,6 +241,7 @@ export function StartHeader({
           isReadingSaidByFocus={isReadingSaidByFocus}
           onReadingSaidByFocus={setIsReadingSaidByFocus}
           isReadingSaidOverForm={isReadingSaidOverForm}
+          isAnswerHeardOut={heardAnswer === null}
           onPlan={onPlan}
           onChooseReading={onChooseReading}
           drawnAsPointed={drawnAsPointed}
@@ -275,6 +276,11 @@ interface QuestionFormProps {
   onReadingSaidByFocus: (isSaid: boolean) => void;
   /** The read is said from the status over the form (`readingSaidOverFormOf`). */
   isReadingSaidOverForm: boolean;
+  /**
+   * The status over the form holds no ending's or question's words, as once they have stood their
+   * time.
+   */
+  isAnswerHeardOut: boolean;
   onPlan: (text: string) => void;
   onChooseReading: (reading: CityReading) => void;
   drawnAsPointed: DrawnAsPointed;
@@ -409,6 +415,7 @@ function QuestionForm({
   isReadingSaidByFocus,
   onReadingSaidByFocus,
   isReadingSaidOverForm,
+  isAnswerHeardOut,
   onPlan,
   onChooseReading,
   drawnAsPointed,
@@ -416,6 +423,7 @@ function QuestionForm({
   const field = useRef<HTMLTextAreaElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const roomId = useId();
+  const answerId = useId();
   const left = Math.max(0, MAX_INTAKE_TEXT_CHARS - text.length);
   // Read, and then written: the field holds the text it was asked with until the day is here.
   const isReading = isUnderWay(line);
@@ -439,6 +447,25 @@ function QuestionForm({
     </span>
   );
   const isEnding = isNoDay(line);
+  // An answer without a day that hands the focus back to the field, as the effects below do,
+  // describes the field by its line too, the ending's or what the city's question needs, so a
+  // visitor who comes back to the field hears why no day came. Only once the status over the form
+  // has fallen quiet, so the line is not said twice as the focus lands (`docs/decisions.md`, "How a
+  // day ended is said from one status that stands before the ending"). The field is handed the
+  // focus as it mounts in place of the other, or as a typed wait ends on the answer; a line that
+  // leaves the answer leaves the description with it.
+  const isAnswered = isEnding || line?.kind === "question";
+  const isWaiting = wait !== null;
+  const [wasWaitingDrawn, setWasWaitingDrawn] = useState(isWaiting);
+  const [isFocusHandedBack, setIsFocusHandedBack] = useState(isFocusedOnMount || isCityFocused);
+  if (wasWaitingDrawn !== isWaiting) {
+    setWasWaitingDrawn(isWaiting);
+    setIsFocusHandedBack(!isWaiting);
+  }
+  if (isFocusHandedBack && !isAnswered) setIsFocusHandedBack(false);
+  const isAnswerDescribed = isFocusHandedBack && isAnswerHeardOut;
+  const describedBy =
+    [isAnswerDescribed && answerId, isCountShown && roomId].filter(Boolean).join(" ") || undefined;
 
   useEffect(() => {
     if (isAskingCity && isCityFocused) field.current?.focus();
@@ -537,7 +564,7 @@ function QuestionForm({
               autoCapitalize="sentences"
               spellCheck={false}
               maxLength={MAX_INTAKE_TEXT_CHARS}
-              aria-describedby={isCountShown ? roomId : undefined}
+              aria-describedby={describedBy}
               className={cn(
                 FIELD_CLASSES,
                 drawnAsPointed === "field" ? FIELD_LINE_FOCUSED_CLASSES : FIELD_LINE_CLASSES,
@@ -571,7 +598,12 @@ function QuestionForm({
               // The city asked for: its lines take what room they need, the count beside them.
               <div className="mt-2 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <QuestionLines question={line} answer={null} onChooseReading={chooseReading} />
+                  <QuestionLines
+                    question={line}
+                    answer={null}
+                    onChooseReading={chooseReading}
+                    neededId={answerId}
+                  />
                 </div>
                 {count}
               </div>
@@ -611,7 +643,7 @@ function QuestionForm({
           it stands over, the count at the row's right end beside it. */}
       {isNoDay(line) && (
         <div className="mt-2 flex items-start justify-between gap-3">
-          <EndingLine ending={line.kind} isLive={isLive} />
+          <EndingLine id={answerId} ending={line.kind} isLive={isLive} />
           {count}
         </div>
       )}
@@ -959,9 +991,9 @@ function endingSaidOf(ending: Ending, isLive: boolean): string {
  * written days are offered once, as the index below, which this points to. Its halves stay
  * separate texts: Chromium sets one joined string's glyphs a subpixel apart from these.
  */
-function EndingLine({ ending, isLive }: { ending: Ending; isLive: boolean }) {
+function EndingLine({ id, ending, isLive }: { id: string; ending: Ending; isLive: boolean }) {
   return (
-    <p className="mt-1 type-voice text-quote text-ink-soft">
+    <p id={id} className="mt-1 type-voice text-quote text-ink-soft">
       {endedOf(ending, isLive)} {TO_THE_INDEX}
     </p>
   );
@@ -1006,6 +1038,8 @@ interface QuestionLinesProps {
   onChooseReading: (reading: CityReading) => void;
   /** The sentence, its city answered, carries the waiting line's light while the day is written. */
   isLit?: boolean;
+  /** The id of the line saying what it needs, which the field may be described by. */
+  neededId?: string;
 }
 
 /**
@@ -1015,7 +1049,13 @@ interface QuestionLinesProps {
  * when the answer is read and the day sets off, or when the question asks again. The start's
  * status says them (`answerSaidOf`).
  */
-function QuestionLines({ question, answer, onChooseReading, isLit = false }: QuestionLinesProps) {
+function QuestionLines({
+  question,
+  answer,
+  onChooseReading,
+  isLit = false,
+  neededId,
+}: QuestionLinesProps) {
   const isReading = answer !== null;
   const unplaced = unplacedLineOf(question.unplaced);
   const assumedKey = assumedKeyOf(question.words);
@@ -1046,7 +1086,10 @@ function QuestionLines({ question, answer, onChooseReading, isLit = false }: Que
         {question.readings.length > 0 ? (
           // The answers to the field's "Which city?" stand under the sentence's blank alone:
           // a line that asked it again was heard twice.
-          <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1 type-note text-muted">
+          <p
+            id={neededId}
+            className="flex flex-wrap items-baseline gap-x-4 gap-y-1 type-note text-muted"
+          >
             {question.readings.map((reading) => (
               <button
                 key={reading.placeId}
@@ -1061,7 +1104,9 @@ function QuestionLines({ question, answer, onChooseReading, isLit = false }: Que
             ))}
           </p>
         ) : (
-          <p className="type-note text-muted">{NEEDS_CITY}</p>
+          <p id={neededId} className="type-note text-muted">
+            {NEEDS_CITY}
+          </p>
         )}
         {unplaced && <p className="type-note text-muted">{unplaced}</p>}
       </div>
