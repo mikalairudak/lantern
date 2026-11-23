@@ -17,18 +17,24 @@ declare global {
 
 /**
  * Logs every status on the page from its first byte, by `performance.now()`: each as it comes
- * onto the page, with the words it holds then, and each change of its words after. Run as an
- * init script, so it has no outside names.
+ * onto the page, with the words it holds then, and each change of its words after. Its words are
+ * those a screen reader is given, so words held under `aria-hidden` are left out. Run as an init
+ * script, so it has no outside names.
  */
 export function logStatuses(): void {
   const log: StatusEntry[] = [];
   window.statusLog = log;
   const ids = new Map<Element, number>();
   const said = new Map<Element, string>();
+  const heardOf = (status: Element) => {
+    const copy = status.cloneNode(true) as Element;
+    for (const hidden of copy.querySelectorAll('[aria-hidden="true"]')) hidden.remove();
+    return copy.textContent ?? "";
+  };
   const note = () => {
     const t = performance.now();
     for (const status of document.querySelectorAll('[role="status"]')) {
-      const text = status.textContent ?? "";
+      const text = heardOf(status);
       if (!ids.has(status)) {
         ids.set(status, ids.size);
         log.push({ t, id: ids.get(status)!, kind: "added", text });
