@@ -491,8 +491,9 @@ export function AbacusChart({
   // Versions named before they are taken (2026-11-05), each beside its bead: under a drag,
   // the version it has just switched its grabbed stop to, away from the hand; else the
   // versions the focused slider's arrows would take its stop to, or the one whose bead a
-  // pointer rests on. A finger never rests, so names nothing until it drags. Escape puts a
-  // name away until the pointer or the focus that showed it names anew.
+  // pointer rests on. A finger never rests, so names nothing until it drags. Escape puts the
+  // names a resting pointer or a focused slider shows away until that pointer or focus names
+  // anew; a drag's name stays with the hand.
   const beadXOf = (index: number, candidate: number): number => {
     const stop = stops[index] as StopDraft;
     const energyLevel = writtenEnergyOf(candidatesOf(stop)[candidate] ?? {}) ?? 0;
