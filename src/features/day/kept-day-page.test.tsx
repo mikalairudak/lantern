@@ -99,7 +99,10 @@ beforeEach(() => {
   localStorage.clear();
   window.history.replaceState(null, "", `/day/${ID}`);
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  Reflect.deleteProperty(document, "visibilityState");
+});
 afterAll(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -126,6 +129,15 @@ function asked(change: Partial<YourDay> = {}): YourDay {
     seconds: null,
     ...change,
   };
+}
+
+/** The page seen, or hidden behind another tab, as a browser tells it. */
+function showPage(isSeen: boolean): void {
+  Object.defineProperty(document, "visibilityState", {
+    value: isSeen ? "visible" : "hidden",
+    configurable: true,
+  });
+  document.dispatchEvent(new Event("visibilitychange"));
 }
 
 /** Lets the page's timers run, as many milliseconds on as asked, and what they settle. */
@@ -245,6 +257,26 @@ describe("a day's own address", () => {
     expect(waiting).toContain(status);
     expect(wordmark).toHaveFocus();
     // Then quiet, so a read-through meets the line once, in the headline.
+    await wait(NOTICE_HEARD_MS);
+    expect(status?.textContent).toBe("");
+  });
+
+  it("says the wait ended with no day behind another tab only once the page is seen, held from then", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    render(<KeptDayPage id={ID} stored={UNKNOWN} isLive={false} />);
+    act(() => showPage(false));
+
+    await wait(KEPT_WAIT_MS);
+    expect(headline()).toHaveTextContent(NO_DAY_HERE);
+    expect(statusesSaying(NO_DAY_HERE)).toHaveLength(0);
+    // Longer behind the tab than a hold, so a hold run meanwhile would be over.
+    await wait(NOTICE_HEARD_MS * 2);
+    expect(statusesSaying(NO_DAY_HERE)).toHaveLength(0);
+
+    act(() => showPage(true));
+    const [status, ...others] = statusesSaying(NO_DAY_HERE);
+    expect(status).toBeDefined();
+    expect(others).toHaveLength(0);
     await wait(NOTICE_HEARD_MS);
     expect(status?.textContent).toBe("");
   });

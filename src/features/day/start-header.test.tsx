@@ -601,9 +601,21 @@ const PORTLAND_SAID =
   "A lively day in …? Portland, Oregon, United States, or Portland, Maine, United States.";
 const REFUSED_SAID = "Lantern can't plan that day. Start from one of the days below.";
 
+/** The page seen, or hidden behind another tab, as a browser tells it. */
+function showPage(isSeen: boolean): void {
+  act(() => {
+    Object.defineProperty(document, "visibilityState", {
+      value: isSeen ? "visible" : "hidden",
+      configurable: true,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+}
+
 describe("how long the status holds an answer", () => {
   afterEach(() => {
     vi.useRealTimers();
+    Reflect.deleteProperty(document, "visibilityState");
   });
 
   /** The start as the page draws it for `line`, live, its wait set by the page. */
@@ -678,6 +690,55 @@ describe("how long the status holds an answer", () => {
     expect(answerStatus().textContent).toBe("");
   });
 
+  it("says an answer that comes behind another tab once the page is seen, held from then", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const view = render(startOf(null));
+    showPage(false);
+    view.rerender(startOf({ kind: "refused" }));
+    expect(answerStatus().textContent).toBe("");
+    // Longer behind the tab than a hold, so a hold run meanwhile would be over.
+    waitMs(NOTICE_HEARD_MS * 2);
+    expect(answerStatus().textContent).toBe("");
+
+    showPage(true);
+    expect(answerStatus().textContent).toBe(REFUSED_SAID);
+    waitMs(NOTICE_HEARD_MS - 1);
+    expect(answerStatus().textContent).toBe(REFUSED_SAID);
+    waitMs(1);
+    expect(answerStatus().textContent).toBe("");
+  });
+
+  it("says an answer again, held afresh, when the page is hidden in the middle of its hold", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const view = render(startOf(null));
+    view.rerender(startOf({ kind: "refused" }));
+    waitMs(NOTICE_HEARD_MS / 2);
+
+    showPage(false);
+    expect(answerStatus().textContent).toBe("");
+    waitMs(NOTICE_HEARD_MS);
+    showPage(true);
+    expect(answerStatus().textContent).toBe(REFUSED_SAID);
+    waitMs(NOTICE_HEARD_MS - 1);
+    expect(answerStatus().textContent).toBe(REFUSED_SAID);
+    waitMs(1);
+    expect(answerStatus().textContent).toBe("");
+  });
+
+  it("never says an answer gone before the page is seen", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const view = render(startOf(null));
+    showPage(false);
+    view.rerender(startOf({ kind: "refused" }));
+    expect(answerStatus().textContent).toBe("");
+    view.rerender(startOf(null));
+
+    showPage(true);
+    expect(answerStatus().textContent).toBe("");
+    waitMs(NOTICE_HEARD_MS);
+    expect(answerStatus().textContent).toBe("");
+  });
+
   it("says what an answer under way is doing for as long as its wait", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const view = render(startOf(PORTLAND_QUESTION));
@@ -691,6 +752,7 @@ describe("how long the status holds an answer", () => {
 describe("the field's description after an answer without a day", () => {
   afterEach(() => {
     vi.useRealTimers();
+    Reflect.deleteProperty(document, "visibilityState");
   });
 
   /** The question for a city when the text named none. */
@@ -792,6 +854,23 @@ describe("the field's description after an answer without a day", () => {
 
     waitMs(NOTICE_HEARD_MS);
     leaveAndComeBack(field);
+    expect(field).toHaveAccessibleDescription(REFUSED_SAID);
+  });
+
+  it("names nothing behind another tab, where the status has not said the line yet", () => {
+    const view = renderRead();
+    showPage(false);
+    view.rerender(startOf({ kind: "refused" }, null));
+    const field = screen.getByRole("textbox", { name: "Where, and anything else" });
+    expect(field).toHaveFocus();
+
+    waitMs(NOTICE_HEARD_MS * 2);
+    expect(field).not.toHaveAttribute("aria-describedby");
+
+    showPage(true);
+    expect(answerStatus().textContent).toBe(REFUSED_SAID);
+    expect(field).not.toHaveAttribute("aria-describedby");
+    waitMs(NOTICE_HEARD_MS);
     expect(field).toHaveAccessibleDescription(REFUSED_SAID);
   });
 

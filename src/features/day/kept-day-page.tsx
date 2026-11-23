@@ -7,7 +7,7 @@ import { Day } from "./day";
 import { pageTitleOf } from "./day-title";
 import { KEPT_POLL_MS, KEPT_WAIT_MS, askKeptDay, keptViewOf, restatedYourDayOf } from "./kept-day";
 import { NO_DAY_HERE, NO_DAY_TITLE, StillWritingHere } from "./no-day-here";
-import { NOTICE_HEARD_MS, NoticeStatus, NoticeStatusContext } from "./notice-status";
+import { NOTICE_HEARD_MS, NoticeStatus, NoticeStatusContext, usePageSeen } from "./notice-status";
 import { restateDay, useYourDays } from "./use-your-days";
 
 export interface KeptDayPageProps {
@@ -87,7 +87,9 @@ export function KeptDayPage({ id, stored: first, isLive }: KeptDayPageProps) {
   // page that waits and the day that takes its place: the day's notice, which the day hands
   // up, or, on any turn to no day (the wait over with none, or the day this browser asked
   // gone from its list since), the headline, held as long as a notice is. The page never
-  // opens on no day: an address with no record waits first, so each no day is a turn.
+  // opens on no day: an address with no record waits first, so each no day is a turn. Behind
+  // another tab the status says nothing, and the headline's hold runs from the moment the page
+  // is seen (`usePageSeen`).
   const [heardNotice, setHeardNotice] = useState("");
   const [lastKind, setLastKind] = useState(view.kind);
   const [isNoDaySaid, setIsNoDaySaid] = useState(false);
@@ -95,14 +97,16 @@ export function KeptDayPage({ id, stored: first, isLive }: KeptDayPageProps) {
     setLastKind(view.kind);
     setIsNoDaySaid(view.kind === "none");
   }
+  const isSeen = usePageSeen();
   useEffect(() => {
-    if (!isNoDaySaid) return undefined;
+    if (!isNoDaySaid || !isSeen) return undefined;
     const quiet = window.setTimeout(() => setIsNoDaySaid(false), NOTICE_HEARD_MS);
     return () => window.clearTimeout(quiet);
-  }, [isNoDaySaid]);
+  }, [isNoDaySaid, isSeen]);
+  const keptLine = isNoDaySaid ? NO_DAY_HERE : heardNotice;
   return (
     <>
-      <NoticeStatus line={isNoDaySaid ? NO_DAY_HERE : heardNotice} />
+      <NoticeStatus line={isSeen ? keptLine : ""} />
       <NoticeStatusContext value={setHeardNotice}>
         {isUnknown && !isHydrated ? null : view.kind === "day" ? (
           <Day kept={view.landing} isLive={isLive} isAddressed isCounted />

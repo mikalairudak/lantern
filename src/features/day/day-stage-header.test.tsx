@@ -1,9 +1,9 @@
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { cloneElement, useState, type ReactNode } from "react";
 import userEvent from "@testing-library/user-event";
 import { motionValue, type MotionValue } from "motion/react";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { CURATED_REQUESTS, KYOTO_REQUEST, LISBON_REQUEST } from "@/lib/fixtures/curated/requests";
 import { KANAZAWA_START_REQUEST, START_REQUESTS } from "@/lib/days/written/quick-starts";
 import { spacesBesideTextsOf } from "@/lib/fixtures/server-markup";
@@ -12,7 +12,7 @@ import type { PartialDay } from "@/lib/stream/outcome";
 import { noticeOf } from "./stream-ending";
 import { requestSentenceOf, sentenceFactsOf } from "./sentence";
 import { DayStageHeader, type ForkNoteShown, type HeaderNotice } from "./day-stage-header";
-import { NoticeStatus, NoticeStatusContext } from "./notice-status";
+import { NOTICE_HEARD_MS, NoticeStatus, NoticeStatusContext } from "./notice-status";
 import type { ReplanControls } from "./replan-controls";
 import { ASSUMED_NOTE } from "./sentence-word";
 
@@ -1335,5 +1335,59 @@ describe("DayStageHeader", () => {
       /^Lantern couldn't write this day just now\. Write it again$/,
     );
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
+  });
+});
+
+describe("a notice behind another tab", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    Reflect.deleteProperty(document, "visibilityState");
+  });
+
+  const NOTICE = noticeOf({ kind: "cut", itinerary: null }, KYOTO_REQUEST);
+  const SAID = /^Lantern couldn't finish this day\./;
+  const waitMs = (ms: number) => act(() => vi.advanceTimersByTime(ms));
+
+  /** The page seen, or hidden behind another tab, as a browser tells it. */
+  function showPage(isSeen: boolean): void {
+    act(() => {
+      Object.defineProperty(document, "visibilityState", {
+        value: isSeen ? "visible" : "hidden",
+        configurable: true,
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+  }
+
+  it("waits, unsaid, until the page is seen, then is said and held from that moment", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const view = renderHeader(KYOTO_REQUEST);
+    showPage(false);
+    view.rerender(headerOf(KYOTO_REQUEST, null, NOTICE));
+    expect(headerStatus().textContent).toBe("");
+    // Longer behind the tab than a hold, so a hold run meanwhile would be over.
+    waitMs(NOTICE_HEARD_MS * 2);
+    expect(headerStatus().textContent).toBe("");
+
+    showPage(true);
+    expect(headerStatus()).toHaveTextContent(SAID);
+    waitMs(NOTICE_HEARD_MS - 1);
+    expect(headerStatus()).toHaveTextContent(SAID);
+    waitMs(1);
+    expect(headerStatus().textContent).toBe("");
+  });
+
+  it("is never said when it goes before the page is seen", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const view = renderHeader(KYOTO_REQUEST);
+    showPage(false);
+    view.rerender(headerOf(KYOTO_REQUEST, null, NOTICE));
+    expect(headerStatus().textContent).toBe("");
+    view.rerender(headerOf(KYOTO_REQUEST));
+
+    showPage(true);
+    expect(headerStatus().textContent).toBe("");
+    waitMs(NOTICE_HEARD_MS);
+    expect(headerStatus().textContent).toBe("");
   });
 });
