@@ -1298,6 +1298,17 @@ describe("a day set on its way straight after an ending, with no read drawn", ()
     />
   );
 
+  it("says a city pressed in the index while the city's question stands from the status over the form", () => {
+    const view = render(startOf(PORTLAND_QUESTION, true, null));
+    const overForm = answerStatus();
+
+    view.rerender(startOf({ ...ON_ITS_WAY_LIVE }, true, null));
+    expect(answerStatus()).toBe(overForm);
+    expect(overForm).toHaveTextContent(/^Writing a lively Saturday in Lisbon, with friends$/);
+    expect(startStatus()).toHaveTextContent(/^Writing a lively Saturday in Lisbon, with friends$/);
+    expect(heardStatus()).toBe("");
+  });
+
   it("says a city pressed in the index after a refusal from the status over the form", () => {
     const view = render(startOf({ kind: "refused" }, true, null));
     const overForm = answerStatus();

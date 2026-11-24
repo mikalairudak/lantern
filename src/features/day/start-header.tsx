@@ -183,18 +183,18 @@ export function StartHeader({
   // a press the focus says is not said again from there.
   const [isReadingSaidByFocus, setIsReadingSaidByFocus] = useState(false);
   if (wait === null && isReadingSaidByFocus) setIsReadingSaidByFocus(false);
-  // Whether the line came straight after an ending, held while it stays the same kind: an ending
-  // takes the line under the field from the page, so a read or a day on its way that follows one
-  // draws that line afresh, and the status over the form says it where the focus does not
-  // (`isUnderWaySaidOverForm`). A read drawn hands the day on its way to the line it drew.
+  // Whether the line came straight after an ending or the city's question, held while it stays the
+  // same kind: each takes the line under the field from the page, so a read or a day on its way
+  // that follows one draws that line afresh, and the status over the form says it where the focus
+  // does not (`isUnderWaySaidOverForm`). A read drawn hands the day on its way to the line it drew.
   const lineKind = line?.kind ?? null;
   const [lastLineKind, setLastLineKind] = useState(lineKind);
-  const [isLineAfterEnding, setIsLineAfterEnding] = useState(false);
+  const [isLineAfterAnswer, setIsLineAfterAnswer] = useState(false);
   if (lastLineKind !== lineKind) {
     setLastLineKind(lineKind);
-    setIsLineAfterEnding(isEndingKind(lastLineKind));
+    setIsLineAfterAnswer(isEndingKind(lastLineKind) || lastLineKind === "question");
   }
-  const isSaidOverForm = isUnderWaySaidOverForm(line, isReadingSaidByFocus, isLineAfterEnding);
+  const isSaidOverForm = isUnderWaySaidOverForm(line, isReadingSaidByFocus, isLineAfterAnswer);
   // The line a typed wait last stood over. A wait that ends on it has brought no answer: with live
   // generation off a read answered within the press ends a commit before its answer is drawn, over
   // the ending that stood, which is then neither said again nor hands the focus back.
@@ -840,8 +840,9 @@ function SaidLine({
   isTwoLinesHeld: boolean;
   /**
    * Heard as it changes, or seen alone: a typed text's "Reading" is heard where the focus lands,
-   * on the button named for it, and a read or a day on its way straight after an ending from the
-   * status over the form, and the status holds it unheard, so it is said once.
+   * on the button named for it, and a read or a day on its way straight after an ending or the
+   * city's question from the status over the form, and the status holds it unheard, so it is said
+   * once.
    */
   isHeard?: boolean;
   children: ReactNode;
@@ -949,25 +950,25 @@ function isSaidByFocus(line: StartLine, isReadingSaidByFocus: boolean): boolean 
 
 /**
  * A typed text's read, or a day on its way, said from the start's status over the form: straight
- * after an ending, which took the line under the field from the page, that line is drawn afresh
- * already holding it, a status born full, so where the focus does not say it, the status that
- * stood says it (`docs/decisions.md`, "How a day ended is said from one status that stands before
- * the ending"): a read pressed after one, a city pressed in the index, or a typed text whose day
- * is answered before its read is drawn.
+ * after an ending or the city's question, either of which took the line under the field from the
+ * page, that line is drawn afresh already holding it, a status born full, so where the focus does
+ * not say it, the status that stood says it (`docs/decisions.md`, "How a day ended is said from one
+ * status that stands before the ending"): a read pressed after an ending, a city pressed in the
+ * index after either, or a typed text whose day is answered before its read is drawn.
  */
 function isUnderWaySaidOverForm(
   line: StartLine,
   isReadingSaidByFocus: boolean,
-  isLineAfterEnding: boolean,
+  isLineAfterAnswer: boolean,
 ): boolean {
-  return isLineAfterEnding && !isSaidByFocus(line, isReadingSaidByFocus);
+  return isLineAfterAnswer && !isSaidByFocus(line, isReadingSaidByFocus);
 }
 
 /**
  * What the start's status says of a text under way: what an answer to the city's question is
  * doing while it is read and its day sets off, as long as it does, and a read or a day on its way
- * straight after an ending (`isUnderWaySaidOverForm`). Nothing wherever the line under the field
- * or the focus says it.
+ * straight after an ending or the city's question (`isUnderWaySaidOverForm`). Nothing wherever the
+ * line under the field or the focus says it.
  */
 function heardOf(
   line: StartLine,

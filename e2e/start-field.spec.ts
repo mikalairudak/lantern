@@ -479,6 +479,23 @@ test.describe("a day set on its way straight after an ending is said from a stat
     await expectOnItsWaySaidAsChange(page, /^Writing a /, pressedAt);
   });
 
+  test("with live generation on, a city pressed in the index while the city's question stands", async ({
+    page,
+  }) => {
+    await answerTheIntake(page, PORTLAND_ASKED);
+    await openLive(page, "/");
+    await askFromTheField(page, "Portland, a lively day");
+    await expect(page.getByRole("textbox", { name: "Which city?" })).toBeFocused();
+
+    const pressedAt = await page.evaluate(() => performance.now());
+    await page
+      .getByRole("list", { name: "No city in mind? Start from one of these" })
+      .getByRole("button")
+      .first()
+      .click();
+    await expectOnItsWaySaidAsChange(page, /^Writing a /, pressedAt);
+  });
+
   test("with live generation off, a written day's text answered before its read is drawn", async ({
     page,
   }) => {
