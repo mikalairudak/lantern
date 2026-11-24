@@ -444,6 +444,10 @@ async function openOnTheBench(
   await chooseEnding(page, "finished", city);
   await labControls(page).getByRole("button", { name: "Ending" }).click();
   await waitForTheDay(page);
+  // The chart can rest a frame before the line under it, still writing the day's versions,
+  // gives way to the day's end, which is taller (55 px on Lisbon's laptop page): the page has
+  // its height once the end is shown.
+  await expect(page.getByText(/^Home by /)).toBeVisible({ timeout: DAY_TIMEOUT_MS });
 }
 
 /** How far a sheet that rises past the chart's top keeps under the header's last line. */
