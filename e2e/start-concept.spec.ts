@@ -442,20 +442,27 @@ interface FieldFrame {
   top: number;
 }
 
-/** Every frame from now until the day takes the field's place: the button's name and the field. */
-function readField(page: Page): Promise<FieldFrame[]> {
-  return page.evaluate(
+/**
+ * Samples every frame from now until the day takes the field's place: the button's name and the
+ * field. Returns once the first frame is read, so a press after it is seen from the frame before.
+ */
+async function sampleField(page: Page): Promise<void> {
+  await page.evaluate(
     () =>
-      new Promise<FieldFrame[]>((resolve) => {
-        const seen: FieldFrame[] = [];
+      new Promise<void>((started) => {
+        const sample = { seen: [] as FieldFrame[], isDone: false };
+        (window as unknown as { field_: typeof sample }).field_ = sample;
         const start = performance.now();
         const tick = () => {
           const field = document.querySelector<HTMLTextAreaElement>("textarea[name=text]");
-          if (!field || performance.now() - start > 5000) return resolve(seen);
+          if (!field || performance.now() - start > 5000) {
+            sample.isDone = true;
+            return started();
+          }
           const box = field.getBoundingClientRect();
           const style = getComputedStyle(field);
           const padding = Number.parseFloat(style.paddingBottom);
-          seen.push({
+          sample.seen.push({
             // What it is named: what a press does, then what Lantern is doing.
             label:
               document.querySelector("form button[type=submit]")?.getAttribute("aria-label") ?? "",
@@ -465,11 +472,20 @@ function readField(page: Page): Promise<FieldFrame[]> {
             left: box.left,
             top: box.top,
           });
+          started();
           requestAnimationFrame(tick);
         };
         requestAnimationFrame(tick);
       }),
   );
+}
+
+/** The frames sampled, once the day has taken the field's place. */
+async function sampledField(page: Page): Promise<FieldFrame[]> {
+  await page.waitForFunction(
+    () => (window as unknown as { field_?: { isDone: boolean } }).field_?.isDone === true,
+  );
+  return page.evaluate(() => (window as unknown as { field_: { seen: FieldFrame[] } }).field_.seen);
 }
 
 test(
@@ -480,9 +496,9 @@ test(
     const field = page.getByRole("textbox", { name: "Where, and anything else" });
     await field.fill(LONG_TEXT);
 
-    const frames = readField(page);
+    await sampleField(page);
     await field.press("Enter");
-    const seen = await frames;
+    const seen = await sampledField(page);
 
     // The text wraps in the field, and the button took each of its names.
     const [rest] = seen;
