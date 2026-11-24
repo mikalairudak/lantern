@@ -829,6 +829,34 @@ describe("the field's description after an answer without a day", () => {
     waitMs(NOTICE_HEARD_MS);
     expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-describedby");
   });
+
+  it.each([
+    ["an ending", { kind: "refused" } as const, "Where, and anything else"],
+    ["the city's question", NO_CITY_QUESTION, "Which city?"],
+  ])(
+    "names nothing for %s the start is drawn again with by Back, whose headline takes the focus",
+    (_, line, name) => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      render(
+        <HeldStart
+          starts={STARTS}
+          line={line}
+          wait={null}
+          isLive
+          isCityFocused={line.kind === "question"}
+          isReturnedTo
+          onPlan={vi.fn()}
+          onChooseWritten={vi.fn()}
+          onChooseReading={vi.fn()}
+        />,
+      );
+      expect(screen.getByRole("heading", { level: 1 })).toHaveFocus();
+
+      waitMs(NOTICE_HEARD_MS);
+      act(() => screen.getByRole("textbox", { name }).focus());
+      expect(screen.getByRole("textbox", { name })).not.toHaveAttribute("aria-describedby");
+    },
+  );
 });
 
 /** The motion-safe loop of the sign, on its pen: present only while it runs. */

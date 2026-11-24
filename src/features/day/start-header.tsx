@@ -201,6 +201,9 @@ export function StartHeader({
   const [waitedLine, setWaitedLine] = useState<StartLine | undefined>(undefined);
   if (wait !== null && waitedLine !== line) setWaitedLine(line);
   const isOverWaitedLine = wait === null && line === waitedLine;
+  // Drawn again by Back, the line it was drawn with hands no focus to the field: the headline
+  // takes it.
+  const [returnedLine] = useState(isReturnedTo ? line : undefined);
   // An ending's or the question's words stand in the status for `NOTICE_HEARD_MS`, then it falls
   // quiet while the line seen stays, so a read-through meets them once (`docs/decisions.md`,
   // "How a day ended is said from one status that stands before the ending"). Gone from it, as
@@ -245,6 +248,7 @@ export function StartHeader({
           isLive={isLive}
           isCityFocused={isCityFocused}
           isFocusedOnMount={isFocusHandedOn}
+          isLineReturnedTo={line === returnedLine}
           wait={wait}
           isOverWaitedLine={isOverWaitedLine}
           isReadingSaidByFocus={isReadingSaidByFocus}
@@ -279,6 +283,8 @@ interface QuestionFormProps {
   isCityFocused: boolean;
   /** Drawn again in place of the city's field, it takes the focus that field had. */
   isFocusedOnMount: boolean;
+  /** The line stands that Back drew the start again with: its headline takes the focus. */
+  isLineReturnedTo: boolean;
   wait: StartWait | null;
   /** No wait stands, over the line the last one stood over: that wait brought no answer. */
   isOverWaitedLine: boolean;
@@ -422,6 +428,7 @@ function QuestionForm({
   isLive,
   isCityFocused,
   isFocusedOnMount,
+  isLineReturnedTo,
   wait,
   isOverWaitedLine,
   isReadingSaidByFocus,
@@ -466,12 +473,14 @@ function QuestionForm({
   // form has fallen quiet, so the line is not said twice as the focus lands, and only while the
   // field does not hold the focus, since a reader may say a description that changes under the
   // focus; once joined it stays, for the focus coming back. The field is handed the focus as it
-  // mounts in place of the other, or as a typed wait ends on an answer it brought; a line that
-  // leaves the answer leaves the description with it.
+  // mounts in place of the other, unless Back drew it with its line, or as a typed wait ends on an
+  // answer it brought; a line that leaves the answer leaves the description with it.
   const isAnswered = isEnding || line?.kind === "question";
   const isWaiting = wait !== null;
   const [wasWaitingDrawn, setWasWaitingDrawn] = useState(isWaiting);
-  const [isFocusHandedBack, setIsFocusHandedBack] = useState(isFocusedOnMount || isCityFocused);
+  const [isFocusHandedBack, setIsFocusHandedBack] = useState(
+    !isLineReturnedTo && (isFocusedOnMount || isCityFocused),
+  );
   if (wasWaitingDrawn !== isWaiting) {
     setWasWaitingDrawn(isWaiting);
     setIsFocusHandedBack(!isWaiting && !isOverWaitedLine);
