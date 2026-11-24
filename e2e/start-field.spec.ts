@@ -493,6 +493,70 @@ test.describe("a day set on its way straight after an ending is said from a stat
   });
 });
 
+/**
+ * The words of each status on the page as Chrome's accessibility tree gives them to a screen
+ * reader: the texts under it, in order, as they are joined when it is said.
+ */
+async function chromeStatusWordsOf(page: Page): Promise<string[]> {
+  const cdp = await page.context().newCDPSession(page);
+  const { nodes } = await cdp.send("Accessibility.getFullAXTree");
+  await cdp.detach();
+  const byId = new Map(nodes.map((node) => [node.nodeId, node]));
+  const textsUnder = (id: string): string[] => {
+    const node = byId.get(id);
+    if (!node || node.ignored) return [];
+    if (node.role?.value === "StaticText") return [String(node.name?.value ?? "")];
+    return (node.childIds ?? []).flatMap(textsUnder);
+  };
+  return nodes
+    .filter((node) => !node.ignored && node.role?.value === "status")
+    .map((node) => textsUnder(node.nodeId).join(""));
+}
+
+/** What the start's status over the form holds, as the page writes it. */
+const overFormWordsOf = (page: Page) =>
+  page.evaluate(() => document.querySelector("main form")!.previousElementSibling!.textContent);
+
+/** Chrome's words for the day on its way, said from the status over the form, as it writes them. */
+async function expectOnItsWayWordsWhole(page: Page): Promise<void> {
+  const writing = async () =>
+    (await chromeStatusWordsOf(page)).find((words) => words.startsWith("Writing "));
+  await expect.poll(writing).toMatch(/^Writing an? \S+ \S+ in \S/);
+  expect(await writing(), "a space Chrome lost").toBe(await overFormWordsOf(page));
+}
+
+test.describe("a day on its way is said from the start's status with every space between its words", () => {
+  test.beforeEach(async ({ page }) => {
+    // The day is never answered, so its line stands while it is read.
+    await page.route("**/api/day", () => undefined);
+  });
+
+  test("with live generation on, a city pressed in the index after a refusal", async ({ page }) => {
+    await answerTheIntake(page, { kind: "refused" });
+    await openLive(page, "/");
+    await askFromTheField(page, "a quiet day somewhere");
+    await expect(
+      page.locator("main form").getByText("Lantern can't plan that day.", { exact: false }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("list", { name: "No city in mind? Start from one of these" })
+      .getByRole("button")
+      .first()
+      .click();
+    await expectOnItsWayWordsWhole(page);
+  });
+
+  test("with live generation on, the city's question answered", async ({ page }) => {
+    await answerTheIntake(page, PORTLAND_ASKED);
+    await openLive(page, "/");
+    await askFromTheField(page, "Portland, a lively day");
+
+    await page.getByRole("button", { name: "Portland, Oregon, United States" }).click();
+    await expectOnItsWayWordsWhole(page);
+  });
+});
+
 /** An element the focus moved to, by `performance.now()`. */
 interface FocusIn {
   t: number;
