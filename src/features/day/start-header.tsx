@@ -461,11 +461,13 @@ function QuestionForm({
   const isEnding = isNoDay(line);
   // An answer without a day that hands the focus back to the field, as the effects below do,
   // describes the field by its line too, the ending's or what the city's question needs, so a
-  // visitor who comes back to the field hears why no day came. Only once the status over the form
-  // has fallen quiet, so the line is not said twice as the focus lands (`docs/decisions.md`, "How a
-  // day ended is said from one status that stands before the ending"). The field is handed the
-  // focus as it mounts in place of the other, or as a typed wait ends on an answer it brought; a
-  // line that leaves the answer leaves the description with it.
+  // visitor who comes back to the field hears why no day came (`docs/decisions.md`, "How a day
+  // ended is said from one status that stands before the ending"). Only once the status over the
+  // form has fallen quiet, so the line is not said twice as the focus lands, and only while the
+  // field does not hold the focus, since a reader may say a description that changes under the
+  // focus; once joined it stays, for the focus coming back. The field is handed the focus as it
+  // mounts in place of the other, or as a typed wait ends on an answer it brought; a line that
+  // leaves the answer leaves the description with it.
   const isAnswered = isEnding || line?.kind === "question";
   const isWaiting = wait !== null;
   const [wasWaitingDrawn, setWasWaitingDrawn] = useState(isWaiting);
@@ -475,7 +477,12 @@ function QuestionForm({
     setIsFocusHandedBack(!isWaiting && !isOverWaitedLine);
   }
   if (isFocusHandedBack && !isAnswered) setIsFocusHandedBack(false);
-  const isAnswerDescribed = isFocusHandedBack && isAnswerHeardOut;
+  const [isFieldFocused, setIsFieldFocused] = useState(false);
+  const [isAnswerDescribed, setIsAnswerDescribed] = useState(false);
+  if (isAnswerDescribed && !(isFocusHandedBack && isAnswerHeardOut)) setIsAnswerDescribed(false);
+  if (!isAnswerDescribed && isFocusHandedBack && isAnswerHeardOut && !isFieldFocused) {
+    setIsAnswerDescribed(true);
+  }
   const describedBy =
     [isAnswerDescribed && answerId, isCountShown && roomId].filter(Boolean).join(" ") || undefined;
 
@@ -563,6 +570,8 @@ function QuestionForm({
               aria-label={isAskingCity ? "Which city?" : "Where, and anything else"}
               onChange={(event) => onTextChange(event.target.value.replace(LINE_BREAKS, " "))}
               onKeyDown={askOnEnter}
+              onFocus={() => setIsFieldFocused(true)}
+              onBlur={() => setIsFieldFocused(false)}
               enterKeyHint="go"
               readOnly={isReading}
               autoComplete="off"

@@ -725,7 +725,13 @@ describe("the field's description after an answer without a day", () => {
     return view;
   };
 
-  it("names the ending's line once the status has said it, with the room left beside it", () => {
+  /** The focus leaves the field for the button beside it, and comes back. */
+  const leaveAndComeBack = (field: HTMLElement) => {
+    act(() => screen.getByRole("button", { name: "Plan this day" }).focus());
+    act(() => field.focus());
+  };
+
+  it("names the ending's line once the status has said it and the focus has left, with the room left beside it", () => {
     const view = renderRead();
     view.rerender(startOf({ kind: "refused" }, null));
     const field = screen.getByRole("textbox", { name: "Where, and anything else" });
@@ -733,11 +739,27 @@ describe("the field's description after an answer without a day", () => {
     // Said by the status as the focus lands, so not by the field too.
     expect(field).not.toHaveAttribute("aria-describedby");
 
+    // Not under the focus, either, once the status falls quiet: a description that changes there
+    // may be said as it changes, the line a second time.
     waitMs(NOTICE_HEARD_MS);
+    expect(field).not.toHaveAttribute("aria-describedby");
+
+    leaveAndComeBack(field);
     expect(field).toHaveAccessibleDescription(REFUSED_SAID);
 
     fireEvent.change(field, { target: { value: "a".repeat(MAX_INTAKE_TEXT_CHARS) } });
     expect(field).toHaveAccessibleDescription(`${REFUSED_SAID} 0 left`);
+  });
+
+  it("names the ending's line as the status falls quiet where the focus has left the field already", () => {
+    const view = renderRead();
+    view.rerender(startOf({ kind: "refused" }, null));
+    const field = screen.getByRole("textbox", { name: "Where, and anything else" });
+    act(() => screen.getByRole("button", { name: "Plan this day" }).focus());
+    expect(field).not.toHaveAttribute("aria-describedby");
+
+    waitMs(NOTICE_HEARD_MS);
+    expect(field).toHaveAccessibleDescription(REFUSED_SAID);
   });
 
   it.each([
@@ -754,6 +776,8 @@ describe("the field's description after an answer without a day", () => {
     expect(field).toHaveFocus();
 
     waitMs(NOTICE_HEARD_MS);
+    expect(field).not.toHaveAttribute("aria-describedby");
+    leaveAndComeBack(field);
     expect(field).toHaveAccessibleDescription(said);
   });
 
@@ -767,6 +791,7 @@ describe("the field's description after an answer without a day", () => {
     expect(field).toHaveFocus();
 
     waitMs(NOTICE_HEARD_MS);
+    leaveAndComeBack(field);
     expect(field).toHaveAccessibleDescription(REFUSED_SAID);
   });
 
@@ -785,6 +810,7 @@ describe("the field's description after an answer without a day", () => {
     const view = renderRead();
     view.rerender(startOf({ kind: "refused" }, null));
     waitMs(NOTICE_HEARD_MS);
+    leaveAndComeBack(screen.getByRole("textbox"));
     expect(screen.getByRole("textbox")).toHaveAttribute("aria-describedby");
 
     view.rerender(startOf({ kind: "refused" }, "reading"));
@@ -795,6 +821,7 @@ describe("the field's description after an answer without a day", () => {
     const view = renderRead();
     view.rerender(startOf({ kind: "refused" }, null));
     waitMs(NOTICE_HEARD_MS);
+    leaveAndComeBack(screen.getByRole("textbox"));
     // A day pressed in the index, with no typed wait, that ends without a day too.
     view.rerender(startOf(ON_ITS_WAY_LIVE, null));
     view.rerender(startOf({ kind: "not-yet" }, null));

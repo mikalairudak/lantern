@@ -204,27 +204,132 @@ test.describe("each answer without a day, and the city's question, is said in a 
   });
 });
 
-/** What the start's status over the form holds, and what the field is described by, at once. */
-function saidAndDescribed(page: Page): Promise<{ said: string; describedBy: string | null }> {
-  return page.evaluate(() => {
-    const form = document.querySelector("main form")!;
-    return {
-      said: form.previousElementSibling?.textContent ?? "",
-      describedBy: form.querySelector("textarea")!.getAttribute("aria-describedby"),
-    };
+/** What the start's status over the form held, and what the field was described by, at once. */
+interface SaidAndDescribed {
+  t: number;
+  said: string;
+  describedBy: string | null;
+}
+
+declare global {
+  interface Window {
+    saidAndDescribed: SaidAndDescribed[];
+  }
+}
+
+/**
+ * Logs what the start's status over the form holds and the field's description together, at each
+ * change of the page, by `performance.now()`, so no change between two reads from the test goes
+ * unseen. Run as an init script.
+ */
+function logSaidAndDescribed(): void {
+  const log: SaidAndDescribed[] = [];
+  window.saidAndDescribed = log;
+  const note = () => {
+    const form = document.querySelector("main form");
+    const field = form?.querySelector("textarea");
+    if (!form || !field) return;
+    const said = form.previousElementSibling?.textContent ?? "";
+    const describedBy = field.getAttribute("aria-describedby");
+    const last = log.at(-1);
+    if (last?.said === said && last.describedBy === describedBy) return;
+    log.push({ t: performance.now(), said, describedBy });
+  };
+  new MutationObserver(note).observe(document, {
+    subtree: true,
+    childList: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: ["aria-describedby"],
   });
 }
 
+/** When the status over the form fell quiet after saying an answer since `since`, if it has. */
+function quietAtOf(page: Page, since: number): Promise<number | undefined> {
+  return page.evaluate((since) => {
+    const log = window.saidAndDescribed.filter((entry) => entry.t >= since);
+    const saying = log.findIndex((entry) => entry.said !== "");
+    if (saying === -1) return undefined;
+    return log.slice(saying).find((entry) => entry.said === "")?.t;
+  }, since);
+}
+
+/** Polls until the status has said an answer since `since` and fallen quiet. */
+async function waitForTheStatusQuiet(page: Page, since: number): Promise<number> {
+  await expect
+    .poll(() => quietAtOf(page, since), { timeout: NOTICE_HEARD_MS * 2 })
+    .toBeGreaterThan(since);
+  return (await quietAtOf(page, since))!;
+}
+
+/**
+ * The status said the answer, the field was never described while it did, and the description
+ * joined only once the status had fallen quiet.
+ */
+async function expectDescribedOnceSaid(page: Page, since: number): Promise<void> {
+  const sinceThePress = () =>
+    page.evaluate((since) => window.saidAndDescribed.filter((entry) => entry.t >= since), since);
+  await expect
+    .poll(async () => (await sinceThePress()).some((entry) => entry.said !== ""), {
+      message: "the status said the answer",
+    })
+    .toBe(true);
+  await expect
+    .poll(async () => (await sinceThePress()).some((entry) => entry.describedBy !== null))
+    .toBe(true);
+  const log = await sinceThePress();
+  expect(
+    log.filter((entry) => entry.said !== "" && entry.describedBy !== null),
+    "described while said",
+  ).toEqual([]);
+}
+
 test.describe("the field an answer without a day hands the focus back to is described by it", () => {
-  test("with live generation on, by the ending, once the status has said it", async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(logSaidAndDescribed);
+  });
+
+  const leaveAndComeBack = async (page: Page) => {
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("button", { name: "Plan this day" })).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+  };
+
+  test("with live generation on, by the ending, once the status has said it and the focus has left", async ({
+    page,
+  }) => {
     await answerTheIntake(page, { kind: "refused" });
     await openLive(page, "/");
-    await askFromTheField(page, "a quiet day somewhere");
+    const pressedAt = await askFromTheField(page, "a quiet day somewhere");
     const field = page.getByRole("textbox", { name: "Where, and anything else" });
     await expect(field).toBeFocused();
-    const atFocus = await saidAndDescribed(page);
-    if (atFocus.said !== "") expect(atFocus.describedBy, "described while said").toBeNull();
+    await waitForTheStatusQuiet(page, pressedAt);
+    // Kept in the field through the hold, it is not described under the focus.
+    await expect(field).toHaveAccessibleDescription("");
 
+    await leaveAndComeBack(page);
+    await expect(field).toBeFocused();
+    await expect(field).toHaveAccessibleDescription(
+      "Lantern can't plan that day. Start from one of the days below.",
+    );
+    await expectDescribedOnceSaid(page, pressedAt);
+  });
+
+  test("with live generation on, by the ending, where the focus left while the status said it", async ({
+    page,
+  }) => {
+    await answerTheIntake(page, { kind: "refused" });
+    await openLive(page, "/");
+    const pressedAt = await askFromTheField(page, "a quiet day somewhere");
+    const field = page.getByRole("textbox", { name: "Where, and anything else" });
+    await expect(field).toBeFocused();
+    await page.keyboard.press("Tab");
+    const leftAt = await page.evaluate(() => performance.now());
+
+    const quietAt = await waitForTheStatusQuiet(page, pressedAt);
+    expect(quietAt, "the focus left while the status said the answer").toBeGreaterThan(leftAt);
+    await expectDescribedOnceSaid(page, pressedAt);
+    await page.keyboard.press("Shift+Tab");
     await expect(field).toHaveAccessibleDescription(
       "Lantern can't plan that day. Start from one of the days below.",
     );
@@ -233,26 +338,28 @@ test.describe("the field an answer without a day hands the focus back to is desc
   test("with live generation on, by the cities the city's question offers", async ({ page }) => {
     await answerTheIntake(page, PORTLAND_ASKED);
     await openLive(page, "/");
-    await askFromTheField(page, "Portland, a lively day");
+    const pressedAt = await askFromTheField(page, "Portland, a lively day");
     const field = page.getByRole("textbox", { name: "Which city?" });
     await expect(field).toBeFocused();
-    const atFocus = await saidAndDescribed(page);
-    if (atFocus.said !== "") expect(atFocus.describedBy, "described while said").toBeNull();
+    await waitForTheStatusQuiet(page, pressedAt);
+    await expect(field).toHaveAccessibleDescription("");
 
+    await leaveAndComeBack(page);
     await expect(field).toHaveAccessibleDescription(
       "Portland, Oregon, United States Portland, Maine, United States",
     );
+    await expectDescribedOnceSaid(page, pressedAt);
   });
 
   test("with live generation off, by nothing, the focus staying on the button", async ({
     page,
   }) => {
     await page.goto("/");
-    await askFromTheField(page, "Reykjavik");
+    const pressedAt = await askFromTheField(page, "Reykjavik");
     await expect(
       page.locator("main form").getByText("Start from one of the days below.", { exact: false }),
     ).toBeVisible();
-    await expect.poll(async () => (await saidAndDescribed(page)).said).toBe("");
+    await waitForTheStatusQuiet(page, pressedAt);
 
     await expect(page.getByRole("button", { name: "Plan this day" })).toBeFocused();
     await expect(page.getByRole("textbox")).toHaveAccessibleDescription("");
