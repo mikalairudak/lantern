@@ -5,6 +5,7 @@ import {
   useId,
   useRef,
   useState,
+  type FocusEvent,
   type FormEvent,
   type KeyboardEvent,
   type ReactNode,
@@ -509,6 +510,10 @@ function QuestionForm({
   useEffect(() => {
     if (isFocusHandedBack && document.activeElement === button.current) field.current?.focus();
   }, [isFocusHandedBack]);
+  // The window losing the focus blurs the field too, though the page's focus stays in it.
+  const loseFocus = (event: FocusEvent<HTMLTextAreaElement>) => {
+    if (document.activeElement !== event.currentTarget) setIsFieldFocused(false);
+  };
 
   // At the press the button takes the focus, named for what Lantern is doing, so a phone's
   // keyboard leaves and uncovers the screen for the wait. Where the focus moves to it, from the
@@ -580,7 +585,7 @@ function QuestionForm({
               onChange={(event) => onTextChange(event.target.value.replace(LINE_BREAKS, " "))}
               onKeyDown={askOnEnter}
               onFocus={() => setIsFieldFocused(true)}
-              onBlur={() => setIsFieldFocused(false)}
+              onBlur={loseFocus}
               enterKeyHint="go"
               readOnly={isReading}
               autoComplete="off"

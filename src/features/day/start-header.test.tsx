@@ -830,6 +830,20 @@ describe("the field's description after an answer without a day", () => {
     expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-describedby");
   });
 
+  it("keeps the field undescribed when the window, not the field, loses the focus", () => {
+    const view = renderRead();
+    view.rerender(startOf({ kind: "refused" }, null));
+    const field = screen.getByRole("textbox", { name: "Where, and anything else" });
+    waitMs(NOTICE_HEARD_MS);
+
+    // Another window taken and this one again: the field still holds the page's focus.
+    fireEvent.focusOut(field);
+    expect(field).toHaveFocus();
+    expect(field).not.toHaveAttribute("aria-describedby");
+    fireEvent.focusIn(field);
+    expect(field).not.toHaveAttribute("aria-describedby");
+  });
+
   it.each([
     ["an ending", { kind: "refused" } as const, "Where, and anything else"],
     ["the city's question", NO_CITY_QUESTION, "Which city?"],
