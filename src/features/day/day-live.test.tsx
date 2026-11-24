@@ -3348,9 +3348,11 @@ describe("a changed word's fork on the plan, with live generation on", () => {
     await changeWord(user, "early start", "slow morning");
 
     await waitFor(() => expect(day.current?.replan().status).toBe("failed"), DAY_TIMEOUT);
+    // The slip leaves with the proposal's answer once its exit has run, a frame or more after
+    // the ending is drawn, so the fork is read once it has gone.
+    await waitFor(() => expect(planList().querySelector("[data-slip]")).toBeNull(), DAY_TIMEOUT);
     const fork = within(planList()).getByRole("radiogroup");
     expect(within(fork).getAllByRole("radio")).toHaveLength(1);
     expect(within(fork).getByRole("button", { name: "Ask again" })).toBeInTheDocument();
-    await waitFor(() => expect(planList().querySelector("[data-slip]")).toBeNull(), DAY_TIMEOUT);
   });
 });
