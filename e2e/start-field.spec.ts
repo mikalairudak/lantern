@@ -386,6 +386,80 @@ test.describe("a day set on its way straight after an ending is said from a stat
   });
 });
 
+/** An element the focus moved to, by `performance.now()`. */
+interface FocusIn {
+  t: number;
+  tag: string;
+}
+
+declare global {
+  interface Window {
+    focusIns: FocusIn[];
+  }
+}
+
+/** Logs each move of the focus from the page's start. Run as an init script. */
+function logFocusIns(): void {
+  const moves: FocusIn[] = [];
+  window.focusIns = moves;
+  document.addEventListener(
+    "focusin",
+    (event) => moves.push({ t: performance.now(), tag: (event.target as Element).tagName }),
+    true,
+  );
+}
+
+/** Past the time a status holds an answer, when the field it hands the focus to is described. */
+const PAST_HEARD_MS = NOTICE_HEARD_MS + 500;
+
+/** The ending a text no written day is for meets with live generation off, as said. */
+const NOT_LIVE_ENDING_SAID =
+  "Lantern isn't writing new days right now. Start from one of the days below.";
+
+test.describe("with live generation off, a text asked after an ending leaves the focus on the button", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(logFocusIns);
+    await page.addInitScript(logStatuses);
+    await page.goto("/");
+    await askFromTheField(page, "Reykjavik");
+    await expect(
+      page.locator("main form").getByText("Start from one of the days below.", { exact: false }),
+    ).toBeVisible();
+  });
+
+  const fieldFocusedSince = (page: Page, since: number) =>
+    page.evaluate(
+      (since) => window.focusIns.filter((move) => move.t >= since && move.tag === "TEXTAREA"),
+      since,
+    );
+
+  test("through the wait for a written day it opens, the ending not said again", async ({
+    page,
+  }) => {
+    const pressedAt = await askFromTheField(page, "London, with friends");
+    await page.waitForURL(/\/day\/london/);
+
+    expect(await fieldFocusedSince(page, pressedAt), "the field took the focus").toEqual([]);
+    const said = await page.evaluate(
+      (since) => window.statusLog.filter((entry) => entry.t >= since).map((entry) => entry.text),
+      pressedAt,
+    );
+    expect(said, "the ending said again").not.toContain(NOT_LIVE_ENDING_SAID);
+  });
+
+  test("when it ends without a day again", async ({ page }) => {
+    const pressedAt = await askFromTheField(page, "Reykjavik");
+    const planButton = page.getByRole("button", { name: "Plan this day" });
+    await expect(planButton).toBeFocused();
+    await page.waitForTimeout(PAST_HEARD_MS);
+
+    expect(await fieldFocusedSince(page, pressedAt), "the field took the focus").toEqual([]);
+    await expect(planButton).toBeFocused();
+    await expect(page.getByRole("textbox")).toHaveAccessibleDescription("");
+    await expectSaidOnceAsChange(page, NOT_LIVE_ENDING_SAID, NOTICE_HEARD_MS, pressedAt);
+  });
+});
+
 /** The focus as each frame finds it, by `performance.now()`. */
 interface FocusFrame {
   t: number;

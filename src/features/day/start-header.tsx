@@ -195,11 +195,17 @@ export function StartHeader({
     setIsLineAfterEnding(isEndingKind(lastLineKind));
   }
   const isSaidOverForm = isUnderWaySaidOverForm(line, isReadingSaidByFocus, isLineAfterEnding);
+  // The line a typed wait last stood over. A wait that ends on it has brought no answer: with live
+  // generation off a read answered within the press ends a commit before its answer is drawn, over
+  // the ending that stood, which is then neither said again nor hands the focus back.
+  const [waitedLine, setWaitedLine] = useState<StartLine | undefined>(undefined);
+  if (wait !== null && waitedLine !== line) setWaitedLine(line);
+  const isOverWaitedLine = wait === null && line === waitedLine;
   // An ending's or the question's words stand in the status for `NOTICE_HEARD_MS`, then it falls
   // quiet while the line seen stays, so a read-through meets them once (`docs/decisions.md`,
   // "How a day ended is said from one status that stands before the ending"). Gone from it, as
   // a wait empties it, they are held afresh when they come back.
-  const answer = answerSaidOf(line, wait, isLive);
+  const answer = isOverWaitedLine ? null : answerSaidOf(line, wait, isLive);
   const [answerHeardOut, setAnswerHeardOut] = useState<string | null>(null);
   if (answerHeardOut !== null && answerHeardOut !== answer) setAnswerHeardOut(null);
   useEffect(() => {
@@ -240,6 +246,7 @@ export function StartHeader({
           isCityFocused={isCityFocused}
           isFocusedOnMount={isFocusHandedOn}
           wait={wait}
+          isOverWaitedLine={isOverWaitedLine}
           isReadingSaidByFocus={isReadingSaidByFocus}
           onReadingSaidByFocus={setIsReadingSaidByFocus}
           isSaidOverForm={isSaidOverForm}
@@ -273,6 +280,8 @@ interface QuestionFormProps {
   /** Drawn again in place of the city's field, it takes the focus that field had. */
   isFocusedOnMount: boolean;
   wait: StartWait | null;
+  /** No wait stands, over the line the last one stood over: that wait brought no answer. */
+  isOverWaitedLine: boolean;
   /** The press moved the focus to the button, whose name says "Reading" as it lands. */
   isReadingSaidByFocus: boolean;
   onReadingSaidByFocus: (isSaid: boolean) => void;
@@ -414,6 +423,7 @@ function QuestionForm({
   isCityFocused,
   isFocusedOnMount,
   wait,
+  isOverWaitedLine,
   isReadingSaidByFocus,
   onReadingSaidByFocus,
   isSaidOverForm,
@@ -454,15 +464,15 @@ function QuestionForm({
   // visitor who comes back to the field hears why no day came. Only once the status over the form
   // has fallen quiet, so the line is not said twice as the focus lands (`docs/decisions.md`, "How a
   // day ended is said from one status that stands before the ending"). The field is handed the
-  // focus as it mounts in place of the other, or as a typed wait ends on the answer; a line that
-  // leaves the answer leaves the description with it.
+  // focus as it mounts in place of the other, or as a typed wait ends on an answer it brought; a
+  // line that leaves the answer leaves the description with it.
   const isAnswered = isEnding || line?.kind === "question";
   const isWaiting = wait !== null;
   const [wasWaitingDrawn, setWasWaitingDrawn] = useState(isWaiting);
   const [isFocusHandedBack, setIsFocusHandedBack] = useState(isFocusedOnMount || isCityFocused);
   if (wasWaitingDrawn !== isWaiting) {
     setWasWaitingDrawn(isWaiting);
-    setIsFocusHandedBack(!isWaiting);
+    setIsFocusHandedBack(!isWaiting && !isOverWaitedLine);
   }
   if (isFocusHandedBack && !isAnswered) setIsFocusHandedBack(false);
   const isAnswerDescribed = isFocusHandedBack && isAnswerHeardOut;
@@ -480,13 +490,9 @@ function QuestionForm({
 
   // A typed wait that ends without a day, or asks for the city again, hands the focus back to
   // the field from the button that held it, as a city asked for after a text takes it.
-  const wasWaiting = useRef(wait !== null);
   useEffect(() => {
-    const hasEnded = wasWaiting.current && wait === null;
-    wasWaiting.current = wait !== null;
-    if (!hasEnded || !(isNoDay(line) || line?.kind === "question")) return;
-    if (document.activeElement === button.current) field.current?.focus();
-  }, [wait, line]);
+    if (isFocusHandedBack && document.activeElement === button.current) field.current?.focus();
+  }, [isFocusHandedBack]);
 
   // At the press the button takes the focus, named for what Lantern is doing, so a phone's
   // keyboard leaves and uncovers the screen for the wait. Where the focus moves to it, from the

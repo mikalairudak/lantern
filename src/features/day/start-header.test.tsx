@@ -1226,6 +1226,10 @@ describe("the press that asks for a typed text", () => {
 });
 
 describe("a day set on its way straight after an ending, with no read drawn", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   const handlers = { onPlan: vi.fn(), onChooseWritten: vi.fn(), onChooseReading: vi.fn() };
   const startOf = (line: StartHeaderProps["line"], isLive: boolean, wait?: StartWait | null) => (
     <HeldStart
@@ -1258,14 +1262,41 @@ describe("a day set on its way straight after an ending, with no read drawn", ()
 
   it("says a typed text's day answered before its read is drawn from the status over the form", async () => {
     const user = userEvent.setup();
-    const view = render(startOf({ kind: "not-yet" }, false));
+    const ending = { kind: "not-yet" } as const;
+    const view = render(startOf(ending, false));
     await user.type(screen.getByRole("textbox"), "London, with friends{Enter}");
 
+    // As the page draws it, the read ends a commit before the day is set on its way, over the
+    // ending that stood: the focus stays on the button, and the ending is not said again.
+    view.rerender(startOf(ending, false, null));
+    expect(screen.getByRole("button", { name: "Plan this day" })).toHaveFocus();
+    expect(answerStatus().textContent).toBe("");
     view.rerender(startOf(ON_ITS_WAY_LIVE, false, "opening"));
     expect(screen.getByRole("button", { name: "Opening" })).toHaveFocus();
     expect(answerStatus()).toHaveTextContent(/^Opening a lively Saturday in Lisbon, with friends$/);
     expect(startStatus()).toHaveTextContent(/^Opening a lively Saturday in Lisbon/);
     expect(heardStatus()).toBe("");
+  });
+
+  it("leaves the focus on the button, and the field undescribed, when the text ends without a day again", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const ending = { kind: "not-yet" } as const;
+    const view = render(startOf(null, false, null));
+    view.rerender(startOf(ending, false, null));
+    view.rerender(startOf(ending, false, "reading"));
+    act(() => screen.getByRole("button", { name: "Reading" }).focus());
+    // The read ends over the ending that stood, a commit before the ending it brought, which is
+    // said as a change of the status the wait emptied.
+    view.rerender(startOf(ending, false, null));
+    expect(answerStatus().textContent).toBe("");
+    view.rerender(startOf({ kind: "not-yet" }, false, null));
+    expect(answerStatus().textContent).toBe(
+      "Lantern isn't writing new days right now. Start from one of the days below.",
+    );
+
+    act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS));
+    expect(screen.getByRole("button", { name: "Plan this day" })).toHaveFocus();
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-describedby");
   });
 
   it("leaves a day set on its way from the line at rest to the line under the field", () => {
