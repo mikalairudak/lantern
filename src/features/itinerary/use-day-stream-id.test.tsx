@@ -37,6 +37,9 @@ describe("useDayStream, the day's id", () => {
 
     await waitFor(() => expect(result.current.dayId).toBe(ID));
     expect(result.current.outcome).toBeNull();
+    // The day reads on once unmounted (`docs/decisions.md`, "A day reads on while its page is
+    // hidden"), so the one still being written is stopped while the file's environment stands.
+    act(() => result.current.stop());
   });
 
   it("names no day played from its file, nor one whose id is not one", async () => {
@@ -57,5 +60,7 @@ describe("useDayStream, the day's id", () => {
     act(() => result.current.play(namedSourceOf(null)));
 
     expect(result.current.dayId).toBeNull();
+    // Still being written, as the first test's day: stopped for the same reason.
+    act(() => result.current.stop());
   });
 });
