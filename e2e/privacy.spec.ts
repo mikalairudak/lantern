@@ -1,4 +1,7 @@
+import { VISITOR_DAILY_LIMITS } from "../src/lib/live/limits";
+import { VISITOR_TEXT_RETENTION_DAYS } from "../src/lib/live/retention";
 import { expect, test, type Page, waitMs } from "./fixtures";
+import { chromeReadOf } from "./chrome-tree";
 
 /** A written day lands in about twelve seconds; a cold dev server adds a few. */
 const DAY_TIMEOUT_MS = waitMs(30_000);
@@ -163,6 +166,19 @@ test("with live generation off, says what is typed stays in the browser, and wha
     page.getByText("The sections below describe Lantern when it writes days."),
   ).toBeVisible();
   await expect(page.getByText(/coded form of your IP address/)).toHaveCount(0);
+});
+
+// The page is drawn on the server alone, so a space written beside a number or a term would be
+// parted from it in the HTML, and Chrome would give a screen reader "kept for 30days".
+test("each of the page's lines keeps its words apart in Chrome's tree", async ({ page }) => {
+  await page.goto("/privacy");
+  await expect(page.getByRole("heading", { name: "Terms", exact: true })).toBeAttached();
+
+  const lines = (await chromeReadOf(page, "listitem")).map(({ text }) => text).join("\n");
+  expect(lines).toContain(`Your text is kept for ${VISITOR_TEXT_RETENTION_DAYS} days.`);
+  expect(lines).toContain(`Lantern writes up to ${VISITOR_DAILY_LIMITS.day} days`);
+  expect(lines).toContain("In your browser. Your browser keeps");
+  expect(lines).toContain("never leaves your browser. “Forget these days”");
 });
 
 for (const width of WIDTHS) {
