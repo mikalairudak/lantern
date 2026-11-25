@@ -27,11 +27,11 @@ function isPageSeenOnServer(): boolean {
 }
 
 /**
- * Whether the page is seen. A line is written into a status only while it is, and its
- * `NOTICE_HEARD_MS` runs only then, so a line that comes behind another tab waits, empty, and is
- * said and held from the moment the page is seen again; one gone before then is never written
- * (`docs/decisions.md`, "How a day ended is said from one status that stands before the
- * ending"). The server and the first paint take the page as seen.
+ * Whether the page is seen. A line held for `NOTICE_HEARD_MS` is written into its status only
+ * while it is, and its hold runs only then, so a line that comes behind another tab waits,
+ * empty, and is said and held from the moment the page is seen again; one gone before then is
+ * never written (`docs/decisions.md`, "How a day ended is said from one status that stands
+ * before the ending"). The server and the first paint take the page as seen.
  */
 export function usePageSeen(): boolean {
   return useSyncExternalStore(subscribeVisibility, isPageSeenNow, isPageSeenOnServer);
