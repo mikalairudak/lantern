@@ -288,9 +288,26 @@ function Answer({
   const isBlue = !isChecked;
   // One condition draws "Take" and names it, so the two cannot part.
   const isTakeShown = isReady;
+  const button = useRef<HTMLButtonElement | null>(null);
+  // Taken away, as a failed proposal's answer is at once, it hands a focus on it, a pointer's or
+  // a screen reader's, to its row's checked answer before it leaves the page, so the focus does
+  // not rest on the page (WCAG 2.4.3).
+  useLayoutEffect(() => {
+    const element = button.current;
+    return () => {
+      if (element === null || document.activeElement !== element) return;
+      element
+        .closest('[role="radiogroup"]')
+        ?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
+        ?.focus({ preventScroll: true });
+    };
+  }, []);
   return (
     <button
-      ref={ref}
+      ref={(element) => {
+        button.current = element;
+        ref(element);
+      }}
       type="button"
       role="radio"
       aria-checked={isChecked}

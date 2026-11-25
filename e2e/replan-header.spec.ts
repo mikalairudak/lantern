@@ -272,6 +272,8 @@ test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => 
   /** Far longer than the pair's words take to be written out, a slow page's too. */
   const LEAVING_TIMEOUT_MS = waitMs(10_000);
   const PAIR = "h1 button[data-fork-pair]";
+  /** The chart's first fork row: the plan's fork lines carry the mark on their group. */
+  const CHART_FIRST_ROW = '[data-fork-row="0"]:not([role="radiogroup"])';
   /** The day's plan, where each part of a fork heads its rows. */
   const PLAN = 'ol[aria-label="The day, to read"]';
   /** The bench's day and its proposal at the live pace, a slow page's too. */
@@ -568,5 +570,37 @@ test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => 
         ).toHaveAccessibleName("early dinner, your day");
       });
     }
+  }
+
+  // On the chart a failed proposal takes its answer off the fork row at once; a pointer's press
+  // or a screen reader can have put the focus on it while it was written.
+  for (const [reducedMotion, how] of [
+    ["no-preference", "with motion"],
+    ["reduce", "with reduced motion"],
+  ] as const) {
+    test(`a focus on the chart's proposed answer when it fails goes to the row's answer that stays, ${how}`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ reducedMotion });
+      test.setTimeout(STORY_TIMEOUT_MS);
+      await openElche(page, "cut after a stop");
+      await pointAtAnswer(page, "eating late");
+      await page.keyboard.press("Enter");
+      await expect(page.locator(PAIR)).toHaveCount(1, { timeout: PROPOSAL_TIMEOUT_MS });
+      const row = page.locator(CHART_FIRST_ROW);
+      const proposal = row.getByRole("radio", { name: "eating late, being written" });
+      await expect(proposal).toBeVisible({ timeout: PROPOSAL_TIMEOUT_MS });
+      await proposal.focus();
+      await expect(proposal).toBeFocused();
+      await page.evaluate(watchThePair, PAIR);
+
+      await expect(page.locator(PAIR)).toHaveCount(0, { timeout: PROPOSAL_TIMEOUT_MS });
+      await page.waitForTimeout(WRITTEN_OUT_MS);
+
+      const watch = await watchOf(page);
+      expect(framesAt(watch, "page"), "frames with the focus on the page").toBe(0);
+      expect(watch.lost).toEqual([]);
+      await expect(row.getByRole("radio", { name: "early dinner, your day" })).toBeFocused();
+    });
   }
 });
