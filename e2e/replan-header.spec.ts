@@ -266,7 +266,11 @@ test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => 
   test.use({ reducedMotion: "no-preference" });
 
   /** Long enough for the pair's words to be written out, a slow page's too. */
-  const WRITTEN_OUT_MS = 1_500;
+  const WRITTEN_OUT_MS = waitMs(1_500);
+  /** More steps down the dinner's list than it has answers. */
+  const LIST_STEPS = 8;
+  /** Far longer than the pair's words take to be written out, a slow page's too. */
+  const LEAVING_TIMEOUT_MS = waitMs(10_000);
   const PAIR = "h1 button[data-fork-pair]";
   /** The day's plan, where each part of a fork heads its rows. */
   const PLAN = 'ol[aria-label="The day, to read"]';
@@ -306,7 +310,7 @@ test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => 
     const list = page.getByRole("listbox");
     const active = list.getByRole("option", { name: new RegExp(`^${answer}`) });
     await expect(active).toBeVisible();
-    for (let step = 0; step < 8; step += 1) {
+    for (let step = 0; step < LIST_STEPS; step += 1) {
       const id = await list.getAttribute("aria-activedescendant");
       if (id !== null && id === (await active.getAttribute("id"))) return;
       await page.keyboard.press("ArrowDown");
@@ -409,23 +413,31 @@ test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => 
     const { root } = await cdp.send("DOM.getDocument", { depth: 0 });
     const { nodeId } = await cdp.send("DOM.querySelector", { nodeId: root.nodeId, selector: "h1" });
     const { node } = await cdp.send("DOM.describeNode", { nodeId });
-    const nameOf = async () => {
-      const { nodes } = await cdp.send("Accessibility.getPartialAXTree", {
-        backendNodeId: node.backendNodeId,
-        fetchRelatives: false,
-      });
-      return String(nodes[0]?.name?.value ?? "");
+    /**
+     * The headline's name, and whether the pair still stood once it was read: sent together on
+     * one session, whose commands Chrome runs in turn, so a sample takes one round trip.
+     */
+    const sample = async () => {
+      const [tree, pair] = await Promise.all([
+        cdp.send("Accessibility.getPartialAXTree", {
+          backendNodeId: node.backendNodeId,
+          fetchRelatives: false,
+        }),
+        cdp.send("DOM.querySelector", { nodeId: root.nodeId, selector: PAIR }),
+      ]);
+      return { name: String(tree.nodes[0]?.name?.value ?? ""), isThere: pair.nodeId !== 0 };
     };
-    const isPairThere = () => page.evaluate((pair) => document.querySelector(pair) !== null, PAIR);
 
     await pointAtAnswer(page, "early dinner");
     await page.keyboard.press("Enter");
     // The pair only leaves: one still there after a read stood through it.
     const names: string[] = [];
+    const deadline = Date.now() + LEAVING_TIMEOUT_MS;
     for (let isThere = true; isThere;) {
-      const name = await nameOf();
-      isThere = await isPairThere();
-      if (isThere) names.push(name);
+      expect(Date.now(), "the pair never left").toBeLessThan(deadline);
+      const read = await sample();
+      isThere = read.isThere;
+      if (isThere) names.push(read.name);
     }
 
     expect(names.length, "names read while the pair was written out").toBeGreaterThan(0);
