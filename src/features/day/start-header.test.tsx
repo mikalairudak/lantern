@@ -767,7 +767,7 @@ describe("the field's description after an answer without a day", () => {
     [
       "one of the cities a name could be",
       PORTLAND_QUESTION,
-      "Portland, Oregon, United States Portland, Maine, United States",
+      "Portland, Oregon, United States, or Portland, Maine, United States.",
     ],
   ])("names what the city's question needs, %s, when a text turns to it", (_, question, said) => {
     const view = renderRead();

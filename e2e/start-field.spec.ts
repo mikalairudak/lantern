@@ -346,7 +346,7 @@ test.describe("the field an answer without a day hands the focus back to is desc
 
     await leaveAndComeBack(page);
     await expect(field).toHaveAccessibleDescription(
-      "Portland, Oregon, United States Portland, Maine, United States",
+      "Portland, Oregon, United States, or Portland, Maine, United States.",
     );
     await expectDescribedOnceSaid(page, pressedAt);
   });

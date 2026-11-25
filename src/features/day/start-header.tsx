@@ -1042,16 +1042,18 @@ function EndingLine({ id, ending, isLive }: { id: string; ending: Ending; isLive
 function questionSaidOf({ words, readings, unplaced }: CityQuestion): string {
   const energy = energyLabelOf(words.energy);
   const sentence = [`A ${energy} ${dayWordOf(words)} in …?`, ...restLabelsOf(words)].join(", ");
-  const needed =
-    readings.length > 0
-      ? `${readings.map((reading) => `${reading.name}, ${reading.region}`).join(", or ")}.`
-      : NEEDS_CITY;
+  const needed = readings.length > 0 ? readingsSaidOf(readings) : NEEDS_CITY;
   // The sentence ends at its "…?" where it names nothing after the city.
   const asked = sentence.endsWith("?") ? sentence : `${sentence}.`;
   // The key as its line says it, set as a sentence of the status's own.
   const keySaid = assumedKeyOf(words);
   const key = keySaid === null ? null : `${keySaid.charAt(0).toUpperCase()}${keySaid.slice(1)}.`;
   return [asked, key, needed, unplacedLineOf(unplaced)].filter((part) => part !== null).join(" ");
+}
+
+/** The cities a shared name could be, as one sentence offering each: "…, or …". */
+function readingsSaidOf(readings: readonly CityReading[]): string {
+  return `${readings.map((reading) => `${reading.name}, ${reading.region}`).join(", or ")}.`;
 }
 
 /**
@@ -1121,10 +1123,7 @@ function QuestionLines({
         {question.readings.length > 0 ? (
           // The answers to the field's "Which city?" stand under the sentence's blank alone:
           // a line that asked it again was heard twice.
-          <p
-            id={neededId}
-            className="flex flex-wrap items-baseline gap-x-4 gap-y-1 type-note text-muted"
-          >
+          <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1 type-note text-muted">
             {question.readings.map((reading) => (
               <button
                 key={reading.placeId}
@@ -1137,6 +1136,13 @@ function QuestionLines({
                 <span className="text-muted">, {reading.region}</span>
               </button>
             ))}
+            {/* The field's description, as the status said them: the buttons' names run
+                together, with no "or" between them. Hidden, it is read only through the field. */}
+            {neededId && (
+              <span id={neededId} hidden>
+                {readingsSaidOf(question.readings)}
+              </span>
+            )}
           </p>
         ) : (
           <p id={neededId} className="type-note text-muted">
