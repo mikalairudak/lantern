@@ -674,12 +674,13 @@ describe("the wait that follows a typed text, with reduced motion", () => {
     await waitFor(() => expect(headline()).toHaveTextContent(/^A lively Saturday in Bologna/));
   });
 
-  it("gives the focus back to the field and the plates their strength when the wait ends without a day", async () => {
+  it("leaves the focus on the button, and gives the plates their strength, when a wait whose read was never drawn ends without a day", async () => {
     const { user } = renderStart({ kind: "unavailable" });
 
     await user.type(screen.getByRole("textbox"), "Paris{Enter}");
     expect(await saysBack(NOT_YET_LINE)).toBeVisible();
-    await waitFor(() => expect(screen.getByRole("textbox")).toHaveFocus());
+    // Answered within the press, the read never said "Reading", so nothing hands the focus back.
+    expect(screen.getByRole("button", { name: "Plan this day" })).toHaveFocus();
     expect(screen.getByRole("button", { name: "Plan this day" })).toBeInTheDocument();
     expect(signPart("pen")).toBeNull();
     expect(steppedBack().some(Boolean)).toBe(false);

@@ -197,11 +197,14 @@ export function StartHeader({
   }
   const isSaidOverForm = isUnderWaySaidOverForm(line, isReadingSaidByFocus, isLineAfterAnswer);
   // The line a typed wait last stood over. A wait that ends on it has brought no answer: with live
-  // generation off a read answered within the press ends a commit before its answer is drawn, over
-  // the ending that stood, which is then neither said again nor hands the focus back.
+  // generation off a read answered within the press may end a commit before its answer is drawn,
+  // over the ending that stood, which is then not said again. Only a wait whose read the line said
+  // hands the focus back as it ends: one answered before its read is drawn, as with live
+  // generation off, leaves it on the button, in however many commits the page ends it.
   const [waitedLine, setWaitedLine] = useState<StartLine | undefined>(undefined);
   if (wait !== null && waitedLine !== line) setWaitedLine(line);
   const isOverWaitedLine = wait === null && line === waitedLine;
+  const isReadDrawnInWait = isUnderWay(waitedLine ?? null);
   // Drawn again by Back, the line it was drawn with hands no focus to the field: the headline
   // takes it.
   const [returnedLine] = useState(isReturnedTo ? line : undefined);
@@ -251,7 +254,7 @@ export function StartHeader({
           isFocusedOnMount={isFocusHandedOn}
           isLineReturnedTo={line === returnedLine}
           wait={wait}
-          isOverWaitedLine={isOverWaitedLine}
+          isReadDrawnInWait={isReadDrawnInWait}
           isReadingSaidByFocus={isReadingSaidByFocus}
           onReadingSaidByFocus={setIsReadingSaidByFocus}
           isSaidOverForm={isSaidOverForm}
@@ -287,8 +290,8 @@ interface QuestionFormProps {
   /** The line stands that Back drew the start again with: its headline takes the focus. */
   isLineReturnedTo: boolean;
   wait: StartWait | null;
-  /** No wait stands, over the line the last one stood over: that wait brought no answer. */
-  isOverWaitedLine: boolean;
+  /** The last typed wait's read was said by the line under the field. */
+  isReadDrawnInWait: boolean;
   /** The press moved the focus to the button, whose name says "Reading" as it lands. */
   isReadingSaidByFocus: boolean;
   onReadingSaidByFocus: (isSaid: boolean) => void;
@@ -431,7 +434,7 @@ function QuestionForm({
   isFocusedOnMount,
   isLineReturnedTo,
   wait,
-  isOverWaitedLine,
+  isReadDrawnInWait,
   isReadingSaidByFocus,
   onReadingSaidByFocus,
   isSaidOverForm,
@@ -474,18 +477,21 @@ function QuestionForm({
   // form has fallen quiet, so the line is not said twice as the focus lands, and only while the
   // field does not hold the focus, since a reader may say a description that changes under the
   // focus; once joined it stays, for the focus coming back. The field is handed the focus as it
-  // mounts in place of the other, unless Back drew it with its line, or as a typed wait ends on an
-  // answer it brought; a line that leaves the answer leaves the description with it.
+  // mounts in place of the other, unless Back drew it with its line, as the city is asked for, or
+  // as a typed wait ends on an answer to the read it drew, from the button, where the focus still
+  // is; a line that leaves the answer leaves the description with it.
   const isAnswered = isEnding || line?.kind === "question";
   const isWaiting = wait !== null;
-  const [wasWaitingDrawn, setWasWaitingDrawn] = useState(isWaiting);
-  const [isFocusHandedBack, setIsFocusHandedBack] = useState(
-    !isLineReturnedTo && (isFocusedOnMount || isCityFocused),
-  );
-  if (wasWaitingDrawn !== isWaiting) {
-    setWasWaitingDrawn(isWaiting);
-    setIsFocusHandedBack(!isWaiting && !isOverWaitedLine);
+  const [isWaitDrawn, setIsWaitDrawn] = useState(isWaiting);
+  const [isFocusHandedBack, setIsFocusHandedBack] = useState(false);
+  // The wait's end, due to hand the focus back: the effect below moves it, from the button alone.
+  const [isHandBackDue, setIsHandBackDue] = useState(false);
+  if (isWaitDrawn !== isWaiting) {
+    setIsWaitDrawn(isWaiting);
+    setIsHandBackDue(!isWaiting && isReadDrawnInWait);
+    if (isWaiting) setIsFocusHandedBack(false);
   }
+  if (isHandBackDue && !isAnswered) setIsHandBackDue(false);
   if (isFocusHandedBack && !isAnswered) setIsFocusHandedBack(false);
   const [isFieldFocused, setIsFieldFocused] = useState(false);
   const [isAnswerDescribed, setIsAnswerDescribed] = useState(false);
@@ -496,20 +502,37 @@ function QuestionForm({
   const describedBy =
     [isAnswerDescribed && answerId, isCountShown && roomId].filter(Boolean).join(" ") || undefined;
 
+  // Each way the focus is handed to the field marks it handed back once the page's focus is there,
+  // read from the page rather than from a focus event, which a window not in front delivers late.
+  // A line Back drew the start again with hands it to the headline, which takes it after; read
+  // from a ref, as the line leaving it is no reason to move the focus.
+  const isLineReturnedToRef = useRef(isLineReturnedTo);
   useEffect(() => {
-    if (isAskingCity && isCityFocused) field.current?.focus();
+    isLineReturnedToRef.current = isLineReturnedTo;
+  }, [isLineReturnedTo]);
+  useEffect(() => {
+    if (!isAskingCity || !isCityFocused) return;
+    field.current?.focus();
+    if (document.activeElement === field.current && !isLineReturnedToRef.current) {
+      setIsFocusHandedBack(true);
+    }
   }, [isAskingCity, isCityFocused]);
   // Set again for a text after the city's field, it takes the focus that field had.
   const isFocusedOnMountRef = useRef(isFocusedOnMount);
   useEffect(() => {
-    if (isFocusedOnMountRef.current) field.current?.focus();
+    if (!isFocusedOnMountRef.current) return;
+    field.current?.focus();
+    if (document.activeElement === field.current) setIsFocusHandedBack(true);
   }, []);
 
   // A typed wait that ends without a day, or asks for the city again, hands the focus back to
-  // the field from the button that held it, as a city asked for after a text takes it.
+  // the field from the button that held it, as a city asked for after a text takes it; a focus
+  // the visitor moved elsewhere stays.
   useEffect(() => {
-    if (isFocusHandedBack && document.activeElement === button.current) field.current?.focus();
-  }, [isFocusHandedBack]);
+    if (!isHandBackDue || document.activeElement !== button.current) return;
+    field.current?.focus();
+    if (document.activeElement === field.current) setIsFocusHandedBack(true);
+  }, [isHandBackDue]);
   // The window losing the focus blurs the field too, though the page's focus stays in it.
   const loseFocus = (event: FocusEvent<HTMLTextAreaElement>) => {
     if (document.activeElement !== event.currentTarget) setIsFieldFocused(false);

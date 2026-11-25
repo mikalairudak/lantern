@@ -284,6 +284,9 @@ async function expectDescribedOnceSaid(page: Page, since: number): Promise<void>
   ).toEqual([]);
 }
 
+/** How long the intake takes to answer where the focus moves while it reads. */
+const INTAKE_HELD_MS = 1000;
+
 test.describe("the field an answer without a day hands the focus back to is described by it", () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(logSaidAndDescribed);
@@ -349,6 +352,63 @@ test.describe("the field an answer without a day hands the focus back to is desc
       "Portland, Oregon, United States, or Portland, Maine, United States.",
     );
     await expectDescribedOnceSaid(page, pressedAt);
+  });
+
+  test("with live generation on, by the cities the city's question offers when it asks again", async ({
+    page,
+  }) => {
+    let reads = 0;
+    await page.route("**/api/intake", async (route) => {
+      reads += 1;
+      if (reads === 1) {
+        return route.fulfill({
+          json: { ...PORTLAND_ASKED, readings: [] } satisfies IntakeResult,
+        });
+      }
+      await new Promise((done) => setTimeout(done, INTAKE_HELD_MS));
+      return route.fulfill({ json: PORTLAND_ASKED });
+    });
+    await openLive(page, "/");
+    await askFromTheField(page, "a lively day");
+    const field = page.getByRole("textbox", { name: "Which city?" });
+    await expect(field).toBeFocused();
+    await field.fill("Portland");
+    const pressedAt = await page.evaluate(() => performance.now());
+    await field.press("Enter");
+    await expect(
+      page.getByRole("button", { name: "Portland, Oregon, United States" }),
+    ).toBeVisible();
+    await expect(field).toBeFocused();
+    await waitForTheStatusQuiet(page, pressedAt);
+
+    await leaveAndComeBack(page);
+    await expect(field).toHaveAccessibleDescription(
+      "Portland, Oregon, United States, or Portland, Maine, United States.",
+    );
+  });
+
+  test("with live generation on, by nothing, where the focus left the button before the ending", async ({
+    page,
+  }) => {
+    await page.route("**/api/intake", async (route) => {
+      await new Promise((done) => setTimeout(done, INTAKE_HELD_MS));
+      await route.fulfill({ json: { kind: "refused" } satisfies IntakeResult });
+    });
+    await openLive(page, "/");
+    const pressedAt = await askFromTheField(page, "a quiet day somewhere");
+    await expect(page.getByRole("button", { name: "Reading" })).toBeFocused();
+    // Away from the button while the text is read: the ending hands nothing back.
+    await page.keyboard.press("Tab");
+    const field = page.getByRole("textbox", { name: "Where, and anything else" });
+    await waitForTheStatusQuiet(page, pressedAt);
+
+    await expect(field).not.toBeFocused();
+    await expect(field).toHaveAccessibleDescription("");
+    // The visitor's own way to the field, and away again, hands nothing back either.
+    await field.focus();
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("button", { name: "Plan this day" })).toBeFocused();
+    await expect(field).toHaveAccessibleDescription("");
   });
 
   test("with live generation off, by nothing, the focus staying on the button", async ({
