@@ -93,6 +93,9 @@ function readTextOf(row: HTMLElement): string {
 /** The arrows that swipe a stop to a version beside it. */
 const ARROW_NAME = /^(Quieter|Livelier|Same energy): /;
 
+/** The page's own `scrollIntoView`, if it has one, put back after each test. */
+const OWN_SCROLL_INTO_VIEW = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView");
+
 // Motion as on a screen that moves, so the pen can be watched: a row on the list when it is
 // first drawn stands whole all the same.
 beforeEach(() => {
@@ -110,7 +113,11 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
-  Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+  if (OWN_SCROLL_INTO_VIEW) {
+    Object.defineProperty(Element.prototype, "scrollIntoView", OWN_SCROLL_INTO_VIEW);
+  } else {
+    Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+  }
 });
 
 describe("ReadingList", () => {

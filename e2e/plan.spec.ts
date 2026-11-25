@@ -133,8 +133,8 @@ const WRITTEN_COFFEE = "Coffee in Kenrokumachi";
 const LIVELIER_COFFEE = "Coffee near Hirosaka";
 /** A livelier version shorter than the stop it replaces, and a quieter one. */
 const LIVELIER_GRILLS = "Seafood Grills in Omicho";
-const QUIETER_WORKSHOP = "Utatsuyama Craft Workshop";
-/** How far above the plan's bar's edge a stop's foot is scrolled, so the bar wholly covers it. */
+const QUIETER_WORKSHOP = "Utatsuyama Craft Workshop Hill";
+/** How far above the scroll padding's edge a stop's foot is scrolled, its top out of view. */
 const UNDER_BAR_PX = 10;
 /** How far, rounded, a stop brought to the plan's bar's edge may sit off it. */
 const BAR_EDGE_PX = 2;
@@ -153,14 +153,14 @@ test("an arrow pressed hands the focus to its stop once the stop carries the ver
   const plan = page.getByRole("list", { name: "The day, to read" });
   // The name each stop carries as the focus reaches it, which is what a screen reader says.
   await page.evaluate(() => {
-    const w = window as unknown as { focusedNames: string[] };
-    w.focusedNames = [];
+    const watched = window as unknown as { focusedNames: string[] };
+    watched.focusedNames = [];
     document.addEventListener(
       "focusin",
       (event) => {
         const target = event.target as HTMLElement;
         if (target.getAttribute("role") === "group") {
-          w.focusedNames.push(target.getAttribute("aria-label") ?? "");
+          watched.focusedNames.push(target.getAttribute("aria-label") ?? "");
         }
       },
       true,
@@ -180,40 +180,61 @@ test("an arrow pressed hands the focus to its stop once the stop carries the ver
   await expect(plan.getByRole("group", { name: WRITTEN_COFFEE })).toBeFocused();
 });
 
-test("an arrow pressed brings its stop out from under the plan's bar the least way", async ({
-  page,
-}) => {
-  await openSeenKanazawa(page);
-  const plan = page.getByRole("list", { name: "The day, to read" });
-  const arrow = plan.getByRole("button", { name: `Livelier: ${LIVELIER_GRILLS}` });
-  // The page's scroll padding is the plan's bar's edge, which focus scrolled to stays clear of.
-  const barEdge = await page.evaluate(() =>
-    Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop),
-  );
-  await arrow.evaluate(
-    (element, { barEdge, underBar }) => {
-      const stop = element.parentElement!.parentElement!.querySelector('[role="group"]')!;
-      const { top, height } = stop.getBoundingClientRect();
-      window.scrollBy(0, top + height - barEdge + underBar);
-      (element as HTMLElement).focus({ preventScroll: true });
-    },
-    { barEdge, underBar: UNDER_BAR_PX },
-  );
-  await page.keyboard.press("Enter");
+/** Where the plan's bar, stuck at the window's top, ends on screen. */
+async function barBottomOf(page: Page): Promise<number> {
+  return page.getByRole("group", { name: "How lively the day is" }).evaluate((group) => {
+    let bar: Element | null = group;
+    while (bar && getComputedStyle(bar).position !== "sticky") bar = bar.parentElement;
+    return bar!.getBoundingClientRect().bottom;
+  });
+}
 
-  // The shorter version taken comes to the plan's bar's edge, not to the middle of the window.
-  const stop = plan.getByRole("group", { name: LIVELIER_GRILLS });
-  await expect(stop).toBeFocused();
-  await expect
-    .poll(async () => Math.abs((await stop.boundingBox())!.y - barEdge))
-    .toBeLessThanOrEqual(BAR_EDGE_PX);
-});
+// The bar takes one row on a phone 390 px wide and wraps to two on one 320 px wide.
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 320, height: 568 },
+]) {
+  test.describe(`${viewport.width} px wide`, () => {
+    test.use({ viewport });
+
+    test("an arrow pressed brings its stop out from under the plan's bar the least way", async ({
+      page,
+    }) => {
+      await openSeenKanazawa(page);
+      const plan = page.getByRole("list", { name: "The day, to read" });
+      const arrow = plan.getByRole("button", { name: `Livelier: ${LIVELIER_GRILLS}` });
+      // The page's scroll padding is the edge that focus scrolled to stays clear of.
+      const barEdge = await page.evaluate(() =>
+        Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop),
+      );
+      await arrow.evaluate(
+        (element, { barEdge, underBar }) => {
+          const stop = element.parentElement!.parentElement!.querySelector('[role="group"]')!;
+          const { top, height } = stop.getBoundingClientRect();
+          window.scrollBy(0, top + height - barEdge + underBar);
+          (element as HTMLElement).focus({ preventScroll: true });
+        },
+        { barEdge, underBar: UNDER_BAR_PX },
+      );
+      await page.keyboard.press("Enter");
+
+      // The shorter version taken comes to the edge the scroll padding keeps, not to the
+      // middle of the window, and the bar, on one row or two, covers none of it.
+      const stop = plan.getByRole("group", { name: LIVELIER_GRILLS });
+      await expect(stop).toBeFocused();
+      await expect
+        .poll(async () => Math.abs((await stop.boundingBox())!.y - barEdge))
+        .toBeLessThanOrEqual(BAR_EDGE_PX);
+      expect((await stop.boundingBox())!.y).toBeGreaterThanOrEqual(await barBottomOf(page));
+    });
+  });
+}
 
 test("an arrow pressed while the stop leans scrolls nothing sideways", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await openSeenKanazawa(page);
   const plan = page.getByRole("list", { name: "The day, to read" });
-  const arrow = plan.getByRole("button", { name: `Quieter: ${QUIETER_WORKSHOP}` });
+  const arrow = plan.getByRole("button", { name: `Quieter: ${QUIETER_WORKSHOP}`, exact: true });
   await arrow.scrollIntoViewIfNeeded();
   // The keyboard reaching the arrow leans the stop, past the edge of the box that holds it.
   await page.keyboard.press("Shift");
@@ -224,10 +245,98 @@ test("an arrow pressed while the stop leans scrolls nothing sideways", async ({ 
     .not.toBe("none");
   await page.keyboard.press("Enter");
 
-  const stop = plan.getByRole("group", { name: QUIETER_WORKSHOP });
+  const stop = plan.getByRole("group", { name: QUIETER_WORKSHOP, exact: true });
   await expect(stop).toBeFocused();
   expect(await stop.evaluate((element) => element.parentElement!.scrollLeft)).toBe(0);
 });
+
+/** Kanazawa's market stop as written, taller than the livelier version beside it. */
+const WRITTEN_BOWLS = "Seafood Bowls at Omicho Market";
+/** The most a stop the focus is handed to may move in a frame ("Three pixels a frame"). */
+const MOST_PX_PER_FRAME = 3;
+/** How many frames in a row a row stands still before it counts as at rest. */
+const STILL_FRAMES = 10;
+
+/** Waits until an element's box has stood still on screen for `STILL_FRAMES` frames. */
+async function untilStill(element: Locator): Promise<void> {
+  await element.evaluate(
+    (target, stillFrames) =>
+      new Promise<void>((resolve) => {
+        let last = "";
+        let still = 0;
+        const read = () => {
+          const { top, height } = target.getBoundingClientRect();
+          const now = `${top.toFixed(1)} ${height.toFixed(1)}`;
+          still = now === last ? still + 1 : 0;
+          last = now;
+          if (still >= stillFrames) resolve();
+          else requestAnimationFrame(read);
+        };
+        requestAnimationFrame(read);
+      }),
+    STILL_FRAMES,
+  );
+}
+
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 320, height: 568 },
+]) {
+  test.describe(`with motion, ${viewport.width} px wide`, { tag: "@frame" }, () => {
+    test.use({ reducedMotion: "no-preference", viewport });
+
+    test("an arrow pressed at the window's foot hands the focus to a taller version, its stop moving under 3 px a frame", async ({
+      page,
+    }) => {
+      await openSeenKanazawa(page);
+      const plan = page.getByRole("list", { name: "The day, to read" });
+      // The shorter version first, so the arrow back names the stop as written, the taller.
+      await plan.getByRole("button", { name: `Livelier: ${LIVELIER_GRILLS}`, exact: true }).focus();
+      await page.keyboard.press("Enter");
+      const stop = plan.getByRole("group", { name: LIVELIER_GRILLS, exact: true });
+      await expect(stop).toBeFocused();
+      // The stop's row, by its place in the plan, which the version taken does not change.
+      const at = await stop.evaluate((group) => {
+        const item = group.closest('[aria-label="The day, to read"] > li')!;
+        return [...item.parentElement!.children].indexOf(item);
+      });
+      const row = plan.locator(":scope > li").nth(at);
+      await untilStill(row);
+
+      // The arrow back at the window's foot, reached by Tab from the stop.
+      const back = plan.getByRole("button", { name: `Quieter: ${WRITTEN_BOWLS}`, exact: true });
+      await back.evaluate((arrow) => {
+        window.scrollBy(0, arrow.getBoundingClientRect().bottom - window.innerHeight);
+      });
+      await page.keyboard.press("Tab");
+      await expect(back).toBeFocused();
+      await untilStill(row);
+
+      // Where the stop's box stands on screen, every frame from the press on.
+      await stop.evaluate((group) => {
+        const tops: number[] = [];
+        (window as unknown as { tops: number[] }).tops = tops;
+        const box = group.parentElement!;
+        const sample = () => {
+          tops.push(box.getBoundingClientRect().top);
+          requestAnimationFrame(sample);
+        };
+        sample();
+      });
+      await page.keyboard.press("Enter");
+      const written = plan.getByRole("group", { name: WRITTEN_BOWLS, exact: true });
+      await expect(written).toBeFocused();
+      await untilStill(row);
+
+      const tops = await page.evaluate(() => (window as unknown as { tops: number[] }).tops);
+      const steps = tops.slice(1).map((top, at) => Math.abs(top - tops[at]!));
+      expect(
+        Math.max(...steps),
+        `steps ${steps.map((step) => step.toFixed(1)).join(", ")}`,
+      ).toBeLessThanOrEqual(MOST_PX_PER_FRAME);
+    });
+  });
+}
 
 /** A finger on the page at a point, moved by `by` in steps, and lifted unless it is to stay. */
 async function swipeOn(

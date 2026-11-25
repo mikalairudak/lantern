@@ -187,6 +187,16 @@ const ARROWS_CLASSES = "flex flex-wrap gap-x-3 gap-y-2";
 /** The version's name in its arrow, ruled under a pointer or the keyboard's focus. */
 const ARROW_NAME_CLASSES = "decoration-1 underline-offset-4 pointed-group:underline";
 
+/**
+ * Whether a box's top stands on screen, below the edge the page's scroll padding keeps clear of
+ * the plan's bar.
+ */
+function isTopInView(box: Element): boolean {
+  const { top } = box.getBoundingClientRect();
+  const edge = Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop);
+  return top >= (Number.isNaN(edge) ? 0 : edge) && top < window.innerHeight;
+}
+
 /** Whether an element has the focus as the keyboard gives it, where the browser can tell. */
 function isKeyboardFocus(element: Element): boolean {
   try {
@@ -256,13 +266,19 @@ export function VersionCarousel({
   // An arrow pressed may go with the version it named, so the focus stays with the stop. It
   // reaches the stop once the stop carries the version's name, which a screen reader then says;
   // a version taken any other way leaves the focus where it is. The focus itself scrolls
-  // nothing: the page comes to the stop's box the least way, so a shorter version clipped under
-  // the plan's bar is not centred, and the box, which no lean or slide moves, scrolls nothing
-  // sideways.
+  // nothing. A stop whose top is on screen, below the edge the page's scroll padding keeps,
+  // stays where it is: a taller version at the window's foot grows into view with its row's
+  // glide, where a scroll to its foot would jump it a line or more in one frame. One whose top
+  // is above that edge, as under the plan's bar, is brought in the least way, never centred, by
+  // its box, which no lean or slide moves, so nothing scrolls sideways.
+  // Both this hand-off and the slide below read the render `take` flushes, so `onPick` must
+  // commit the pick synchronously: in a transition or deferred, it would come after `take` has
+  // dropped them both.
   useLayoutEffect(() => {
     if (focusWith.current !== pick) return;
     groupRef.current?.focus({ preventScroll: true });
-    boxRef.current?.scrollIntoView({ block: "nearest" });
+    const box = boxRef.current;
+    if (box && !isTopInView(box)) box.scrollIntoView({ block: "nearest" });
   }, [pick]);
 
   // The version taken is now the stop: drawn where it stood as it waited, a stride off, in the
@@ -359,6 +375,11 @@ export function VersionCarousel({
     if (isKeyboardFocus(event.currentTarget)) lean(side);
   };
 
+  const goHome = () => {
+    if (isReduced) x.set(0);
+    else animate(x, 0, SPRINGS.layout);
+  };
+
   const take = (side: Side, isPressed = false) => {
     const version = side === "before" ? before : after;
     if (!version || !onPick) return;
@@ -369,21 +390,20 @@ export function VersionCarousel({
     pointedLean.current = null;
     // The version on the left waits a stride to the left, so once taken it starts from there.
     shift.current = side === "before" ? -stride : stride;
-    if (!isPressed) {
-      onPick(version.index);
-      return;
+    if (isPressed) focusWith.current = version.index;
+    // The pick's render is flushed within this call, so a version the page takes has used the
+    // slide and the hand-off by the time `onPick` returns. One it does not take, as during a
+    // drag on the curve, or fails to, leaves neither for a later pick of that stop from
+    // elsewhere, and the stop goes home.
+    try {
+      flushSync(() => onPick(version.index));
+    } finally {
+      focusWith.current = null;
+      if (shift.current !== null) {
+        shift.current = null;
+        goHome();
+      }
     }
-    // The press's own render is flushed within it, so the hand-off lasts for this press alone: a
-    // version the page does not take, as during a drag on the curve, leaves nothing for a later
-    // pick of it from elsewhere.
-    focusWith.current = version.index;
-    flushSync(() => onPick(version.index));
-    focusWith.current = null;
-  };
-
-  const goHome = () => {
-    if (isReduced) x.set(0);
-    else animate(x, 0, SPRINGS.layout);
   };
 
   /**
