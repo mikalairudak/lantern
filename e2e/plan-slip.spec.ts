@@ -396,6 +396,36 @@ async function sampleView(page: Page): Promise<void> {
   );
 }
 
+/**
+ * Waits until the page is at rest: the plan's list not busy, and the view and the page's height
+ * standing for `STILL_FRAMES`. A proposal's slip gives back the room it held for a while after
+ * the proposal is whole, which shrinks the page, and a view at the page's foot goes with it.
+ */
+async function waitForRest(page: Page): Promise<void> {
+  const isAtRest = await page.evaluate(
+    ([still, most]) =>
+      new Promise<boolean>((resolve) => {
+        const placeOf = () => [window.scrollY, document.documentElement.scrollHeight].join();
+        let place = placeOf();
+        let stood = 0;
+        let frames = 0;
+        const tick = () => {
+          const now = placeOf();
+          const list = document.querySelector('ol[aria-label="The day, to read"]');
+          const isStill = now === place && list?.getAttribute("aria-busy") === "false";
+          stood = isStill ? stood + 1 : 0;
+          place = now;
+          if (stood >= still) resolve(true);
+          else if (++frames > most) resolve(false);
+          else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }),
+    [STILL_FRAMES, MOST_FRAMES] as const,
+  );
+  expect(isAtRest, "the page came to rest").toBe(true);
+}
+
 /** How far the page was scrolled in each frame sampled, once the rows have come to rest. */
 async function sampledView(page: Page): Promise<number[]> {
   await page.waitForFunction(
@@ -857,6 +887,9 @@ test.describe("with motion", { tag: "@frame" }, () => {
       await openElche(page);
       await eatLate(page);
       await waitForTheProposal(page);
+      // The slip still gives back room once the proposal is whole: a press then would count its
+      // glide as the take's.
+      await waitForRest(page);
       const evening = (name: string) =>
         plan(page).locator(`[data-fork-row="1"]`).getByRole("radio", { name, exact: true }).last();
       // The evening's answer near the top of the screen, where a reader presses it.
