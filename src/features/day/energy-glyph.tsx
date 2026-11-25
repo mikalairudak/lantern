@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { cn } from "@/components/ui/cn";
 import { X_HEIGHT_EM } from "@/components/ui/lantern-mark";
 import { ENERGY_LEVELS, type EnergyLevel } from "@/lib/schema/itinerary.schema";
@@ -48,12 +49,29 @@ const BOX_STYLE = {
 
 const BEAD_SIZE = 2 * BEAD_RADIUS;
 
-/** The bead alone, set on the word's baseline as the glyph is: its centre on the x-height's. */
+/** The gap between the bead alone and the word it stands before, in the glyph's units. */
+const BEAD_GAP = 2;
+
+/**
+ * The bead alone, set on the word's baseline as the glyph is: its centre on the x-height's, the
+ * gap to its word after it.
+ */
 const BEAD_STYLE = {
   width: emOf(BEAD_SIZE),
   height: emOf(BEAD_SIZE),
+  marginRight: emOf(BEAD_GAP),
   verticalAlign: `${X_HEIGHT_EM / 2 - BEAD_RADIUS / UNITS_PER_EM}em`,
 };
+
+/**
+ * The room a bead and its gap take before a word, given back by the box that holds both, so the
+ * word stands where it stands without the bead at any text size.
+ */
+export const BEAD_ROOM_STYLE = { marginLeft: emOf(-(BEAD_SIZE + BEAD_GAP)) };
+
+interface EnergyBeadProps {
+  className?: string;
+}
 
 /**
  * The glyph's bead alone, in the colour of the text it stands in: the mark of the day's level
@@ -61,7 +79,7 @@ const BEAD_STYLE = {
  * with `currentColor`, so where colours are forced it takes the system's text colour as its
  * word does. Hidden from screen readers, since its word is the one pressed.
  */
-export function EnergyBead({ className }: { className?: string }) {
+export function EnergyBead({ className }: EnergyBeadProps): ReactElement {
   return (
     <svg
       aria-hidden

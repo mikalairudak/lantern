@@ -85,13 +85,14 @@ describe("the plan's energy", () => {
   });
 
   it("marks the day's word with a bead while the words wait, so it is told by more than colour", () => {
-    const beadOf = (name: string) =>
-      screen.getByRole("button", { name }).querySelector("svg[data-bead-mark]");
+    const beadOf = (name: string) => screen.getByRole("button", { name }).querySelector("svg");
     const { rerender } = render(<PlanEnergy energy="calm" isEnabled={false} onChoose={vi.fn()} />);
-    const bead = beadOf("calm");
-    expect(bead).toHaveAttribute("aria-hidden", "true");
-    // Painted in the word's own colour, which forced colours replace with the system's.
-    expect(bead?.querySelector("circle")).toHaveClass("fill-current");
+    // One mark inside the pressed word, hidden from a screen reader, which the word names; its
+    // colour under forced colours is the e2e's to hold.
+    const calm = screen.getByRole("button", { name: "calm" });
+    expect(calm.querySelectorAll("svg")).toHaveLength(1);
+    expect(beadOf("calm")).toHaveAttribute("aria-hidden", "true");
+    expect(calm).toHaveAccessibleName("calm");
     for (const other of ["quiet", "balanced", "lively", "social"]) expect(beadOf(other)).toBeNull();
 
     rerender(<PlanEnergy energy="lively" isEnabled isLocked onChoose={vi.fn()} />);

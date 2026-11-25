@@ -3,7 +3,7 @@
 import type { Ref } from "react";
 import { cn } from "@/components/ui/cn";
 import { ENERGY_LEVELS, type EnergyLevel } from "@/lib/schema/itinerary.schema";
-import { EnergyBead } from "./energy-glyph";
+import { BEAD_ROOM_STYLE, EnergyBead } from "./energy-glyph";
 import { TARGET_CLASSES } from "./link-classes";
 import { energyLabelOf } from "./sentence";
 import { DayViewSwitch } from "./view-switch";
@@ -66,14 +66,14 @@ export function PlanEnergy({
               isOn
                 ? "text-energy"
                 : "text-muted underline decoration-1 underline-offset-4 aria-disabled:cursor-default aria-disabled:no-underline not-aria-disabled:pointed:text-ink",
-              // Waiting, no word is underlined, so the day's word carries the energy's bead too,
-              // which is told without colour. It stands in the gap before the word, the word's
-              // box and its ring round both, its 8 px given back by the margin so no word moves
-              // as the words wait or answer; the targets that cross there all say the same.
-              isOn && isWaiting && "-ml-2",
             )}
+            // Waiting, no word is underlined, so the day's word carries the energy's bead too,
+            // which is told without colour. It stands in the gap before the word, the word's box
+            // and its ring round both, the room it takes given back by the box's margin so no
+            // word moves as the words wait or answer; the targets that cross there all say the same.
+            style={isOn && isWaiting ? BEAD_ROOM_STYLE : undefined}
           >
-            {isOn && isWaiting && <EnergyBead className="mr-0.5" />}
+            {isOn && isWaiting && <EnergyBead />}
             {energyLabelOf(level)}
           </button>
         );
