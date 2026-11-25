@@ -15,6 +15,7 @@ import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { simulateDayStream } from "@/lib/stream/simulate-day-stream";
 import { Day } from "./day";
 import { TAKE_THIS_DAY } from "./day-menu";
+import { SHOW_WHOLE_DAY } from "./foot-line";
 import { NEW_DAY } from "./new-day";
 import { INTAKE_ROUTE } from "./intake-route";
 import { StartDay } from "./start-day";
@@ -592,6 +593,61 @@ describe("the gestures on a day, as the product counts them", () => {
     await user.click(screen.getByRole("button", { name: /^Bologna/ }));
     await waitFor(() => expect(sentOf("day-opened")).toHaveLength(2), DAY_TIMEOUT);
     expect(sentOf("day-left")).toEqual([]);
+  });
+
+  describe("a written day shown whole from its play, its stream still writing", () => {
+    /** Kanazawa's own page, unseen here, its play held after its first stops, then pressed. */
+    async function pressShowWhole() {
+      localStorage.clear();
+      dayReplies.push("held-after-first-stops");
+      const kanazawa = writtenDayAt("kanazawa")!;
+      const version = writtenVersionOf(kanazawa.itinerary);
+      const user = userEvent.setup();
+      render(
+        <Day
+          first={KANAZAWA_START_REQUEST}
+          written={{ itinerary: kanazawa.itinerary, version, checks: {} }}
+          isAddressed
+          isCounted
+        />,
+      );
+      await waitFor(
+        () => expect(within(dayList()).queryAllByRole("listitem").length).toBeGreaterThan(0),
+        DAY_TIMEOUT,
+      );
+      await user.click(screen.getByRole("button", { name: SHOW_WHOLE_DAY }));
+      return user;
+    }
+    const daysTold = () => sent().filter(({ kind }) => kind.startsWith("day-"));
+
+    it("is one day ended complete at the press, never left as the page goes", async () => {
+      await pressShowWhole();
+
+      pageHides();
+
+      expect(sent()).toEqual([
+        { kind: "day-opened", ...KANAZAWA_LINK },
+        { kind: "day-ended", ...KANAZAWA_LINK, ...ON_CHART, outcome: "complete" },
+      ]);
+    });
+
+    it("is ended complete, never left, as another day is played after it", async () => {
+      const user = await pressShowWhole();
+
+      await user.click(within(headline()).getByRole("button", { name: "Kanazawa" }));
+      await user.click(screen.getByRole("button", { name: /^Bologna/ }));
+      await waitFor(() => expect(sentOf("day-opened")).toHaveLength(2), DAY_TIMEOUT);
+
+      // The next day's own events follow as it plays, at whatever pace the machine gives it.
+      expect(daysTold().slice(0, 3)).toEqual([
+        { kind: "day-opened", ...KANAZAWA_LINK },
+        { kind: "day-ended", ...KANAZAWA_LINK, ...ON_CHART, outcome: "complete" },
+        { kind: "day-opened", city: "bologna", via: "word", written: true },
+      ]);
+      expect(daysTold().filter((told) => "city" in told && told.city === "kanazawa")).toHaveLength(
+        2,
+      );
+    });
   });
 
   // A day that came back empty is asked for again by the page, not the visitor: one opening.

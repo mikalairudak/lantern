@@ -341,3 +341,111 @@ test(
     }
   },
 );
+
+const MADRID = writtenDayAt("madrid")!.itinerary;
+const MADRID_STOPS = MADRID.stops.length;
+/** The press that ends a written day's play with the day whole. */
+const SHOW_WHOLE_DAY = "Show the whole day";
+/**
+ * How soon the day stands whole after the press: a second on the laptop, twice that on CI
+ * (`waitMs`), against a play of some ten seconds, so a day that plays on to its end fails it.
+ */
+const LANDS_WITHIN_MS = waitMs(1000);
+/** More presses of Tab than the page holds controls before the line under the day. */
+const TABS_TO_THE_LINE = 60;
+
+/** Where the day stands at the moment it is asked: the list's own words for how written it is. */
+async function listBusyOf(page: Page): Promise<string | null> {
+  return page.getByRole("list", { name: "The day, to read" }).getAttribute("aria-busy");
+}
+
+/**
+ * Presses the press with the keyboard the moment it stands, as a visitor tabbing to it would,
+ * and waits for the day whole: the list says all it will, and holds every stop.
+ */
+async function showTheWholeDay(page: Page): Promise<void> {
+  const press = page.getByRole("button", { name: SHOW_WHOLE_DAY });
+  await expect(press).toBeAttached({ timeout: DAY_TIMEOUT_MS });
+  // Still playing as it is pressed: a stop at most, its versions to come.
+  expect(await listBusyOf(page)).toBe("true");
+  await press.focus();
+  await page.keyboard.press("Enter");
+  const list = page.getByRole("list", { name: "The day, to read" });
+  await expect(list).toHaveAttribute("aria-busy", "false", { timeout: LANDS_WITHIN_MS });
+  await expect(list.getByRole("listitem")).toHaveCount(MADRID_STOPS, { timeout: LANDS_WITHIN_MS });
+}
+
+/** The headline's city word, which takes the focus as a day lands whole from the press. */
+function cityWordOf(page: Page) {
+  return page
+    .getByRole("heading", { level: 1 })
+    .getByRole("button", { name: "Madrid", exact: true });
+}
+
+/** After a reload: the day whole from its first frame, nothing played and no press. */
+async function expectNoPlayAfterReload(page: Page): Promise<void> {
+  await page.addInitScript(sampleTheList);
+  await page.reload();
+  await waitForTheDay(page);
+  expectWhole(await listFramesOf(page), MADRID);
+  await expect(page.getByRole("button", { name: SHOW_WHOLE_DAY })).toHaveCount(0);
+}
+
+// A written day's page plays its day in by itself for a visitor who has not seen it, for some
+// ten seconds beside a usable masthead, and the line under the day offers the day whole on a
+// press, as a device that has seen it draws it (`docs/decisions.md`, "A written day's play
+// offers the day whole on a press").
+test.describe("a written day's play, shown whole on a press", () => {
+  test.describe("with motion", () => {
+    test.use({ reducedMotion: "no-preference" });
+
+    test("lands whole within a second of the press, the city word focused, and never plays again here", async ({
+      page,
+    }) => {
+      await page.goto("/day/madrid");
+
+      await showTheWholeDay(page);
+      await expect(cityWordOf(page)).toBeFocused();
+      await expect(page.getByRole("button", { name: SHOW_WHOLE_DAY })).toHaveCount(0);
+      await expectNoPlayAfterReload(page);
+    });
+  });
+
+  test.describe("under reduced motion", () => {
+    test.use({ reducedMotion: "reduce" });
+
+    test("lands whole within a second of the press, the city word focused, and never plays again here", async ({
+      page,
+    }) => {
+      await page.goto("/day/madrid");
+
+      await showTheWholeDay(page);
+      await expect(cityWordOf(page)).toBeFocused();
+      await expectNoPlayAfterReload(page);
+    });
+  });
+
+  test("is reached by Tab while the day plays", async ({ page }) => {
+    await page.goto("/day/madrid");
+    const press = page.getByRole("button", { name: SHOW_WHOLE_DAY });
+    await expect(press).toBeAttached({ timeout: DAY_TIMEOUT_MS });
+
+    // Asked of the page, not of the press, which goes as the play ends: then the Tabs run out
+    // and fail, rather than waiting on a press no longer there.
+    const isPressFocused = () =>
+      page.evaluate(
+        (name) =>
+          document.activeElement instanceof HTMLButtonElement &&
+          document.activeElement.textContent === name,
+        SHOW_WHOLE_DAY,
+      );
+    let presses = 0;
+    while (!(await isPressFocused())) {
+      presses += 1;
+      expect(presses, "Tab reached the press").toBeLessThanOrEqual(TABS_TO_THE_LINE);
+      await page.keyboard.press("Tab");
+    }
+    // Reached while the day still plays.
+    expect(await listBusyOf(page)).toBe("true");
+  });
+});

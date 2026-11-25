@@ -133,7 +133,10 @@ interface Asked {
   run: number;
   /** How the visitor reached it, as the product's events count it. */
   via: DayVia;
-  /** Chosen by the visitor, rather than by landing or by a replay: the city word takes the focus. */
+  /**
+   * Chosen by the visitor, rather than by landing or by a replay, or shown whole from its play by
+   * the visitor's press: the city word takes the focus.
+   */
   isChosen: boolean;
   /** The visitor's phrases that fit no word of the request, said back under the day. */
   unplaced: readonly string[];
@@ -1187,6 +1190,25 @@ export function Day({
   if (asked !== null && wholeInPlace !== null) {
     setAsked({ ...asked, run: asked.run + 1, whole: wholeInPlace });
   }
+  // A play of the page's own written day can be ended with the day whole, as a device that has
+  // seen it draws it (`docs/decisions.md`, "A written day's play offers the day whole on a
+  // press"): it starts by itself and lasts some ten seconds beside a usable page, and the page
+  // holds the day whole.
+  const isOwnDayPlaying =
+    pageOwnWhole !== null && asked?.whole === null && shown.isFromStream && mergedShown === null;
+  /**
+   * The page's own written day whole in its play's place, seen on this device from now on, so it
+   * never plays here again. Its city word takes the focus, as when a day lands from it: the press
+   * goes with the play, and the whole day reads from its headline down. The day's opening ends
+   * complete at the press, as the day on screen is, and the stream writes on unseen, told of no
+   * more.
+   */
+  const showWholeDay = () => {
+    if (asked === null || pageOwnWhole === null || firstSeenKey === null) return;
+    events.end(asked.openedAs, "complete");
+    markSeen(firstSeenKey);
+    setAsked({ ...asked, run: asked.run + 1, whole: pageOwnWhole, isChosen: true });
+  };
   // Whether the day on screen ended without one, as last drawn, for the run played next.
   const endingPhase = phaseOf(outcome, endedDayOf(outcome));
   const isEndedWithoutDay = endingPhase === "failed" || endingPhase === "not-yet";
@@ -2253,6 +2275,7 @@ export function Day({
               isFromStart={asked.isStreamed && asked.kept === null}
               isDrawnWhole={asked.whole !== null || asked.isKeptWhole}
               onPlayedThrough={notePlayedThrough}
+              onShowWhole={isOwnDayPlaying ? showWholeDay : undefined}
               picksKey={picksKey}
               placeHint={asked.request === first ? firstPlace : undefined}
               keptNotice={asked.kept?.notice ?? null}

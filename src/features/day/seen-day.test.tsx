@@ -1,8 +1,12 @@
 import { act, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { KANAZAWA_START_DAY } from "@/lib/days/written/kanazawa";
 import { KANAZAWA_START_REQUEST } from "@/lib/days/written/quick-starts";
 import { answerDayRequest } from "@/lib/stream/answer-day-request";
+import { dayText } from "@/lib/stream/simulate-day-stream";
 import { Day } from "./day";
+import { SHOW_WHOLE_DAY } from "./foot-line";
 import { SEEN_DAY_HEADER } from "@/lib/days/written/version";
 import { isSeen, markSeen, seenKeyAt, seenKeyOf } from "./seen-days";
 import { writtenDayAt } from "@/lib/days/written/days";
@@ -45,9 +49,31 @@ function reducedMotion(query: string): MediaQueryList {
   };
 }
 
+/** The route answers each day at once, or, while `held.isOn`, as far as its stops and no further. */
+const held = { isOn: false };
 const fetchDay = vi.fn((path: string, init: RequestInit) =>
-  answerDayRequest(new Request(new URL(path, ORIGIN), init), QUICK),
+  held.isOn && String(path).endsWith("/api/day")
+    ? Promise.resolve(heldPlayResponse())
+    : answerDayRequest(new Request(new URL(path, ORIGIN), init), QUICK),
 );
+
+/**
+ * Kanazawa's day as the route plays it, its stops written and its versions never coming, so the
+ * play stays under way until the test is over.
+ */
+function heldPlayResponse(): Response {
+  const text = dayText(KANAZAWA_START_DAY.day);
+  const stopsWritten = text.indexOf('"alternatives"');
+  const encoder = new TextEncoder();
+  const delta = (part: string) =>
+    encoder.encode(`data: ${JSON.stringify({ type: "text-delta", id: "day", delta: part })}\n\n`);
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(delta(text.slice(0, stopsWritten)));
+    },
+  });
+  return new Response(body, { headers: { "Content-Type": "text/event-stream" } });
+}
 
 beforeAll(() => {
   vi.stubGlobal("ResizeObserver", FixedSizeObserver);
@@ -59,6 +85,7 @@ beforeAll(() => {
 afterEach(() => {
   localStorage.clear();
   fetchDay.mockClear();
+  held.isOn = false;
 });
 afterAll(() => {
   vi.unstubAllGlobals();
@@ -152,5 +179,68 @@ describe("a written day seen here that the page did not give", () => {
     // Seen once its stream has ended, after its last place check.
     await vi.waitFor(() => expect(isSeen(KEY)).toBe(true), DAY_TIMEOUT);
     expect(seenKeyAt("kanazawa")).toBe(KEY);
+  });
+});
+
+/** Every status region's words on the page, as a screen reader would hear them next. */
+const statusWords = () => screen.queryAllByRole("status").map((status) => status.textContent ?? "");
+
+describe("a written day's play, shown whole on a press", () => {
+  it("offers the whole day while it plays, and lands it whole, seen from then on, the city word holding the focus", async () => {
+    held.isOn = true;
+    render(<Day first={KANAZAWA_START_REQUEST} written={WRITTEN} isAddressed />);
+
+    const press = await screen.findByRole("button", { name: SHOW_WHOLE_DAY }, DAY_TIMEOUT);
+    // Still playing: not every stop is in, and nothing has marked the day seen.
+    expect(isSeen(KEY)).toBe(false);
+    expect(screen.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+    await userEvent.click(press);
+
+    // Whole at once, as a device that has seen it draws it, and seen from now on.
+    expect(screen.getByRole("list", { name: "The day" }).children).toHaveLength(
+      KANAZAWA.itinerary.stops.length,
+    );
+    expect(isSeen(KEY)).toBe(true);
+    expect(screen.queryByRole("button", { name: SHOW_WHOLE_DAY })).toBeNull();
+    // The press went with the play: the focus is on the city word, never on the page.
+    expect(screen.getByRole("heading", { level: 1 })).toContainElement(
+      document.activeElement as HTMLElement,
+    );
+    expect(document.activeElement).toHaveAccessibleName("Kanazawa");
+    const chart = screen.getByRole("group", { name: /The day's energy/ });
+    await vi.waitFor(() => expect(chart).toHaveAttribute("aria-busy", "false"), DAY_TIMEOUT);
+    // Nothing says the day is still being written, or that it ended without itself.
+    for (const words of statusWords()) expect(words).toBe("");
+    // Nothing more is asked of the route for it.
+    expect(dayRequests()).toHaveLength(1);
+  });
+
+  it("offers nothing on a day this device has seen", async () => {
+    markSeen(KEY);
+    render(<Day first={KANAZAWA_START_REQUEST} written={WRITTEN} isAddressed />);
+
+    const chart = screen.getByRole("group", { name: /The day's energy/ });
+    await vi.waitFor(() => expect(chart).toHaveAttribute("aria-busy", "false"), DAY_TIMEOUT);
+    expect(screen.queryByRole("button", { name: SHOW_WHOLE_DAY })).toBeNull();
+  });
+
+  it("offers nothing once its play has ended", async () => {
+    render(<Day first={KANAZAWA_START_REQUEST} written={WRITTEN} isAddressed />);
+
+    const chart = await screen.findByRole("group", { name: /The day's energy/ }, DAY_TIMEOUT);
+    await vi.waitFor(() => expect(chart).toHaveAttribute("aria-busy", "false"), DAY_TIMEOUT);
+    await screen.findByText(/^Home by/, undefined, DAY_TIMEOUT);
+    expect(screen.queryByRole("button", { name: SHOW_WHOLE_DAY })).toBeNull();
+  });
+
+  it("offers nothing on a written day the page did not give, which a press could not land whole", async () => {
+    held.isOn = true;
+    render(<Day first={KANAZAWA_START_REQUEST} isAddressed />);
+
+    await screen.findByText(/^Writing the day · /, undefined, DAY_TIMEOUT);
+    expect(screen.queryByRole("button", { name: SHOW_WHOLE_DAY })).toBeNull();
   });
 });

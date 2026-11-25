@@ -101,22 +101,64 @@ export function FootLine({ sources = [], className }: FootLineProps) {
   );
 }
 
+/** The press that ends a written day's play, showing the day whole in its place. */
+export const SHOW_WHOLE_DAY = "Show the whole day";
+
+/**
+ * The words and the press, one under the other on a phone, where the longest words and the
+ * press (268 and 106 px) are wider than the column (358 px) together: the press then stands on
+ * a line of its own from the first stop to the end, so the count never moves it and the line
+ * never grows a line as the versions begin. Once the line is a text column wide (`measure`,
+ * 544 px) they share one line, the press at its end, where a longer count never reaches it.
+ */
+const PLAY_LINE_CLASSES = "flex flex-col gap-1 @measure:flex-row @measure:gap-6";
+
 interface ProgressLineProps {
   /**
    * How far the day is written (`progressWordsOf`): "Writing the day · 6 stops so far", then
-   * the versions stop by stop.
+   * the versions stop by stop. None before the first stop, where only the press stands.
    */
-  children: ReactNode;
+  children?: ReactNode;
+  /**
+   * Shows the day whole at once in place of its play: given only while a written day the page
+   * holds whole plays (`docs/decisions.md`, "A written day's play offers the day whole on a
+   * press"). Left out, the line is its words alone.
+   */
+  onShowWhole?: () => void;
   className?: string;
 }
 
 /**
  * How far the day is written, under its chart, where the eye is as it ends: a line of its
- * own, in the stronger of the two quiet inks. Once the day is whole the day's end takes its
- * place (`DayEnd`).
+ * own, in the stronger of the two quiet inks. While a written day plays it ends with a press
+ * that shows the day whole. Once the day is whole the day's end takes its place (`DayEnd`).
  */
-export function ProgressLine({ children, className }: ProgressLineProps) {
-  return <p className={cn(QUIET_TYPE_CLASSES, "text-ink-soft", className)}>{children}</p>;
+export function ProgressLine({ children, onShowWhole, className }: ProgressLineProps) {
+  const lineClasses = cn(QUIET_TYPE_CLASSES, "text-ink-soft", className);
+  if (onShowWhole === undefined) return <p className={lineClasses}>{children}</p>;
+  return (
+    <div className={cn(lineClasses, "@container")}>
+      <div className={PLAY_LINE_CLASSES}>
+        {children ? (
+          <p>{children}</p>
+        ) : (
+          // Before the first stop the words' line is held on a phone, unseen and unheard, so the
+          // press stands from its first frame where it stays, and the count, as it comes, takes
+          // a line already there rather than pushing the press down.
+          <p aria-hidden className="invisible @measure:hidden">
+            {SHOW_WHOLE_DAY}
+          </p>
+        )}
+        {/* Room under the press for its underline, which falls 4 px under the words, past the
+            line's box: a box that clips at its edge, as a lab cell does, keeps it whole. */}
+        <p className="pb-1 @measure:ml-auto">
+          <button type="button" onClick={onShowWhole} className={SMALL_LINK_CLASSES}>
+            {SHOW_WHOLE_DAY}
+          </button>
+        </p>
+      </div>
+    </div>
+  );
 }
 
 /**
