@@ -256,3 +256,164 @@ test("leads the line about the day with no “As first planned:” while a propo
   await page.waitForTimeout(WHOLE_WATCH_MS);
   expect(await wasLed()).toBe(false);
 });
+
+/**
+ * The headline's pair as its fork folds: its words are written out after the word, and while
+ * they are, the pair is out of reach and a focus on it is the word's. Watched every frame by the
+ * page itself, with motion, under which the pen writes them out.
+ */
+test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => {
+  test.use({ reducedMotion: "no-preference" });
+
+  /** Long enough for the pair's words to be written out, a slow page's too. */
+  const WRITTEN_OUT_MS = 1_500;
+  const PAIR = "h1 button[data-fork-pair]";
+  /** The bench's day and its proposal at the live pace, a slow page's too. */
+  const STORY_TIMEOUT_MS = waitMs(120_000);
+
+  /** Elche on the bench, its re-plans ending as `ending` says, the day written to its end. */
+  async function openElche(page: Page, ending: "complete" | "cut after a stop"): Promise<void> {
+    await page.goto(BENCH);
+    const controls = page.getByRole("complementary", { name: "Lab controls" });
+    await controls.getByRole("button", { name: "Re-plan" }).click();
+    await controls
+      .getByRole("group", { name: "Day" })
+      .getByRole("button", { name: "Elche" })
+      .click();
+    await controls
+      .getByRole("group", { name: "Ending" })
+      .getByRole("button", { name: ending })
+      .click();
+    await controls.getByRole("button", { name: "Re-plan" }).click();
+    await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+      "aria-busy",
+      "false",
+      { timeout: DAY_TIMEOUT_MS },
+    );
+  }
+
+  /** Opens the dinner's word from the keys and moves its list's active option to `answer`. */
+  async function pointAtAnswer(page: Page, answer: string): Promise<void> {
+    await page
+      .getByRole("heading", { level: 1 })
+      .getByRole("button", { name: "early dinner", exact: true })
+      .focus();
+    await page.keyboard.press("Enter");
+    const list = page.getByRole("listbox");
+    const active = list.getByRole("option", { name: new RegExp(`^${answer}`) });
+    await expect(active).toBeVisible();
+    for (let step = 0; step < 8; step += 1) {
+      const id = await list.getAttribute("aria-activedescendant");
+      if (id !== null && id === (await active.getAttribute("id"))) return;
+      await page.keyboard.press("ArrowDown");
+    }
+    throw new Error(`The list never reached ${answer}`);
+  }
+
+  interface PairWatch {
+    /** Where the focus stood each frame: on the pair, on the page itself, or elsewhere. */
+    frames: ("pair" | "page" | "elsewhere")[];
+    /** Whether the pair still stood at each Tab. */
+    tabs: boolean[];
+    /** Each time the focus left an element for nowhere. */
+    lost: string[];
+  }
+
+  /** Every frame from now on, read by the page: where the focus stands, and where the pair is. */
+  function watchThePair(pair: string): void {
+    const watch: PairWatch = { frames: [], tabs: [], lost: [] };
+    Object.assign(window, { pairWatch: watch });
+    addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "Tab") watch.tabs.push(document.querySelector(pair) !== null);
+      },
+      true,
+    );
+    addEventListener(
+      "focusout",
+      (event) => {
+        if (event.relatedTarget === null) {
+          watch.lost.push((event.target as Element).textContent ?? "");
+        }
+      },
+      true,
+    );
+    const sample = () => {
+      const active = document.activeElement;
+      watch.frames.push(
+        active?.matches(pair)
+          ? "pair"
+          : active === null || active === document.body
+            ? "page"
+            : "elsewhere",
+      );
+      requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  }
+
+  /** How many frames the focus stood at `where`. */
+  const framesAt = (watch: PairWatch, where: PairWatch["frames"][number]) =>
+    watch.frames.filter((each) => each === where).length;
+
+  const watchOf = (page: Page) =>
+    page.evaluate(() => (window as unknown as { pairWatch: PairWatch }).pairWatch);
+
+  test("a Tab while the pair is written out after a keep from the word's list passes it by", async ({
+    page,
+  }) => {
+    test.setTimeout(STORY_TIMEOUT_MS);
+    await openElche(page, "complete");
+    await pointAtAnswer(page, "eating late");
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("radio", { name: "eating late Take, proposed" }).first(),
+    ).toBeAttached({ timeout: DAY_TIMEOUT_MS });
+    await expect(page.locator(PAIR)).toHaveAccessibleName("eating late, proposed: go to it");
+
+    await pointAtAnswer(page, "early dinner");
+    await page.evaluate(watchThePair, PAIR);
+    // The keep hands the focus back to the word; the Tab comes as the pair is written out.
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Tab");
+    await page.waitForTimeout(WRITTEN_OUT_MS);
+
+    const watch = await watchOf(page);
+    expect(watch.tabs, "the Tab met the pair still written out").toEqual([true]);
+    expect(framesAt(watch, "pair"), "frames with the focus on the pair").toBe(0);
+    expect(watch.lost).toEqual([]);
+    await expect(page.locator(PAIR)).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { level: 1 }).getByRole("button", { name: /^home by eleven/ }),
+    ).toBeFocused();
+  });
+
+  test("a focus on the pair when its proposal fails goes to the word, never to the page", async ({
+    page,
+  }) => {
+    test.setTimeout(STORY_TIMEOUT_MS);
+    await openElche(page, "cut after a stop");
+    await pointAtAnswer(page, "eating late");
+    await page.keyboard.press("Enter");
+    const pair = page.locator(PAIR);
+    await expect(pair).toHaveAccessibleName("eating late, being written: go to it", {
+      timeout: DAY_TIMEOUT_MS,
+    });
+    // The pair is the Tab's next stop after the word.
+    await page.keyboard.press("Tab");
+    await expect(pair).toBeFocused();
+    await page.evaluate(watchThePair, PAIR);
+
+    await expect(pair).toHaveCount(0, { timeout: DAY_TIMEOUT_MS });
+    await page.waitForTimeout(WRITTEN_OUT_MS);
+
+    const watch = await watchOf(page);
+    expect(framesAt(watch, "pair"), "frames with the focus on the pair").toBeGreaterThan(0);
+    expect(framesAt(watch, "page"), "frames with the focus on the page").toBe(0);
+    expect(watch.lost).toEqual([]);
+    await expect(
+      page.getByRole("heading", { level: 1 }).getByRole("button", { name: "early dinner" }),
+    ).toBeFocused();
+  });
+});

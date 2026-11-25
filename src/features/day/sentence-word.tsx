@@ -338,6 +338,17 @@ export function SentenceWord({
     setLastPair({ label: pair.label, state: pair.state });
   }
   const pairNamed = pair ?? lastPair;
+  // Its fork folded, the pair's words are still being written out: out of reach meanwhile, so
+  // no Tab or press meets a pair that leads nowhere (WCAG 2.4.3), its "or" and comma still read.
+  const isPairLeaving = pair === null && pairWord !== "";
+  const pairButton = useRef<HTMLButtonElement>(null);
+  // A focus on the pair goes to the word in the frame the pair starts to leave, so it never
+  // rests on the page, as it would once the pair has gone.
+  useLayoutEffect(() => {
+    if (isPairLeaving && document.activeElement === pairButton.current) {
+      button.current?.focus({ preventScroll: true });
+    }
+  }, [isPairLeaving]);
   // Written up to a space, the word waits for its next letter before showing it, so its
   // comma never stands apart.
   const word = written.text.slice(lead.length).trimEnd();
@@ -514,8 +525,10 @@ export function SentenceWord({
           {pairWord !== "" && " "}
           {pairWord !== "" && (
             <button
+              ref={pairButton}
               type="button"
               data-fork-pair={view.key}
+              inert={isPairLeaving}
               // Named by the state of the version it shows, as the fork's answers are.
               aria-label={pairNamed ? `${pairNamed.label}, ${pairNamed.state}: go to it` : pairWord}
               onClick={() => pair?.onPoint()}
