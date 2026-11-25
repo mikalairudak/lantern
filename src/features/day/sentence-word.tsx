@@ -341,14 +341,6 @@ export function SentenceWord({
   // Its fork folded, the pair's words are still being written out: out of reach meanwhile, so
   // no Tab or press meets a pair that leads nowhere (WCAG 2.4.3), its "or" and comma still read.
   const isPairLeaving = pair === null && pairWord !== "";
-  const pairButton = useRef<HTMLButtonElement>(null);
-  // A focus on the pair goes to the word in the frame the pair starts to leave, so it never
-  // rests on the page, as it would once the pair has gone.
-  useLayoutEffect(() => {
-    if (isPairLeaving && document.activeElement === pairButton.current) {
-      button.current?.focus({ preventScroll: true });
-    }
-  }, [isPairLeaving]);
   // Written up to a space, the word waits for its next letter before showing it, so its
   // comma never stands apart.
   const word = written.text.slice(lead.length).trimEnd();
@@ -524,28 +516,72 @@ export function SentenceWord({
           <span className="text-muted">{pairJoin}</span>
           {pairWord !== "" && " "}
           {pairWord !== "" && (
-            <button
-              ref={pairButton}
-              type="button"
-              data-fork-pair={view.key}
-              inert={isPairLeaving}
+            <PairButton
+              word={button}
+              fact={view.key}
               // Named by the state of the version it shows, as the fork's answers are.
-              aria-label={pairNamed ? `${pairNamed.label}, ${pairNamed.state}: go to it` : pairWord}
-              onClick={() => pair?.onPoint()}
-              className={cn(
-                BUTTON_CLASSES,
-                "text-swap",
-                pair?.isLit && LIT_WORD_CLASSES,
-                "underline decoration-swap-drawn decoration-1 underline-offset-4",
-              )}
+              label={pairNamed ? `${pairNamed.label}, ${pairNamed.state}: go to it` : pairWord}
+              isLit={pair?.isLit ?? false}
+              isLeaving={isPairLeaving}
+              onPress={() => pair?.onPoint()}
             >
               {pairWord}
-            </button>
+            </PairButton>
           )}
           {shownTrail}
         </span>
       )}
     </>
+  );
+}
+
+interface PairButtonProps {
+  /** The word the pair follows, which takes the focus the pair had. */
+  word: RefObject<HTMLButtonElement | null>;
+  fact: FactKey;
+  label: string;
+  isLit: boolean;
+  /** Its fork folded, its words are being written out: it is out of reach meanwhile. */
+  isLeaving: boolean;
+  onPress: () => void;
+  children: string;
+}
+
+/**
+ * The fork's pair after the word, which points to the fork. A focus on it goes to the word as
+ * the pair leaves, so it never rests on the page: in the frame its words start to be written
+ * out, and as the pair goes, at once with reduced motion.
+ */
+function PairButton({ word, fact, label, isLit, isLeaving, onPress, children }: PairButtonProps) {
+  const pairButton = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    const pair = pairButton.current;
+    const handOver = () => {
+      if (pair !== null && document.activeElement === pair) {
+        word.current?.focus({ preventScroll: true });
+      }
+    };
+    if (isLeaving) handOver();
+    // Run before the button is taken off the page, while it still holds the focus.
+    return handOver;
+  }, [isLeaving, word]);
+  return (
+    <button
+      ref={pairButton}
+      type="button"
+      data-fork-pair={fact}
+      inert={isLeaving}
+      aria-label={label}
+      onClick={onPress}
+      className={cn(
+        BUTTON_CLASSES,
+        "text-swap",
+        isLit && LIT_WORD_CLASSES,
+        "underline decoration-swap-drawn decoration-1 underline-offset-4",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 

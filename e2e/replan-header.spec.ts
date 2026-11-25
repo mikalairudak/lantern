@@ -389,31 +389,38 @@ test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => 
     ).toBeFocused();
   });
 
-  test("a focus on the pair when its proposal fails goes to the word, never to the page", async ({
-    page,
-  }) => {
-    test.setTimeout(STORY_TIMEOUT_MS);
-    await openElche(page, "cut after a stop");
-    await pointAtAnswer(page, "eating late");
-    await page.keyboard.press("Enter");
-    const pair = page.locator(PAIR);
-    await expect(pair).toHaveAccessibleName("eating late, being written: go to it", {
-      timeout: DAY_TIMEOUT_MS,
+  // With reduced motion the pair goes at once, its words never written out.
+  for (const [reducedMotion, how] of [
+    ["no-preference", "as its words are written out"],
+    ["reduce", "as it goes at once with reduced motion"],
+  ] as const) {
+    test(`a focus on the pair when its proposal fails goes to the word, never to the page, ${how}`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ reducedMotion });
+      test.setTimeout(STORY_TIMEOUT_MS);
+      await openElche(page, "cut after a stop");
+      await pointAtAnswer(page, "eating late");
+      await page.keyboard.press("Enter");
+      const pair = page.locator(PAIR);
+      await expect(pair).toHaveAccessibleName("eating late, being written: go to it", {
+        timeout: DAY_TIMEOUT_MS,
+      });
+      // The pair is the Tab's next stop after the word.
+      await page.keyboard.press("Tab");
+      await expect(pair).toBeFocused();
+      await page.evaluate(watchThePair, PAIR);
+
+      await expect(pair).toHaveCount(0, { timeout: DAY_TIMEOUT_MS });
+      await page.waitForTimeout(WRITTEN_OUT_MS);
+
+      const watch = await watchOf(page);
+      expect(framesAt(watch, "pair"), "frames with the focus on the pair").toBeGreaterThan(0);
+      expect(framesAt(watch, "page"), "frames with the focus on the page").toBe(0);
+      expect(watch.lost).toEqual([]);
+      await expect(
+        page.getByRole("heading", { level: 1 }).getByRole("button", { name: "early dinner" }),
+      ).toBeFocused();
     });
-    // The pair is the Tab's next stop after the word.
-    await page.keyboard.press("Tab");
-    await expect(pair).toBeFocused();
-    await page.evaluate(watchThePair, PAIR);
-
-    await expect(pair).toHaveCount(0, { timeout: DAY_TIMEOUT_MS });
-    await page.waitForTimeout(WRITTEN_OUT_MS);
-
-    const watch = await watchOf(page);
-    expect(framesAt(watch, "pair"), "frames with the focus on the pair").toBeGreaterThan(0);
-    expect(framesAt(watch, "page"), "frames with the focus on the page").toBe(0);
-    expect(watch.lost).toEqual([]);
-    await expect(
-      page.getByRole("heading", { level: 1 }).getByRole("button", { name: "early dinner" }),
-    ).toBeFocused();
-  });
+  }
 });
