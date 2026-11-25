@@ -432,6 +432,28 @@ describe("SentenceWord's pair as its fork folds", () => {
     expect(screen.getByRole("button", { name: "early dinner" })).toHaveFocus();
   });
 
+  it("moves the focus to the word before the pair is out of reach", async () => {
+    const { rerender } = await focusedOnThePair();
+    // Whether the pair was already out of reach as each focus moved: a browser that lets go of
+    // a focus on an element made inert would leave it on the page first.
+    const isPairInertAtFocus: boolean[] = [];
+    const focus = HTMLElement.prototype.focus;
+    const spy = vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(function (
+      this: HTMLElement,
+      options?: FocusOptions,
+    ) {
+      isPairInertAtFocus.push(pairButton()?.hasAttribute("inert") ?? false);
+      focus.call(this, options);
+    });
+
+    rerender(headlineWith(null));
+    spy.mockRestore();
+
+    expect(isPairInertAtFocus).toEqual([false]);
+    expect(pairButton()).toHaveAttribute("inert");
+    expect(screen.getByRole("button", { name: "early dinner" })).toHaveFocus();
+  });
+
   it("keeps the pair's join and its comma in the headline's words while the pair leaves", async () => {
     const { rerender } = await focusedOnThePair();
 

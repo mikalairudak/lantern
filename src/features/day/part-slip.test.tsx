@@ -369,6 +369,32 @@ describe("PartSlip", () => {
     expect(screen.getByRole("radio", { checked: true })).toHaveFocus();
   });
 
+  it("moves a focus on the fading slip on before the slip is out of reach", () => {
+    const { container, rerender, props } = renderSlip(LUNCH, momentOf("writing: its first"));
+    const proposal = slipOf(container)?.querySelector<HTMLElement>('[role="radio"]');
+    if (!proposal) throw new Error("The slip offers its proposal");
+    act(() => proposal.focus());
+    const { view } = slipStillOf(LUNCH, momentOf("an ending: cut"));
+    // Whether the slip was already out of reach as each focus moved: a browser that lets go of
+    // a focus on an element made inert would leave it on the page first.
+    const isSlipInertAtFocus: boolean[] = [];
+    const focus = HTMLElement.prototype.focus;
+    const spy = vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(function (
+      this: HTMLElement,
+      options?: FocusOptions,
+    ) {
+      isSlipInertAtFocus.push(slipOf(container)?.closest("[inert]") !== null);
+      focus.call(this, options);
+    });
+
+    rerender(<PartSlip {...props} view={view} />);
+    spy.mockRestore();
+
+    expect(isSlipInertAtFocus).toEqual([false]);
+    expect(slipOf(container)?.closest("[inert]")).not.toBeNull();
+    expect(screen.getByRole("radio", { checked: true })).toHaveFocus();
+  });
+
   it("leaves a focus elsewhere where it is as the slip fades", () => {
     const { rerender, props } = renderSlip(LUNCH, momentOf("writing: its first"));
     const elsewhere = document.body.appendChild(document.createElement("button"));

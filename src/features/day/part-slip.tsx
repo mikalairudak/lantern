@@ -280,16 +280,20 @@ function FadingSlip({ children }: { children: ReactNode }) {
   const slip = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const element = slip.current;
-    if (isPresent || !element || !element.contains(document.activeElement)) return;
-    element
-      .closest('[role="radiogroup"]')
-      ?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
-      ?.focus({ preventScroll: true });
+    if (!element) return;
+    if (!isPresent && element.contains(document.activeElement)) {
+      element
+        .closest('[role="radiogroup"]')
+        ?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
+        ?.focus({ preventScroll: true });
+    }
+    // Out of reach only once a focus in it has moved on: a browser may let go of a focus on an
+    // inert element at its next style pass, which would leave it on the page.
+    element.toggleAttribute("inert", !isPresent);
   }, [isPresent]);
   return (
     <motion.div
       ref={slip}
-      inert={!isPresent}
       exit={{ opacity: 0 }}
       transition={isReducedMotion ? { duration: 0 } : SPRINGS.brisk}
     >
