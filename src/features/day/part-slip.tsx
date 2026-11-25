@@ -271,7 +271,8 @@ function SlipPresence({ children }: { children: ReactNode }) {
  * The slip's lines, out of reach once they start to fade: a proposal that ended is no answer
  * to take, so no screen reader meets it while it goes (WCAG 4.1.2). A focus in it, a pointer's
  * on its proposal, goes to the fork line's checked answer, the version that stays, in the frame
- * the fade starts, so it never rests on the page (WCAG 2.4.3).
+ * the fade starts, so it does not rest on the page (WCAG 2.4.3). Only a slip that fades hands it
+ * on: a failed proposal's later parts are taken away whole, with no fade.
  */
 function FadingSlip({ children }: { children: ReactNode }) {
   const isReducedMotion = useReducedMotionConfig() ?? false;
