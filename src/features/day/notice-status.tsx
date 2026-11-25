@@ -31,7 +31,9 @@ function isPageSeenOnServer(): boolean {
  * while it is, and its hold runs only then, so a line that comes behind another tab waits,
  * empty, and is said and held from the moment the page is seen again; one gone before then is
  * never written (`docs/decisions.md`, "How a day ended is said from one status that stands
- * before the ending"). The server and the first paint take the page as seen.
+ * before the ending"). The visitor's own change (`useChangeHeard`) is held as long and is not
+ * gated, since it answers an act on a page that is seen. The server and the first paint take the
+ * page as seen.
  */
 export function usePageSeen(): boolean {
   return useSyncExternalStore(subscribeVisibility, isPageSeenNow, isPageSeenOnServer);
