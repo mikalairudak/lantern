@@ -15,6 +15,7 @@ import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { simulateDayStream } from "@/lib/stream/simulate-day-stream";
 import { Day } from "./day";
 import { TAKE_THIS_DAY } from "./day-menu";
+import { SHOW_WHOLE_DAY } from "./foot-line";
 import { NEW_DAY } from "./new-day";
 import { INTAKE_ROUTE } from "./intake-route";
 import { StartDay } from "./start-day";
@@ -591,6 +592,31 @@ describe("the gestures on a day, as the product counts them", () => {
     await user.click(within(headline()).getByRole("button", { name: "Kanazawa" }));
     await user.click(screen.getByRole("button", { name: /^Bologna/ }));
     await waitFor(() => expect(sentOf("day-opened")).toHaveLength(2), DAY_TIMEOUT);
+    expect(sentOf("day-left")).toEqual([]);
+  });
+
+  it("counts a written day shown whole from its play as one day, ended complete, never left", async () => {
+    localStorage.clear();
+    const kanazawa = writtenDayAt("kanazawa")!;
+    const version = writtenVersionOf(kanazawa.itinerary);
+    const user = userEvent.setup();
+    render(
+      <Day
+        first={KANAZAWA_START_REQUEST}
+        written={{ itinerary: kanazawa.itinerary, version, checks: {} }}
+        isAddressed
+        isCounted
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: SHOW_WHOLE_DAY }, DAY_TIMEOUT));
+    await waitFor(() => expect(sentOf("day-ended")).toHaveLength(1), DAY_TIMEOUT);
+
+    expect(sent()).toEqual([
+      { kind: "day-opened", ...KANAZAWA_LINK },
+      { kind: "day-ended", ...KANAZAWA_LINK, ...ON_CHART, outcome: "complete" },
+    ]);
+    window.dispatchEvent(new PageTransitionEvent("pagehide"));
     expect(sentOf("day-left")).toEqual([]);
   });
 

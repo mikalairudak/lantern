@@ -215,7 +215,10 @@ interface DayStageProps {
   partial: PartialDay | null;
   outcome: DayOutcome | null;
   isStreaming: boolean;
-  /** The day was chosen on the last one, from its city word or its notice. */
+  /**
+   * The day was chosen on the last one, from its city word or its notice, or shown whole from its
+   * play: its city word takes the focus as it is drawn.
+   */
   isChosen: boolean;
   /**
    * The word a re-plan merged for, which takes the focus back as the merged sentence draws it
@@ -247,6 +250,13 @@ interface DayStageProps {
   isDrawnWhole?: boolean;
   /** Told when a day played here has come to its end, written whole and still. */
   onPlayedThrough?: () => void;
+  /**
+   * Shows the day whole in place of its play, as a device that has seen it draws it: given only
+   * while the page plays a written day it holds whole, whose line under the chart then offers it
+   * until the day's end takes the line's place (`docs/decisions.md`, "A written day's play offers
+   * the day whole on a press").
+   */
+  onShowWhole?: () => void;
   /**
    * The day's key on this device, under which the places the visitor chose on it are kept and
    * come back next time (`use-picked-places.ts`); null keeps them on the page alone.
@@ -411,6 +421,7 @@ export function DayStage({
   isFromStart = false,
   isDrawnWhole = false,
   onPlayedThrough,
+  onShowWhole,
   picksKey = null,
   placeHint,
   keptNotice = null,
@@ -1324,6 +1335,9 @@ export function DayStage({
   if (isEndShown && lastLine !== null) setLastLine(null);
   const waitingLine =
     ended !== null && !isEndShown && progress === null && !isReplanning ? lastLine : null;
+  // A written day's play offers the day whole from the moment its line can stand: before its
+  // first stop the press stands alone, and the line keeps it, as it stood, until the day's end.
+  const isPressAlone = onShowWhole !== undefined && ended === null;
   const roomUnderLine =
     waitingLine !== null && view !== "read"
       ? Math.max(0, waitingLine.frameHeight - basisHeight)
@@ -1787,11 +1801,14 @@ export function DayStage({
                     />
                   ) : waitingLine !== null ? (
                     <>
-                      <ProgressLine>{waitingLine.words}</ProgressLine>
+                      <ProgressLine onShowWhole={onShowWhole}>{waitingLine.words}</ProgressLine>
                       <div aria-hidden style={{ height: roomUnderLine }} />
                     </>
                   ) : (
-                    !isReplanning && progress && <ProgressLine>{progress}</ProgressLine>
+                    !isReplanning &&
+                    (progress !== null || isPressAlone) && (
+                      <ProgressLine onShowWhole={onShowWhole}>{progress}</ProgressLine>
+                    )
                   )}
                 </GlidingHeight>
               </div>

@@ -4,6 +4,7 @@ import { NEVER_QUIET_DAY } from "@/lib/fixtures/edge/edge-days";
 import { dayText, simulateDayStream, type StreamEnding } from "@/lib/stream/simulate-day-stream";
 import { Day } from "./day";
 import { TAKE_THIS_DAY } from "./day-menu";
+import { SHOW_WHOLE_DAY } from "./foot-line";
 
 /** A day takes some seconds whole in jsdom alone, and several times that under load. */
 const DAY_TIMEOUT_MS = 60_000;
@@ -87,6 +88,18 @@ async function theDayEnds(): Promise<void> {
 }
 
 describe("the line under a live day's chart", () => {
+  it(
+    "counts the day as it is written and offers no whole day, which the page does not hold",
+    async () => {
+      render(<Day first={NEVER_QUIET_DAY.request} isLive />);
+
+      await screen.findByText(/^Writing the day · /, undefined, { timeout: DAY_TIMEOUT_MS });
+      expect(screen.queryByRole("button", { name: SHOW_WHOLE_DAY })).toBeNull();
+      await theDayEnds();
+    },
+    TEST_TIMEOUT_MS,
+  );
+
   it(
     "gives its place to the day's end once the day is whole: no time, its sources after",
     async () => {
