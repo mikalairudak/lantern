@@ -376,18 +376,28 @@ export function AbacusChart({
     // The words themselves: a name over its wire is drawn up from where its box stands.
     return tag?.firstElementChild?.getBoundingClientRect() ?? null;
   };
-  // A pointer's name is held off its bead only while one can show: a finger, a drag, an open
-  // sheet or the keys' names let it go.
+  // Whether a pointer's name can show: a finger, a drag, an open sheet or the keys' names
+  // show none.
+  const isPointerNameable =
+    isInteractive && !energy.isDragging && openStop === null && keyedNaming === null && !isTouch;
+  // A pointer's name is held off its bead only while one can show, and while its version has
+  // one: picked, or gone from the day, it is let go.
   const nameHold = useNameHold({
     hoveredPlace,
-    isNameable:
-      isInteractive && !energy.isDragging && openStop === null && keyedNaming === null && !isTouch,
+    isNameable: isPointerNameable,
+    hasName: (placeId) => hoveredVersionOf(stops, energy.selected, placeId) !== null,
     onHoverPlace,
     nameBoxOf,
   });
   // The place a pointer names: the bead it is on, or the one whose name it has moved onto.
   const pointedPlace = hoveredPlace ?? nameHold.heldPlace;
   if (pointerNamesAway !== null && pointerNamesAway !== pointedPlace) setPointerNamesAway(null);
+  // The version the pointer names, unless Escape has put it away, and the place it names.
+  const pointerNamed =
+    isPointerNameable && pointerNamesAway === null
+      ? hoveredVersionOf(stops, energy.selected, pointedPlace)
+      : null;
+  const pointerNamedPlace = pointerNamed === null ? null : pointedPlace;
 
   // The page never changes the day by itself (2026-10-30). Until the first drag or tap the
   // chart draws, dashed over the day there is and changing nothing, the day a pull would
@@ -505,7 +515,7 @@ export function AbacusChart({
       isInteractive,
       curveEnergy: energy.curve[index] ?? null,
       hoveredPlace: previewPlaces[index] ?? pointedPlace,
-      onHoverPlace: (placeId) => nameHold.onHoverPlace(placeId, isNaming),
+      onHoverPlace: (hover) => nameHold.onHoverPlace(hover, hover.placeId === pointerNamedPlace),
       onPullTo: (target) => {
         pointer.markInteracted();
         energy.pullTo(index, target);
@@ -620,11 +630,9 @@ export function AbacusChart({
       ? []
       : keyedNaming !== null
         ? keyedVersionsOf(stops, energy.selected, keyedNaming)
-        : [
-            isTouch || pointerNamesAway !== null
-              ? null
-              : hoveredVersionOf(stops, energy.selected, pointedPlace),
-          ].filter((version): version is NamedVersion => version !== null);
+        : pointerNamed === null
+          ? []
+          : [pointerNamed];
   const tags: TagRequest[] = dragged
     ? [tagOf(dragged, "dragged")]
     : named.map((version) => tagOf(version, "named"));

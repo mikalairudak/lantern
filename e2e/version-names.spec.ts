@@ -270,6 +270,67 @@ test("Escape puts away a name the pointer rests on, over a row's words", async (
   await expect(tagOf(page)).toHaveCount(0);
 });
 
+/** On Kanazawa's day at a laptop's width, a version whose name stands over its wire. */
+const NAMED_OVER_ITS_WIRE = "Seafood Grills in Omicho, livelier";
+/** How far under the screen's top its wire is brought: too near for the name over it. */
+const NEAR_THE_TOP_PX = 20;
+/** A laptop's window short enough for the page to scroll that wire up to the screen's top. */
+const SHORT_LAPTOP = { width: 1440, height: 450 };
+
+/** Scrolls the page at once, as a wheel's notch does, under a pointer that has not moved. */
+async function scrollBy(page: Page, top: number): Promise<void> {
+  await page.evaluate((by) => window.scrollBy({ top: by, behavior: "instant" }), top);
+}
+
+/** The middle of the bead's ring, where its wire runs, on the screen. */
+async function wireOf(bead: Locator): Promise<number> {
+  const box = await bead.locator("circle").boundingBox();
+  if (!box) throw new Error("The bead has no ring");
+  return box.y + box.height / 2;
+}
+
+// A name whose place over its wire is past the screen's top stands under it; a scroll that
+// brings room back over the wire draws it there in a later frame, which may be under a pointer
+// that has not moved. The name stays for it.
+test("a pointer's name stays with a scroll that brings it back under the resting pointer", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "A finger never rests on a bead: a tap takes it.");
+  await page.setViewportSize(SHORT_LAPTOP);
+  await openTheDay(page, "/day/kanazawa");
+  const bead = page.getByRole("button", { name: NAMED_OVER_ITS_WIRE });
+  await restOn(page, bead);
+  await expect(tagOf(page)).toHaveAttribute("data-tag", "over");
+  const over = await wordsOf(page).boundingBox();
+  if (!over) throw new Error("The name has no box");
+  const overGap = (await wireOf(bead)) - (over.y + over.height);
+
+  await page.mouse.move(0, 0);
+  await expect(tagOf(page)).toHaveCount(0);
+  await scrollBy(page, (await wireOf(bead)) - NEAR_THE_TOP_PX);
+  // Aimed at where it now stands: brought into view, it would be scrolled back down.
+  const ring = await middleOf(bead.locator("circle"));
+  await page.mouse.move(ring.x, ring.y);
+  await expect(tagOf(page)).toHaveAttribute("data-tag", "under");
+  const under = await middleOf(wordsOf(page));
+  await page.mouse.move(under.x, under.y, { steps: POINTER_STEPS });
+  await page.waitForTimeout(PAST_THE_GRACE_MS);
+  await expect(tagOf(page)).toHaveCount(1);
+
+  // Far enough that the name over the wire, once drawn, stands across the pointer.
+  const wire = await wireOf(bead);
+  await scrollBy(page, -(under.y - wire + overGap + over.height / 2));
+  await expect(tagOf(page)).toHaveAttribute("data-tag", "over");
+  const moved = await wordsOf(page).boundingBox();
+  if (!moved) throw new Error("The name has no box");
+  expect(under.y).toBeGreaterThan(moved.y);
+  expect(under.y).toBeLessThan(moved.y + moved.height);
+  await page.waitForTimeout(PAST_THE_GRACE_MS);
+
+  await expect(tagOf(page)).toHaveAttribute("data-tag", "over");
+});
+
 test("a stop's slider focused from the keys names the versions its arrows reach", async ({
   page,
 }) => {

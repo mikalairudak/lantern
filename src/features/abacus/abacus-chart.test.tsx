@@ -272,6 +272,36 @@ describe("a version's name on the chart and Escape", () => {
     expect(namesShown()).toHaveLength(1);
   });
 
+  it("holds no name for a bead a sweep leaves before its name is drawn", async () => {
+    await drawTheDay();
+    const first = await pointAtABead();
+    const next = document.querySelectorAll(`[${CANDIDATE_ATTRIBUTE}]`)[1];
+    if (!next) throw new Error("The day drew one version's bead");
+
+    // Off the first bead, over the next and off it again, between two of the page's frames.
+    act(() => {
+      fireEvent.pointerLeave(first);
+      fireEvent.pointerEnter(next);
+      fireEvent.pointerLeave(next);
+    });
+
+    // The first was left for another bead, and the next was never named: neither is held.
+    expect(isFilled(first)).toBe(false);
+    expect(isFilled(next)).toBe(false);
+  });
+
+  it("holds no name for a bead a press takes the pointer from", async () => {
+    await drawTheDay();
+    const bead = await pointAtABead();
+
+    // A press on the bead takes the pointer to the chart, which Chromium tells the bead, at
+    // the press's first move, as the pointer leaving it with its button held.
+    fireEvent.pointerDown(bead, { button: 0, buttons: 1, pointerId: 1, pointerType: "mouse" });
+    fireEvent.pointerLeave(bead, { buttons: 1, pointerId: 1, pointerType: "mouse" });
+
+    expect(isFilled(bead)).toBe(false);
+  });
+
   it("keeps a still's name, which no pointer holds, whatever its page does", async () => {
     render(<StopRowCell example={0} state="named" density={null} />);
     await waitFor(() => expect(namesShown()).toHaveLength(1), SPRINGS_TIMEOUT);

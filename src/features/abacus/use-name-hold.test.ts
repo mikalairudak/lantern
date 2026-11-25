@@ -1,6 +1,6 @@
 import { act, fireEvent, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { NAME_HOLD_GRACE_MS, useNameHold, type ScreenBox } from "./use-name-hold";
+import { NAME_HOLD_GRACE_MS, useNameHold, type BeadHover, type ScreenBox } from "./use-name-hold";
 
 /**
  * A version's name shown for a bead stays while the pointer moves from the bead onto the name
@@ -21,8 +21,9 @@ const A_MOMENT = NAME_HOLD_GRACE_MS / 2;
 /** The hold as the chart keeps it, its parent's hover kept as its parent keeps it. */
 function holdNames() {
   const parent: { hoveredPlace: string | null } = { hoveredPlace: null };
-  // Where the name stands now, as the page's scroll moves it.
-  const name = { box: NAME_BOX };
+  // Where the name stands now, as the page's scroll moves it, and whether its version still
+  // has one to show.
+  const name = { box: NAME_BOX, isShown: true };
   const onHoverPlace = (placeId: string | null) => {
     parent.hoveredPlace = placeId;
   };
@@ -32,14 +33,22 @@ function holdNames() {
         hoveredPlace: parent.hoveredPlace,
         isNameable,
         onHoverPlace,
+        hasName: (placeId) => placeId !== BEAD || name.isShown,
         nameBoxOf: (placeId) => (placeId === BEAD ? name.box : null),
       }),
     { initialProps: { isNameable: true } },
   );
   const rerender = (isNameable = true) => view.rerender({ isNameable });
-  /** The pointer comes onto a bead, or off it, whose name is shown or not. */
+  // The bead the pointer is on, which it leaves next.
+  let onBead = "";
+  /** The pointer comes onto a bead, or off the one it is on, whose name is shown or not. */
   const hover = (placeId: string | null, isNameShown = true) => {
-    act(() => view.result.current.onHoverPlace(placeId, isNameShown));
+    const bead: BeadHover =
+      placeId === null
+        ? { placeId: onBead, isOn: false, isPressed: false }
+        : { placeId, isOn: true, isPressed: false };
+    onBead = placeId ?? "";
+    act(() => view.result.current.onHoverPlace(bead, isNameShown));
     rerender();
   };
   return { view, parent, name, hover, rerender };
@@ -219,6 +228,24 @@ describe("a version's name held under the pointer", () => {
     expect(view.result.current.heldPlace).toBeNull();
   });
 
+  it("stays through a scroll after which the names place it back under the pointer", () => {
+    const { view, name, hover } = holdNames();
+    hover(BEAD);
+    hover(null);
+    movePointer(ON_THE_NAME);
+
+    // A name kept under the screen's top moves up with the page as it scrolls, and is placed
+    // back under it, and under the pointer, a frame later.
+    name.box = NAME_BOX_SCROLLED;
+    act(() => {
+      fireEvent.scroll(document.body);
+    });
+    name.box = NAME_BOX;
+    wait(NAME_HOLD_GRACE_MS * 4);
+
+    expect(view.result.current.heldPlace).toBe(BEAD);
+  });
+
   it("stays through a scroll that leaves the name under the pointer", () => {
     const { view, hover } = holdNames();
     hover(BEAD);
@@ -231,6 +258,20 @@ describe("a version's name held under the pointer", () => {
     wait(NAME_HOLD_GRACE_MS * 4);
 
     expect(view.result.current.heldPlace).toBe(BEAD);
+  });
+
+  it("lets go at once as its version no longer has a name to show, the pointer on it", () => {
+    const { view, name, hover, rerender } = holdNames();
+    hover(BEAD);
+    hover(null);
+    movePointer(ON_THE_NAME);
+
+    // Picked under the name, or gone from the day in a re-plan.
+    name.isShown = false;
+    rerender();
+
+    expect(view.result.current.heldPlace).toBeNull();
+    expect(view.result.current.isPointerOnName()).toBe(false);
   });
 
   it("lets go at once as the pointer leaves the page", () => {

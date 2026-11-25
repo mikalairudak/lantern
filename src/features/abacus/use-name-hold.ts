@@ -22,11 +22,22 @@ interface ScreenPoint {
   clientY: number;
 }
 
+/** A pointer coming onto a version's bead, or leaving it. */
+export interface BeadHover {
+  placeId: string;
+  /** True as the pointer comes onto the bead, false as it leaves. */
+  isOn: boolean;
+  /** Whether a button is held, as when a press on the bead hands the pointer to the chart. */
+  isPressed: boolean;
+}
+
 interface NameHoldOptions {
   /** The place whose bead the pointer is on, as the chart's parent holds it. */
   hoveredPlace: string | null;
   /** Whether a pointer's name can show now: nothing else names, and nothing hides names. */
   isNameable: boolean;
+  /** Whether a place has a version's name to show: in the day, and not the version shown. */
+  hasName: (placeId: string) => boolean;
   onHoverPlace: (placeId: string | null) => void;
   /** Where a place's name is drawn on the screen now, or null where none is. */
   nameBoxOf: (placeId: string) => ScreenBox | null;
@@ -37,10 +48,11 @@ export interface NameHold {
   heldPlace: string | null;
   /**
    * A bead's pointer came or went; leaving a bead whose name is shown keeps the name, so the
-   * pointer can move onto it. Leaving one whose name is not shown, as one Escape put away, keeps
-   * nothing.
+   * pointer can move onto it. Leaving one whose name is not shown, as one Escape put away or one
+   * a sweep crossed before its name was drawn, keeps nothing, and nor does a press, whose
+   * pointer the chart takes.
    */
-  onHoverPlace: (placeId: string | null, isNameShown: boolean) => void;
+  onHoverPlace: (hover: BeadHover, isNamed: boolean) => void;
   /** Ends a hold at once, as Escape puts its name away, so its bead no longer shows it named. */
   letGo: () => void;
   /** Whether the pointer stands on the held name now, as far as its moves have said. */
@@ -63,13 +75,15 @@ function isInside(box: ScreenBox, { clientX, clientY }: ScreenPoint): boolean {
 export function useNameHold({
   hoveredPlace,
   isNameable,
+  hasName,
   onHoverPlace,
   nameBoxOf,
 }: NameHoldOptions): NameHold {
   const [heldPlace, setHeldPlace] = useState<string | null>(null);
-  // A name no longer shown, as a sheet opens, a drag begins or the keys name instead, is let
-  // go at once: it never comes back under a pointer that has not moved.
-  if (heldPlace !== null && !isNameable) setHeldPlace(null);
+  // A name no longer shown, as a sheet opens, a drag begins or the keys name instead, or as its
+  // version is picked or leaves the day, is let go at once: it never comes back under a
+  // pointer that has not moved.
+  if (heldPlace !== null && (!isNameable || !hasName(heldPlace))) setHeldPlace(null);
 
   const boxOf = useEffectEvent(nameBoxOf);
 
@@ -114,17 +128,28 @@ export function useNameHold({
       if (relatedTarget === null) setHeldPlace(null);
     };
     const letGoNow = () => setHeldPlace(null);
+    // A wheel or the page's scroll carries the name from under a pointer that has not moved,
+    // or under it: the names read the screen's top in the frame after a scroll and are drawn
+    // where it puts them in the next, so the pointer is looked for there once more.
+    let placed = 0;
+    const keepThroughScroll = () => {
+      keepWhileOnTheName();
+      cancelAnimationFrame(placed);
+      placed = requestAnimationFrame(() => {
+        placed = requestAnimationFrame(keepWhileOnTheName);
+      });
+    };
     // Off the bead, the pointer is on the name where it last moved to, or on its way to it.
     keepWhileOnTheName();
     document.addEventListener("pointermove", followPointer);
-    // A wheel or the page's scroll carries the name from under a pointer that has not moved.
-    window.addEventListener("scroll", keepWhileOnTheName, { capture: true, passive: true });
+    window.addEventListener("scroll", keepThroughScroll, { capture: true, passive: true });
     document.addEventListener("pointerout", letGoOffThePage);
     window.addEventListener("blur", letGoNow);
     return () => {
       if (grace !== null) window.clearTimeout(grace);
+      cancelAnimationFrame(placed);
       document.removeEventListener("pointermove", followPointer);
-      window.removeEventListener("scroll", keepWhileOnTheName, { capture: true });
+      window.removeEventListener("scroll", keepThroughScroll, { capture: true });
       document.removeEventListener("pointerout", letGoOffThePage);
       window.removeEventListener("blur", letGoNow);
     };
@@ -132,9 +157,11 @@ export function useNameHold({
 
   return {
     heldPlace,
-    onHoverPlace: (placeId, isNameShown) => {
-      setHeldPlace(placeId === null && isNameShown ? hoveredPlace : null);
-      onHoverPlace(placeId);
+    onHoverPlace: ({ placeId, isOn, isPressed }, isNamed) => {
+      // The place left is the one held, not the one hovered when the chart last drew: a sweep
+      // over several beads between two frames leaves each in turn.
+      setHeldPlace(!isOn && isNamed && !isPressed ? placeId : null);
+      onHoverPlace(isOn ? placeId : null);
     },
     letGo: () => setHeldPlace(null),
     isPointerOnName: () => {
