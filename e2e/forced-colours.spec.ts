@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
 import { YOUR_DAYS_KEY, type YourDay } from "../src/features/day/your-days";
 import { writtenDayAt } from "../src/lib/days/written/days";
 
@@ -16,6 +16,9 @@ const GRAPHICS_CONTRAST = 3;
 const TEXT_CONTRAST = 4.5;
 /** Room round a picture's box, so the shot holds the canvas beside it. */
 const CANVAS_MARGIN_PX = 2;
+
+/** Two inks this close are one colour, read through a screenshot's rounding. */
+const SAME_INK_CONTRAST = 1.05;
 const INDEX_HEADING = "No city in mind? Start from one of these";
 
 type Scheme = "light" | "dark";
@@ -61,15 +64,28 @@ async function inkAndCanvasOf(page: Page): Promise<{ ink: Rgb; canvas: Rgb }> {
  */
 async function inkAndCanvasOfBox(page: Page, element: Locator): Promise<{ ink: Rgb; canvas: Rgb }> {
   const box = (await element.boundingBox())!;
-  const shot = await page.screenshot({
-    scale: "css",
-    clip: {
-      x: box.x - CANVAS_MARGIN_PX,
-      y: box.y - CANVAS_MARGIN_PX,
-      width: box.width + 2 * CANVAS_MARGIN_PX,
-      height: box.height + 2 * CANVAS_MARGIN_PX,
-    },
+  return inkAndCanvasOfClip(page, {
+    x: box.x - CANVAS_MARGIN_PX,
+    y: box.y - CANVAS_MARGIN_PX,
+    width: box.width + 2 * CANVAS_MARGIN_PX,
+    height: box.height + 2 * CANVAS_MARGIN_PX,
   });
+}
+
+/** A part of the screen, in CSS pixels. */
+interface Clip {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * The colour at a clip's top left, read as its canvas, and the pixel in it most unlike that. A
+ * clip wholly inside a filled mark gives the mark's colour as its canvas.
+ */
+async function inkAndCanvasOfClip(page: Page, clip: Clip): Promise<{ ink: Rgb; canvas: Rgb }> {
+  const shot = await page.screenshot({ scale: "css", clip });
   const blank = await page.context().newPage();
   const pixels = await blank.evaluate(async (png) => {
     const image = new Image();
@@ -239,3 +255,51 @@ test("the theme's helper, shown as forced colours turn on, goes with its button"
   await page.emulateMedia({ forcedColors: "active", colorScheme: "light" });
   await expect(helper).toBeHidden();
 });
+
+for (const system of ["light", "dark"] as const) {
+  test(`under forced colours on a ${system} device, the locked energy bar marks the day's word with a bead in the system's text`, async ({
+    page,
+  }) => {
+    // The re-plan bench's Elche, its proposal written at a live pace: the bar waits meanwhile
+    // (`docs/decisions.md`, "One change at a time, the energy's included").
+    const dayTimeoutMs = waitMs(45_000);
+    test.setTimeout(2 * dayTimeoutMs);
+    await page.goto("/lab/concepts/replan");
+    const chart = page.locator('[aria-label^="The day\'s energy"]');
+    await expect(chart).toHaveAttribute("aria-busy", "false", { timeout: dayTimeoutMs });
+    const bar = page.getByRole("group", { name: "How lively the day is" });
+    await expect(bar.locator("svg")).toHaveCount(0);
+    await page.locator("h1").getByRole("button", { name: "early dinner", exact: true }).click();
+    await page.getByRole("option", { name: "eating late" }).click();
+    const day = bar.getByRole("button", { name: "balanced" });
+    await expect(day).toHaveAttribute("aria-disabled", "true");
+    await expect(day).toHaveAttribute("aria-pressed", "true");
+    await page.emulateMedia({ forcedColors: "active", colorScheme: system });
+
+    // One bead, the day's word's, which a screen reader is not given: the word names the level.
+    await expect(bar.locator("svg")).toHaveCount(1);
+    const bead = day.locator("svg");
+    await expect(bead).toHaveAttribute("aria-hidden", "true");
+    await expect(day).toHaveAccessibleName("balanced");
+    // The bead's own ink, read inside its circle, and the word's, read clear of the bead.
+    const beadBox = (await bead.boundingBox())!;
+    const wordBox = (await day.boundingBox())!;
+    const { canvas: beadInk } = await inkAndCanvasOfClip(page, {
+      x: beadBox.x + beadBox.width / 2 - 1,
+      y: beadBox.y + beadBox.height / 2 - 1,
+      width: 2,
+      height: 2,
+    });
+    const wordLeft = beadBox.x + beadBox.width + CANVAS_MARGIN_PX;
+    const { ink: wordInk, canvas } = await inkAndCanvasOfClip(page, {
+      x: wordLeft,
+      y: wordBox.y,
+      width: wordBox.x + wordBox.width - wordLeft,
+      height: wordBox.height,
+    });
+    expect(luminanceOf(canvas) > 0.5).toBe(system === "light");
+    expect(contrastOf(beadInk, canvas)).toBeGreaterThanOrEqual(GRAPHICS_CONTRAST);
+    // In the system's text: the bead and its word take one colour.
+    expect(contrastOf(beadInk, wordInk)).toBeLessThan(SAME_INK_CONTRAST);
+  });
+}
