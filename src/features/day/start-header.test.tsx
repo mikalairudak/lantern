@@ -1434,6 +1434,36 @@ describe("a day set on its way straight after an ending, with no read drawn", ()
     />
   );
 
+  const ANSWER_READ = { kind: "reading", answering: PORTLAND_QUESTION } as const;
+  const ANSWER_ON_ITS_WAY = {
+    kind: "writing",
+    request: LISBON_REQUEST,
+    answering: PORTLAND_QUESTION,
+  } as const;
+  it.each([
+    ["read", [[ANSWER_READ, "reading"]]],
+    [
+      "read, then on its way",
+      [
+        [ANSWER_READ, "reading"],
+        [ANSWER_ON_ITS_WAY, "writing"],
+      ],
+    ],
+    ["on its way, a written city's", [[ANSWER_ON_ITS_WAY, "opening"]]],
+  ] as const)(
+    "says a city pressed in the index while the answer to the city's question is %s from the status over the form",
+    (_, answering) => {
+      const view = render(startOf(PORTLAND_QUESTION, true, null));
+      for (const [line, wait] of answering) view.rerender(startOf(line, true, wait));
+      const overForm = answerStatus();
+
+      view.rerender(startOf({ ...ON_ITS_WAY_LIVE }, true, null));
+      expect(answerStatus()).toBe(overForm);
+      expect(overForm).toHaveTextContent(/^Writing a lively Saturday in Lisbon, with friends$/);
+      expect(heardStatus()).toBe("");
+    },
+  );
+
   it("says a city pressed in the index while the city's question stands from the status over the form", () => {
     const view = render(startOf(PORTLAND_QUESTION, true, null));
     const overForm = answerStatus();

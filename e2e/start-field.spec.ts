@@ -539,6 +539,36 @@ test.describe("a day set on its way straight after an ending is said from a stat
     await expectOnItsWaySaidAsChange(page, /^Writing a /, pressedAt);
   });
 
+  test("with live generation on, a city pressed in the index while the answer to the city's question is read", async ({
+    page,
+  }) => {
+    let reads = 0;
+    await page.route("**/api/intake", async (route) => {
+      reads += 1;
+      if (reads === 1) {
+        return route.fulfill({ json: { ...PORTLAND_ASKED, readings: [] } satisfies IntakeResult });
+      }
+      // The answer is never read back, so its read stands until the press.
+      return new Promise(() => undefined);
+    });
+    await openLive(page, "/");
+    await askFromTheField(page, "a lively day");
+    const field = page.getByRole("textbox", { name: "Which city?" });
+    await expect(field).toBeFocused();
+    // A city no written day is for, so the intake reads it.
+    await field.fill("Reykjavik");
+    await field.press("Enter");
+    await expect(page.getByRole("button", { name: "Reading" })).toBeVisible();
+
+    const pressedAt = await page.evaluate(() => performance.now());
+    await page
+      .getByRole("list", { name: "No city in mind? Start from one of these" })
+      .getByRole("button")
+      .first()
+      .click();
+    await expectOnItsWaySaidAsChange(page, /^Writing a /, pressedAt);
+  });
+
   test("with live generation on, a city pressed in the index while the city's question stands", async ({
     page,
   }) => {
