@@ -391,6 +391,48 @@ test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => 
     ).toBeFocused();
   });
 
+  test("the headline's name keeps the pair's join and comma while its words are written out, and none of them", async ({
+    page,
+  }) => {
+    test.setTimeout(STORY_TIMEOUT_MS);
+    await openElche(page, "complete");
+    await pointAtAnswer(page, "eating late");
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("radio", { name: "eating late Take, proposed" }).first(),
+    ).toBeAttached({ timeout: PROPOSAL_TIMEOUT_MS });
+    await expect(page.locator(PAIR)).toHaveAccessibleName("eating late, proposed: go to it");
+    // The headline's name as Chrome gives it to a screen reader.
+    const cdp = await page.context().newCDPSession(page);
+    const { root } = await cdp.send("DOM.getDocument", { depth: 0 });
+    const { nodeId } = await cdp.send("DOM.querySelector", { nodeId: root.nodeId, selector: "h1" });
+    const { node } = await cdp.send("DOM.describeNode", { nodeId });
+    const nameOf = async () => {
+      const { nodes } = await cdp.send("Accessibility.getPartialAXTree", {
+        backendNodeId: node.backendNodeId,
+        fetchRelatives: false,
+      });
+      return String(nodes[0]?.name?.value ?? "");
+    };
+    const isPairThere = () => page.evaluate((pair) => document.querySelector(pair) !== null, PAIR);
+
+    await pointAtAnswer(page, "early dinner");
+    await page.keyboard.press("Enter");
+    // Read while the pair still stands, before and after each read.
+    const names: string[] = [];
+    while (await isPairThere()) {
+      const name = await nameOf();
+      if (await isPairThere()) names.push(name);
+    }
+
+    expect(names.length, "names read while the pair was written out").toBeGreaterThan(0);
+    for (const name of names) {
+      expect(name).toContain("early dinner or");
+      expect(name).toMatch(/or ?, home by eleven/);
+      expect(name).not.toContain("go to it");
+    }
+  });
+
   // With reduced motion the pair goes at once, its words never written out.
   for (const [reducedMotion, how] of [
     ["no-preference", "as its words are written out"],

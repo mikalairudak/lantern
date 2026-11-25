@@ -409,7 +409,7 @@ describe("SentenceWord's pair as its fork folds", () => {
     );
   }
 
-  const pairButton = () => screen.queryByRole("button", { name: /: go to it$/ });
+  const pairButton = () => document.querySelector<HTMLElement>("[data-fork-pair]");
 
   /** The headline with its pair written in whole, the focus on the pair. */
   async function focusedOnThePair() {

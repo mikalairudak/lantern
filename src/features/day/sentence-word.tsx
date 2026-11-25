@@ -330,14 +330,6 @@ export function SentenceWord({
   const pairJoin = paired.text.slice(0, PAIR_JOIN.length).trim();
   const pairWord = paired.text.slice(PAIR_JOIN.length).trimEnd();
   const isPairShown = pairJoin !== "";
-  // The pair as it last stood: once the fork folds, its button keeps that whole name while the
-  // pen writes its words out, never a part of them nor the bare word, which may then be the
-  // visitor's own.
-  const [lastPair, setLastPair] = useState(pair && { label: pair.label, state: pair.state });
-  if (pair !== null && (pair.label !== lastPair?.label || pair.state !== lastPair.state)) {
-    setLastPair({ label: pair.label, state: pair.state });
-  }
-  const pairNamed = pair ?? lastPair;
   // Its fork folded, the pair's words are still being written out: out of reach meanwhile, so
   // no Tab or press meets a pair that leads nowhere (WCAG 2.4.3), its "or" and comma still read.
   const isPairLeaving = pair === null && pairWord !== "";
@@ -520,7 +512,7 @@ export function SentenceWord({
               word={button}
               fact={view.key}
               // Named by the state of the version it shows, as the fork's answers are.
-              label={pairNamed ? `${pairNamed.label}, ${pairNamed.state}: go to it` : pairWord}
+              label={pair ? `${pair.label}, ${pair.state}: go to it` : undefined}
               isLit={pair?.isLit ?? false}
               isLeaving={isPairLeaving}
               onPress={() => pair?.onPoint()}
@@ -539,7 +531,8 @@ interface PairButtonProps {
   /** The word the pair follows, which takes the focus the pair had. */
   word: RefObject<HTMLButtonElement | null>;
   fact: FactKey;
-  label: string;
+  /** None once its fork has folded: out of reach as it leaves, it is named to no one. */
+  label: string | undefined;
   isLit: boolean;
   /** Its fork folded, its words are being written out: it is out of reach meanwhile. */
   isLeaving: boolean;
