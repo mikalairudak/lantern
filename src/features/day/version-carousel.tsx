@@ -267,8 +267,9 @@ export function VersionCarousel({
   // reaches the stop once the stop carries the version's name, which a screen reader then says;
   // a version taken any other way leaves the focus where it is. The focus itself scrolls
   // nothing. A stop whose top is on screen, below the edge the page's scroll padding keeps,
-  // stays where it is: a taller version at the window's foot grows into view with its row's
-  // glide, where a scroll to its foot would jump it a line or more in one frame. One whose top
+  // stays where it is: a taller version at the window's foot grows down past it with its row's
+  // glide, left for the visitor to scroll to, where a scroll to its foot would jump the page a
+  // line or more in one frame. One whose top
   // is above that edge, as under the plan's bar, is brought in the least way, never centred, by
   // its box, which no lean or slide moves, so nothing scrolls sideways.
   // Both this hand-off and the slide below read the render `take` flushes, so `onPick` must
