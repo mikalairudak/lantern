@@ -39,8 +39,6 @@ vi.mock("@/lib/events/send-event", () => ({ sendProductEvent: vi.fn() }));
 
 const ORIGIN = "http://lantern.test";
 const DAY_TIMEOUT = { timeout: 5000 };
-/** A test that streams two days and comes back through both. */
-const LONG_TEST_MS = 20_000;
 /** Longer than a day asked takes to turn the page once its words have come. */
 const A_MOMENT_MS = 1300;
 const POOL: readonly WrittenGist[] = writtenPool();
@@ -269,259 +267,223 @@ async function parisOnItsWayOverRome(
 }
 
 describe("a day opened from Your days while another is asked on the start screen", () => {
-  it(
-    "keeps the day opened from Your days when a text read before the press lands",
-    async () => {
-      const user = userEvent.setup();
-      const { read, land } = heldReader();
-      render(<Day start={{ pool: POOL, read }} sourceFor={namedSourceFor} isAddressed />);
-      await user.click(cityWord("Rome"));
-      await waitFor(() => expect(window.location.pathname).toBe(`/day/${ROME_ID}`));
-      await waitForTheDay();
-      act(() => window.history.back());
-      await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
-      await user.type(field(), "Bologna{Enter}");
-      await waitFor(() => expect(read).toHaveBeenCalledOnce());
+  it("keeps the day opened from Your days when a text read before the press lands", async () => {
+    const user = userEvent.setup();
+    const { read, land } = heldReader();
+    render(<Day start={{ pool: POOL, read }} sourceFor={namedSourceFor} isAddressed />);
+    await user.click(cityWord("Rome"));
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${ROME_ID}`));
+    await waitForTheDay();
+    act(() => window.history.back());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+    await user.type(field(), "Bologna{Enter}");
+    await waitFor(() => expect(read).toHaveBeenCalledOnce());
 
-      await user.click(await romeInYourDays());
+    await user.click(await romeInYourDays());
 
-      // The day pressed is the page's: the one it still holds, at its own address.
-      await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
-      expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
-      land({ kind: "request", request: BOLOGNA_START_REQUEST, readings: [], unplaced: [] });
-      await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
-      expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/);
-      expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
+    // The day pressed is the page's: the one it still holds, at its own address.
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
+    expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
+    land({ kind: "request", request: BOLOGNA_START_REQUEST, readings: [], unplaced: [] });
+    await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
+    expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/);
+    expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
 
-      // Back, the start screen reads nothing: its field keeps the text, ready to be asked again.
-      act(() => window.history.back());
-      await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
-      expect(field()).toHaveValue("Bologna");
-      expect(field()).not.toHaveAttribute("readonly");
-    },
-    LONG_TEST_MS,
-  );
+    // Back, the start screen reads nothing: its field keeps the text, ready to be asked again.
+    act(() => window.history.back());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+    expect(field()).toHaveValue("Bologna");
+    expect(field()).not.toHaveAttribute("readonly");
+  });
 
-  it(
-    "keeps the day opened from Your days when a day asked before the press turns its page",
-    async () => {
-      const user = userEvent.setup();
-      const release = await parisOnItsWayOverRome(user);
+  it("keeps the day opened from Your days when a day asked before the press turns its page", async () => {
+    const user = userEvent.setup();
+    const release = await parisOnItsWayOverRome(user);
 
-      await user.click(await romeInYourDays());
+    await user.click(await romeInYourDays());
 
-      await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
-      expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
+    expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
+    release();
+    await waitFor(() => expect(fetchDay).toHaveBeenCalledTimes(3));
+    await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
+    expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/);
+    expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
+  });
+
+  it("keeps the day opened from Your days when the day asked before answers in the same moment as the press", async () => {
+    const user = userEvent.setup();
+    const release = await parisOnItsWayOverRome(user);
+    const rome = await romeInYourDays();
+
+    act(() => {
       release();
-      await waitFor(() => expect(fetchDay).toHaveBeenCalledTimes(3));
-      await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
-      expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/);
-      expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
-    },
-    LONG_TEST_MS,
-  );
+      fireEvent.click(rome);
+    });
 
-  it(
-    "keeps the day opened from Your days when the day asked before answers in the same moment as the press",
-    async () => {
-      const user = userEvent.setup();
-      const release = await parisOnItsWayOverRome(user);
-      const rome = await romeInYourDays();
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
+    await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
+    expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/);
+    expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
+    expect(within(dayList()).getAllByRole("listitem")).toHaveLength(ROME_STOPS);
+  });
 
-      act(() => {
-        release();
-        fireEvent.click(rome);
-      });
+  it("shows the start screen on Back with no day on its way, and the day opened on Forward", async () => {
+    const user = userEvent.setup();
+    await parisOnItsWayOverRome(user);
+    await user.click(await romeInYourDays());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
 
-      await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
-      await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
-      expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/);
-      expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
-      expect(within(dayList()).getAllByRole("listitem")).toHaveLength(ROME_STOPS);
-    },
-    LONG_TEST_MS,
-  );
+    act(() => window.history.back());
 
-  it(
-    "shows the start screen on Back with no day on its way, and the day opened on Forward",
-    async () => {
-      const user = userEvent.setup();
-      await parisOnItsWayOverRome(user);
-      await user.click(await romeInYourDays());
-      await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
+    await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+    // Paris was let go: the start screen no longer says it back, and its field takes a text.
+    expect(screen.queryByText(saidBack(PARIS_LINE))).not.toBeInTheDocument();
+    expect(field()).not.toHaveAttribute("readonly");
 
-      act(() => window.history.back());
+    act(() => window.history.forward());
 
-      await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
-      // Paris was let go: the start screen no longer says it back, and its field takes a text.
-      expect(screen.queryByText(saidBack(PARIS_LINE))).not.toBeInTheDocument();
-      expect(field()).not.toHaveAttribute("readonly");
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
+    expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
+    expect(within(dayList()).getAllByRole("listitem")).toHaveLength(ROME_STOPS);
+  });
 
-      act(() => window.history.forward());
+  it("tells the day let go as left, once, and what the visitor does next as done on the day pressed", async () => {
+    const user = userEvent.setup();
+    await parisOnItsWayOverRome(user, true);
+    const before = sentEvents().length;
 
-      await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
-      expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
-      expect(within(dayList()).getAllByRole("listitem")).toHaveLength(ROME_STOPS);
-    },
-    LONG_TEST_MS,
-  );
+    await user.click(await romeInYourDays());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
+    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
 
-  it(
-    "tells the day let go as left, once, and what the visitor does next as done on the day pressed",
-    async () => {
-      const user = userEvent.setup();
-      await parisOnItsWayOverRome(user, true);
-      const before = sentEvents().length;
+    const since = sentEvents().slice(before);
+    expect(since.filter(isAboutADay)).toEqual([
+      {
+        kind: "day-left",
+        city: "paris",
+        via: "pressed",
+        written: true,
+        stage: "before-first-stop",
+      },
+    ]);
+    expect(since.filter((event) => event.kind === "menu-opened")).toEqual([
+      expect.objectContaining({ kind: "menu-opened", city: "rome" }),
+    ]);
+  });
 
-      await user.click(await romeInYourDays());
-      await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
-      await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+  it("keeps the row of a live day let go once its answer named it, listed on the start screen on Back", async () => {
+    isParisNamed = true;
+    const user = userEvent.setup();
+    await parisOnItsWayOverRome(user);
+    await waitFor(() => expect(keptDays()).toContainEqual([PARIS_ID, "writing"]));
 
-      const since = sentEvents().slice(before);
-      expect(since.filter(isAboutADay)).toEqual([
-        {
-          kind: "day-left",
-          city: "paris",
-          via: "pressed",
-          written: true,
-          stage: "before-first-stop",
-        },
-      ]);
-      expect(since.filter((event) => event.kind === "menu-opened")).toEqual([
-        expect.objectContaining({ kind: "menu-opened", city: "rome" }),
-      ]);
-    },
-    LONG_TEST_MS,
-  );
+    await user.click(await romeInYourDays());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
 
-  it(
-    "keeps the row of a live day let go once its answer named it, listed on the start screen on Back",
-    async () => {
-      isParisNamed = true;
-      const user = userEvent.setup();
-      await parisOnItsWayOverRome(user);
-      await waitFor(() => expect(keptDays()).toContainEqual([PARIS_ID, "writing"]));
-
-      await user.click(await romeInYourDays());
-      await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
-
-      // Let go, it is still written to its end on the server: its row stays the way back to it.
-      expect(keptDays()).toEqual([
-        [PARIS_ID, "writing"],
-        [ROME_ID, "written"],
-      ]);
-      act(() => window.history.back());
-      const yours = await screen.findByRole("list", { name: YOUR_DAYS_HEADING });
-      expect(within(yours).getAllByRole("link", { name: /Paris|Rome/ })).toHaveLength(2);
-    },
-    LONG_TEST_MS,
-  );
+    // Let go, it is still written to its end on the server: its row stays the way back to it.
+    expect(keptDays()).toEqual([
+      [PARIS_ID, "writing"],
+      [ROME_ID, "written"],
+    ]);
+    act(() => window.history.back());
+    const yours = await screen.findByRole("list", { name: YOUR_DAYS_HEADING });
+    expect(within(yours).getAllByRole("link", { name: /Paris|Rome/ })).toHaveLength(2);
+  });
 });
 
 describe("a day opened from Your days after a day asked on the start screen was dropped there", () => {
-  it(
-    "tells what the visitor does next as done on the day pressed, not on the day dropped",
-    async () => {
-      const user = userEvent.setup();
-      const readings: IntakeResult[] = [
-        { kind: "request", request: KYOTO_REQUEST, readings: [], unplaced: [] },
-        { kind: "unavailable" },
-      ];
-      const read = vi.fn<IntakeReader>(async () => readings.shift()!);
-      render(<Day start={{ pool: POOL, read }} sourceFor={namedSourceFor} isAddressed isCounted />);
-      await user.click(cityWord("Rome"));
-      await waitFor(() => expect(window.location.pathname).toBe(`/day/${ROME_ID}`));
-      await waitForTheDay();
-      await chooseCity(user, "Rome", "Bologna");
-      await waitFor(() => expect(headline()).toHaveTextContent(/^A lively Saturday in Bologna/));
-      await waitForTheDay();
-      act(() => window.history.back());
-      await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
-      act(() => window.history.back());
-      await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
-      // Kyoto is asked and on its way, then dropped by a new text, which reads as nothing.
-      await user.type(field(), "Kyoto{Enter}");
-      await waitFor(() => expect(read).toHaveBeenCalledTimes(1));
-      await user.clear(field());
-      await user.type(field(), "Somewhere{Enter}");
-      await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
-      const before = sentEvents().length;
+  it("tells what the visitor does next as done on the day pressed, not on the day dropped", async () => {
+    const user = userEvent.setup();
+    const readings: IntakeResult[] = [
+      { kind: "request", request: KYOTO_REQUEST, readings: [], unplaced: [] },
+      { kind: "unavailable" },
+    ];
+    const read = vi.fn<IntakeReader>(async () => readings.shift()!);
+    render(<Day start={{ pool: POOL, read }} sourceFor={namedSourceFor} isAddressed isCounted />);
+    await user.click(cityWord("Rome"));
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${ROME_ID}`));
+    await waitForTheDay();
+    await chooseCity(user, "Rome", "Bologna");
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A lively Saturday in Bologna/));
+    await waitForTheDay();
+    act(() => window.history.back());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
+    act(() => window.history.back());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+    // Kyoto is asked and on its way, then dropped by a new text, which reads as nothing.
+    await user.type(field(), "Kyoto{Enter}");
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(1));
+    await user.clear(field());
+    await user.type(field(), "Somewhere{Enter}");
+    await waitFor(() => expect(read).toHaveBeenCalledTimes(2));
+    const before = sentEvents().length;
 
-      await user.click(await romeInYourDays());
-      await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
-      await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
+    await user.click(await romeInYourDays());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
+    await user.click(screen.getByRole("button", { name: TAKE_THIS_DAY }));
 
-      const since = sentEvents().slice(before);
-      expect(since.filter(isAboutADay)).toEqual([]);
-      expect(since.filter((event) => event.kind === "menu-opened")).toEqual([
-        expect.objectContaining({ kind: "menu-opened", city: "rome" }),
-      ]);
-    },
-    LONG_TEST_MS,
-  );
+    const since = sentEvents().slice(before);
+    expect(since.filter(isAboutADay)).toEqual([]);
+    expect(since.filter((event) => event.kind === "menu-opened")).toEqual([
+      expect.objectContaining({ kind: "menu-opened", city: "rome" }),
+    ]);
+  });
 });
 
 describe("a day opened from Your days with nothing asked on the start screen", () => {
-  it(
-    "brings back the day as it stands, asking the route for nothing and telling nothing",
-    async () => {
-      const user = userEvent.setup();
-      const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
-      render(<Day start={{ pool: POOL, read }} sourceFor={namedSourceFor} isAddressed isCounted />);
-      await user.click(cityWord("Rome"));
-      await waitFor(() => expect(window.location.pathname).toBe(`/day/${ROME_ID}`));
-      await waitForTheDay();
-      act(() => window.history.back());
-      await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
-      const events = sentEvents().length;
+  it("brings back the day as it stands, asking the route for nothing and telling nothing", async () => {
+    const user = userEvent.setup();
+    const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
+    render(<Day start={{ pool: POOL, read }} sourceFor={namedSourceFor} isAddressed isCounted />);
+    await user.click(cityWord("Rome"));
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${ROME_ID}`));
+    await waitForTheDay();
+    act(() => window.history.back());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+    const events = sentEvents().length;
 
-      await user.click(await romeInYourDays());
+    await user.click(await romeInYourDays());
 
-      await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
-      expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
-      expect(within(dayList()).getAllByRole("listitem")).toHaveLength(ROME_STOPS);
-      expect(fetchDay).toHaveBeenCalledOnce();
-      expect(sentEvents().slice(events).filter(isAboutADay)).toEqual([]);
-    },
-    LONG_TEST_MS,
-  );
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
+    expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
+    expect(within(dayList()).getAllByRole("listitem")).toHaveLength(ROME_STOPS);
+    expect(fetchDay).toHaveBeenCalledOnce();
+    expect(sentEvents().slice(events).filter(isAboutADay)).toEqual([]);
+  });
 
-  it(
-    "lets the day opened write on to its end when a text read before the press is dropped",
-    async () => {
-      const user = userEvent.setup();
-      const { read, land } = heldReader();
-      const openGate = holdDayHalfway();
-      render(<Day start={{ pool: POOL, read }} sourceFor={namedSourceFor} isAddressed />);
-      await user.click(cityWord("Rome"));
-      await waitFor(() => expect(window.location.pathname).toBe(`/day/${ROME_ID}`), DAY_TIMEOUT);
-      // Still being written as the visitor goes Back.
-      await waitFor(
-        () =>
-          expect(screen.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
-            "aria-busy",
-            "true",
-          ),
-        DAY_TIMEOUT,
-      );
-      act(() => window.history.back());
-      await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
-      await user.type(field(), "Bologna{Enter}");
-      await waitFor(() => expect(read).toHaveBeenCalledOnce());
+  it("lets the day opened write on to its end when a text read before the press is dropped", async () => {
+    const user = userEvent.setup();
+    const { read, land } = heldReader();
+    const openGate = holdDayHalfway();
+    render(<Day start={{ pool: POOL, read }} sourceFor={namedSourceFor} isAddressed />);
+    await user.click(cityWord("Rome"));
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${ROME_ID}`), DAY_TIMEOUT);
+    // Still being written as the visitor goes Back.
+    await waitFor(
+      () =>
+        expect(screen.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+          "aria-busy",
+          "true",
+        ),
+      DAY_TIMEOUT,
+    );
+    act(() => window.history.back());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+    await user.type(field(), "Bologna{Enter}");
+    await waitFor(() => expect(read).toHaveBeenCalledOnce());
 
-      await user.click(await romeInYourDays());
-      await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
-      act(() => openGate());
+    await user.click(await romeInYourDays());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
+    act(() => openGate());
 
-      await waitForTheDay();
-      expect(within(dayList()).getAllByRole("listitem")).toHaveLength(ROME_STOPS);
-      land({ kind: "request", request: BOLOGNA_START_REQUEST, readings: [], unplaced: [] });
-      await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
-      expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/);
-      expect(fetchDay).toHaveBeenCalledOnce();
-    },
-    LONG_TEST_MS,
-  );
+    await waitForTheDay();
+    expect(within(dayList()).getAllByRole("listitem")).toHaveLength(ROME_STOPS);
+    land({ kind: "request", request: BOLOGNA_START_REQUEST, readings: [], unplaced: [] });
+    await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
+    expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/);
+    expect(fetchDay).toHaveBeenCalledOnce();
+  });
 });
 
 /** The test environment's jsdom, whose console hears what jsdom cannot do. */
@@ -561,114 +523,101 @@ function holdFrames(): { runFrame: () => void; restore: () => void } {
 }
 
 describe("a day opened from Your days in the moment the start screen's own answer lands", () => {
-  it(
-    "keeps the day pressed when the frame that gives the page to the day asked has run and is not yet drawn",
-    async () => {
-      const user = userEvent.setup();
-      const release = await parisOnItsWayOverRome(user);
-      const rome = await romeInYourDays();
-      const frames = holdFrames();
-      try {
-        await act(async () => {
-          release();
-          await new Promise((resolve) => setTimeout(resolve, 300));
-        });
-        // Paris's words have come: the next frame gives it the page.
-        act(() => frames.runFrame());
-        expect(headline()).toHaveTextContent(/^One day in a city/);
-
-        act(() => {
-          frames.runFrame();
-          fireEvent.click(rome);
-        });
-      } finally {
-        frames.restore();
-      }
-
-      await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
-      await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
-      expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/);
-      expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
-      expect(within(dayList()).getAllByRole("listitem")).toHaveLength(ROME_STOPS);
-    },
-    LONG_TEST_MS,
-  );
-
-  it(
-    "keeps the day pressed when a text read before the press has just asked its day, not yet drawn",
-    async () => {
-      const user = userEvent.setup();
-      const { read, land } = heldReader();
-      render(<Day start={{ pool: POOL, read }} sourceFor={namedSourceFor} isAddressed />);
-      await user.click(cityWord("Rome"));
-      await waitFor(() => expect(window.location.pathname).toBe(`/day/${ROME_ID}`));
-      await waitForTheDay();
-      act(() => window.history.back());
-      await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
-      await user.type(field(), "Bologna{Enter}");
-      await waitFor(() => expect(read).toHaveBeenCalledOnce());
-      const rome = await romeInYourDays();
-
+  it("keeps the day pressed when the frame that gives the page to the day asked has run and is not yet drawn", async () => {
+    const user = userEvent.setup();
+    const release = await parisOnItsWayOverRome(user);
+    const rome = await romeInYourDays();
+    const frames = holdFrames();
+    try {
       await act(async () => {
-        land({ kind: "request", request: BOLOGNA_START_REQUEST, readings: [], unplaced: [] });
-        for (let turn = 0; turn < 10; turn += 1) await Promise.resolve();
+        release();
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      });
+      // Paris's words have come: the next frame gives it the page.
+      act(() => frames.runFrame());
+      expect(headline()).toHaveTextContent(/^One day in a city/);
+
+      act(() => {
+        frames.runFrame();
         fireEvent.click(rome);
       });
+    } finally {
+      frames.restore();
+    }
 
-      await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
-      await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
-      expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/);
-      expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
-      act(() => window.history.back());
-      await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
-      expect(field()).not.toHaveAttribute("readonly");
-    },
-    LONG_TEST_MS,
-  );
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
+    await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
+    expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/);
+    expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
+    expect(within(dayList()).getAllByRole("listitem")).toHaveLength(ROME_STOPS);
+  });
+
+  it("keeps the day pressed when a text read before the press has just asked its day, not yet drawn", async () => {
+    const user = userEvent.setup();
+    const { read, land } = heldReader();
+    render(<Day start={{ pool: POOL, read }} sourceFor={namedSourceFor} isAddressed />);
+    await user.click(cityWord("Rome"));
+    await waitFor(() => expect(window.location.pathname).toBe(`/day/${ROME_ID}`));
+    await waitForTheDay();
+    act(() => window.history.back());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+    await user.type(field(), "Bologna{Enter}");
+    await waitFor(() => expect(read).toHaveBeenCalledOnce());
+    const rome = await romeInYourDays();
+
+    await act(async () => {
+      land({ kind: "request", request: BOLOGNA_START_REQUEST, readings: [], unplaced: [] });
+      for (let turn = 0; turn < 10; turn += 1) await Promise.resolve();
+      fireEvent.click(rome);
+    });
+
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/));
+    await new Promise((resolve) => setTimeout(resolve, A_MOMENT_MS));
+    expect(headline()).toHaveTextContent(/^A balanced Saturday in Rome/);
+    expect(window.location.pathname).toBe(`/day/${ROME_ID}`);
+    act(() => window.history.back());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+    expect(field()).not.toHaveAttribute("readonly");
+  });
 });
 
 describe("a day opened from Your days that the page no longer holds", () => {
-  it(
-    "loads the day's own address when a day asked on the start screen cut it off mid-stream",
-    async () => {
-      // jsdom loads no other address: it tells its console a navigation was asked of it, and stays.
-      const navigations: string[] = [];
-      const noteNavigation = (error: Error) => {
-        if (error.message.startsWith("Not implemented: navigation"))
-          navigations.push(error.message);
-      };
-      const { virtualConsole } = (globalThis as unknown as { jsdom: JsdomWithConsole }).jsdom;
-      virtualConsole.on("jsdomError", noteNavigation);
-      try {
-        const user = userEvent.setup();
-        const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
-        holdDayHalfway();
-        render(<Day start={{ pool: POOL, read }} sourceFor={namedSourceFor} isAddressed />);
-        await user.click(cityWord("Rome"));
-        await waitFor(() => expect(window.location.pathname).toBe(`/day/${ROME_ID}`), DAY_TIMEOUT);
-        act(() => window.history.back());
-        await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
-        // Paris's post is held; the log, asked how Rome ended once Paris takes the stream, answers.
-        const routeDay = fetchDay.getMockImplementation()!;
-        fetchDay.mockImplementation((path, init) =>
-          path === DAY_ROUTE ? new Promise<Response>(() => undefined) : routeDay(path, init),
-        );
-        onTestFinished(() => {
-          fetchDay.mockImplementation(routeDay);
-        });
-        await user.click(cityWord("Paris"));
-        await saysBack(PARIS_LINE);
+  it("loads the day's own address when a day asked on the start screen cut it off mid-stream", async () => {
+    // jsdom loads no other address: it tells its console a navigation was asked of it, and stays.
+    const navigations: string[] = [];
+    const noteNavigation = (error: Error) => {
+      if (error.message.startsWith("Not implemented: navigation")) navigations.push(error.message);
+    };
+    const { virtualConsole } = (globalThis as unknown as { jsdom: JsdomWithConsole }).jsdom;
+    virtualConsole.on("jsdomError", noteNavigation);
+    try {
+      const user = userEvent.setup();
+      const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
+      holdDayHalfway();
+      render(<Day start={{ pool: POOL, read }} sourceFor={namedSourceFor} isAddressed />);
+      await user.click(cityWord("Rome"));
+      await waitFor(() => expect(window.location.pathname).toBe(`/day/${ROME_ID}`), DAY_TIMEOUT);
+      act(() => window.history.back());
+      await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+      // Paris's post is held; the log, asked how Rome ended once Paris takes the stream, answers.
+      const routeDay = fetchDay.getMockImplementation()!;
+      fetchDay.mockImplementation((path, init) =>
+        path === DAY_ROUTE ? new Promise<Response>(() => undefined) : routeDay(path, init),
+      );
+      onTestFinished(() => {
+        fetchDay.mockImplementation(routeDay);
+      });
+      await user.click(cityWord("Paris"));
+      await saysBack(PARIS_LINE);
 
-        await user.click(await romeInYourDays());
+      await user.click(await romeInYourDays());
 
-        expect(navigations).toHaveLength(1);
-        expect(window.location.pathname).toBe("/");
-        // Nothing is drawn in the address's place meanwhile: the day asked is let go with the page.
-        expect(headline()).toHaveTextContent(/^One day in a city/);
-      } finally {
-        virtualConsole.off("jsdomError", noteNavigation);
-      }
-    },
-    LONG_TEST_MS,
-  );
+      expect(navigations).toHaveLength(1);
+      expect(window.location.pathname).toBe("/");
+      // Nothing is drawn in the address's place meanwhile: the day asked is let go with the page.
+      expect(headline()).toHaveTextContent(/^One day in a city/);
+    } finally {
+      virtualConsole.off("jsdomError", noteNavigation);
+    }
+  });
 });
