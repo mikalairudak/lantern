@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { CHART } from "@/features/abacus/geometry";
+import { ROW } from "@/features/abacus/rows";
 import { themeColor, themeColorsOf, type Theme } from "./theme-colors";
 
 /*
@@ -283,7 +285,7 @@ describe("the palette", () => {
   });
 
   describe("the curve under a line of words", () => {
-    /** The muted words over the curve are 13 px: WCAG's bar for text that size. */
+    /** The words over the curve are 13 px: WCAG's bar for text that size. */
     const OVER_CURVE_CONTRAST = 4.5;
 
     /** How much of the curve the mask's grey lets through: its lightness as written. */
@@ -305,14 +307,65 @@ describe("the palette", () => {
       expect(grey.slice(5, 7)).toBe(grey.slice(1, 3));
     });
 
-    it.each(THEMES)("leaves the muted words 4.5:1 or more over it in the %s theme", (theme) => {
-      const under = blend(
-        color("curve", theme),
-        color("ground", theme),
-        shareOf(color("curve-under-words", theme)),
-      );
-      expect(contrast(color("muted", theme), under)).toBeGreaterThanOrEqual(OVER_CURVE_CONTRAST);
-    });
+    /**
+     * The 13 px words a row sets over the curve, by theme. By day the energy word is left out:
+     * it measures about 4.16:1 over the curve, a known issue (docs/accessibility.md, 1.4.3).
+     */
+    const OVER_CURVE: [string, Theme][] = [
+      ...THEMES.flatMap((theme) =>
+        ["muted", "amber", "swap"].map((name): [string, Theme] => [name, theme]),
+      ),
+      ["energy", "dark"],
+    ];
+
+    /** The share of a standard normal distribution under a value: how far a blur has stepped. */
+    const normalShare = (value: number): number => {
+      // Abramowitz and Stegun's 7.1.26, within 1.5e-7 of the error function.
+      const x = Math.abs(value) / Math.SQRT2;
+      const t = 1 / (1 + 0.3275911 * x);
+      const poly =
+        t *
+        (0.254829592 +
+          t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+      const erf = 1 - poly * Math.exp(-x * x);
+      return 0.5 * (1 + Math.sign(value) * erf);
+    };
+
+    /**
+     * How much of the curve shows at a corner of a line's own box, its first or last letter at
+     * its tallest or deepest: the mask's box stands a pad past it each way, and the blur lets
+     * the curve back in towards the box's edge. Modelled as a true Gaussian blur at a square
+     * corner; Chromium's rounded box and shorter blur render at or under it.
+     */
+    const cornerShareOf = (grey: string): number => {
+      const sigma = CHART.underWordsSoftness;
+      const stepped = normalShare(ROW.lineMaskPad / sigma) * normalShare(ROW.lineMaskPadY / sigma);
+      return 1 - stepped * (1 - shareOf(grey));
+    };
+
+    it.each(OVER_CURVE)(
+      "sets %s 4.5:1 or more over one curve inside a line, in the %s theme",
+      (name, theme) => {
+        const under = blend(
+          color("curve", theme),
+          color("ground", theme),
+          shareOf(color("curve-under-words", theme)),
+        );
+        expect(contrast(color(name, theme), under)).toBeGreaterThanOrEqual(OVER_CURVE_CONTRAST);
+      },
+    );
+
+    it.each(OVER_CURVE)(
+      "sets %s 4.5:1 or more over one curve at a corner of a line, where the blur steps it back, in the %s theme",
+      (name, theme) => {
+        const under = blend(
+          color("curve", theme),
+          color("ground", theme),
+          cornerShareOf(color("curve-under-words", theme)),
+        );
+        expect(contrast(color(name, theme), under)).toBeGreaterThanOrEqual(OVER_CURVE_CONTRAST);
+      },
+    );
   });
 
   describe("the index's plates", () => {

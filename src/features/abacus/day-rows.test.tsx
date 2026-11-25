@@ -352,6 +352,23 @@ describe("the curve under a row's words", () => {
     expect(words).not.toHaveAttribute("fill-opacity");
     expect(soft).toHaveAttribute("color-interpolation-filters", "sRGB");
   });
+
+  it("steps back once where a dashed path lies on the day's, so their shares never add", async () => {
+    render(<StopRowCell example={0} state="proposed" density={null} />);
+    await placedDay();
+    const dashed = await waitFor(() => {
+      const path = document.querySelector("[data-proposal-path]");
+      expect(path).not.toBeNull();
+      return path;
+    });
+    const curve = document.querySelector("path.stroke-curve:not([stroke-dasharray])");
+    const masked = document.querySelectorAll("[mask]");
+
+    // One mask over the curve and the dashes together: they meet in the curve's colour first.
+    expect(masked).toHaveLength(1);
+    expect(masked[0]).toContainElement(curve as HTMLElement | null);
+    expect(masked[0]).toContainElement(dashed as HTMLElement | null);
+  });
 });
 
 describe("a stop's name", () => {

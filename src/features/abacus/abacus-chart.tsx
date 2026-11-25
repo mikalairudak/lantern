@@ -739,55 +739,57 @@ export function AbacusChart({
               </FadingWith>
             ),
           )}
-          <path
-            d={curvePath}
-            fill="none"
-            strokeWidth={chart.curveStroke}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            mask={wordsMaskRef ? `url(#${underWordsId})` : undefined}
-            className="stroke-curve"
-          />
-          <AnimatePresence>
-            {previewPath && (
-              <motion.path
-                key="preview"
-                data-preview={isPreviewing ? "pointer" : "example"}
-                d={previewPath}
-                initial={isReducedMotion ? false : { opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={isReducedMotion ? undefined : { opacity: 0 }}
-                transition={SPRINGS.snappy}
-                fill="none"
-                strokeWidth={chart.ringStroke}
-                strokeDasharray={`${chart.curveStroke * PREVIEW_DASH_STROKES} ${chart.curveStroke * PREVIEW_DASH_STROKES}`}
-                strokeLinecap="round"
-                mask={wordsMaskRef ? `url(#${underWordsId})` : undefined}
-                aria-hidden
-                className="pointer-events-none stroke-curve"
-              />
-            )}
-          </AnimatePresence>
-          <AnimatePresence>
-            {proposalPaths.map(({ key, path }) => (
-              <motion.path
-                key={key}
-                data-proposal-path={key}
-                d={path}
-                initial={isReducedMotion ? false : { opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={isReducedMotion ? undefined : { opacity: 0 }}
-                transition={SPRINGS.gentle}
-                fill="none"
-                strokeWidth={chart.ringStroke}
-                strokeDasharray={`${chart.curveStroke * PREVIEW_DASH_STROKES} ${chart.curveStroke * PREVIEW_DASH_STROKES}`}
-                strokeLinecap="round"
-                mask={wordsMaskRef ? `url(#${underWordsId})` : undefined}
-                aria-hidden
-                className="pointer-events-none stroke-curve"
-              />
-            ))}
-          </AnimatePresence>
+          {/* The day's curve and every dashed one step back under words together: drawn in one
+              colour, they meet before the mask, so where a dashed path lies on the day's the
+              curve shows by the token's share, as one curve does, and never by two added. */}
+          <g mask={wordsMaskRef ? `url(#${underWordsId})` : undefined}>
+            <path
+              d={curvePath}
+              fill="none"
+              strokeWidth={chart.curveStroke}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="stroke-curve"
+            />
+            <AnimatePresence>
+              {previewPath && (
+                <motion.path
+                  key="preview"
+                  data-preview={isPreviewing ? "pointer" : "example"}
+                  d={previewPath}
+                  initial={isReducedMotion ? false : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={isReducedMotion ? undefined : { opacity: 0 }}
+                  transition={SPRINGS.snappy}
+                  fill="none"
+                  strokeWidth={chart.ringStroke}
+                  strokeDasharray={`${chart.curveStroke * PREVIEW_DASH_STROKES} ${chart.curveStroke * PREVIEW_DASH_STROKES}`}
+                  strokeLinecap="round"
+                  aria-hidden
+                  className="pointer-events-none stroke-curve"
+                />
+              )}
+            </AnimatePresence>
+            <AnimatePresence>
+              {proposalPaths.map(({ key, path }) => (
+                <motion.path
+                  key={key}
+                  data-proposal-path={key}
+                  d={path}
+                  initial={isReducedMotion ? false : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={isReducedMotion ? undefined : { opacity: 0 }}
+                  transition={SPRINGS.gentle}
+                  fill="none"
+                  strokeWidth={chart.ringStroke}
+                  strokeDasharray={`${chart.curveStroke * PREVIEW_DASH_STROKES} ${chart.curveStroke * PREVIEW_DASH_STROKES}`}
+                  strokeLinecap="round"
+                  aria-hidden
+                  className="pointer-events-none stroke-curve"
+                />
+              ))}
+            </AnimatePresence>
+          </g>
           {stops.map((stop, index) =>
             held.has(stop.id) ? null : (
               <FadingWith key={stop.id} isFading={fading.has(stop.id)} isAtOnce={gone.has(stop.id)}>

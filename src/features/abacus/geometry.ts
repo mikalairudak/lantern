@@ -64,7 +64,7 @@ export const CHART = {
   /** The energy curve. */
   curveStroke: 2.5,
   /** How far the curve takes to step back and come out again at the edge of a line of words. */
-  underWordsSoftness: 2,
+  underWordsSoftness: 1.5,
   /** The tick on the time axis where the pen is, in a silence. */
   penTick: 6,
   hourTick: 4,

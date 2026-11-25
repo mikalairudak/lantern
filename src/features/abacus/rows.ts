@@ -73,10 +73,13 @@ export const ROW = {
   seenRoom: 48,
   /**
    * The curve steps back a little past each end of a line of words, and over the few pixels
-   * between one line and the next, so it does not flicker back to full between them.
+   * between one line and the next, so it does not flicker back to full between them. Each pad
+   * is at least twice the mask's blur (`underWordsSoftness`), so the soft edge falls round the
+   * words rather than on their first and last letters; palette.test.ts holds a line's corner
+   * to 4.5:1.
    */
-  lineMaskPad: 3,
-  lineMaskPadY: 2,
+  lineMaskPad: 4,
+  lineMaskPadY: 3,
   lineMaskRadius: 4,
 } as const;
 
