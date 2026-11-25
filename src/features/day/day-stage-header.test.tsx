@@ -1394,6 +1394,14 @@ describe("a notice behind another tab", () => {
     expect(headerStatus().textContent).toBe("");
   });
 
+  it("says the visitor's own change while the page is hidden, an act on a page that was seen", () => {
+    const CHANGE = "Ribeira at dusk, livelier at lunch";
+    const view = renderHeader(KYOTO_REQUEST);
+    showPage(false);
+    view.rerender(cloneElement(headerOf(KYOTO_REQUEST), { changeHeard: CHANGE }));
+    expect(headerStatus()).toHaveTextContent(CHANGE);
+  });
+
   it("is never said when it goes before the page is seen", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const view = renderHeader(KYOTO_REQUEST);
