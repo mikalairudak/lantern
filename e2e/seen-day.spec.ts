@@ -125,6 +125,7 @@ test("a day this device has seen says the sun's times from its first HTML with e
   // The server wrote the facts line; a space beside a word there is parted from it in the HTML.
   const lines = (await chromeReadOf(page, "paragraph")).map(({ text }) => text);
   const facts = lines.find((line) => line.includes("sunrise"));
+  expect(facts, "a facts line with the sun's times in Chrome's tree").toBeDefined();
   expect(facts).toMatch(/sunrise \d\d:\d\d · sunset \d\d:\d\d/);
 });
 
