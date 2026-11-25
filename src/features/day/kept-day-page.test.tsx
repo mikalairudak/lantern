@@ -287,6 +287,7 @@ describe("a day's own address", () => {
     act(() => showPage(false));
     await wait(KEPT_WAIT_MS);
     expect(headline()).toHaveTextContent(NO_DAY_HERE);
+    expect(statusesSaying(NO_DAY_HERE)).toHaveLength(0);
 
     // Asked again in another tab: this browser's list has the day, and the page shows it.
     await act(async () => {
