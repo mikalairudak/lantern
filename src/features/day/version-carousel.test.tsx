@@ -214,7 +214,7 @@ describe("the carousel", () => {
     }
   });
 
-  it("leaves a stop whose top is on screen where it stands as an arrow pressed hands it the focus", async () => {
+  it("leaves a stop whose head is on screen where it stands as an arrow pressed hands it the focus", async () => {
     vi.mocked(Element.prototype.getBoundingClientRect).mockReturnValue(rectAt(120));
     const user = userEvent.setup();
     render(<Renaming />);
@@ -225,6 +225,22 @@ describe("the carousel", () => {
     expect(screen.getByRole("group", { name: after?.name })).toHaveFocus();
     // A taller version at the window's foot grows into view with its row, never in one jump.
     expect(scrolledTo).toEqual([]);
+  });
+
+  it("brings in a stop whose top is on screen but whose name runs past the window's foot", async () => {
+    // The stop's top 2 px above the foot: its name, the line the focus is said by, unseen.
+    vi.mocked(Element.prototype.getBoundingClientRect).mockReturnValue(
+      rectAt(window.innerHeight - 2),
+    );
+    const user = userEvent.setup();
+    render(<Renaming />);
+    const { after } = neighboursOf(BOTH, 0);
+    scrolledTo.length = 0;
+    await user.click(screen.getByRole("button", { name: `Livelier: ${after?.name}` }));
+
+    const stop = screen.getByRole("group", { name: after?.name });
+    expect(stop).toHaveFocus();
+    expect(scrolledTo).toEqual([{ element: stop.parentElement, options: { block: "nearest" } }]);
   });
 
   it("hands the focus for its own press alone, not to a later pick of that version from elsewhere", async () => {

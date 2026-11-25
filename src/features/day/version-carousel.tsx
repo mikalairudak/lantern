@@ -188,13 +188,16 @@ const ARROWS_CLASSES = "flex flex-wrap gap-x-3 gap-y-2";
 const ARROW_NAME_CLASSES = "decoration-1 underline-offset-4 pointed-group:underline";
 
 /**
- * Whether a box's top stands on screen, below the edge the page's scroll padding keeps clear of
- * the plan's bar.
+ * Whether a stop's box shows its head: its top below the edge the page's scroll padding keeps
+ * clear of the plan's bar, and its name, the line the focus is said by, whole above the window's
+ * foot. A box with no heading counts by its top alone.
  */
-function isTopInView(box: Element): boolean {
+function isHeadInView(box: Element): boolean {
   const { top } = box.getBoundingClientRect();
+  const name = box.querySelector("h1, h2, h3, h4, h5, h6");
+  const foot = name ? name.getBoundingClientRect().bottom : top;
   const edge = Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop);
-  return top >= (Number.isNaN(edge) ? 0 : edge) && top < window.innerHeight;
+  return top >= (Number.isNaN(edge) ? 0 : edge) && foot <= window.innerHeight;
 }
 
 /** Whether an element has the focus as the keyboard gives it, where the browser can tell. */
@@ -266,12 +269,13 @@ export function VersionCarousel({
   // An arrow pressed may go with the version it named, so the focus stays with the stop. It
   // reaches the stop once the stop carries the version's name, which a screen reader then says;
   // a version taken any other way leaves the focus where it is. The focus itself scrolls
-  // nothing. A stop whose top is on screen, below the edge the page's scroll padding keeps,
-  // stays where it is: a taller version at the window's foot grows down past it with its row's
-  // glide, left for the visitor to scroll to, where a scroll to its foot would jump the page a
-  // line or more in one frame. One whose top
-  // is above that edge, as under the plan's bar, is brought in the least way, never centred, by
-  // its box, which no lean or slide moves, so nothing scrolls sideways.
+  // nothing. A stop whose head is on screen, its top below the edge the page's scroll padding
+  // keeps and its name whole above the window's foot, stays where it is: a taller version at the
+  // window's foot grows down past it with its row's glide, left for the visitor to scroll to,
+  // where a scroll to its foot would jump the page a line or more in one frame. One whose top is
+  // above that edge, as under the plan's bar, or whose name runs past the foot, is brought in
+  // the least way, never centred, by its box, which no lean or slide moves, so nothing scrolls
+  // sideways.
   // Both this hand-off and the slide below read the render `take` flushes, so `onPick` must
   // commit the pick synchronously: in a transition or deferred, it would come after `take` has
   // dropped them both.
@@ -279,7 +283,7 @@ export function VersionCarousel({
     if (focusWith.current !== pick) return;
     groupRef.current?.focus({ preventScroll: true });
     const box = boxRef.current;
-    if (box && !isTopInView(box)) box.scrollIntoView({ block: "nearest" });
+    if (box && !isHeadInView(box)) box.scrollIntoView({ block: "nearest" });
   }, [pick]);
 
   // The version taken is now the stop: drawn where it stood as it waited, a stride off, in the

@@ -182,11 +182,15 @@ test("an arrow pressed hands the focus to its stop once the stop carries the ver
 
 /** Where the plan's bar, stuck at the window's top, ends on screen. */
 async function barBottomOf(page: Page): Promise<number> {
-  return page.getByRole("group", { name: "How lively the day is" }).evaluate((group) => {
-    let bar: Element | null = group;
-    while (bar && getComputedStyle(bar).position !== "sticky") bar = bar.parentElement;
-    return bar!.getBoundingClientRect().bottom;
-  });
+  const bottom = await page
+    .getByRole("group", { name: "How lively the day is" })
+    .evaluate((group) => {
+      let bar: Element | null = group;
+      while (bar && getComputedStyle(bar).position !== "sticky") bar = bar.parentElement;
+      return bar ? bar.getBoundingClientRect().bottom : null;
+    });
+  expect(bottom, "the plan's energy words stand in a bar stuck at the window's top").not.toBeNull();
+  return bottom!;
 }
 
 // The bar takes one row on a phone 390 px wide and wraps to two on one 320 px wide.
