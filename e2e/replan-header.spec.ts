@@ -270,7 +270,7 @@ test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => 
   const PAIR = "h1 button[data-fork-pair]";
   /** The bench's day and its proposal at the live pace, a slow page's too. */
   const STORY_TIMEOUT_MS = waitMs(120_000);
-  /** The proposal written whole at the bench's live pace, on a page four times slower too. */
+  /** The proposal written whole or to its end at the live pace, a page four times slower too. */
   const PROPOSAL_TIMEOUT_MS = waitMs(90_000);
 
   /** Elche on the bench, its re-plans ending as `ending` says, the day written to its end. */
@@ -418,11 +418,12 @@ test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => 
 
     await pointAtAnswer(page, "early dinner");
     await page.keyboard.press("Enter");
-    // Read while the pair still stands, before and after each read.
+    // The pair only leaves: one still there after a read stood through it.
     const names: string[] = [];
-    while (await isPairThere()) {
+    for (let isThere = true; isThere;) {
       const name = await nameOf();
-      if (await isPairThere()) names.push(name);
+      isThere = await isPairThere();
+      if (isThere) names.push(name);
     }
 
     expect(names.length, "names read while the pair was written out").toBeGreaterThan(0);
@@ -448,14 +449,14 @@ test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => 
       await page.keyboard.press("Enter");
       const pair = page.locator(PAIR);
       await expect(pair).toHaveAccessibleName("eating late, being written: go to it", {
-        timeout: DAY_TIMEOUT_MS,
+        timeout: PROPOSAL_TIMEOUT_MS,
       });
       // The pair is the Tab's next stop after the word.
       await page.keyboard.press("Tab");
       await expect(pair).toBeFocused();
       await page.evaluate(watchThePair, PAIR);
 
-      await expect(pair).toHaveCount(0, { timeout: DAY_TIMEOUT_MS });
+      await expect(pair).toHaveCount(0, { timeout: PROPOSAL_TIMEOUT_MS });
       await page.waitForTimeout(WRITTEN_OUT_MS);
 
       const watch = await watchOf(page);
@@ -488,14 +489,14 @@ test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => 
         .getByRole("radio", { name: "eating late, being written" })
         .filter({ visible: true })
         .first();
-      await expect(proposal).toBeVisible({ timeout: DAY_TIMEOUT_MS });
+      await expect(proposal).toBeVisible({ timeout: PROPOSAL_TIMEOUT_MS });
       await proposal.focus();
       await expect(proposal).toBeFocused();
       // The proposal is written until the headline's pair goes: it stands first.
-      await expect(page.locator(PAIR)).toHaveCount(1, { timeout: DAY_TIMEOUT_MS });
+      await expect(page.locator(PAIR)).toHaveCount(1, { timeout: PROPOSAL_TIMEOUT_MS });
       await page.evaluate(watchThePair, PAIR);
 
-      await expect(page.locator(PAIR)).toHaveCount(0, { timeout: DAY_TIMEOUT_MS });
+      await expect(page.locator(PAIR)).toHaveCount(0, { timeout: PROPOSAL_TIMEOUT_MS });
       await page.waitForTimeout(WRITTEN_OUT_MS);
 
       const watch = await watchOf(page);
