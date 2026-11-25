@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { CHART } from "@/features/abacus/geometry";
+import { ROW } from "@/features/abacus/rows";
 import { themeColor, themeColorsOf, type Theme } from "./theme-colors";
 
 /*
@@ -279,6 +281,115 @@ describe("the palette", () => {
   it("raises a sheet by night 1.15:1 or more over the ground", () => {
     expect(lighterBy(color("surface", "dark"), color("ground", "dark"))).toBeGreaterThanOrEqual(
       NIGHT_SHEET_OVER_PAGE,
+    );
+  });
+
+  describe("the curve under a line of words", () => {
+    /** The words over the curve are 13 px: WCAG's bar for text that size. */
+    const OVER_CURVE_CONTRAST = 4.5;
+
+    /** How much of the curve the mask's grey lets through: its lightness as written. */
+    const shareOf = (grey: string): number => parseInt(grey.slice(1, 3), 16) / 255;
+
+    /** A colour laid over another at a share, blended as the page draws it, channel by channel. */
+    const blend = (over: string, under: string, share: number): string =>
+      `#${[1, 3, 5]
+        .map((offset) => {
+          const channel = (hex: string): number => parseInt(hex.slice(offset, offset + 2), 16);
+          const mixed = Math.round(share * channel(over) + (1 - share) * channel(under));
+          return mixed.toString(16).padStart(2, "0");
+        })
+        .join("")}`;
+
+    it.each(THEMES)("is a grey in the %s theme, so its lightness alone says the share", (theme) => {
+      const grey = color("curve-under-words", theme);
+      expect(grey.slice(3, 5)).toBe(grey.slice(1, 3));
+      expect(grey.slice(5, 7)).toBe(grey.slice(1, 3));
+    });
+
+    /**
+     * The 13 px words a row sets over the curve, by theme. By day the energy word is left out:
+     * it measures about 4.16:1 over the curve, a known issue (docs/accessibility.md, 1.4.3).
+     */
+    const OVER_CURVE: [string, Theme][] = [
+      ...THEMES.flatMap((theme) =>
+        ["muted", "amber", "swap"].map((name): [string, Theme] => [name, theme]),
+      ),
+      ["energy", "dark"],
+    ];
+
+    /** The share of a standard normal distribution under a value: how far a blur has stepped. */
+    const normalShare = (value: number): number => {
+      // Abramowitz and Stegun's 7.1.26, within 1.5e-7 of the error function.
+      const x = Math.abs(value) / Math.SQRT2;
+      const t = 1 / (1 + 0.3275911 * x);
+      const poly =
+        t *
+        (0.254829592 +
+          t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+      const erf = 1 - poly * Math.exp(-x * x);
+      return 0.5 * (1 + Math.sign(value) * erf);
+    };
+
+    /** A standard normal distribution's density, `sigma` wide, at `value`. */
+    const normalDensity = (value: number, sigma: number): number =>
+      Math.exp(-(value * value) / (2 * sigma * sigma)) / (sigma * Math.sqrt(2 * Math.PI));
+
+    /** How many steps a side of the mask's rounded corner is summed in. */
+    const CORNER_STEPS = 200;
+
+    /**
+     * How much of the curve shows at a corner of a line's own box, its first or last letter at
+     * its tallest or deepest: the mask's box stands a pad past it each way, its corner rounded,
+     * and the blur lets the curve back in towards the box's edge. Modelled as a true Gaussian
+     * blur of the rounded box: the square corner's cover, less what the rounding takes away,
+     * summed over the corner. Chromium's shorter blur renders under it.
+     */
+    const cornerShareOf = (grey: string): number => {
+      const sigma = CHART.underWordsSoftness;
+      const { lineMaskPad: padX, lineMaskPadY: padY, lineMaskRadius: radius } = ROW;
+      const square = normalShare(padX / sigma) * normalShare(padY / sigma);
+      const step = radius / CORNER_STEPS;
+      let rounded = 0;
+      for (let i = 0; i < CORNER_STEPS; i++) {
+        for (let j = 0; j < CORNER_STEPS; j++) {
+          const x = (i + 0.5) * step;
+          const y = (j + 0.5) * step;
+          if ((x - radius) ** 2 + (y - radius) ** 2 <= radius ** 2) continue;
+          rounded += normalDensity(x - padX, sigma) * normalDensity(y - padY, sigma) * step * step;
+        }
+      }
+      return 1 - (square - rounded) * (1 - shareOf(grey));
+    };
+
+    /**
+     * The words that stand at a line's corner over the curve: amber is left out, as it marks the
+     * start times, which stand in the gutter, clear of the curve.
+     */
+    const AT_A_CORNER = OVER_CURVE.filter(([name]) => name !== "amber");
+
+    it.each(OVER_CURVE)(
+      "sets %s 4.5:1 or more over one curve inside a line, in the %s theme",
+      (name, theme) => {
+        const under = blend(
+          color("curve", theme),
+          color("ground", theme),
+          shareOf(color("curve-under-words", theme)),
+        );
+        expect(contrast(color(name, theme), under)).toBeGreaterThanOrEqual(OVER_CURVE_CONTRAST);
+      },
+    );
+
+    it.each(AT_A_CORNER)(
+      "sets %s 4.5:1 or more over one curve at a corner of a line, where the blur steps it back, in the %s theme",
+      (name, theme) => {
+        const under = blend(
+          color("curve", theme),
+          color("ground", theme),
+          cornerShareOf(color("curve-under-words", theme)),
+        );
+        expect(contrast(color(name, theme), under)).toBeGreaterThanOrEqual(OVER_CURVE_CONTRAST);
+      },
     );
   });
 

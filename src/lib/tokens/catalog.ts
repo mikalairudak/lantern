@@ -44,6 +44,10 @@ export const COLOR_TOKENS = [
   },
   { name: "energy", role: 'Energy in words: the energy word and clause, "drag the curve"' },
   { name: "curve", role: "Energy drawn: the curve and the rings on it" },
+  {
+    name: "curve-under-words",
+    role: "Never painted: how much of the curve shows under a line of words, read by its lightness",
+  },
   { name: "swap", role: 'Versions in words: alternatives, their controls, "instead of …"' },
   { name: "swap-drawn", role: "Versions drawn: the hollow beads and the ring that names one" },
 ] as const;

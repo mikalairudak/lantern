@@ -341,6 +341,57 @@ describe("a quarter being written", () => {
   });
 });
 
+describe("the curve under a row's words", () => {
+  it("steps back by the mask's grey for the theme, blurred as written", async () => {
+    render(<StopRowCell example={0} state="complete" density={null} />);
+    await placedDay();
+    const words = document.querySelector("mask > g");
+    const soft = document.querySelector("filter");
+
+    expect(words).toHaveClass("fill-curve-under-words");
+    expect(words).not.toHaveAttribute("fill-opacity");
+    expect(soft).toHaveAttribute("color-interpolation-filters", "sRGB");
+  });
+
+  /** The groups the mask under a row's words steps back. */
+  function underWordsGroups(): Element[] {
+    const id = document.querySelector('mask[id^="under-words-"]')?.id;
+    expect(id).toBeDefined();
+    return [...document.querySelectorAll(`[mask="url(#${id})"]`)];
+  }
+
+  it("steps back once where a dashed path lies on the day's, so their shares never add", async () => {
+    render(<StopRowCell example={0} state="proposed" density={null} />);
+    await placedDay();
+    const dashed = await waitFor(() => {
+      const path = document.querySelector("[data-proposal-path]");
+      expect(path).not.toBeNull();
+      return path;
+    });
+    const curve = document.querySelector("path.stroke-curve:not([stroke-dasharray])");
+    const masked = underWordsGroups();
+
+    // One mask over the curve and the dashes together: they meet in the curve's colour first.
+    expect(masked).toHaveLength(1);
+    expect(masked[0]).toContainElement(curve as HTMLElement | null);
+    expect(masked[0]).toContainElement(dashed as HTMLElement | null);
+  });
+
+  it("steps back once where the example pull lies on the day's curve", async () => {
+    render(<StopRowCell example={0} state="invited" density={null} />);
+    await placedDay();
+    const example = await waitFor(() => {
+      const path = document.querySelector('[data-preview="example"]');
+      expect(path).not.toBeNull();
+      return path;
+    });
+    const masked = underWordsGroups();
+
+    expect(masked).toHaveLength(1);
+    expect(masked[0]).toContainElement(example as HTMLElement | null);
+  });
+});
+
 describe("a stop's name", () => {
   async function beachName() {
     render(<StopRowCell example={0} state="complete" density={null} />);

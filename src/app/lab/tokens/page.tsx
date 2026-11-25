@@ -48,6 +48,7 @@ const SWATCH_CLASSES: Record<ColorToken, string> = {
   "lamp-haze": "bg-lamp-haze",
   energy: "bg-energy",
   curve: "bg-curve",
+  "curve-under-words": "bg-curve-under-words",
   swap: "bg-swap",
   "swap-drawn": "bg-swap-drawn",
 };
