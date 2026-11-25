@@ -228,6 +228,19 @@ describe("a version's name on the chart and Escape", () => {
     expect(namesShown()).toHaveLength(1);
   });
 
+  it("leaves an Escape to the page while a pointer that left its bead is elsewhere on the chart", async () => {
+    await drawTheDay();
+    const bead = await pointAtABead();
+    // Off the bead and off its name, the pointer still over the chart.
+    fireEvent.pointerLeave(bead);
+    fireEvent.pointerMove(document, AWAY_FROM_THE_NAME);
+
+    const isLeftToThePage = fireEvent.keyDown(document.body, { key: "Escape" });
+
+    expect(isLeftToThePage).toBe(true);
+    expect(namesShown()).toHaveLength(1);
+  });
+
   it("lets go of the bead whose name Escape puts away under a pointer resting on it", async () => {
     await drawTheDay();
     const bead = await pointAtABead();
