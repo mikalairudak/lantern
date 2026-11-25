@@ -3,6 +3,7 @@ import { writtenDayAt } from "../src/lib/days/written/days";
 import { START_DAYS } from "../src/lib/days/written/start-days";
 import { runningSpans } from "../src/lib/time/clock";
 import { expect, test, type Locator, type Page, waitMs, chooseTheChart } from "./fixtures";
+import { chromeReadOf } from "./chrome-tree";
 
 // These tests drive the chart: each page opens as for a visitor who chose it, since a day
 // opens on its plan otherwise.
@@ -346,6 +347,18 @@ for (const [what, address] of [
     await expect(page.getByText("404")).toHaveCount(0);
   });
 }
+
+// The page is drawn on the server alone, so a space written beside a word would be parted from
+// it in the HTML, and Chrome would give a screen reader "AlivelySaturdayinBologna".
+test("the page for no day names each written day's link with its words apart in Chrome's tree", async ({
+  page,
+}) => {
+  await page.goto("/nope");
+  await expect(page.getByRole("main").getByRole("listitem")).toHaveCount(WRITTEN_DAYS.length);
+
+  const names = (await chromeReadOf(page, "link")).map(({ name }) => name);
+  for (const day of WRITTEN_DAYS) expect(names).toContain(day.sentence);
+});
 
 // The page is a Server Component, and a constant it imports from a client module arrives as
 // a client reference rather than its classes; the links would lose their look.

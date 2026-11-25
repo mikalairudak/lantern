@@ -27,9 +27,14 @@ export function AskedSentence({ request, isMidSentence = false }: AskedSentenceP
   const words = [request.city, ...chosenLabelsOf(request)];
   return (
     <>
-      {isMidSentence ? "a" : "A"}{" "}
-      <span className="text-energy">{energyLabelOf(request.energy)}</span> {weekdayOf(request.date)}{" "}
-      in{" "}
+      {/* Each word stands in a box of its own, so every space between two words stands
+        between two boxes: as a text beside a word, the server parts the two with a comment
+        and Chrome drops the space from the link's name, "AlivelySaturdayinBologna". A space
+        in a box of its own loses the link's underline, and one inside the word's text draws
+        the line a little differently. */}
+      <span>{isMidSentence ? "a" : "A"}</span>{" "}
+      <span className="text-energy">{energyLabelOf(request.energy)}</span>{" "}
+      <span>{weekdayOf(request.date)}</span> <span>in</span>{" "}
       {words.map((word, index) => (
         <Fragment key={word}>
           {index > 0 && " "}
