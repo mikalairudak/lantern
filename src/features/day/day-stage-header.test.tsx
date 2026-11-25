@@ -1377,6 +1377,23 @@ describe("a notice behind another tab", () => {
     expect(headerStatus().textContent).toBe("");
   });
 
+  it("is said again, held afresh, when the page is hidden in the middle of its hold", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const view = renderHeader(KYOTO_REQUEST);
+    view.rerender(headerOf(KYOTO_REQUEST, null, NOTICE));
+    waitMs(NOTICE_HEARD_MS / 2);
+
+    showPage(false);
+    expect(headerStatus().textContent).toBe("");
+    waitMs(NOTICE_HEARD_MS);
+    showPage(true);
+    expect(headerStatus()).toHaveTextContent(SAID);
+    waitMs(NOTICE_HEARD_MS - 1);
+    expect(headerStatus()).toHaveTextContent(SAID);
+    waitMs(1);
+    expect(headerStatus().textContent).toBe("");
+  });
+
   it("is never said when it goes before the page is seen", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const view = renderHeader(KYOTO_REQUEST);

@@ -281,6 +281,26 @@ describe("a day's own address", () => {
     expect(status?.textContent).toBe("");
   });
 
+  it("never says there is no day when a day takes its place behind another tab", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    render(<KeptDayPage id={ID} stored={UNKNOWN} isLive={false} />);
+    act(() => showPage(false));
+    await wait(KEPT_WAIT_MS);
+    expect(headline()).toHaveTextContent(NO_DAY_HERE);
+
+    // Asked again in another tab: this browser's list has the day, and the page shows it.
+    await act(async () => {
+      keepYourDay(browserStorage(), asked());
+      window.dispatchEvent(new StorageEvent("storage", { key: YOUR_DAYS_KEY }));
+    });
+    await waitFor(() => expect(notice()).toHaveTextContent(UNFINISHED), NOTICE_TIMEOUT);
+
+    act(() => showPage(true));
+    expect(statusesSaying(NO_DAY_HERE)).toHaveLength(0);
+    await wait(NOTICE_HEARD_MS);
+    expect(statusesSaying(NO_DAY_HERE)).toHaveLength(0);
+  });
+
   it("says Lantern has no day here when the day this browser asked is forgotten after the wait", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     keepYourDay(browserStorage(), asked());

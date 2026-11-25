@@ -863,7 +863,9 @@ describe("the field's description after an answer without a day", () => {
     view.rerender(startOf({ kind: "refused" }, null));
     const field = screen.getByRole("textbox", { name: "Where, and anything else" });
     expect(field).toHaveFocus();
+    act(() => screen.getByRole("button", { name: "Plan this day" }).focus());
 
+    // Longer behind the tab than a hold, so a hold run meanwhile would be over.
     waitMs(NOTICE_HEARD_MS * 2);
     expect(field).not.toHaveAttribute("aria-describedby");
 
@@ -871,6 +873,24 @@ describe("the field's description after an answer without a day", () => {
     expect(answerStatus().textContent).toBe(REFUSED_SAID);
     expect(field).not.toHaveAttribute("aria-describedby");
     waitMs(NOTICE_HEARD_MS);
+    expect(field).toHaveAccessibleDescription(REFUSED_SAID);
+  });
+
+  it("names nothing under the focus kept in the field behind another tab and after, until it comes back", () => {
+    const view = renderRead();
+    showPage(false);
+    view.rerender(startOf({ kind: "refused" }, null));
+    const field = screen.getByRole("textbox", { name: "Where, and anything else" });
+    expect(field).toHaveFocus();
+
+    waitMs(NOTICE_HEARD_MS * 2);
+    showPage(true);
+    expect(answerStatus().textContent).toBe(REFUSED_SAID);
+    waitMs(NOTICE_HEARD_MS);
+    expect(answerStatus().textContent).toBe("");
+    expect(field).not.toHaveAttribute("aria-describedby");
+
+    leaveAndComeBack(field);
     expect(field).toHaveAccessibleDescription(REFUSED_SAID);
   });
 
@@ -1498,6 +1518,7 @@ describe("the press that asks for a typed text", () => {
 describe("a day set on its way straight after an ending, with no read drawn", () => {
   afterEach(() => {
     vi.useRealTimers();
+    Reflect.deleteProperty(document, "visibilityState");
   });
 
   const handlers = { onPlan: vi.fn(), onChooseWritten: vi.fn(), onChooseReading: vi.fn() };
@@ -1606,6 +1627,31 @@ describe("a day set on its way straight after an ending, with no read drawn", ()
     );
 
     act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS));
+    expect(screen.getByRole("button", { name: "Plan this day" })).toHaveFocus();
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("says nothing of a text ended without a day again behind another tab until the page is seen, then the new ending once", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const ending = { kind: "not-yet" } as const;
+    const said = "Lantern isn't writing new days right now. Start from one of the days below.";
+    const view = render(startOf(null, false, null));
+    view.rerender(startOf(ending, false, null));
+    act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS));
+    showPage(false);
+    view.rerender(startOf(ending, false, "reading"));
+    act(() => screen.getByRole("button", { name: "Reading" }).focus());
+    view.rerender(startOf(ending, false, null));
+    expect(answerStatus().textContent).toBe("");
+    view.rerender(startOf({ kind: "not-yet" }, false, null));
+    expect(answerStatus().textContent).toBe("");
+    act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS * 2));
+    expect(answerStatus().textContent).toBe("");
+
+    showPage(true);
+    expect(answerStatus().textContent).toBe(said);
+    act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS));
+    expect(answerStatus().textContent).toBe("");
     expect(screen.getByRole("button", { name: "Plan this day" })).toHaveFocus();
     expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-describedby");
   });
