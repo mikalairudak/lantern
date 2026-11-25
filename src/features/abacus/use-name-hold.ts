@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 /**
  * How long a version's name stays once the pointer that named it is off both its bead and the
@@ -71,17 +71,33 @@ export function useNameHold({
 
   const boxOf = useEffectEvent(nameBoxOf);
 
+  // Where the pointer last moved to while it is on a bead or holds a name; unknown until it
+  // moves. Followed from the bead on, since the move that leaves a bead for its name can be the
+  // last before the hold begins.
+  const pointer = useRef<ScreenPoint | null>(null);
+  const isFollowed = hoveredPlace !== null || heldPlace !== null;
+  useEffect(() => {
+    if (!isFollowed) return undefined;
+    const notePointer = ({ clientX, clientY }: PointerEvent) => {
+      pointer.current = { clientX, clientY };
+    };
+    document.addEventListener("pointermove", notePointer);
+    return () => {
+      document.removeEventListener("pointermove", notePointer);
+      pointer.current = null;
+    };
+  }, [isFollowed]);
+
   useEffect(() => {
     if (heldPlace === null) return undefined;
     let grace: number | null = null;
-    // Where the pointer last moved to while the name is held; unknown until it moves.
-    let pointer: ScreenPoint | null = null;
     const startGrace = () => {
       if (grace === null) grace = window.setTimeout(() => setHeldPlace(null), NAME_HOLD_GRACE_MS);
     };
     const keepWhileOnTheName = () => {
       const box = boxOf(heldPlace);
-      if (pointer === null || box === null || !isInside(box, pointer)) {
+      const at = pointer.current;
+      if (at === null || box === null || !isInside(box, at)) {
         startGrace();
         return;
       }
@@ -89,15 +105,15 @@ export function useNameHold({
       grace = null;
     };
     const followPointer = ({ clientX, clientY }: PointerEvent) => {
-      pointer = { clientX, clientY };
+      pointer.current = { clientX, clientY };
       keepWhileOnTheName();
     };
     const letGoOffThePage = ({ relatedTarget }: PointerEvent) => {
       if (relatedTarget === null) setHeldPlace(null);
     };
     const letGoNow = () => setHeldPlace(null);
-    // Off the bead, the pointer is on its way to the name until a move says it is on it.
-    startGrace();
+    // Off the bead, the pointer is on the name where it last moved to, or on its way to it.
+    keepWhileOnTheName();
     document.addEventListener("pointermove", followPointer);
     // A wheel or the page's scroll carries the name from under a pointer that has not moved.
     window.addEventListener("scroll", keepWhileOnTheName, { capture: true, passive: true });

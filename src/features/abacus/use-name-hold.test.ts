@@ -90,6 +90,43 @@ describe("a version's name held under the pointer", () => {
     expect(view.result.current.heldPlace).toBe(BEAD);
   });
 
+  it("stays with a pointer that left the bead onto the name in one move", () => {
+    const { view, hover } = holdNames();
+    hover(BEAD);
+
+    // The move is heard before the bead's leave makes the hold: no later move comes.
+    movePointer(ON_THE_NAME);
+    hover(null);
+    wait(NAME_HOLD_GRACE_MS * 4);
+
+    expect(view.result.current.heldPlace).toBe(BEAD);
+  });
+
+  it("stays with a pointer flicked off the bead and onto the name before the hold begins", () => {
+    const { view, hover } = holdNames();
+    hover(BEAD);
+
+    movePointer(OFF_THE_NAME);
+    movePointer(ON_THE_NAME);
+    hover(null);
+    wait(NAME_HOLD_GRACE_MS * 4);
+
+    expect(view.result.current.heldPlace).toBe(BEAD);
+  });
+
+  it("goes after the grace once the pointer left the bead for elsewhere in one move", () => {
+    const { view, hover } = holdNames();
+    hover(BEAD);
+
+    movePointer(OFF_THE_NAME);
+    hover(null);
+    wait(A_MOMENT);
+    expect(view.result.current.heldPlace).toBe(BEAD);
+    wait(NAME_HOLD_GRACE_MS);
+
+    expect(view.result.current.heldPlace).toBeNull();
+  });
+
   it("goes after the grace once the pointer is off the bead and never reaches the name", () => {
     const { view, hover } = holdNames();
     hover(BEAD);

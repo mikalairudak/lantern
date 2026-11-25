@@ -116,6 +116,62 @@ test("a pointer's name stays with the pointer moved onto it, and goes once it is
   await expect(tagOf(page)).toHaveCount(0);
 });
 
+/** How many versions' beads the one-move case is tried on. */
+const BEADS_MOVED_FROM_AT_ONCE = 3;
+/** On Kanazawa's day at a laptop's width, a version whose name a pointer may flick onto. */
+const FLICKED_ONTO = "Coffee near Hirosaka, livelier";
+
+// A hand that crosses from a bead onto its name in one move, or two quick ones, sends no move
+// after the bead's leave: the name stays with the pointer all the same.
+test("a pointer's name stays with the pointer moved onto it in one move", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "A finger never rests on a bead: a tap takes it.");
+  await page.setViewportSize(LAPTOP);
+  await openTheDay(page, "/day/kanazawa");
+  const beads = page.getByRole("button", { name: /, (quieter|livelier)$/ });
+
+  for (let index = 0; index < BEADS_MOVED_FROM_AT_ONCE; index += 1) {
+    await page.mouse.move(0, 0);
+    await expect(tagOf(page)).toHaveCount(0);
+    await restOn(page, beads.nth(index));
+    const said = await tagOf(page).textContent();
+
+    const { x, y } = await middleOf(wordsOf(page));
+    await page.mouse.move(x, y);
+    await page.waitForTimeout(PAST_THE_GRACE_MS);
+
+    await expect(tagOf(page)).toHaveText(said ?? "");
+  }
+});
+
+test("a pointer's name stays with the pointer flicked onto it in two moves", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "A finger never rests on a bead: a tap takes it.");
+  await page.setViewportSize(LAPTOP);
+  await openTheDay(page, "/day/kanazawa");
+  const bead = page.getByRole("button", { name: FLICKED_ONTO });
+  await restOn(page, bead);
+  const said = await tagOf(page).textContent();
+
+  const from = await middleOf(bead);
+  const to = await middleOf(wordsOf(page));
+  // A flick starts on the bead: the first move is short and stays on its target, the second
+  // lands on the name.
+  const target = await bead.locator("path").boundingBox();
+  if (!target) throw new Error("The bead has no target");
+  const toward = Math.min(1, target.width / 4 / Math.hypot(to.x - from.x, to.y - from.y));
+  await page.mouse.move(from.x + (to.x - from.x) * toward, from.y + (to.y - from.y) * toward);
+  await expect(tagOf(page)).toHaveText(said ?? "");
+  await page.mouse.move(to.x, to.y);
+  await page.waitForTimeout(PAST_THE_GRACE_MS);
+
+  await expect(tagOf(page)).toHaveText(said ?? "");
+});
+
 test("a press on a row under a pointer's name reaches the row, and the name stays away", async ({
   page,
   isMobile,

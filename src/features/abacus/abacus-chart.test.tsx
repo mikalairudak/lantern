@@ -177,6 +177,19 @@ describe("a version's name on the chart and Escape", () => {
     await waitFor(() => expect(namesShown()).toHaveLength(0));
   });
 
+  it("keeps a pointer's name that the pointer left its bead for in one move", async () => {
+    await drawTheDay();
+    const bead = await pointAtABead();
+
+    // One move onto the name, heard before the bead's leave: no later move comes. jsdom lays
+    // nothing out: every box, the name's too, stands at the screen's corner.
+    fireEvent.pointerMove(document, { clientX: 0, clientY: 0 });
+    fireEvent.pointerLeave(bead);
+    await letTimePass(PAST_THE_GRACE_MS);
+
+    expect(namesShown()).toHaveLength(1);
+  });
+
   it("lets a pointer's name go a moment after the pointer leaves its bead for elsewhere", async () => {
     await drawTheDay();
     const bead = await pointAtABead();
