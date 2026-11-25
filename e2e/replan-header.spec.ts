@@ -268,6 +268,8 @@ test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => 
   /** Long enough for the pair's words to be written out, a slow page's too. */
   const WRITTEN_OUT_MS = 1_500;
   const PAIR = "h1 button[data-fork-pair]";
+  /** The day's plan, where each part of a fork heads its rows. */
+  const PLAN = 'ol[aria-label="The day, to read"]';
   /** The bench's day and its proposal at the live pace, a slow page's too. */
   const STORY_TIMEOUT_MS = waitMs(120_000);
   /** The proposal written whole or to its end at the live pace, a page four times slower too. */
@@ -508,5 +510,51 @@ test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => 
         "early dinner, your day",
       );
     });
+  }
+
+  // Elche's dinner proposes two parts; a failed proposal says its ending at the first alone, and
+  // the second folds away with whatever had the focus in it.
+  for (const [reducedMotion, how] of [
+    ["no-preference", "as it folds away"],
+    ["reduce", "as it goes at once with reduced motion"],
+  ] as const) {
+    for (const [target, what] of [
+      ["answer", "fork line's answer"],
+      ["proposal", "slip's proposal"],
+    ] as const) {
+      test(`a focus on the later part's ${what} when the proposal fails goes to the first part's answer, ${how}`, async ({
+        page,
+      }) => {
+        await page.emulateMedia({ reducedMotion });
+        test.setTimeout(STORY_TIMEOUT_MS);
+        await openElche(page, "cut after a stop");
+        await page
+          .getByRole("group", { name: "View" })
+          .getByRole("button", { name: "Plan" })
+          .click();
+        await pointAtAnswer(page, "eating late");
+        await page.keyboard.press("Enter");
+        await expect(page.locator(PAIR)).toHaveCount(1, { timeout: PROPOSAL_TIMEOUT_MS });
+        const later = page.locator(`${PLAN} [role="radiogroup"][data-fork-row="1"]`);
+        const control =
+          target === "answer"
+            ? later.getByRole("radio", { checked: true })
+            : later.locator("[data-slip]").getByRole("radio").first();
+        await expect(control).toBeVisible({ timeout: PROPOSAL_TIMEOUT_MS });
+        await control.focus();
+        await expect(control).toBeFocused();
+        await page.evaluate(watchThePair, PAIR);
+
+        await expect(page.locator(PAIR)).toHaveCount(0, { timeout: PROPOSAL_TIMEOUT_MS });
+        await page.waitForTimeout(WRITTEN_OUT_MS);
+
+        const watch = await watchOf(page);
+        expect(framesAt(watch, "page"), "frames with the focus on the page").toBe(0);
+        expect(watch.lost).toEqual([]);
+        await expect(
+          page.locator(`${PLAN} [role="radiogroup"][data-fork-row="0"] :focus`),
+        ).toHaveAccessibleName("early dinner, your day");
+      });
+    }
   }
 });

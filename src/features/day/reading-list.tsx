@@ -446,12 +446,30 @@ function RowWords({ stop, children }: { stop: string; children: ReactNode }) {
 
 /**
  * A part's head, which takes no press and no focus once it folds away: it still says the fork
- * as it stood before it went.
+ * as it stood before it went. A later part's folds away as its proposal fails, the ending said
+ * at the first part alone: a focus in it goes to the first part's checked answer, the version
+ * that stays, in the frame the fold starts, so it does not rest on the page (WCAG 2.4.3).
  */
 function PartHead({ part, children }: { part: number; children: ReactNode }) {
   const isPresent = useIsPresent();
+  const head = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = head.current;
+    if (!element) return;
+    if (!isPresent && part > 0 && element.contains(document.activeElement)) {
+      element
+        .closest("ol")
+        ?.querySelector<HTMLElement>(
+          `[${PART_HEAD_ATTRIBUTE}="0"] [role="radio"][aria-checked="true"]`,
+        )
+        ?.focus({ preventScroll: true });
+    }
+    // Out of reach only once a focus in it has moved on: a browser may let go of a focus on an
+    // inert element at its next style pass, which would leave it on the page.
+    element.toggleAttribute("inert", !isPresent);
+  }, [isPresent, part]);
   return (
-    <div inert={!isPresent} {...{ [PART_HEAD_ATTRIBUTE]: part }}>
+    <div ref={head} {...{ [PART_HEAD_ATTRIBUTE]: part }}>
       {children}
     </div>
   );
