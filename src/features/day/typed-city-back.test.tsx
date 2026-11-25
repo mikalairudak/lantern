@@ -125,7 +125,7 @@ function heldReader() {
   return { read, land: (result: StartResult) => answer(result), signal: () => signal };
 }
 
-/** Types a city on the day's city word, from the day's menu, as `day-live.test.tsx` does. */
+/** Types a city on the day's city word, from the day's menu, as `day-live-start.test.tsx` does. */
 async function typeCity(
   user: ReturnType<typeof userEvent.setup>,
   from: string,
