@@ -467,4 +467,45 @@ test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => 
       ).toBeFocused();
     });
   }
+
+  // A pointer's press or a screen reader gives the plan slip's proposal the focus while it is
+  // written, though it cannot be taken yet; the slip fades as the proposal fails.
+  for (const [reducedMotion, how] of [
+    ["no-preference", "as it fades"],
+    ["reduce", "as it goes at once with reduced motion"],
+  ] as const) {
+    test(`a focus on the plan slip's proposal when it fails goes to the version that stays, ${how}`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ reducedMotion });
+      test.setTimeout(STORY_TIMEOUT_MS);
+      await openElche(page, "cut after a stop");
+      await page.getByRole("group", { name: "View" }).getByRole("button", { name: "Plan" }).click();
+      await pointAtAnswer(page, "eating late");
+      await page.keyboard.press("Enter");
+      const proposal = page
+        .locator("[data-slip]")
+        .getByRole("radio", { name: "eating late, being written" })
+        .filter({ visible: true })
+        .first();
+      await expect(proposal).toBeVisible({ timeout: DAY_TIMEOUT_MS });
+      await proposal.focus();
+      await expect(proposal).toBeFocused();
+      // The proposal is written until the headline's pair goes: it stands first.
+      await expect(page.locator(PAIR)).toHaveCount(1, { timeout: DAY_TIMEOUT_MS });
+      await page.evaluate(watchThePair, PAIR);
+
+      await expect(page.locator(PAIR)).toHaveCount(0, { timeout: DAY_TIMEOUT_MS });
+      await page.waitForTimeout(WRITTEN_OUT_MS);
+
+      const watch = await watchOf(page);
+      expect(framesAt(watch, "elsewhere"), "frames with the focus in the page").toBeGreaterThan(0);
+      expect(framesAt(watch, "page"), "frames with the focus on the page").toBe(0);
+      expect(watch.lost).toEqual([]);
+      // The answer that stays of the part whose slip had the focus: the fork's first.
+      await expect(page.locator('[data-fork-row="0"] :focus')).toHaveAccessibleName(
+        "early dinner, your day",
+      );
+    });
+  }
 });

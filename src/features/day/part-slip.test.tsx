@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { PartSlip, SLIP_ATTRIBUTE, type SlipPlacement } from "./part-slip";
@@ -354,6 +354,31 @@ describe("PartSlip", () => {
     expect(fading.closest("[inert]")).not.toBeNull();
     // The answer of the version that stays is still the visitor's to press.
     expect(screen.getByRole("radio", { checked: true }).closest("[inert]")).toBeNull();
+  });
+
+  it("hands a focus on the fading slip to the fork line's answer, the version that stays", () => {
+    const { container, rerender, props } = renderSlip(LUNCH, momentOf("writing: its first"));
+    const proposal = slipOf(container)?.querySelector<HTMLElement>('[role="radio"]');
+    if (!proposal) throw new Error("The slip offers its proposal");
+    // A pointer's press gives it the focus, though it cannot be taken yet.
+    act(() => proposal.focus());
+    const { view } = slipStillOf(LUNCH, momentOf("an ending: cut"));
+
+    rerender(<PartSlip {...props} view={view} />);
+
+    expect(screen.getByRole("radio", { checked: true })).toHaveFocus();
+  });
+
+  it("leaves a focus elsewhere where it is as the slip fades", () => {
+    const { rerender, props } = renderSlip(LUNCH, momentOf("writing: its first"));
+    const elsewhere = document.body.appendChild(document.createElement("button"));
+    act(() => elsewhere.focus());
+    const { view } = slipStillOf(LUNCH, momentOf("an ending: cut"));
+
+    rerender(<PartSlip {...props} view={view} />);
+
+    expect(elsewhere).toHaveFocus();
+    elsewhere.remove();
   });
 
   it("times a part past midnight on the day's clock: a late supper, the river moved", () => {

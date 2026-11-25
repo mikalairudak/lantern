@@ -269,13 +269,25 @@ function SlipPresence({ children }: { children: ReactNode }) {
 
 /**
  * The slip's lines, out of reach once they start to fade: a proposal that ended is no answer
- * to take, so no screen reader meets it while it goes (WCAG 4.1.2).
+ * to take, so no screen reader meets it while it goes (WCAG 4.1.2). A focus in it, a pointer's
+ * on its proposal, goes to the fork line's checked answer, the version that stays, in the frame
+ * the fade starts, so it never rests on the page (WCAG 2.4.3).
  */
 function FadingSlip({ children }: { children: ReactNode }) {
   const isReducedMotion = useReducedMotionConfig() ?? false;
   const isPresent = useIsPresent();
+  const slip = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = slip.current;
+    if (isPresent || !element || !element.contains(document.activeElement)) return;
+    element
+      .closest('[role="radiogroup"]')
+      ?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
+      ?.focus({ preventScroll: true });
+  }, [isPresent]);
   return (
     <motion.div
+      ref={slip}
       inert={!isPresent}
       exit={{ opacity: 0 }}
       transition={isReducedMotion ? { duration: 0 } : SPRINGS.brisk}
