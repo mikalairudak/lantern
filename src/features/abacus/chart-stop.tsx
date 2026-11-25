@@ -89,7 +89,6 @@ interface ChartStopProps {
   isKeyed?: boolean;
 }
 
-/** One stop on its wire: its candidates as beads, the shown one filled. */
 /**
  * Whether a pointer leaving an element leaves the page: the browser's event has nothing it goes
  * to, where React's names the window in its place.
@@ -98,6 +97,7 @@ function isLeavingThePage(event: ReactPointerEvent): boolean {
   return event.nativeEvent.relatedTarget === null;
 }
 
+/** One stop on its wire: its candidates as beads, the shown one filled. */
 export function ChartStop({
   stop,
   scale,
