@@ -331,19 +331,42 @@ describe("the palette", () => {
       return 0.5 * (1 + Math.sign(value) * erf);
     };
 
+    /** A standard normal distribution's density, `sigma` wide, at `value`. */
+    const normalDensity = (value: number, sigma: number): number =>
+      Math.exp(-(value * value) / (2 * sigma * sigma)) / (sigma * Math.sqrt(2 * Math.PI));
+
+    /** How many steps a side of the mask's rounded corner is summed in. */
+    const CORNER_STEPS = 200;
+
     /**
      * How much of the curve shows at a corner of a line's own box, its first or last letter at
-     * its tallest or deepest: the mask's box stands a pad past it each way, and the blur lets
-     * the curve back in towards the box's edge. Modelled as a true Gaussian blur at a square
-     * corner: Chromium's rounded box and shorter blur render at or under it, while a browser
-     * whose blur runs as long as the model's lets a little more through at the rounded corner.
-     * Amber holds here with nothing to spare, and stands in the gutter, clear of the curve.
+     * its tallest or deepest: the mask's box stands a pad past it each way, its corner rounded,
+     * and the blur lets the curve back in towards the box's edge. Modelled as a true Gaussian
+     * blur of the rounded box: the square corner's cover, less what the rounding takes away,
+     * summed over the corner. Chromium's shorter blur renders under it.
      */
     const cornerShareOf = (grey: string): number => {
       const sigma = CHART.underWordsSoftness;
-      const stepped = normalShare(ROW.lineMaskPad / sigma) * normalShare(ROW.lineMaskPadY / sigma);
-      return 1 - stepped * (1 - shareOf(grey));
+      const { lineMaskPad: padX, lineMaskPadY: padY, lineMaskRadius: radius } = ROW;
+      const square = normalShare(padX / sigma) * normalShare(padY / sigma);
+      const step = radius / CORNER_STEPS;
+      let rounded = 0;
+      for (let i = 0; i < CORNER_STEPS; i++) {
+        for (let j = 0; j < CORNER_STEPS; j++) {
+          const x = (i + 0.5) * step;
+          const y = (j + 0.5) * step;
+          if ((x - radius) ** 2 + (y - radius) ** 2 <= radius ** 2) continue;
+          rounded += normalDensity(x - padX, sigma) * normalDensity(y - padY, sigma) * step * step;
+        }
+      }
+      return 1 - (square - rounded) * (1 - shareOf(grey));
     };
+
+    /**
+     * The words that stand at a line's corner over the curve: amber is left out, as it marks the
+     * start times, which stand in the gutter, clear of the curve.
+     */
+    const AT_A_CORNER = OVER_CURVE.filter(([name]) => name !== "amber");
 
     it.each(OVER_CURVE)(
       "sets %s 4.5:1 or more over one curve inside a line, in the %s theme",
@@ -357,7 +380,7 @@ describe("the palette", () => {
       },
     );
 
-    it.each(OVER_CURVE)(
+    it.each(AT_A_CORNER)(
       "sets %s 4.5:1 or more over one curve at a corner of a line, where the blur steps it back, in the %s theme",
       (name, theme) => {
         const under = blend(

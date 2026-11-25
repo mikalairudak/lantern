@@ -353,6 +353,13 @@ describe("the curve under a row's words", () => {
     expect(soft).toHaveAttribute("color-interpolation-filters", "sRGB");
   });
 
+  /** The groups the mask under a row's words steps back. */
+  function underWordsGroups(): Element[] {
+    const id = document.querySelector('mask[id^="under-words-"]')?.id;
+    expect(id).toBeDefined();
+    return [...document.querySelectorAll(`[mask="url(#${id})"]`)];
+  }
+
   it("steps back once where a dashed path lies on the day's, so their shares never add", async () => {
     render(<StopRowCell example={0} state="proposed" density={null} />);
     await placedDay();
@@ -362,12 +369,26 @@ describe("the curve under a row's words", () => {
       return path;
     });
     const curve = document.querySelector("path.stroke-curve:not([stroke-dasharray])");
-    const masked = document.querySelectorAll("[mask]");
+    const masked = underWordsGroups();
 
     // One mask over the curve and the dashes together: they meet in the curve's colour first.
     expect(masked).toHaveLength(1);
     expect(masked[0]).toContainElement(curve as HTMLElement | null);
     expect(masked[0]).toContainElement(dashed as HTMLElement | null);
+  });
+
+  it("steps back once where the example pull lies on the day's curve", async () => {
+    render(<StopRowCell example={0} state="invited" density={null} />);
+    await placedDay();
+    const example = await waitFor(() => {
+      const path = document.querySelector('[data-preview="example"]');
+      expect(path).not.toBeNull();
+      return path;
+    });
+    const masked = underWordsGroups();
+
+    expect(masked).toHaveLength(1);
+    expect(masked[0]).toContainElement(example as HTMLElement | null);
   });
 });
 

@@ -535,8 +535,9 @@
    * the words' mask reads by its lightness, so #383838 lets 22% of the curve through and
    * #1f1f1f 12%. Enough to follow its shape through the words, little enough that they read
    * clean. By night, where the curve is brighter against the ground, it steps back further,
-   * so the muted words keep 4.5:1 over it (docs/decisions.md, "The day is drawn as an abacus").
-   * palette.test.ts holds that bar.
+   * so the words a row sets over it keep 4.5:1 (docs/decisions.md, "The day is drawn as an
+   * abacus"): palette.test.ts holds muted and swap in both themes and the energy word by night,
+   * inside a line and at its corner, and amber inside a line.
    */
   --color-curve-under-words: light-dark(#383838, #1f1f1f);
   --color-swap: light-dark(#005d8e, #8dccf8);

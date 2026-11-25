@@ -536,8 +536,8 @@ describe("an open stop", () => {
     };
     try {
       const { container, list } = await renderDay();
-      const curve = container.querySelector("path.stroke-curve")?.closest("[mask]");
-      const maskId = /url\(#(.+)\)/.exec(curve?.getAttribute("mask") ?? "")?.[1] ?? "";
+      const curves = container.querySelector("path.stroke-curve")?.closest("[mask]");
+      const maskId = /url\(#(.+)\)/.exec(curves?.getAttribute("mask") ?? "")?.[1] ?? "";
       const lines = container.querySelectorAll(`mask[id="${maskId}"] g rect`);
 
       // One line a stop: every piece of a row's words reports the same line here.
