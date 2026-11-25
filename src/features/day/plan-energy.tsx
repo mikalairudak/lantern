@@ -60,7 +60,7 @@ export function PlanEnergy({
             className={cn(
               TARGET_CLASSES,
               // Six past the words sideways, where a link reaches eight: neighbours 12 px apart
-              // meet between them and never cross, so each word keeps its own target.
+              // meet between them, so each word that answers keeps its own target.
               "rounded-sm focus-ring transition-colors after:-inset-x-1.5",
               // As the view's switch has it: the one on show in its colour, the others underlined.
               isOn
