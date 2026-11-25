@@ -5,6 +5,7 @@ import {
   useId,
   useRef,
   useState,
+  type FocusEvent,
   type FormEvent,
   type KeyboardEvent,
   type ReactNode,
@@ -183,21 +184,39 @@ export function StartHeader({
   // a press the focus says is not said again from there.
   const [isReadingSaidByFocus, setIsReadingSaidByFocus] = useState(false);
   if (wait === null && isReadingSaidByFocus) setIsReadingSaidByFocus(false);
-  // Whether the wait under way followed an ending, read while no wait is: an ending takes the
-  // line under the field from the page, so a read pressed after one draws that line afresh, and
-  // the status over the form says the read where the focus does not (`readingSaidOverFormOf`).
-  const [isWaitAfterEnding, setIsWaitAfterEnding] = useState(false);
-  if (wait === null && isWaitAfterEnding !== isNoDay(line)) setIsWaitAfterEnding(isNoDay(line));
-  const isReadingSaidOverForm = readingSaidOverFormOf(
-    line,
-    isReadingSaidByFocus,
-    isWaitAfterEnding,
-  );
+  // Whether the line came straight after one the line under the field was not drawn for, held
+  // while it stays the same kind: an ending, the city's question and an answer to it under way take
+  // that line from the page, so a read or a day on its way that follows one draws it afresh, and
+  // the status over the form says it where the focus does not (`isUnderWaySaidOverForm`). A read
+  // drawn hands the day on its way to the line it drew.
+  const lineKind =
+    isUnderWay(line) && line.answering ? ("answering" as const) : (line?.kind ?? null);
+  const [lastLineKind, setLastLineKind] = useState(lineKind);
+  const [isLineAfterAnswer, setIsLineAfterAnswer] = useState(false);
+  if (lastLineKind !== lineKind) {
+    setLastLineKind(lineKind);
+    setIsLineAfterAnswer(
+      lastLineKind === "answering" || lastLineKind === "question" || isEndingKind(lastLineKind),
+    );
+  }
+  const isSaidOverForm = isUnderWaySaidOverForm(line, isReadingSaidByFocus, isLineAfterAnswer);
+  // The line a typed wait last stood over. A wait that ends on it has brought no answer: with live
+  // generation off a read answered within the press may end a commit before its answer is drawn,
+  // over the ending that stood, which is then not said again. Only a wait whose read the line said
+  // hands the focus back as it ends: one answered before its read is drawn, as with live
+  // generation off, leaves it on the button, in however many commits the page ends it.
+  const [waitedLine, setWaitedLine] = useState<StartLine | undefined>(undefined);
+  if (wait !== null && waitedLine !== line) setWaitedLine(line);
+  const isOverWaitedLine = wait === null && line === waitedLine;
+  const isReadDrawnInWait = isUnderWay(waitedLine ?? null);
+  // Drawn again by Back, the line it was drawn with hands no focus to the field: the headline
+  // takes it.
+  const [returnedLine] = useState(isReturnedTo ? line : undefined);
   // An ending's or the question's words stand in the status for `NOTICE_HEARD_MS`, then it falls
   // quiet while the line seen stays, so a read-through meets them once (`docs/decisions.md`,
   // "How a day ended is said from one status that stands before the ending"). Gone from it, as
   // a wait empties it, they are held afresh when they come back.
-  const answer = answerSaidOf(line, wait, isLive);
+  const answer = isOverWaitedLine ? null : answerSaidOf(line, wait, isLive);
   const [answerHeardOut, setAnswerHeardOut] = useState<string | null>(null);
   if (answerHeardOut !== null && answerHeardOut !== answer) setAnswerHeardOut(null);
   useEffect(() => {
@@ -217,15 +236,15 @@ export function StartHeader({
           {PROMISE}
         </h1>
         {/* What Lantern answered, to a screen reader: an ending without a day, the city's
-            question, what an answer to it is doing, and the read of a text asked again after an
-            ending (`readingSaidOverFormOf`). A status in the page, empty, from its first paint,
+            question, what an answer to it is doing, and a read or a day on its way straight after
+            an ending (`isUnderWaySaidOverForm`). A status in the page, empty, from its first paint,
             and over the form the question draws again, so each answer is a change of its words,
             heard where the focus stays and where it moves: a status born holding its words is
             not said by every screen reader. A start screen drawn again with its answer still
             standing, as on the way back from a day, draws it holding that answer, as a notice
             the page opens with, for as long. */}
         <div role="status" className="sr-only">
-          {heardAnswer ?? heardOf(line, wait, isLive, isReadingSaidByFocus, isReadingSaidOverForm)}
+          {heardAnswer ?? heardOf(line, wait, isLive, isReadingSaidByFocus, isSaidOverForm)}
         </div>
         <QuestionForm
           // Asked for a city, the field starts again empty, with the focus, for the answer; it
@@ -237,10 +256,13 @@ export function StartHeader({
           isLive={isLive}
           isCityFocused={isCityFocused}
           isFocusedOnMount={isFocusHandedOn}
+          isLineReturnedTo={line === returnedLine}
           wait={wait}
+          isReadDrawnInWait={isReadDrawnInWait}
           isReadingSaidByFocus={isReadingSaidByFocus}
           onReadingSaidByFocus={setIsReadingSaidByFocus}
-          isReadingSaidOverForm={isReadingSaidOverForm}
+          isSaidOverForm={isSaidOverForm}
+          isAnswerHeardOut={heardAnswer === null}
           onPlan={onPlan}
           onChooseReading={onChooseReading}
           drawnAsPointed={drawnAsPointed}
@@ -269,12 +291,21 @@ interface QuestionFormProps {
   isCityFocused: boolean;
   /** Drawn again in place of the city's field, it takes the focus that field had. */
   isFocusedOnMount: boolean;
+  /** The line stands that Back drew the start again with: its headline takes the focus. */
+  isLineReturnedTo: boolean;
   wait: StartWait | null;
+  /** The last typed wait's read was said by the line under the field. */
+  isReadDrawnInWait: boolean;
   /** The press moved the focus to the button, whose name says "Reading" as it lands. */
   isReadingSaidByFocus: boolean;
   onReadingSaidByFocus: (isSaid: boolean) => void;
-  /** The read is said from the status over the form (`readingSaidOverFormOf`). */
-  isReadingSaidOverForm: boolean;
+  /** The line under way is said from the status over the form (`isUnderWaySaidOverForm`). */
+  isSaidOverForm: boolean;
+  /**
+   * The status over the form holds no ending's or question's words, as once they have stood their
+   * time.
+   */
+  isAnswerHeardOut: boolean;
   onPlan: (text: string) => void;
   onChooseReading: (reading: CityReading) => void;
   drawnAsPointed: DrawnAsPointed;
@@ -405,10 +436,13 @@ function QuestionForm({
   isLive,
   isCityFocused,
   isFocusedOnMount,
+  isLineReturnedTo,
   wait,
+  isReadDrawnInWait,
   isReadingSaidByFocus,
   onReadingSaidByFocus,
-  isReadingSaidOverForm,
+  isSaidOverForm,
+  isAnswerHeardOut,
   onPlan,
   onChooseReading,
   drawnAsPointed,
@@ -416,6 +450,7 @@ function QuestionForm({
   const field = useRef<HTMLTextAreaElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const roomId = useId();
+  const answerId = useId();
   const left = Math.max(0, MAX_INTAKE_TEXT_CHARS - text.length);
   // Read, and then written: the field holds the text it was asked with until the day is here.
   const isReading = isUnderWay(line);
@@ -439,25 +474,73 @@ function QuestionForm({
     </span>
   );
   const isEnding = isNoDay(line);
+  // An answer without a day that hands the focus back to the field, as the effects below do,
+  // describes the field by its line too, the ending's or what the city's question needs, so a
+  // visitor who comes back to the field hears why no day came (`docs/decisions.md`, "How a day
+  // ended is said from one status that stands before the ending"). Only once the status over the
+  // form has fallen quiet, so the line is not said twice as the focus lands, and only while the
+  // field does not hold the focus, since a reader may say a description that changes under the
+  // focus; once joined it stays, for the focus coming back. The field is handed the focus as it
+  // mounts in place of the other, unless Back drew it with its line, as the city is asked for, or
+  // as a typed wait ends on an answer to the read it drew, from the button, where the focus still
+  // is; a line that leaves the answer leaves the description with it.
+  const isAnswered = isEnding || line?.kind === "question";
+  const isWaiting = wait !== null;
+  const [isWaitDrawn, setIsWaitDrawn] = useState(isWaiting);
+  const [isFocusHandedBack, setIsFocusHandedBack] = useState(false);
+  // The wait's end, due to hand the focus back: the effect below moves it, from the button alone.
+  const [isHandBackDue, setIsHandBackDue] = useState(false);
+  if (isWaitDrawn !== isWaiting) {
+    setIsWaitDrawn(isWaiting);
+    setIsHandBackDue(!isWaiting && isReadDrawnInWait);
+    if (isWaiting) setIsFocusHandedBack(false);
+  }
+  if (isHandBackDue && !isAnswered) setIsHandBackDue(false);
+  if (isFocusHandedBack && !isAnswered) setIsFocusHandedBack(false);
+  const [isFieldFocused, setIsFieldFocused] = useState(false);
+  const [isAnswerDescribed, setIsAnswerDescribed] = useState(false);
+  if (isAnswerDescribed && !(isFocusHandedBack && isAnswerHeardOut)) setIsAnswerDescribed(false);
+  if (!isAnswerDescribed && isFocusHandedBack && isAnswerHeardOut && !isFieldFocused) {
+    setIsAnswerDescribed(true);
+  }
+  const describedBy =
+    [isAnswerDescribed && answerId, isCountShown && roomId].filter(Boolean).join(" ") || undefined;
 
+  // Each way the focus is handed to the field marks it handed back once the page's focus is there,
+  // read from the page rather than from a focus event, which a window not in front delivers late.
+  // A line Back drew the start again with hands it to the headline, which takes it after; read
+  // from a ref, as the line leaving it is no reason to move the focus.
+  const isLineReturnedToRef = useRef(isLineReturnedTo);
   useEffect(() => {
-    if (isAskingCity && isCityFocused) field.current?.focus();
+    isLineReturnedToRef.current = isLineReturnedTo;
+  }, [isLineReturnedTo]);
+  useEffect(() => {
+    if (!isAskingCity || !isCityFocused) return;
+    field.current?.focus();
+    if (document.activeElement === field.current && !isLineReturnedToRef.current) {
+      setIsFocusHandedBack(true);
+    }
   }, [isAskingCity, isCityFocused]);
   // Set again for a text after the city's field, it takes the focus that field had.
   const isFocusedOnMountRef = useRef(isFocusedOnMount);
   useEffect(() => {
-    if (isFocusedOnMountRef.current) field.current?.focus();
+    if (!isFocusedOnMountRef.current) return;
+    field.current?.focus();
+    if (document.activeElement === field.current) setIsFocusHandedBack(true);
   }, []);
 
   // A typed wait that ends without a day, or asks for the city again, hands the focus back to
-  // the field from the button that held it, as a city asked for after a text takes it.
-  const wasWaiting = useRef(wait !== null);
+  // the field from the button that held it, as a city asked for after a text takes it; a focus
+  // the visitor moved elsewhere stays.
   useEffect(() => {
-    const hasEnded = wasWaiting.current && wait === null;
-    wasWaiting.current = wait !== null;
-    if (!hasEnded || !(isNoDay(line) || line?.kind === "question")) return;
-    if (document.activeElement === button.current) field.current?.focus();
-  }, [wait, line]);
+    if (!isHandBackDue || document.activeElement !== button.current) return;
+    field.current?.focus();
+    if (document.activeElement === field.current) setIsFocusHandedBack(true);
+  }, [isHandBackDue]);
+  // The window losing the focus blurs the field too, though the page's focus stays in it.
+  const loseFocus = (event: FocusEvent<HTMLTextAreaElement>) => {
+    if (document.activeElement !== event.currentTarget) setIsFieldFocused(false);
+  };
 
   // At the press the button takes the focus, named for what Lantern is doing, so a phone's
   // keyboard leaves and uncovers the screen for the wait. Where the focus moves to it, from the
@@ -528,6 +611,8 @@ function QuestionForm({
               aria-label={isAskingCity ? "Which city?" : "Where, and anything else"}
               onChange={(event) => onTextChange(event.target.value.replace(LINE_BREAKS, " "))}
               onKeyDown={askOnEnter}
+              onFocus={() => setIsFieldFocused(true)}
+              onBlur={loseFocus}
               enterKeyHint="go"
               readOnly={isReading}
               autoComplete="off"
@@ -537,7 +622,7 @@ function QuestionForm({
               autoCapitalize="sentences"
               spellCheck={false}
               maxLength={MAX_INTAKE_TEXT_CHARS}
-              aria-describedby={isCountShown ? roomId : undefined}
+              aria-describedby={describedBy}
               className={cn(
                 FIELD_CLASSES,
                 drawnAsPointed === "field" ? FIELD_LINE_FOCUSED_CLASSES : FIELD_LINE_CLASSES,
@@ -571,7 +656,12 @@ function QuestionForm({
               // The city asked for: its lines take what room they need, the count beside them.
               <div className="mt-2 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <QuestionLines question={line} answer={null} onChooseReading={chooseReading} />
+                  <QuestionLines
+                    question={line}
+                    answer={null}
+                    onChooseReading={chooseReading}
+                    neededId={answerId}
+                  />
                 </div>
                 {count}
               </div>
@@ -583,7 +673,7 @@ function QuestionForm({
                   line={line}
                   wait={wait}
                   isReadingSaidByFocus={isReadingSaidByFocus}
-                  isReadingSaidOverForm={isReadingSaidOverForm}
+                  isSaidOverForm={isSaidOverForm}
                   text={text}
                   isLive={isLive}
                   isExampleShown={!isCountShown}
@@ -611,7 +701,7 @@ function QuestionForm({
           it stands over, the count at the row's right end beside it. */}
       {isNoDay(line) && (
         <div className="mt-2 flex items-start justify-between gap-3">
-          <EndingLine ending={line.kind} isLive={isLive} />
+          <EndingLine id={answerId} ending={line.kind} isLive={isLive} />
           {count}
         </div>
       )}
@@ -750,8 +840,8 @@ interface QuestionLineProps {
   wait: StartWait | null;
   /** The press moved the focus to the button, whose name says "Reading" as it lands. */
   isReadingSaidByFocus: boolean;
-  /** The read is said from the status over the form (`readingSaidOverFormOf`). */
-  isReadingSaidOverForm: boolean;
+  /** The line under way is said from the status over the form (`isUnderWaySaidOverForm`). */
+  isSaidOverForm: boolean;
   /** What the field holds: while an answer is read, the city it names. */
   text: string;
   isLive: boolean;
@@ -782,8 +872,9 @@ function SaidLine({
   isTwoLinesHeld: boolean;
   /**
    * Heard as it changes, or seen alone: a typed text's "Reading" is heard where the focus lands,
-   * on the button named for it, or from the status over the form after an ending, and the status
-   * holds it unheard, so it is said once.
+   * on the button named for it, and a read or a day on its way straight after an ending or the
+   * city's question from the status over the form, and the status holds it unheard, so it is said
+   * once.
    */
   isHeard?: boolean;
   children: ReactNode;
@@ -822,7 +913,7 @@ function QuestionLine({
   line,
   wait,
   isReadingSaidByFocus,
-  isReadingSaidOverForm,
+  isSaidOverForm,
   text,
   isLive,
   isExampleShown,
@@ -853,7 +944,7 @@ function QuestionLine({
     return (
       <SaidLine
         className={STEADY_WORDS_LIT_CLASSES("ink-soft")}
-        isHeard={!isSaidByFocus(line, isReadingSaidByFocus) && !isReadingSaidOverForm}
+        isHeard={!isSaidByFocus(line, isReadingSaidByFocus) && !isSaidOverForm}
         isTwoLinesHeld={isLive}
       >
         {saidOf(line, wait, isLive)}
@@ -890,33 +981,37 @@ function isSaidByFocus(line: StartLine, isReadingSaidByFocus: boolean): boolean 
 }
 
 /**
- * A typed text's read, said from the start's status over the form: pressed after an ending, which
- * took the line under the field from the page, that line is drawn afresh already holding the read,
- * a status born full, so where the focus does not say it, the status that stood says it
- * (`docs/decisions.md`, "How a day ended is said from one status that stands before the ending").
+ * A typed text's read, or a day on its way, said from the start's status over the form: straight
+ * after an ending, the city's question or an answer to it under way, each of which took the line
+ * under the field from the page, that line is drawn afresh already holding it, a status born full,
+ * so where the focus does not say it, the status that stood says it (`docs/decisions.md`, "How a
+ * day ended is said from one status that stands before the ending"): a read pressed after an
+ * ending, a city pressed in the index after any of them, or a typed text whose day is answered
+ * before its read is drawn.
  */
-function readingSaidOverFormOf(
+function isUnderWaySaidOverForm(
   line: StartLine,
   isReadingSaidByFocus: boolean,
-  isWaitAfterEnding: boolean,
+  isLineAfterAnswer: boolean,
 ): boolean {
-  return line?.kind === "reading" && isWaitAfterEnding && !isReadingSaidByFocus;
+  return isLineAfterAnswer && !isSaidByFocus(line, isReadingSaidByFocus);
 }
 
 /**
  * What the start's status says of a text under way: what an answer to the city's question is
- * doing while it is read and its day sets off, as long as it does, and a read pressed after an
- * ending (`readingSaidOverFormOf`). Nothing wherever the line under the field or the focus says it.
+ * doing while it is read and its day sets off, as long as it does, and a read or a day on its way
+ * straight after an ending or the city's question (`isUnderWaySaidOverForm`). Nothing wherever the
+ * line under the field or the focus says it.
  */
 function heardOf(
   line: StartLine,
   wait: StartWait | null,
   isLive: boolean,
   isReadingSaidByFocus: boolean,
-  isReadingSaidOverForm: boolean,
+  isSaidOverForm: boolean,
 ): ReactNode {
   if (!isUnderWay(line)) return null;
-  if (!line.answering) return isReadingSaidOverForm ? READING_SAID : null;
+  if (!line.answering) return isSaidOverForm ? saidOf(line, wait, isLive) : null;
   return isSaidByFocus(line, isReadingSaidByFocus) ? null : saidOf(line, wait, isLive);
 }
 
@@ -959,9 +1054,9 @@ function endingSaidOf(ending: Ending, isLive: boolean): string {
  * written days are offered once, as the index below, which this points to. Its halves stay
  * separate texts: Chromium sets one joined string's glyphs a subpixel apart from these.
  */
-function EndingLine({ ending, isLive }: { ending: Ending; isLive: boolean }) {
+function EndingLine({ id, ending, isLive }: { id: string; ending: Ending; isLive: boolean }) {
   return (
-    <p className="mt-1 type-voice text-quote text-ink-soft">
+    <p id={id} className="mt-1 type-voice text-quote text-ink-soft">
       {endedOf(ending, isLive)} {TO_THE_INDEX}
     </p>
   );
@@ -975,16 +1070,18 @@ function EndingLine({ ending, isLive }: { ending: Ending; isLive: boolean }) {
 function questionSaidOf({ words, readings, unplaced }: CityQuestion): string {
   const energy = energyLabelOf(words.energy);
   const sentence = [`A ${energy} ${dayWordOf(words)} in …?`, ...restLabelsOf(words)].join(", ");
-  const needed =
-    readings.length > 0
-      ? `${readings.map((reading) => `${reading.name}, ${reading.region}`).join(", or ")}.`
-      : NEEDS_CITY;
+  const needed = readings.length > 0 ? readingsSaidOf(readings) : NEEDS_CITY;
   // The sentence ends at its "…?" where it names nothing after the city.
   const asked = sentence.endsWith("?") ? sentence : `${sentence}.`;
   // The key as its line says it, set as a sentence of the status's own.
   const keySaid = assumedKeyOf(words);
   const key = keySaid === null ? null : `${keySaid.charAt(0).toUpperCase()}${keySaid.slice(1)}.`;
   return [asked, key, needed, unplacedLineOf(unplaced)].filter((part) => part !== null).join(" ");
+}
+
+/** The cities a shared name could be, as one sentence offering each: "…, or …". */
+function readingsSaidOf(readings: readonly CityReading[]): string {
+  return `${readings.map((reading) => `${reading.name}, ${reading.region}`).join(", or ")}.`;
 }
 
 /**
@@ -1006,6 +1103,8 @@ interface QuestionLinesProps {
   onChooseReading: (reading: CityReading) => void;
   /** The sentence, its city answered, carries the waiting line's light while the day is written. */
   isLit?: boolean;
+  /** The id of the line saying what it needs, which the field may be described by. */
+  neededId?: string;
 }
 
 /**
@@ -1015,7 +1114,13 @@ interface QuestionLinesProps {
  * when the answer is read and the day sets off, or when the question asks again. The start's
  * status says them (`answerSaidOf`).
  */
-function QuestionLines({ question, answer, onChooseReading, isLit = false }: QuestionLinesProps) {
+function QuestionLines({
+  question,
+  answer,
+  onChooseReading,
+  isLit = false,
+  neededId,
+}: QuestionLinesProps) {
   const isReading = answer !== null;
   const unplaced = unplacedLineOf(question.unplaced);
   const assumedKey = assumedKeyOf(question.words);
@@ -1059,9 +1164,18 @@ function QuestionLines({ question, answer, onChooseReading, isLit = false }: Que
                 <span className="text-muted">, {reading.region}</span>
               </button>
             ))}
+            {/* The field's description, as the status said them: the buttons' names run
+                together, with no "or" between them. Hidden, it is read only through the field. */}
+            {neededId && (
+              <span id={neededId} hidden>
+                {readingsSaidOf(question.readings)}
+              </span>
+            )}
           </p>
         ) : (
-          <p className="type-note text-muted">{NEEDS_CITY}</p>
+          <p id={neededId} className="type-note text-muted">
+            {NEEDS_CITY}
+          </p>
         )}
         {unplaced && <p className="type-note text-muted">{unplaced}</p>}
       </div>
@@ -1147,5 +1261,10 @@ export function isUnderWay(
 
 /** The line says no day can be written, in place of the note under the field. */
 function isNoDay(line: StartLine): line is { kind: Ending } {
-  return line?.kind === "not-yet" || line?.kind === "refused" || line?.kind === "limited";
+  return isEndingKind(line?.kind ?? null);
+}
+
+/** A line of this kind says no day can be written. */
+function isEndingKind(kind: NonNullable<StartLine>["kind"] | null): boolean {
+  return kind === "not-yet" || kind === "refused" || kind === "limited";
 }

@@ -688,6 +688,313 @@ describe("how long the status holds an answer", () => {
   });
 });
 
+describe("the field's description after an answer without a day", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** The question for a city when the text named none. */
+  const NO_CITY_QUESTION = {
+    kind: "question",
+    words: NO_WORDS,
+    readings: [],
+    unplaced: [],
+  } as const;
+  const NEEDS_CITY_SAID =
+    "Lantern needs a city to plan the day. Name one, or pick one of the days below.";
+
+  /** The start as the page draws it for `line` and `wait`. */
+  const startOf = (line: StartHeaderProps["line"], wait: StartWait | null, isLive = true) => (
+    <HeldStart
+      starts={STARTS}
+      line={line}
+      wait={wait}
+      isLive={isLive}
+      isCityFocused={line?.kind === "question"}
+      onPlan={vi.fn()}
+      onChooseWritten={vi.fn()}
+      onChooseReading={vi.fn()}
+    />
+  );
+  const waitMs = (ms: number) => act(() => vi.advanceTimersByTime(ms));
+  /** A typed text read, the focus on the button named for it, as a press leaves it. */
+  const renderRead = (isLive = true) => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const view = render(startOf({ kind: "reading" }, "reading", isLive));
+    act(() => screen.getByRole("button", { name: "Reading" }).focus());
+    return view;
+  };
+
+  /** The focus leaves the field for the button beside it, and comes back. */
+  const leaveAndComeBack = (field: HTMLElement) => {
+    act(() => screen.getByRole("button", { name: "Plan this day" }).focus());
+    act(() => field.focus());
+  };
+
+  it("names the ending's line once the status has said it and the focus has left, with the room left beside it", () => {
+    const view = renderRead();
+    view.rerender(startOf({ kind: "refused" }, null));
+    const field = screen.getByRole("textbox", { name: "Where, and anything else" });
+    expect(field).toHaveFocus();
+    // Said by the status as the focus lands, so not by the field too.
+    expect(field).not.toHaveAttribute("aria-describedby");
+
+    // Not under the focus, either, once the status falls quiet: a description that changes there
+    // may be said as it changes, the line a second time.
+    waitMs(NOTICE_HEARD_MS);
+    expect(field).not.toHaveAttribute("aria-describedby");
+
+    leaveAndComeBack(field);
+    expect(field).toHaveAccessibleDescription(REFUSED_SAID);
+
+    fireEvent.change(field, { target: { value: "a".repeat(MAX_INTAKE_TEXT_CHARS) } });
+    expect(field).toHaveAccessibleDescription(`${REFUSED_SAID} 0 left`);
+  });
+
+  it("names the ending's line as the status falls quiet where the focus has left the field already", () => {
+    const view = renderRead();
+    view.rerender(startOf({ kind: "refused" }, null));
+    const field = screen.getByRole("textbox", { name: "Where, and anything else" });
+    act(() => screen.getByRole("button", { name: "Plan this day" }).focus());
+    expect(field).not.toHaveAttribute("aria-describedby");
+
+    waitMs(NOTICE_HEARD_MS);
+    expect(field).toHaveAccessibleDescription(REFUSED_SAID);
+  });
+
+  it.each([
+    ["a city", NO_CITY_QUESTION, NEEDS_CITY_SAID],
+    [
+      "one of the cities a name could be",
+      PORTLAND_QUESTION,
+      "Portland, Oregon, United States, or Portland, Maine, United States.",
+    ],
+  ])("names what the city's question needs, %s, when a text turns to it", (_, question, said) => {
+    const view = renderRead();
+    view.rerender(startOf(question, null));
+    const field = screen.getByRole("textbox", { name: "Which city?" });
+    expect(field).toHaveFocus();
+
+    waitMs(NOTICE_HEARD_MS);
+    expect(field).not.toHaveAttribute("aria-describedby");
+    leaveAndComeBack(field);
+    expect(field).toHaveAccessibleDescription(said);
+  });
+
+  it("names the ending's line when an answer to the city's question is read to no day", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const view = render(startOf(NO_CITY_QUESTION, null));
+    view.rerender(startOf({ kind: "reading", answering: NO_CITY_QUESTION }, "reading"));
+    act(() => screen.getByRole("button", { name: "Reading" }).focus());
+    view.rerender(startOf({ kind: "refused" }, null));
+    const field = screen.getByRole("textbox", { name: "Where, and anything else" });
+    expect(field).toHaveFocus();
+
+    waitMs(NOTICE_HEARD_MS);
+    leaveAndComeBack(field);
+    expect(field).toHaveAccessibleDescription(REFUSED_SAID);
+  });
+
+  it("names nothing with live generation off, where the focus stays on the button", () => {
+    const view = renderRead(false);
+    // The read ends with no day on its way; the ending comes after, with no wait to end.
+    view.rerender(startOf({ kind: "reading" }, null, false));
+    view.rerender(startOf({ kind: "not-yet" }, null, false));
+
+    waitMs(NOTICE_HEARD_MS);
+    expect(screen.getByRole("button", { name: "Plan this day" })).toHaveFocus();
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("names nothing from the press that asks again, while the line still draws the ending", () => {
+    const view = renderRead();
+    view.rerender(startOf({ kind: "refused" }, null));
+    waitMs(NOTICE_HEARD_MS);
+    leaveAndComeBack(screen.getByRole("textbox"));
+    expect(screen.getByRole("textbox")).toHaveAttribute("aria-describedby");
+
+    view.rerender(startOf({ kind: "refused" }, "reading"));
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("names nothing once the line has left the ending the focus came back with", () => {
+    const view = renderRead();
+    view.rerender(startOf({ kind: "refused" }, null));
+    waitMs(NOTICE_HEARD_MS);
+    leaveAndComeBack(screen.getByRole("textbox"));
+    // A day pressed in the index, with no typed wait, that ends without a day too.
+    view.rerender(startOf(ON_ITS_WAY_LIVE, null));
+    view.rerender(startOf({ kind: "not-yet" }, null));
+
+    waitMs(NOTICE_HEARD_MS);
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("keeps the field undescribed when the window, not the field, loses the focus", () => {
+    const view = renderRead();
+    view.rerender(startOf({ kind: "refused" }, null));
+    const field = screen.getByRole("textbox", { name: "Where, and anything else" });
+    waitMs(NOTICE_HEARD_MS);
+
+    // Another window taken and this one again: the field still holds the page's focus.
+    fireEvent.focusOut(field);
+    expect(field).toHaveFocus();
+    expect(field).not.toHaveAttribute("aria-describedby");
+    fireEvent.focusIn(field);
+    expect(field).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("names nothing where the focus had left the button before the ending, so none came back", () => {
+    const view = renderRead();
+    act(() => screen.getByRole("heading", { level: 1 }).focus());
+    view.rerender(startOf({ kind: "refused" }, null));
+    const field = screen.getByRole("textbox", { name: "Where, and anything else" });
+    expect(screen.getByRole("heading", { level: 1 })).toHaveFocus();
+
+    waitMs(NOTICE_HEARD_MS);
+    expect(field).not.toHaveAttribute("aria-describedby");
+    // The visitor's own way to the field, and away again, hands nothing back either.
+    leaveAndComeBack(field);
+    act(() => screen.getByRole("button", { name: "Plan this day" }).focus());
+    expect(field).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("names what the city's question needs when it is asked again, the focus drawn back to the field as the page draws it", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const view = render(startOf(NO_CITY_QUESTION, null));
+    // While the answer is read the page asks for no city, so its field is not focused for one.
+    view.rerender(startOf({ kind: "reading", answering: NO_CITY_QUESTION }, "reading"));
+    act(() => screen.getByRole("button", { name: "Reading" }).focus());
+    view.rerender(startOf(PORTLAND_QUESTION, null));
+    const field = screen.getByRole("textbox", { name: "Which city?" });
+    expect(field).toHaveFocus();
+
+    waitMs(NOTICE_HEARD_MS);
+    leaveAndComeBack(field);
+    expect(field).toHaveAccessibleDescription(
+      "Portland, Oregon, United States, or Portland, Maine, United States.",
+    );
+  });
+
+  it("names the ending's line where the field took the focus handed back with no focus event yet, as in a window not in front", () => {
+    const view = renderRead();
+    // The page's focus moves, but no focus event reaches the page.
+    const held = (event: Event) => {
+      if (event.target instanceof HTMLTextAreaElement) event.stopImmediatePropagation();
+    };
+    window.addEventListener("focusin", held, true);
+    window.addEventListener("focus", held, true);
+    try {
+      view.rerender(startOf({ kind: "refused" }, null));
+    } finally {
+      window.removeEventListener("focusin", held, true);
+      window.removeEventListener("focus", held, true);
+    }
+    const field = screen.getByRole("textbox", { name: "Where, and anything else" });
+    expect(field).toHaveFocus();
+
+    waitMs(NOTICE_HEARD_MS);
+    leaveAndComeBack(field);
+    expect(field).toHaveAccessibleDescription(REFUSED_SAID);
+  });
+
+  it.each([
+    ["at rest", null],
+    ["over an ending", { kind: "not-yet" } as const],
+  ])(
+    "leaves the focus on the button when a read answered before it is drawn ends in the commit its ending comes in, %s",
+    async (_, before) => {
+      const user = userEvent.setup();
+      const view = render(
+        <HeldStart
+          starts={STARTS}
+          line={before}
+          waitAtPlan="reading"
+          isLive={false}
+          isCityFocused={false}
+          onPlan={vi.fn()}
+          onChooseWritten={vi.fn()}
+          onChooseReading={vi.fn()}
+        />,
+      );
+      await user.type(screen.getByRole("textbox"), "Reykjavik{Enter}");
+      expect(screen.getByRole("button", { name: "Reading" })).toHaveFocus();
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
+      // The wait's end and the ending in one commit, as when the read takes a beat to answer.
+      view.rerender(startOf({ kind: "not-yet" }, null, false));
+      expect(answerStatus().textContent).toBe(
+        "Lantern isn't writing new days right now. Start from one of the days below.",
+      );
+      waitMs(NOTICE_HEARD_MS);
+      expect(screen.getByRole("button", { name: "Plan this day" })).toHaveFocus();
+      expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-describedby");
+    },
+  );
+
+  it.each([
+    ["drawn as the text asked it", false],
+    ["drawn again by Back", true],
+  ])(
+    "leaves the focus on the button when the city's question, %s, is asked again before its answer's read is drawn",
+    async (_, isReturnedTo) => {
+      const user = userEvent.setup();
+      const props = {
+        starts: STARTS,
+        waitAtPlan: "reading",
+        isLive: true,
+        isCityFocused: true,
+        isReturnedTo,
+        onPlan: vi.fn(),
+        onChooseWritten: vi.fn(),
+        onChooseReading: vi.fn(),
+      } as const;
+      const view = render(<HeldStart {...props} line={NO_CITY_QUESTION} />);
+      await user.type(screen.getByRole("textbox", { name: "Which city?" }), "Portland{Enter}");
+      expect(screen.getByRole("button", { name: "Reading" })).toHaveFocus();
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
+      // Answered within a frame: the question asked again, with no read drawn.
+      view.rerender(<HeldStart {...props} line={PORTLAND_QUESTION} wait={null} />);
+      expect(screen.getByRole("button", { name: "Plan this day" })).toHaveFocus();
+      waitMs(NOTICE_HEARD_MS);
+      leaveAndComeBack(screen.getByRole("textbox", { name: "Which city?" }));
+      act(() => screen.getByRole("button", { name: "Plan this day" }).focus());
+      expect(screen.getByRole("textbox", { name: "Which city?" })).not.toHaveAttribute(
+        "aria-describedby",
+      );
+    },
+  );
+
+  it.each([
+    ["an ending", { kind: "refused" } as const, "Where, and anything else"],
+    ["the city's question", NO_CITY_QUESTION, "Which city?"],
+  ])(
+    "names nothing for %s the start is drawn again with by Back, whose headline takes the focus",
+    (_, line, name) => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      render(
+        <HeldStart
+          starts={STARTS}
+          line={line}
+          wait={null}
+          isLive
+          isCityFocused={line.kind === "question"}
+          isReturnedTo
+          onPlan={vi.fn()}
+          onChooseWritten={vi.fn()}
+          onChooseReading={vi.fn()}
+        />,
+      );
+      expect(screen.getByRole("heading", { level: 1 })).toHaveFocus();
+
+      waitMs(NOTICE_HEARD_MS);
+      act(() => screen.getByRole("textbox", { name }).focus());
+      expect(screen.getByRole("textbox", { name })).not.toHaveAttribute("aria-describedby");
+    },
+  );
+});
+
 /** The motion-safe loop of the sign, on its pen: present only while it runs. */
 const PEN_LOOP = "motion-safe:animate-sign-cut";
 
@@ -1106,6 +1413,132 @@ describe("the press that asks for a typed text", () => {
       expect(answerStatus().textContent).toBe("");
       expect(heardStatus()).toBe("");
     });
+  });
+});
+
+describe("a day set on its way straight after an ending, with no read drawn", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const handlers = { onPlan: vi.fn(), onChooseWritten: vi.fn(), onChooseReading: vi.fn() };
+  const startOf = (line: StartHeaderProps["line"], isLive: boolean, wait?: StartWait | null) => (
+    <HeldStart
+      starts={STARTS}
+      line={line}
+      wait={wait}
+      waitAtPlan="reading"
+      isLive={isLive}
+      isCityFocused={false}
+      {...handlers}
+    />
+  );
+
+  const ANSWER_READ = { kind: "reading", answering: PORTLAND_QUESTION } as const;
+  const ANSWER_ON_ITS_WAY = {
+    kind: "writing",
+    request: LISBON_REQUEST,
+    answering: PORTLAND_QUESTION,
+  } as const;
+  it.each([
+    ["read", [[ANSWER_READ, "reading"]]],
+    [
+      "read, then on its way",
+      [
+        [ANSWER_READ, "reading"],
+        [ANSWER_ON_ITS_WAY, "writing"],
+      ],
+    ],
+    ["on its way, a written city's", [[ANSWER_ON_ITS_WAY, "opening"]]],
+  ] as const)(
+    "says a city pressed in the index while the answer to the city's question is %s from the status over the form",
+    (_, answering) => {
+      const view = render(startOf(PORTLAND_QUESTION, true, null));
+      for (const [line, wait] of answering) view.rerender(startOf(line, true, wait));
+      const overForm = answerStatus();
+
+      view.rerender(startOf({ ...ON_ITS_WAY_LIVE }, true, null));
+      expect(answerStatus()).toBe(overForm);
+      expect(overForm).toHaveTextContent(/^Writing a lively Saturday in Lisbon, with friends$/);
+      expect(heardStatus()).toBe("");
+    },
+  );
+
+  it("says a city pressed in the index while the city's question stands from the status over the form", () => {
+    const view = render(startOf(PORTLAND_QUESTION, true, null));
+    const overForm = answerStatus();
+
+    view.rerender(startOf({ ...ON_ITS_WAY_LIVE }, true, null));
+    expect(answerStatus()).toBe(overForm);
+    expect(overForm).toHaveTextContent(/^Writing a lively Saturday in Lisbon, with friends$/);
+    expect(startStatus()).toHaveTextContent(/^Writing a lively Saturday in Lisbon, with friends$/);
+    expect(heardStatus()).toBe("");
+  });
+
+  it("says a city pressed in the index after a refusal from the status over the form", () => {
+    const view = render(startOf({ kind: "refused" }, true, null));
+    const overForm = answerStatus();
+
+    view.rerender(startOf({ ...ON_ITS_WAY_LIVE }, true, null));
+    expect(answerStatus()).toBe(overForm);
+    expect(overForm).toHaveTextContent(/^Writing a lively Saturday in Lisbon, with friends$/);
+    // Seen under the field, and unheard there: the line is drawn afresh holding it.
+    expect(startStatus()).toHaveTextContent(/^Writing a lively Saturday in Lisbon, with friends$/);
+    expect(heardStatus()).toBe("");
+
+    // Drawn again as it stands, it is said where it was.
+    view.rerender(startOf({ ...ON_ITS_WAY_LIVE }, true, null));
+    expect(overForm).toHaveTextContent(/^Writing a lively Saturday in Lisbon/);
+    expect(heardStatus()).toBe("");
+  });
+
+  it("says a typed text's day answered before its read is drawn from the status over the form", async () => {
+    const user = userEvent.setup();
+    const ending = { kind: "not-yet" } as const;
+    const view = render(startOf(ending, false));
+    await user.type(screen.getByRole("textbox"), "London, with friends{Enter}");
+
+    // As the page draws it, the read ends a commit before the day is set on its way, over the
+    // ending that stood: the focus stays on the button, and the ending is not said again.
+    view.rerender(startOf(ending, false, null));
+    expect(screen.getByRole("button", { name: "Plan this day" })).toHaveFocus();
+    expect(answerStatus().textContent).toBe("");
+    view.rerender(startOf(ON_ITS_WAY_LIVE, false, "opening"));
+    expect(screen.getByRole("button", { name: "Opening" })).toHaveFocus();
+    expect(answerStatus()).toHaveTextContent(/^Opening a lively Saturday in Lisbon, with friends$/);
+    expect(startStatus()).toHaveTextContent(/^Opening a lively Saturday in Lisbon/);
+    expect(heardStatus()).toBe("");
+  });
+
+  it("leaves the focus on the button, and the field undescribed, when the text ends without a day again", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const ending = { kind: "not-yet" } as const;
+    const view = render(startOf(null, false, null));
+    view.rerender(startOf(ending, false, null));
+    view.rerender(startOf(ending, false, "reading"));
+    act(() => screen.getByRole("button", { name: "Reading" }).focus());
+    // The read ends over the ending that stood, a commit before the ending it brought, which is
+    // said as a change of the status the wait emptied.
+    view.rerender(startOf(ending, false, null));
+    expect(answerStatus().textContent).toBe("");
+    view.rerender(startOf({ kind: "not-yet" }, false, null));
+    expect(answerStatus().textContent).toBe(
+      "Lantern isn't writing new days right now. Start from one of the days below.",
+    );
+
+    act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS));
+    expect(screen.getByRole("button", { name: "Plan this day" })).toHaveFocus();
+    expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("leaves a day set on its way from the line at rest to the line under the field", () => {
+    const view = render(startOf({ kind: "refused" }, true, null));
+    view.rerender(startOf(ON_ITS_WAY_LIVE, true, null));
+    view.rerender(startOf(null, true, null));
+
+    view.rerender(startOf(ON_ITS_WAY_LIVE, true, null));
+    expect(answerStatus().textContent).toBe("");
+    expect(heardStatus()).toMatch(/^Writing a lively Saturday in Lisbon/);
   });
 });
 
