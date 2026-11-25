@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { spacesBesideTextsOf } from "./server-markup";
+import { spacesBesideTextsOf, wordsAre } from "./server-markup";
 
 describe("spacesBesideTextsOf", () => {
   it("finds a space written after a text, before an element", () => {
@@ -22,5 +22,17 @@ describe("spacesBesideTextsOf", () => {
     ]);
     expect(spacesBesideTextsOf("<span>lively</span> <span>Saturday</span>")).toEqual([]);
     expect(spacesBesideTextsOf("kept for <!-- -->30<!-- --> days.")).toEqual([]);
+  });
+});
+
+describe("wordsAre", () => {
+  it("finds an element by its whole words, its space in a box of its own", () => {
+    const holder = document.createElement("div");
+    holder.innerHTML = "<p>Sat 28 Nov · <span>sunrise<span> </span>06:44</span></p>";
+    const [line, sun] = [holder.querySelector("p"), holder.querySelector("span")];
+
+    expect(wordsAre("sunrise 06:44")("", sun)).toBe(true);
+    expect(wordsAre("sunrise 06:44")("", line)).toBe(false);
+    expect(wordsAre("sunrise 06:44")("", null)).toBe(false);
   });
 });

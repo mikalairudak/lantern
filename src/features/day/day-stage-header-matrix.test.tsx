@@ -4,6 +4,7 @@ import { FAILED_NOTE, READING_NOTE } from "@/features/itinerary/use-still";
 import { KANAZAWA_START_DAY } from "@/lib/days/written/kanazawa";
 import { LISBON_DAY } from "@/lib/fixtures/curated/lisbon";
 import type { DayOutcome } from "@/lib/stream/outcome";
+import { wordsAre } from "@/lib/fixtures/server-markup";
 import { noticeOf } from "./stream-ending";
 import {
   BEING_WRITTEN,
@@ -75,14 +76,6 @@ async function renderCell(key: HeaderMoment, day: number) {
   const view = render(<>{DAY_STAGE_HEADER_MATRIX.renderCell([momentAt(key), day], "phone")}</>);
   await waitFor(() => expect(screen.queryByText(READING_NOTE)).not.toBeInTheDocument());
   return view;
-}
-
-/**
- * An element whose words are these, wherever its texts stand: the sun's word and its time
- * stand on either side of a space in a box of its own.
- */
-function wordsAre(words: string) {
-  return (_: string, element: Element | null) => element?.textContent === words;
 }
 
 function headline(): HTMLElement {

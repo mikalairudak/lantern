@@ -131,16 +131,8 @@ test("a day this device has seen says the sun's times from its first HTML with e
 
 /** The headline's name as Chrome's accessibility tree gives it to a screen reader. */
 async function chromeHeadlineNameOf(page: Page): Promise<string> {
-  const cdp = await page.context().newCDPSession(page);
-  const { nodes } = await cdp.send("Accessibility.getFullAXTree");
-  await cdp.detach();
-  const headline = nodes.find(
-    (node) =>
-      !node.ignored &&
-      node.role?.value === "heading" &&
-      node.properties?.some(({ name, value }) => name === "level" && value.value === 1),
-  );
-  return String(headline?.name?.value ?? "");
+  const headings = await chromeReadOf(page, "heading");
+  return headings.find(({ level }) => level === 1)?.name ?? "";
 }
 
 test.describe("with motion", () => {

@@ -16,6 +16,7 @@ import {
   type StreamPace,
 } from "@/lib/stream/simulate-day-stream";
 import { FRAME_INSETS } from "@/features/abacus/geometry";
+import { wordsAre } from "@/lib/fixtures/server-markup";
 import { Day, type DayHandle } from "./day";
 import {
   BUSY,
@@ -144,14 +145,6 @@ function roomFloor(): HTMLElement {
 /** jsdom has no layout, so the room reports the height a browser would give it. */
 function holdsRoomOf(room: HTMLElement, height: number): void {
   vi.spyOn(room, "getBoundingClientRect").mockReturnValue({ height } as DOMRect);
-}
-
-/**
- * An element whose words are these, wherever its texts stand: the sun's word and its time
- * stand on either side of a space in a box of its own.
- */
-function wordsAre(words: string) {
-  return (_: string, element: Element | null) => element?.textContent === words;
 }
 
 /** The facts line on screen, before its unseen copy under the header. */

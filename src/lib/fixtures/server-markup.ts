@@ -40,3 +40,12 @@ function wordAfter(node: Node): string {
 function wordsOf(node: Node): string {
   return node.nodeType === Node.COMMENT_NODE ? "" : (node.textContent ?? "");
 }
+
+/**
+ * A Testing Library matcher for an element whose words are these, wherever its texts stand: a
+ * space in a box of its own parts a line's texts, which a query by an element's own texts
+ * would not find whole.
+ */
+export function wordsAre(words: string): (content: string, element: Element | null) => boolean {
+  return (_, element) => element?.textContent === words;
+}

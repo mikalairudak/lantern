@@ -6,6 +6,8 @@ export interface ChromeRead {
   name: string;
   /** The words of the texts under it, in order, as a screen reader reads the line. */
   text: string;
+  /** A heading's level; null for any other role. */
+  level: number | null;
 }
 
 /**
@@ -26,5 +28,12 @@ export async function chromeReadOf(page: Page, role: string): Promise<ChromeRead
   };
   return nodes
     .filter((node) => !node.ignored && node.role?.value === role)
-    .map((node) => ({ name: String(node.name?.value ?? ""), text: textOf(node.nodeId) }));
+    .map((node) => {
+      const level = node.properties?.find(({ name }) => name === "level")?.value.value;
+      return {
+        name: String(node.name?.value ?? ""),
+        text: textOf(node.nodeId),
+        level: typeof level === "number" ? level : null,
+      };
+    });
 }
