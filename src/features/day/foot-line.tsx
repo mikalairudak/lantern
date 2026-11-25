@@ -144,14 +144,14 @@ export function ProgressLine({ children, onShowWhole, className }: ProgressLineP
           <p>{children}</p>
         ) : (
           // Before the first stop the words' line is held on a phone, unseen and unheard, so the
-          // press stands from its first frame where it stays: held by nothing, it stood a line
-          // higher for 0.4 s under reduced motion, then stepped down as the count came.
+          // press stands from its first frame where it stays, and the count, as it comes, takes
+          // a line already there rather than pushing the press down.
           <p aria-hidden className="invisible @measure:hidden">
             {SHOW_WHOLE_DAY}
           </p>
         )}
-        {/* Room under the press for its underline, which falls 4 px under the words and past
-            the line's box: a box that clips at its edge, as a lab cell does, cut it off. */}
+        {/* Room under the press for its underline, which falls 4 px under the words, past the
+            line's box: a box that clips at its edge, as a lab cell does, keeps it whole. */}
         <p className="pb-1 @measure:ml-auto">
           <button type="button" onClick={onShowWhole} className={PRESS_CLASSES}>
             {SHOW_WHOLE_DAY}
