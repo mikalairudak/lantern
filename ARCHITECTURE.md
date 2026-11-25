@@ -68,7 +68,7 @@ flowchart TD
 | `db/roles/`                  | The read-only production role                                                                                                                              |
 | `e2e/`                       | Playwright specs; `e2e/visual/` holds the pixel baseline of the `/lab` matrices                                                                            |
 | `scripts/`                   | The build check, migrations, reports, the paid eval round and its table, the favicon, the production read, the commit message check                        |
-| `docs/`                      | Decisions, harness, security, ops, roadmap, case study, and the contracts and plans listed under "Where decisions are recorded"                            |
+| `docs/`                      | Decisions, harness, security, ops, accessibility, roadmap, case study, and the contracts and plans listed under "Where decisions are recorded"             |
 
 **Lab registration sits beside each component.** A `*-matrix.tsx` file exports the component's `labMatrix` entry, a `*-cell.tsx` file renders one cell (a stand-in parent, a frozen stream frame), and a `*-examples.ts` file holds the data the cells draw. No product module imports them; `src/app/lab/matrix/matrices.tsx` registers the entries. `src/features/itinerary/use-still.tsx` and `src/features/itinerary/stream-frames.ts` are the lab's helpers for freezing a stream at one frame.
 
@@ -197,6 +197,7 @@ A day may run past midnight: `runningStart` and `runningSpans` in `src/lib/time/
 - `docs/decisions.md` is an edited log of the decisions worth explaining. Each entry has a heading made of a date and a sentence that states the decision, followed by **Decision**, **Why** and **Cost**, and, where the decision changed on the way, **How it got here**. Entries are in date order, and an Index lists each under its area. Code comments cite an entry by its heading's sentence, or the first clause of a long one, word for word.
 - `docs/harness.md` holds the measurements: what each layer of the harness checks, each prompt version and what it moved, the eval rounds that settled a choice, and the recipes for tests that a busy machine or an in-between frame would break.
 - `docs/security.md` is the threat model and the audit (findings S1 onward), and `docs/ops.md` is the operations runbook.
+- `docs/accessibility.md` says how Lantern stands against WCAG 2.2 AA, criterion by criterion: what holds and which test holds it, what is known not to hold, and the checks a person with assistive technology makes. It claims no conformance.
 - `docs/design-direction.md` is the visual language as it stands: its principles, palette and type, the chart, motion, each surface, and how the look was found. A comment cites a design rule by its section there, and the reason for it by its `docs/decisions.md` entry.
 - Contracts written before a piece was built: `docs/targeted-replan.md` (the re-plan), `docs/grounding.md` (place checks) and `docs/voice.md` (the voice rubric). `docs/place-match-audit.md` checks the place-matching rules by eye, and `docs/discoverability.md` covers search and link previews.
 - `docs/roadmap.md` holds scope and dates, and `docs/case-study.md` tells the story in one read. `docs/brand/` keeps the mark's source files.
