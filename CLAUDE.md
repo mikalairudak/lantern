@@ -101,7 +101,8 @@ assets/pictures/            PNG copies of the masks of the plates the link card 
                             by hand, answered as one check, E2E result, in Playwright's own image; the @frame tests
                             alone by hand; the pull request template, and the check of a pull request's text
 docs/                       decisions, harness, design direction, security, ops, roadmap, case study, the contracts
-                            (targeted re-plan, grounding, voice), discoverability; brand/ and media/ (the README's demo)
+                            (targeted re-plan, grounding, voice), discoverability, accessibility; brand/ and media/
+                            (the README's demo)
 ```
 
 ## Designing components (Dynamic UI)
