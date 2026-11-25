@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { FORK_ROW_ATTRIBUTE, ForkLine, ForkRow, ForkStatus, shownFirstForkRow } from "./fork-row";
@@ -169,6 +169,33 @@ describe("ForkRow", () => {
     expect(screen.getAllByText("The new dinner didn't fit").length).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: "Ask again" }));
     expect(acts.onAskAgain).toHaveBeenCalledOnce();
+  });
+
+  it("hands a focus on the proposal it takes away as it fails to the answer that stays", () => {
+    const rowAt = (moment: ForkMoment) => (
+      <ForkRow
+        view={forkViewAt(ELCHE, moment)}
+        index={ELCHE.index}
+        count={ELCHE.count}
+        timeWidth={45}
+        wordsLeft={66}
+        drawing={DEFAULT_DRAWING}
+        lineAt="under"
+        onMeasure={vi.fn()}
+        onChoose={vi.fn()}
+        onCompare={vi.fn()}
+        onAskAgain={vi.fn()}
+      />
+    );
+    const { rerender } = render(rowAt(momentOf("writing: its new stops")));
+    // A pointer's press or a screen reader gives it the focus, though it cannot be taken yet.
+    const proposal = screen.getByRole("radio", { checked: false });
+    act(() => proposal.focus());
+
+    rerender(rowAt(momentOf("failed: didn't fit")));
+
+    expect(proposal).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { checked: true })).toHaveFocus();
   });
 
   it("asks nothing again at our limit", () => {

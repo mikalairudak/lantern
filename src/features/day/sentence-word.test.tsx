@@ -1,8 +1,8 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { FACT_OPTIONS } from "./facts";
-import { SentenceWord, type WordReplanning, type WordView } from "./sentence-word";
+import { SentenceWord, type WordPair, type WordReplanning, type WordView } from "./sentence-word";
 
 const BY_TRANSIT: WordView = {
   key: "travel",
@@ -378,5 +378,144 @@ describe("SentenceWord while its own re-plan is written", () => {
     rerender(rewritten("eating late", "writing"));
 
     expect(heldIn(container)).toContain("early dinner,");
+  });
+});
+
+describe("SentenceWord's pair as its fork folds", () => {
+  const EARLY_DINNER: WordView = { ...BY_TRANSIT, key: "dinner", label: "early dinner" };
+  const EATING_LATE: WordPair = {
+    label: "eating late",
+    state: "proposed",
+    isLit: false,
+    onPoint: ignore,
+  };
+
+  function headlineWith(pair: WordPair | null, isStill = false) {
+    return (
+      <h1>
+        in Elche,
+        <SentenceWord
+          view={EARLY_DINNER}
+          lead=" "
+          trail=","
+          pair={pair}
+          isStill={isStill}
+          isEnabled
+          onChoose={ignore}
+          onLight={ignore}
+        />{" "}
+        home by eleven
+      </h1>
+    );
+  }
+
+  const pairButton = () => document.querySelector<HTMLElement>("[data-fork-pair]");
+
+  /** The headline with its pair written in whole, the focus on the pair. */
+  async function focusedOnThePair() {
+    const view = render(headlineWith(EATING_LATE));
+    await waitFor(() => expect(pairButton()).toHaveTextContent(/^eating late$/), {
+      timeout: WRITTEN_MS,
+    });
+    act(() => pairButton()?.focus());
+    return view;
+  }
+
+  it("hands a focus on the leaving pair to the word, and takes the pair out of reach as its words are written out", async () => {
+    const { rerender } = await focusedOnThePair();
+
+    rerender(headlineWith(null));
+
+    // Still written out, the pair no longer takes a press, the Tab or a screen reader.
+    expect(pairButton()).toHaveTextContent(/^eating late$/);
+    expect(pairButton()).toHaveAttribute("inert");
+    expect(screen.getByRole("button", { name: "early dinner" })).toHaveFocus();
+  });
+
+  it("moves the focus to the word before the pair is out of reach", async () => {
+    const { rerender } = await focusedOnThePair();
+    // Whether the pair was already out of reach as each focus moved: a browser that lets go of
+    // a focus on an element made inert would leave it on the page first.
+    const isPairInertAtFocus: boolean[] = [];
+    const focus = HTMLElement.prototype.focus;
+    const spy = vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(function (
+      this: HTMLElement,
+      options?: FocusOptions,
+    ) {
+      isPairInertAtFocus.push(pairButton()?.hasAttribute("inert") ?? false);
+      focus.call(this, options);
+    });
+
+    rerender(headlineWith(null));
+    spy.mockRestore();
+
+    expect(isPairInertAtFocus).toEqual([false]);
+    expect(pairButton()).toHaveAttribute("inert");
+    expect(screen.getByRole("button", { name: "early dinner" })).toHaveFocus();
+  });
+
+  it("gives no focus to a word that goes with its pair, as when a notice takes the day's place", async () => {
+    const { rerender } = await focusedOnThePair();
+    const word = screen.getByRole("button", { name: "early dinner" });
+    const focused: HTMLElement[] = [];
+    const focus = HTMLElement.prototype.focus;
+    const spy = vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(function (
+      this: HTMLElement,
+      options?: FocusOptions,
+    ) {
+      focused.push(this);
+      focus.call(this, options);
+    });
+
+    rerender(<h1>in Elche</h1>);
+    spy.mockRestore();
+
+    // The word goes in the same commit: a focus handed to it would light its stops as it leaves.
+    expect(focused).not.toContain(word);
+  });
+
+  it("keeps the pair's join and its comma in the headline's words while the pair leaves", async () => {
+    const { rerender } = await focusedOnThePair();
+
+    rerender(headlineWith(null));
+
+    const headline = screen.getByRole("heading", { level: 1 });
+    expect(headline).toHaveTextContent(/^in Elche, early dinner or eating late, home by eleven$/);
+    const pair = pairButton();
+    if (pair === null) throw new Error("The pair is still written out");
+    // Only the pair's own button is out of reach: its "or" and comma read on.
+    const outOfReach = [...headline.querySelectorAll("[inert]")];
+    expect(outOfReach).toEqual([pair]);
+  });
+
+  it("keeps the pair out of reach for as long as a fading day holds its pen still", async () => {
+    const { rerender } = await focusedOnThePair();
+
+    rerender(headlineWith(null, true));
+    await wait(STILL_MS);
+
+    expect(pairButton()).toHaveTextContent(/^eating late$/);
+    expect(pairButton()).toHaveAttribute("inert");
+    expect(screen.getByRole("button", { name: "early dinner" })).toHaveFocus();
+  });
+
+  it("leaves the focus where it is when it was not on the pair", async () => {
+    const { rerender } = await focusedOnThePair();
+    const elsewhere = document.body.appendChild(document.createElement("button"));
+    act(() => elsewhere.focus());
+
+    rerender(headlineWith(null));
+
+    expect(elsewhere).toHaveFocus();
+    elsewhere.remove();
+  });
+
+  it("takes the pair back into reach when a fork stands again before its words are gone", async () => {
+    const { rerender } = await focusedOnThePair();
+    rerender(headlineWith(null));
+
+    rerender(headlineWith(EATING_LATE));
+
+    expect(pairButton()).not.toHaveAttribute("inert");
   });
 });

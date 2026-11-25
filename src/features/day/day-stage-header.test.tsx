@@ -1194,12 +1194,9 @@ describe("DayStageHeader", () => {
     view.rerender(at(KYOTO_REQUEST, { status: "proposed", isCompared: true }));
     expect(await pairNamed("slow morning, proposed: go to it")).toBeInTheDocument();
 
-    // Folded, the pair keeps the name it last had while the pen writes it out, so it never
-    // shares the bare name of the visitor's word.
+    // Folded, the pair is out of reach while the pen writes it out.
     view.rerender(at(KYOTO_REQUEST, { status: "left" }));
-    expect(headline.querySelector("[data-fork-pair]")).toHaveAccessibleName(
-      "slow morning, proposed: go to it",
-    );
+    expect(headline.querySelector("[data-fork-pair]")).toHaveAttribute("inert");
 
     view.rerender(at(slow, { status: "taken", isCompared: true }));
     expect(await pairNamed("early start, the day before: go to it")).toBeInTheDocument();
@@ -1221,7 +1218,7 @@ describe("DayStageHeader", () => {
       { status: "failed" },
       "slow morning, being written: go to it",
     ],
-  ] as const)("keeps the pair's name as it last stood, %s", async (_, before, folded, name) => {
+  ] as const)("takes the pair out of reach as it folds, %s", async (_, before, folded, name) => {
     const slow = { ...KYOTO_REQUEST, start: "slow" as const };
     const request = before.status === "taken" ? slow : KYOTO_REQUEST;
     const at = (step: Partial<ReplanControls>) =>
@@ -1236,10 +1233,10 @@ describe("DayStageHeader", () => {
     view.rerender(at(folded));
 
     // In the render that folds it, while the pen writes it out.
-    expect(headline.querySelector("[data-fork-pair]")).toHaveAccessibleName(name);
+    expect(headline.querySelector("[data-fork-pair]")).toHaveAttribute("inert");
   });
 
-  it("keeps the pair's whole name while the pen writes its words out", async () => {
+  it("keeps the pair out of reach while the pen writes its words out, its join still read", async () => {
     const view = render(pairAt(KYOTO_REQUEST, { status: "proposed", isCompared: true }));
     const headline = screen.getByRole("heading", { level: 1 });
     const name = "slow morning, proposed: go to it";
@@ -1247,11 +1244,14 @@ describe("DayStageHeader", () => {
 
     view.rerender(pairAt(KYOTO_REQUEST, { status: "left" }));
     const pair = () => headline.querySelector("[data-fork-pair]");
-    expect(pair()).toHaveAccessibleName(name);
+    expect(pair()).toHaveAttribute("inert");
 
-    // A later frame of the write-out: fewer letters drawn, the name whole.
+    // A later frame of the write-out: fewer letters drawn, still out of reach, and the pair's
+    // button the one thing out of reach.
     await waitFor(() => expect(pair()?.textContent?.length).toBeLessThan("slow morning".length));
-    expect(pair()).toHaveAccessibleName(name);
+    expect(pair()).toHaveAttribute("inert");
+    expect([...headline.querySelectorAll("[inert]")]).toEqual([pair()]);
+    expect(headline).toHaveTextContent(/ or slow[a-z ]*, early dinner/);
   });
 
   it("leaves no pair beside an assumed word taken with no compare, whose word is drawn anew", async () => {
@@ -1266,7 +1266,7 @@ describe("DayStageHeader", () => {
     expect(within(headline).getAllByRole("button", { name: /^slow morning/ })).toHaveLength(1);
   });
 
-  it("keeps a leftover pair's whole name apart from the visitor's own word taken with no compare", async () => {
+  it("leaves the visitor's own word taken with no compare the one of its words within reach", async () => {
     const view = render(
       pairAt({ ...KYOTO_REQUEST, start: "early" }, { status: "proposed", isCompared: true }),
     );
@@ -1278,8 +1278,11 @@ describe("DayStageHeader", () => {
     // written out beside it.
     view.rerender(pairAt({ ...KYOTO_REQUEST, start: "slow" }, { status: "taken" }));
 
-    expect(headline.querySelector("[data-fork-pair]")).toHaveAccessibleName(name);
-    expect(within(headline).getAllByRole("button", { name: "slow morning" })).toHaveLength(1);
+    expect(headline.querySelector("[data-fork-pair]")).toHaveAttribute("inert");
+    const inReach = within(headline)
+      .getAllByRole("button", { name: /^slow morning/ })
+      .filter((button) => button.closest("[inert]") === null);
+    expect(inReach).toHaveLength(1);
   });
 
   it("lets Lantern's words go in one step when a notice takes the day's place", () => {

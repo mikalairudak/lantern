@@ -256,3 +256,351 @@ test("leads the line about the day with no “As first planned:” while a propo
   await page.waitForTimeout(WHOLE_WATCH_MS);
   expect(await wasLed()).toBe(false);
 });
+
+/**
+ * The headline's pair as its fork folds: its words are written out after the word, and while
+ * they are, the pair is out of reach and a focus on it is the word's. Watched every frame by the
+ * page itself, with motion, under which the pen writes them out.
+ */
+test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => {
+  test.use({ reducedMotion: "no-preference" });
+
+  /** Long enough for the pair's words to be written out, a slow page's too. */
+  const WRITTEN_OUT_MS = waitMs(1_500);
+  /** More steps down the dinner's list than it has answers. */
+  const LIST_STEPS = 8;
+  /** Far longer than the pair's words take to be written out, a slow page's too. */
+  const LEAVING_TIMEOUT_MS = waitMs(10_000);
+  const PAIR = "h1 button[data-fork-pair]";
+  /** The chart's first fork row: the plan's fork lines carry the mark on their group. */
+  const CHART_FIRST_ROW = '[data-fork-row="0"]:not([role="radiogroup"])';
+  /** The day's plan, where each part of a fork heads its rows. */
+  const PLAN = 'ol[aria-label="The day, to read"]';
+  /** The bench's day and its proposal at the live pace, a slow page's too. */
+  const STORY_TIMEOUT_MS = waitMs(120_000);
+  /** The proposal written whole or to its end at the live pace, a page four times slower too. */
+  const PROPOSAL_TIMEOUT_MS = waitMs(90_000);
+
+  /** Elche on the bench, its re-plans ending as `ending` says, the day written to its end. */
+  async function openElche(page: Page, ending: "complete" | "cut after a stop"): Promise<void> {
+    await page.goto(BENCH);
+    const controls = page.getByRole("complementary", { name: "Lab controls" });
+    await controls.getByRole("button", { name: "Re-plan" }).click();
+    await controls
+      .getByRole("group", { name: "Day" })
+      .getByRole("button", { name: "Elche" })
+      .click();
+    await controls
+      .getByRole("group", { name: "Ending" })
+      .getByRole("button", { name: ending })
+      .click();
+    await controls.getByRole("button", { name: "Re-plan" }).click();
+    await expect(page.getByRole("group", { name: /The day's energy/ })).toHaveAttribute(
+      "aria-busy",
+      "false",
+      { timeout: DAY_TIMEOUT_MS },
+    );
+  }
+
+  /** Opens the dinner's word from the keys and moves its list's active option to `answer`. */
+  async function pointAtAnswer(page: Page, answer: string): Promise<void> {
+    await page
+      .getByRole("heading", { level: 1 })
+      .getByRole("button", { name: "early dinner", exact: true })
+      .focus();
+    await page.keyboard.press("Enter");
+    const list = page.getByRole("listbox");
+    const active = list.getByRole("option", { name: new RegExp(`^${answer}`) });
+    await expect(active).toBeVisible();
+    for (let step = 0; step < LIST_STEPS; step += 1) {
+      const id = await list.getAttribute("aria-activedescendant");
+      if (id !== null && id === (await active.getAttribute("id"))) return;
+      await page.keyboard.press("ArrowDown");
+    }
+    throw new Error(`The list never reached ${answer}`);
+  }
+
+  interface PairWatch {
+    /** Where the focus stood each frame: on the pair, on the page itself, or elsewhere. */
+    frames: ("pair" | "page" | "elsewhere")[];
+    /** Whether the pair still stood at each Tab. */
+    tabs: boolean[];
+    /** Each time the focus left an element for nowhere. */
+    lost: string[];
+  }
+
+  /** Every frame from now on, read by the page: where the focus stands, and where the pair is. */
+  function watchThePair(pair: string): void {
+    const watch: PairWatch = { frames: [], tabs: [], lost: [] };
+    Object.assign(window, { pairWatch: watch });
+    addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "Tab") watch.tabs.push(document.querySelector(pair) !== null);
+      },
+      true,
+    );
+    addEventListener(
+      "focusout",
+      (event) => {
+        if (event.relatedTarget === null) {
+          watch.lost.push((event.target as Element).textContent ?? "");
+        }
+      },
+      true,
+    );
+    const sample = () => {
+      const active = document.activeElement;
+      watch.frames.push(
+        active?.matches(pair)
+          ? "pair"
+          : active === null || active === document.body
+            ? "page"
+            : "elsewhere",
+      );
+      requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  }
+
+  /** How many frames the focus stood at `where`. */
+  const framesAt = (watch: PairWatch, where: PairWatch["frames"][number]) =>
+    watch.frames.filter((each) => each === where).length;
+
+  const watchOf = (page: Page) =>
+    page.evaluate(() => (window as unknown as { pairWatch: PairWatch }).pairWatch);
+
+  test("a Tab while the pair is written out after a keep from the word's list passes it by", async ({
+    page,
+  }) => {
+    test.setTimeout(STORY_TIMEOUT_MS);
+    await openElche(page, "complete");
+    await pointAtAnswer(page, "eating late");
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("radio", { name: "eating late Take, proposed" }).first(),
+    ).toBeAttached({ timeout: PROPOSAL_TIMEOUT_MS });
+    await expect(page.locator(PAIR)).toHaveAccessibleName("eating late, proposed: go to it");
+
+    await pointAtAnswer(page, "early dinner");
+    await page.evaluate(watchThePair, PAIR);
+    // The keep hands the focus back to the word; the Tab comes as the pair is written out.
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Tab");
+    await page.waitForTimeout(WRITTEN_OUT_MS);
+
+    const watch = await watchOf(page);
+    expect(watch.tabs, "the Tab met the pair still written out").toEqual([true]);
+    expect(framesAt(watch, "pair"), "frames with the focus on the pair").toBe(0);
+    expect(watch.lost).toEqual([]);
+    await expect(page.locator(PAIR)).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { level: 1 }).getByRole("button", { name: /^home by eleven/ }),
+    ).toBeFocused();
+  });
+
+  test("the headline's name keeps the pair's join and comma while its words are written out, and none of them", async ({
+    page,
+  }) => {
+    test.setTimeout(STORY_TIMEOUT_MS);
+    await openElche(page, "complete");
+    await pointAtAnswer(page, "eating late");
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("radio", { name: "eating late Take, proposed" }).first(),
+    ).toBeAttached({ timeout: PROPOSAL_TIMEOUT_MS });
+    await expect(page.locator(PAIR)).toHaveAccessibleName("eating late, proposed: go to it");
+    // The headline's name as Chrome gives it to a screen reader.
+    const cdp = await page.context().newCDPSession(page);
+    const { root } = await cdp.send("DOM.getDocument", { depth: 0 });
+    const { nodeId } = await cdp.send("DOM.querySelector", { nodeId: root.nodeId, selector: "h1" });
+    const { node } = await cdp.send("DOM.describeNode", { nodeId });
+    /**
+     * The headline's name, and whether the pair still stood once it was read: sent together on
+     * one session, whose commands Chrome runs in turn, so a sample takes one round trip.
+     */
+    const sample = async () => {
+      const [tree, pair] = await Promise.all([
+        cdp.send("Accessibility.getPartialAXTree", {
+          backendNodeId: node.backendNodeId,
+          fetchRelatives: false,
+        }),
+        cdp.send("DOM.querySelector", { nodeId: root.nodeId, selector: PAIR }),
+      ]);
+      return { name: String(tree.nodes[0]?.name?.value ?? ""), isThere: pair.nodeId !== 0 };
+    };
+
+    await pointAtAnswer(page, "early dinner");
+    await page.keyboard.press("Enter");
+    // The pair only leaves: one still there after a read stood through it.
+    const names: string[] = [];
+    const deadline = Date.now() + LEAVING_TIMEOUT_MS;
+    for (let isThere = true; isThere;) {
+      expect(Date.now(), "the pair never left").toBeLessThan(deadline);
+      const read = await sample();
+      isThere = read.isThere;
+      if (isThere) names.push(read.name);
+    }
+
+    expect(names.length, "names read while the pair was written out").toBeGreaterThan(0);
+    for (const name of names) {
+      expect(name).toContain("early dinner or");
+      expect(name).toMatch(/or ?, home by eleven/);
+      expect(name).not.toContain("go to it");
+    }
+  });
+
+  // With reduced motion the pair goes at once, its words never written out.
+  for (const [reducedMotion, how] of [
+    ["no-preference", "as its words are written out"],
+    ["reduce", "as it goes at once with reduced motion"],
+  ] as const) {
+    test(`a focus on the pair when its proposal fails goes to the word, never to the page, ${how}`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ reducedMotion });
+      test.setTimeout(STORY_TIMEOUT_MS);
+      await openElche(page, "cut after a stop");
+      await pointAtAnswer(page, "eating late");
+      await page.keyboard.press("Enter");
+      const pair = page.locator(PAIR);
+      await expect(pair).toHaveAccessibleName("eating late, being written: go to it", {
+        timeout: PROPOSAL_TIMEOUT_MS,
+      });
+      // The pair is the Tab's next stop after the word.
+      await page.keyboard.press("Tab");
+      await expect(pair).toBeFocused();
+      await page.evaluate(watchThePair, PAIR);
+
+      await expect(pair).toHaveCount(0, { timeout: PROPOSAL_TIMEOUT_MS });
+      await page.waitForTimeout(WRITTEN_OUT_MS);
+
+      const watch = await watchOf(page);
+      expect(framesAt(watch, "pair"), "frames with the focus on the pair").toBeGreaterThan(0);
+      expect(framesAt(watch, "page"), "frames with the focus on the page").toBe(0);
+      expect(watch.lost).toEqual([]);
+      await expect(
+        page.getByRole("heading", { level: 1 }).getByRole("button", { name: "early dinner" }),
+      ).toBeFocused();
+    });
+  }
+
+  // A pointer's press or a screen reader gives the plan slip's proposal the focus while it is
+  // written, though it cannot be taken yet; the slip fades as the proposal fails.
+  for (const [reducedMotion, how] of [
+    ["no-preference", "as it fades"],
+    ["reduce", "as it goes at once with reduced motion"],
+  ] as const) {
+    test(`a focus on the plan slip's proposal when it fails goes to the version that stays, ${how}`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ reducedMotion });
+      test.setTimeout(STORY_TIMEOUT_MS);
+      await openElche(page, "cut after a stop");
+      await page.getByRole("group", { name: "View" }).getByRole("button", { name: "Plan" }).click();
+      await pointAtAnswer(page, "eating late");
+      await page.keyboard.press("Enter");
+      const proposal = page
+        .locator("[data-slip]")
+        .getByRole("radio", { name: "eating late, being written" })
+        .filter({ visible: true })
+        .first();
+      await expect(proposal).toBeVisible({ timeout: PROPOSAL_TIMEOUT_MS });
+      await proposal.focus();
+      await expect(proposal).toBeFocused();
+      // The proposal is written until the headline's pair goes: it stands first.
+      await expect(page.locator(PAIR)).toHaveCount(1, { timeout: PROPOSAL_TIMEOUT_MS });
+      await page.evaluate(watchThePair, PAIR);
+
+      await expect(page.locator(PAIR)).toHaveCount(0, { timeout: PROPOSAL_TIMEOUT_MS });
+      await page.waitForTimeout(WRITTEN_OUT_MS);
+
+      const watch = await watchOf(page);
+      expect(framesAt(watch, "elsewhere"), "frames with the focus in the page").toBeGreaterThan(0);
+      expect(framesAt(watch, "page"), "frames with the focus on the page").toBe(0);
+      expect(watch.lost).toEqual([]);
+      // The answer that stays of the part whose slip had the focus: the fork's first.
+      await expect(page.locator('[data-fork-row="0"] :focus')).toHaveAccessibleName(
+        "early dinner, your day",
+      );
+    });
+  }
+
+  // Elche's dinner proposes two parts; a failed proposal says its ending at the first alone, and
+  // the second folds away with whatever had the focus in it.
+  for (const [reducedMotion, how] of [
+    ["no-preference", "as it folds away"],
+    ["reduce", "as it goes at once with reduced motion"],
+  ] as const) {
+    for (const [target, what] of [
+      ["answer", "fork line's answer"],
+      ["proposal", "slip's proposal"],
+    ] as const) {
+      test(`a focus on the later part's ${what} when the proposal fails goes to the first part's answer, ${how}`, async ({
+        page,
+      }) => {
+        await page.emulateMedia({ reducedMotion });
+        test.setTimeout(STORY_TIMEOUT_MS);
+        await openElche(page, "cut after a stop");
+        await page
+          .getByRole("group", { name: "View" })
+          .getByRole("button", { name: "Plan" })
+          .click();
+        await pointAtAnswer(page, "eating late");
+        await page.keyboard.press("Enter");
+        await expect(page.locator(PAIR)).toHaveCount(1, { timeout: PROPOSAL_TIMEOUT_MS });
+        const later = page.locator(`${PLAN} [role="radiogroup"][data-fork-row="1"]`);
+        const control =
+          target === "answer"
+            ? later.getByRole("radio", { checked: true })
+            : later.locator("[data-slip]").getByRole("radio").first();
+        await expect(control).toBeVisible({ timeout: PROPOSAL_TIMEOUT_MS });
+        await control.focus();
+        await expect(control).toBeFocused();
+        await page.evaluate(watchThePair, PAIR);
+
+        await expect(page.locator(PAIR)).toHaveCount(0, { timeout: PROPOSAL_TIMEOUT_MS });
+        await page.waitForTimeout(WRITTEN_OUT_MS);
+
+        const watch = await watchOf(page);
+        expect(framesAt(watch, "page"), "frames with the focus on the page").toBe(0);
+        expect(watch.lost).toEqual([]);
+        await expect(
+          page.locator(`${PLAN} [role="radiogroup"][data-fork-row="0"] :focus`),
+        ).toHaveAccessibleName("early dinner, your day");
+      });
+    }
+  }
+
+  // On the chart a failed proposal takes its answer off the fork row at once; a pointer's press
+  // or a screen reader can have put the focus on it while it was written.
+  for (const [reducedMotion, how] of [
+    ["no-preference", "with motion"],
+    ["reduce", "with reduced motion"],
+  ] as const) {
+    test(`a focus on the chart's proposed answer when it fails goes to the row's answer that stays, ${how}`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ reducedMotion });
+      test.setTimeout(STORY_TIMEOUT_MS);
+      await openElche(page, "cut after a stop");
+      await pointAtAnswer(page, "eating late");
+      await page.keyboard.press("Enter");
+      await expect(page.locator(PAIR)).toHaveCount(1, { timeout: PROPOSAL_TIMEOUT_MS });
+      const row = page.locator(CHART_FIRST_ROW);
+      const proposal = row.getByRole("radio", { name: "eating late, being written" });
+      await expect(proposal).toBeVisible({ timeout: PROPOSAL_TIMEOUT_MS });
+      await proposal.focus();
+      await expect(proposal).toBeFocused();
+      await page.evaluate(watchThePair, PAIR);
+
+      await expect(page.locator(PAIR)).toHaveCount(0, { timeout: PROPOSAL_TIMEOUT_MS });
+      await page.waitForTimeout(WRITTEN_OUT_MS);
+
+      const watch = await watchOf(page);
+      expect(framesAt(watch, "page"), "frames with the focus on the page").toBe(0);
+      expect(watch.lost).toEqual([]);
+      await expect(row.getByRole("radio", { name: "early dinner, your day" })).toBeFocused();
+    });
+  }
+});

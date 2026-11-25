@@ -330,14 +330,9 @@ export function SentenceWord({
   const pairJoin = paired.text.slice(0, PAIR_JOIN.length).trim();
   const pairWord = paired.text.slice(PAIR_JOIN.length).trimEnd();
   const isPairShown = pairJoin !== "";
-  // The pair as it last stood: once the fork folds, its button keeps that whole name while the
-  // pen writes its words out, never a part of them nor the bare word, which may then be the
-  // visitor's own.
-  const [lastPair, setLastPair] = useState(pair && { label: pair.label, state: pair.state });
-  if (pair !== null && (pair.label !== lastPair?.label || pair.state !== lastPair.state)) {
-    setLastPair({ label: pair.label, state: pair.state });
-  }
-  const pairNamed = pair ?? lastPair;
+  // Its fork folded, the pair's words are still being written out: out of reach meanwhile, so
+  // no Tab or press meets a pair that leads nowhere (WCAG 2.4.3), its "or" and comma still read.
+  const isPairLeaving = pair === null && pairWord !== "";
   // Written up to a space, the word waits for its next letter before showing it, so its
   // comma never stands apart.
   const word = written.text.slice(lead.length).trimEnd();
@@ -408,6 +403,11 @@ export function SentenceWord({
     onOpenChangeRef.current?.(true);
     return () => onOpenChangeRef.current?.(false);
   }, [isOpenable]);
+
+  // The focus its pair had, as the pair leaves or goes. Its button is read as it is called: when
+  // the word goes with its pair, React has let go of the word's button before the pair's turn,
+  // so a word that is leaving takes no focus and lights no stops.
+  const takeFocusFromPair = useCallback(() => button.current?.focus({ preventScroll: true }), []);
 
   const close = useCallback((isFocusReturned: boolean, isInstant = false) => {
     setExit({ isInstant });
@@ -513,26 +513,84 @@ export function SentenceWord({
           <span className="text-muted">{pairJoin}</span>
           {pairWord !== "" && " "}
           {pairWord !== "" && (
-            <button
-              type="button"
-              data-fork-pair={view.key}
+            <PairButton
+              onFocusHandedOn={takeFocusFromPair}
+              fact={view.key}
               // Named by the state of the version it shows, as the fork's answers are.
-              aria-label={pairNamed ? `${pairNamed.label}, ${pairNamed.state}: go to it` : pairWord}
-              onClick={() => pair?.onPoint()}
-              className={cn(
-                BUTTON_CLASSES,
-                "text-swap",
-                pair?.isLit && LIT_WORD_CLASSES,
-                "underline decoration-swap-drawn decoration-1 underline-offset-4",
-              )}
+              label={pair ? `${pair.label}, ${pair.state}: go to it` : undefined}
+              isLit={pair?.isLit ?? false}
+              isLeaving={isPairLeaving}
+              onPress={() => pair?.onPoint()}
             >
               {pairWord}
-            </button>
+            </PairButton>
           )}
           {shownTrail}
         </span>
       )}
     </>
+  );
+}
+
+interface PairButtonProps {
+  /** Gives the word the pair follows the focus the pair had. */
+  onFocusHandedOn: () => void;
+  fact: FactKey;
+  /** None once its fork has folded: out of reach as it leaves, it is named to no one. */
+  label: string | undefined;
+  isLit: boolean;
+  /** Its fork folded, its words are being written out: it is out of reach meanwhile. */
+  isLeaving: boolean;
+  onPress: () => void;
+  children: string;
+}
+
+/**
+ * The fork's pair after the word, which points to the fork. A focus on it goes to the word as
+ * the pair leaves, so it never rests on the page: in the frame its words start to be written
+ * out, and as the pair goes, at once with reduced motion.
+ */
+function PairButton({
+  onFocusHandedOn,
+  fact,
+  label,
+  isLit,
+  isLeaving,
+  onPress,
+  children,
+}: PairButtonProps) {
+  const pairButton = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    const pair = pairButton.current;
+    if (pair === null) return;
+    if (isLeaving && document.activeElement === pair) onFocusHandedOn();
+    // Out of reach only once a focus on it has moved on: a browser may let go of a focus on an
+    // inert element at its next style pass, which would leave it on the page.
+    pair.toggleAttribute("inert", isLeaving);
+  }, [isLeaving, onFocusHandedOn]);
+  useLayoutEffect(() => {
+    const pair = pairButton.current;
+    // Run before the button is taken off the page, while it still holds the focus.
+    return () => {
+      if (pair !== null && document.activeElement === pair) onFocusHandedOn();
+    };
+  }, [onFocusHandedOn]);
+  return (
+    <button
+      ref={pairButton}
+      type="button"
+      data-fork-pair={fact}
+      aria-label={label}
+      onClick={onPress}
+      className={cn(
+        BUTTON_CLASSES,
+        "text-swap",
+        isLit && LIT_WORD_CLASSES,
+        "underline decoration-swap-drawn decoration-1 underline-offset-4",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 

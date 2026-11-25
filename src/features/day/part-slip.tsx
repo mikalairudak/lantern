@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotionConfig } from "motion/react";
+import { AnimatePresence, motion, useIsPresent, useReducedMotionConfig } from "motion/react";
 import {
   useLayoutEffect,
   useRef,
@@ -260,19 +260,46 @@ function useFocusOnChecked(group: RefObject<HTMLDivElement | null>, chosen: Fork
  * and the room they held is given back by the glide around them.
  */
 function SlipPresence({ children }: { children: ReactNode }) {
-  const isReducedMotion = useReducedMotionConfig() ?? false;
   return (
     <AnimatePresence initial={false}>
-      {children && (
-        <motion.div
-          key="slip"
-          exit={{ opacity: 0 }}
-          transition={isReducedMotion ? { duration: 0 } : SPRINGS.brisk}
-        >
-          {children}
-        </motion.div>
-      )}
+      {children && <FadingSlip key="slip">{children}</FadingSlip>}
     </AnimatePresence>
+  );
+}
+
+/**
+ * The slip's lines, out of reach once they start to fade: a proposal that ended is no answer
+ * to take, so no screen reader meets it while it goes (WCAG 4.1.2). A focus in it, a pointer's
+ * on its proposal, goes to the fork line's checked answer, the version that stays, in the frame
+ * the fade starts, so it does not rest on the page (WCAG 2.4.3). A failed proposal's later parts
+ * fold away whole with their heads, which hand a focus in them to the first part's answer
+ * (`ReadingList`).
+ */
+function FadingSlip({ children }: { children: ReactNode }) {
+  const isReducedMotion = useReducedMotionConfig() ?? false;
+  const isPresent = useIsPresent();
+  const slip = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = slip.current;
+    if (!element) return;
+    if (!isPresent && element.contains(document.activeElement)) {
+      element
+        .closest('[role="radiogroup"]')
+        ?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
+        ?.focus({ preventScroll: true });
+    }
+    // Out of reach only once a focus in it has moved on: a browser may let go of a focus on an
+    // inert element at its next style pass, which would leave it on the page.
+    element.toggleAttribute("inert", !isPresent);
+  }, [isPresent]);
+  return (
+    <motion.div
+      ref={slip}
+      exit={{ opacity: 0 }}
+      transition={isReducedMotion ? { duration: 0 } : SPRINGS.brisk}
+    >
+      {children}
+    </motion.div>
   );
 }
 

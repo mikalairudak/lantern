@@ -301,6 +301,64 @@ describe("ReadingList", () => {
     expect(screen.getAllByText(head)).toHaveLength(1);
   });
 
+  it("hands a focus in a head that folds away to the first part's checked answer, before it is out of reach", () => {
+    // Each head a fork line's group, its checked answer the group's stop, as a part's slip has.
+    const headOf = (part: number) => (
+      <div role="radiogroup" aria-label={`part ${part}`}>
+        <button type="button" role="radio" aria-checked>
+          {`stays ${part}`}
+        </button>
+      </div>
+    );
+    const anchors = [KYOTO.stops[1]!.id, KYOTO.stops[3]!.id];
+    const { rerender } = render(<ReadingList {...KYOTO} parts={{ anchors, headOf }} />);
+    const later = screen.getByRole("radio", { name: "stays 1" });
+    act(() => later.focus());
+    // Whether the leaving head was already out of reach as each focus moved: a browser that
+    // lets go of a focus on an element made inert would leave it on the page first.
+    const isHeadInertAtFocus: boolean[] = [];
+    const focus = HTMLElement.prototype.focus;
+    const spy = vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(function (
+      this: HTMLElement,
+      options?: FocusOptions,
+    ) {
+      isHeadInertAtFocus.push(later.closest("[inert]") !== null);
+      focus.call(this, options);
+    });
+
+    // A failed proposal says its ending at the first part alone: the later part folds away.
+    rerender(
+      <ReadingList
+        {...KYOTO}
+        parts={{ anchors, headOf: (part) => (part === 0 ? headOf(part) : null) }}
+      />,
+    );
+    spy.mockRestore();
+
+    expect(later).toBeInTheDocument();
+    expect(later.closest("[inert]")).not.toBeNull();
+    expect(isHeadInertAtFocus).toEqual([false]);
+    expect(screen.getByRole("radio", { name: "stays 0" })).toHaveFocus();
+  });
+
+  it("leaves a focus elsewhere where it is as a head folds away", () => {
+    const headOf = (part: number) => <p>{`head ${part}`}</p>;
+    const anchors = [KYOTO.stops[1]!.id, KYOTO.stops[3]!.id];
+    const { rerender } = render(<ReadingList {...KYOTO} parts={{ anchors, headOf }} />);
+    const elsewhere = document.body.appendChild(document.createElement("button"));
+    act(() => elsewhere.focus());
+
+    rerender(
+      <ReadingList
+        {...KYOTO}
+        parts={{ anchors, headOf: (part) => (part === 0 ? headOf(part) : null) }}
+      />,
+    );
+
+    expect(elsewhere).toHaveFocus();
+    elsewhere.remove();
+  });
+
   it("folds a head beside the list with no feather, and one in the column with it", () => {
     const head = (part: number) => <p>{`head ${part}`}</p>;
     const anchors = [KYOTO.stops[1]!.id];
