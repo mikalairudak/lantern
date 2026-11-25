@@ -851,7 +851,8 @@ export function DayStageHeader({
   // A notice is heard once, in the step, and falls quiet once the page says it: when it
   // stands whole, and no sooner than its hold, so a screen reader still has it to read after
   // what it says of the focus moved with it. Behind another tab it waits, unsaid, and its hold
-  // runs from the moment the page is seen (`usePageSeen`).
+  // runs from the moment the page is seen (`usePageSeen`); one whose hold is over stands there
+  // until it is whole, so a return does not say it again.
   const [isNoticeWhole, setIsNoticeWhole] = useState(false);
   const noticeLine = notice ? noticeLineOf(notice) : null;
   const isSeen = usePageSeen();
@@ -861,8 +862,10 @@ export function DayStageHeader({
     const said = window.setTimeout(() => setSaidLine(noticeLine), NOTICE_HEARD_MS);
     return () => window.clearTimeout(said);
   }, [noticeLine, isSeen]);
-  const isNoticeSaid = isNoticeWhole && noticeLine !== null && saidLine === noticeLine;
-  const heardNotice = isSeen && noticeLine !== null && !isNoticeSaid ? noticeLine : "";
+  const isHeardOut = noticeLine !== null && saidLine === noticeLine;
+  const isNoticeSaid = isNoticeWhole && isHeardOut;
+  const heardNotice =
+    noticeLine !== null && !isNoticeSaid && (isSeen || isHeardOut) ? noticeLine : "";
   // Said in the page's notice status where one stands above the header, so the line is a
   // change of a region that was there before the day ended; before the paint, so the step's
   // own frame has it. A header alone says it in its own status; an unseen copy says nothing.
