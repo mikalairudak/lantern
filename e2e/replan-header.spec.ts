@@ -270,6 +270,8 @@ test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => 
   const PAIR = "h1 button[data-fork-pair]";
   /** The bench's day and its proposal at the live pace, a slow page's too. */
   const STORY_TIMEOUT_MS = waitMs(120_000);
+  /** The proposal written whole at the bench's live pace, on a page four times slower too. */
+  const PROPOSAL_TIMEOUT_MS = waitMs(90_000);
 
   /** Elche on the bench, its re-plans ending as `ending` says, the day written to its end. */
   async function openElche(page: Page, ending: "complete" | "cut after a stop"): Promise<void> {
@@ -369,7 +371,7 @@ test.describe("the headline's pair as its fork folds", { tag: "@frame" }, () => 
     await page.keyboard.press("Enter");
     await expect(
       page.getByRole("radio", { name: "eating late Take, proposed" }).first(),
-    ).toBeAttached({ timeout: DAY_TIMEOUT_MS });
+    ).toBeAttached({ timeout: PROPOSAL_TIMEOUT_MS });
     await expect(page.locator(PAIR)).toHaveAccessibleName("eating late, proposed: go to it");
 
     await pointAtAnswer(page, "early dinner");
