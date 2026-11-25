@@ -147,6 +147,14 @@ function holdsRoomOf(room: HTMLElement, height: number): void {
 }
 
 /** The facts line on screen, before its unseen copy under the header. */
+/**
+ * An element whose words are these, wherever its texts stand: the sun's word and its time
+ * stand on either side of a space in a box of its own.
+ */
+function wordsAre(words: string) {
+  return (_: string, element: Element | null) => element?.textContent === words;
+}
+
 function factsLine(): HTMLElement {
   const line = document.querySelector<HTMLElement>("header p.type-note");
   if (!line) throw new Error("No facts line");
@@ -327,7 +335,7 @@ describe("the day", () => {
     expect(seenFacts).toEqual([]);
     expect(screen.queryByRole("group", { name: /The day's energy/ })).not.toBeInTheDocument();
     // Room is held for the sun's times before the first place gives them.
-    expect(screen.getAllByText("sunrise 00:00").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(wordsAre("sunrise 00:00")).length).toBeGreaterThan(0);
 
     await waitFor(
       () =>
@@ -739,7 +747,7 @@ describe("the day", () => {
     );
     expect(writtenDaysOffered()).toEqual(SENTENCES_BESIDES_KANAZAWA);
     // No place came, so no sun's times will: the room held for them is let go.
-    expect(screen.queryByText("sunrise 00:00")).not.toBeInTheDocument();
+    expect(screen.queryByText(wordsAre("sunrise 00:00"))).not.toBeInTheDocument();
     await user.click(retry);
 
     await waitForTheDay();

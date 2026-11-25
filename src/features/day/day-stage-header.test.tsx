@@ -6,6 +6,7 @@ import { motionValue, type MotionValue } from "motion/react";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { CURATED_REQUESTS, KYOTO_REQUEST, LISBON_REQUEST } from "@/lib/fixtures/curated/requests";
 import { KANAZAWA_START_REQUEST, START_REQUESTS } from "@/lib/days/written/quick-starts";
+import { spacesBesideTextsOf } from "@/lib/fixtures/server-markup";
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
 import type { PartialDay } from "@/lib/stream/outcome";
 import { noticeOf } from "./stream-ending";
@@ -62,6 +63,10 @@ interface Handlers {
   /** The unseen copy the playing's first frame draws beside the header. */
   isCopy?: boolean;
 }
+
+/** A sunrise at 07:15 and a sunset at 18:40, in minutes after midnight. */
+const SUNRISE_MINUTES = 435;
+const SUNSET_MINUTES = 1120;
 
 /** Kyoto's day as Lantern wrote it: every word but the company assumed, and that one asked. */
 const KYOTO_ASSUMPTIONS: PartialDay["assumptions"] = {
@@ -351,6 +356,23 @@ describe("DayStageHeader", () => {
       expect(headline.textContent).toContain(" in Lisbon");
     },
   );
+
+  it("writes the sun's times on the server with no space as a text of its own beside another text", () => {
+    const page = document.createElement("div");
+    page.innerHTML = renderToString(
+      cloneElement(headerOf(LISBON_REQUEST), {
+        sunrise: SUNRISE_MINUTES,
+        sunset: SUNSET_MINUTES,
+        isSunShown: true,
+      }),
+    );
+    const sunFacts = [...page.querySelectorAll("span")].filter((span) =>
+      /^sun(rise|set) /.test(span.textContent ?? ""),
+    );
+
+    expect(sunFacts.map((span) => span.textContent)).toContain("sunrise 07:15");
+    for (const span of sunFacts) expect(spacesBesideTextsOf(span.innerHTML)).toEqual([]);
+  });
 
   it("holds room for the longest clause the curve could say of any day", () => {
     renderHeader(PORTLAND);

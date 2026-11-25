@@ -77,6 +77,14 @@ async function renderCell(key: HeaderMoment, day: number) {
   return view;
 }
 
+/**
+ * An element whose words are these, wherever its texts stand: the sun's word and its time
+ * stand on either side of a space in a box of its own.
+ */
+function wordsAre(words: string) {
+  return (_: string, element: Element | null) => element?.textContent === words;
+}
+
 function headline(): HTMLElement {
   return screen.getByRole("heading", { level: 1 });
 }
@@ -252,7 +260,7 @@ describe("the day stage header's matrix", () => {
     await renderCell("written", LISBON);
 
     expect(liveDek(LISBON_DAY.day.dek)).toHaveTextContent(LISBON_DAY.day.dek);
-    expect(screen.getAllByText("sunrise 07:18")[0]).toBeInTheDocument();
+    expect(screen.getAllByText(wordsAre("sunrise 07:18"))[0]).toBeInTheDocument();
     expect(screen.getAllByText("click a word to change it")[0]).toBeInTheDocument();
   });
 

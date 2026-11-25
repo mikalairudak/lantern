@@ -2070,7 +2070,11 @@ function SunFact({ light, minutes }: SunFactProps) {
     <span className="whitespace-nowrap text-amber tabular-nums">
       {/* Lifted a pixel, so its horizon sits on the baseline of the capitals. */}
       <SunMark light={light} className="mr-1 inline-block -translate-y-px text-lamp" />
-      {light} {formatClock(minutes)}
+      {/* The space stands in a box of its own: as a text between two texts, the server
+        parts it from both with comments and Chrome drops it from the line, "sunrise06:44". */}
+      {light}
+      <span> </span>
+      {formatClock(minutes)}
     </span>
   );
 }
