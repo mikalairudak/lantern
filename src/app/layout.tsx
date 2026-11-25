@@ -30,8 +30,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     // The script below may set data-theme before React hydrates, so <html> may differ.
     <html
       lang="en"
-      // The plan's bar is held at the top: focus scrolled to stays clear of it.
-      className={cn(literata.variable, "scroll-pt-12")}
+      // The plan's bar is held at the top: focus scrolled to stays clear of it, on one row or,
+      // under `xs`, on the two it wraps to.
+      className={cn(literata.variable, "scroll-pt-12 max-xs:scroll-pt-20")}
       suppressHydrationWarning
     >
       <head>
