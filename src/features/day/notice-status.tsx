@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, useSyncExternalStore } from "react";
 
 /** Sets what the page's notice status says, "" for nothing. */
 export type SayNotice = (line: string) => void;
@@ -12,6 +12,36 @@ export type SayNotice = (line: string) => void;
  * said from one status that stands before the ending").
  */
 export const NOTICE_HEARD_MS = 3000;
+
+function subscribeVisibility(onChange: () => void): () => void {
+  document.addEventListener("visibilitychange", onChange);
+  return () => document.removeEventListener("visibilitychange", onChange);
+}
+
+/**
+ * Whether the page is on screen now: "visible" alone, so a page drawn before its visit, which
+ * some browsers call "prerender", is not seen either.
+ */
+export function isPageSeen(): boolean {
+  return document.visibilityState === "visible";
+}
+
+function isPageSeenOnServer(): boolean {
+  return true;
+}
+
+/**
+ * Whether the page is seen. A line held for `NOTICE_HEARD_MS` is written into its status only
+ * while it is, and its hold runs only then, so a line that comes behind another tab waits,
+ * empty, and is said and held from the moment the page is seen again; one gone before then is
+ * never written (`docs/decisions.md`, "How a day ended is said from one status that stands
+ * before the ending"). The visitor's own change (`useChangeHeard`) is held as long and is not
+ * gated, since it answers an act on a page that is seen. The server and the first paint take the
+ * page as seen.
+ */
+export function usePageSeen(): boolean {
+  return useSyncExternalStore(subscribeVisibility, isPageSeen, isPageSeenOnServer);
+}
 
 /**
  * Whoever renders the page's notice status hands its writer down; null where no one does, or

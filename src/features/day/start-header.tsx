@@ -35,7 +35,7 @@ import { WHOLE_DAY_TAKES } from "./not-yet";
 import { AskedSentence } from "./asked-sentence";
 import { Masthead } from "./masthead";
 import { STILL_RING_CLASSES, StartIndex } from "./start-index";
-import { NOTICE_HEARD_MS } from "./notice-status";
+import { NOTICE_HEARD_MS, usePageSeen } from "./notice-status";
 import { YourDaysLedger, type YourDaysProps } from "./your-days-ledger";
 import type { StartOffer } from "./start-offers";
 
@@ -215,16 +215,20 @@ export function StartHeader({
   // An ending's or the question's words stand in the status for `NOTICE_HEARD_MS`, then it falls
   // quiet while the line seen stays, so a read-through meets them once (`docs/decisions.md`,
   // "How a day ended is said from one status that stands before the ending"). Gone from it, as
-  // a wait empties it, they are held afresh when they come back.
+  // a wait empties it, they are held afresh when they come back. Behind another tab they wait,
+  // unsaid and not yet heard out, and their hold runs from the moment the page is seen
+  // (`usePageSeen`).
   const answer = isOverWaitedLine ? null : answerSaidOf(line, wait, isLive);
+  const isSeen = usePageSeen();
   const [answerHeardOut, setAnswerHeardOut] = useState<string | null>(null);
   if (answerHeardOut !== null && answerHeardOut !== answer) setAnswerHeardOut(null);
   useEffect(() => {
-    if (answer === null) return undefined;
+    if (answer === null || !isSeen) return undefined;
     const heardOut = window.setTimeout(() => setAnswerHeardOut(answer), NOTICE_HEARD_MS);
     return () => window.clearTimeout(heardOut);
-  }, [answer]);
+  }, [answer, isSeen]);
   const heardAnswer = answer !== answerHeardOut ? answer : null;
+  const saidAnswer = heardAnswer !== null && !isSeen ? "" : heardAnswer;
 
   return (
     <header className="flex shrink-0 flex-col pt-5 pb-5">
@@ -244,7 +248,7 @@ export function StartHeader({
             standing, as on the way back from a day, draws it holding that answer, as a notice
             the page opens with, for as long. */}
         <div role="status" className="sr-only">
-          {heardAnswer ?? heardOf(line, wait, isLive, isReadingSaidByFocus, isSaidOverForm)}
+          {saidAnswer ?? heardOf(line, wait, isLive, isReadingSaidByFocus, isSaidOverForm)}
         </div>
         <QuestionForm
           // Asked for a city, the field starts again empty, with the focus, for the answer; it

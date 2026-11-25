@@ -12,6 +12,30 @@ import { NO_DAY_HERE } from "../src/features/day/no-day-here";
 import { NOTICE_HEARD_MS } from "../src/features/day/notice-status";
 import { expectSaidOnceAsChange, logStatuses } from "./status-log";
 
+declare global {
+  interface Window {
+    showPage: (isSeen: boolean) => void;
+  }
+}
+
+/**
+ * The page's visibility, held by the test: seen until `showPage(false)` hides it, as a tab
+ * behind another is, each change told to the page as a browser tells it. Run as an init script,
+ * so it has no outside names.
+ */
+function stubPageVisibility(): void {
+  let isSeen = true;
+  Object.defineProperty(document, "visibilityState", {
+    configurable: true,
+    get: () => (isSeen ? "visible" : "hidden"),
+  });
+  Object.defineProperty(document, "hidden", { configurable: true, get: () => !isSeen });
+  window.showPage = (isShown) => {
+    isSeen = isShown;
+    document.dispatchEvent(new Event("visibilitychange"));
+  };
+}
+
 // These tests drive the chart: each page opens as for a visitor who chose it, since a day
 // opens on its plan otherwise.
 test.beforeEach(async ({ page }) => {
@@ -117,6 +141,32 @@ test("a link no day lands at says so from a status that stood while it waited, t
   await page.clock.runFor(KEPT_WAIT_MS + KEPT_POLL_MS);
   await expect(headline).toHaveText(NO_DAY_HERE);
   await expect(wordmark).toBeFocused();
+  await expectSaidOnceAsChange(page, NO_DAY_HERE, NOTICE_HEARD_MS);
+});
+
+test("a link no day lands at behind another tab says so once the page is seen, held from then", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await page.addInitScript(logStatuses);
+  await page.addInitScript(stubPageVisibility);
+  await answerTheLog(page, { status: "unknown" });
+  await page.goto(`/day/${ID}`);
+  const headline = page.getByRole("heading", { level: 1 });
+  await expect(headline).toHaveText("Lantern is still writing this day.");
+
+  await page.evaluate(() => window.showPage(false));
+  await page.clock.runFor(KEPT_WAIT_MS + KEPT_POLL_MS);
+  await expect(headline).toHaveText(NO_DAY_HERE);
+  // Longer behind the tab than a hold, so a hold run meanwhile would be over.
+  await page.clock.runFor(NOTICE_HEARD_MS * 2);
+  const heardWhileHidden = await page.evaluate(
+    (line) => window.statusLog.filter((entry) => entry.text.includes(line)),
+    NO_DAY_HERE,
+  );
+  expect(heardWhileHidden).toEqual([]);
+
+  await page.evaluate(() => window.showPage(true));
   await expectSaidOnceAsChange(page, NO_DAY_HERE, NOTICE_HEARD_MS);
 });
 

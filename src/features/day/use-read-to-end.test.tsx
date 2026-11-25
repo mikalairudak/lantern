@@ -131,6 +131,23 @@ describe("the day read to its end", () => {
     expect(onRead).toHaveBeenCalledTimes(1);
   });
 
+  it("is not told on a page drawn before it is shown, which no one sees yet", () => {
+    const onRead = vi.fn();
+    render(<Line onRead={onRead} />);
+    // The state some browsers give a page drawn ahead of its visit.
+    act(() => {
+      Object.defineProperty(document, "visibilityState", {
+        value: "prerender",
+        configurable: true,
+      });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    act(() => observer().show(1));
+    wait(READ_TO_END_MS * 2);
+    expect(onRead).not.toHaveBeenCalled();
+  });
+
   it("is never told for a line gone before its moment, as when the visitor leaves the day", () => {
     const onRead = vi.fn();
     const { unmount } = render(<Line onRead={onRead} />);

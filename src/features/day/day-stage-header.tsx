@@ -62,7 +62,7 @@ import { CityWord, type CityFocus, type TypedCity } from "./city-word";
 import { LINK_CLASSES, TARGET_CLASSES } from "./link-classes";
 import { unplacedLineOf } from "./start";
 import { PEN_BEAT_MS } from "./use-pen";
-import { NOTICE_HEARD_MS, useNoticeStatus } from "./notice-status";
+import { NOTICE_HEARD_MS, useNoticeStatus, usePageSeen } from "./notice-status";
 import { ROOM_REACH_PX, SPRINGS } from "@/lib/tokens/motion";
 import {
   chosenLabelsOf,
@@ -850,17 +850,22 @@ export function DayStageHeader({
   const isNoticeWritten = !isNoticeWrittenIn || isReducedMotion || isNoticeReleased;
   // A notice is heard once, in the step, and falls quiet once the page says it: when it
   // stands whole, and no sooner than its hold, so a screen reader still has it to read after
-  // what it says of the focus moved with it.
+  // what it says of the focus moved with it. Behind another tab it waits, unsaid, and its hold
+  // runs from the moment the page is seen (`usePageSeen`); one whose hold is over stands there
+  // until it is whole, so a return does not say it again.
   const [isNoticeWhole, setIsNoticeWhole] = useState(false);
   const noticeLine = notice ? noticeLineOf(notice) : null;
+  const isSeen = usePageSeen();
   const [saidLine, setSaidLine] = useState<string | null>(null);
   useEffect(() => {
-    if (noticeLine === null) return undefined;
+    if (noticeLine === null || !isSeen) return undefined;
     const said = window.setTimeout(() => setSaidLine(noticeLine), NOTICE_HEARD_MS);
     return () => window.clearTimeout(said);
-  }, [noticeLine]);
-  const isNoticeSaid = isNoticeWhole && noticeLine !== null && saidLine === noticeLine;
-  const heardNotice = noticeLine !== null && !isNoticeSaid ? noticeLine : "";
+  }, [noticeLine, isSeen]);
+  const isHeardOut = noticeLine !== null && saidLine === noticeLine;
+  const isNoticeSaid = isNoticeWhole && isHeardOut;
+  const heardNotice =
+    noticeLine !== null && !isNoticeSaid && (isSeen || isHeardOut) ? noticeLine : "";
   // Said in the page's notice status where one stands above the header, so the line is a
   // change of a region that was there before the day ended; before the paint, so the step's
   // own frame has it. A header alone says it in its own status; an unseen copy says nothing.
