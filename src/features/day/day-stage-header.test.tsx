@@ -142,25 +142,6 @@ function seenTextOf(element: Element): string {
   return text;
 }
 
-/**
- * What follows each text of nothing but spaces that the server writes before another text:
- * React parts the two with a comment, and Chrome leaves such a space out of the name of the
- * element that holds it, "Saturdayin". One shape of the spaces Chrome drops; the heading's name
- * as Chrome gives it is held by `e2e/seen-day.spec.ts`.
- */
-function spacesBeforeTextOf(element: Element): string[] {
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  const spaces: string[] = [];
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    let next = node.nextSibling;
-    while (next?.nodeType === Node.COMMENT_NODE) next = next.nextSibling;
-    if (node.textContent?.trim() === "" && next?.nodeType === Node.TEXT_NODE) {
-      spaces.push(next.textContent ?? "");
-    }
-  }
-  return spaces;
-}
-
 /** The header of a day whose model has assumed nothing, so only the city can be Lantern's. */
 function renderHeader(...args: Parameters<typeof headerOf>) {
   return render(headerOf(...args));
@@ -345,14 +326,14 @@ describe("DayStageHeader", () => {
     ["with a clause", "after a slow start", {}],
     ["with Lantern's words", null, KYOTO_ASSUMPTIONS],
   ])(
-    "writes no space of the headline on the server as a text of its own before another text, %s",
+    "writes no space of the headline on the server as a text of its own beside another text, %s",
     (_, clause, assumptions) => {
       const page = document.createElement("div");
       page.innerHTML = renderToString(headerOf(LISBON_REQUEST, clause, null, { assumptions }));
       const headline = page.querySelector("h1");
       if (!headline) throw new Error("The header has no headline");
 
-      expect(spacesBeforeTextOf(headline)).toEqual([]);
+      expect(spacesBesideTextsOf(headline.innerHTML)).toEqual([]);
       expect(headline.textContent).toContain(" in Lisbon");
     },
   );
