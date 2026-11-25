@@ -95,6 +95,15 @@
 @theme {
   --*: initial;
 
+  /*
+   * Under `xs` the plan's bar takes two rows: its words and the view's switch share one row
+   * from 363 px wide at the browser's default text size, in Literata, and from 360 px in the
+   * face that stands in before it lands; `xs` keeps a few pixels above both. Both are counted
+   * in the browser's own rems, so the two move together with a visitor's text size while the
+   * bar keeps to two rows; at a large text size on a narrow screen the energy's words wrap
+   * again, and a third row stands taller than the padding under `xs`.
+   */
+  --breakpoint-xs: 23rem;
   --breakpoint-sm: 40rem;
   --breakpoint-md: 48rem;
   --breakpoint-lg: 64rem;

@@ -13,6 +13,7 @@ import {
   type PointerEvent,
   type ReactNode,
 } from "react";
+import { flushSync } from "react-dom";
 import { cn } from "@/components/ui/cn";
 import { beadOrderOf, candidatesOf, energyOf } from "@/features/abacus/curve";
 import { hasEnergy, type StopDraft } from "@/features/abacus/day-draft";
@@ -186,6 +187,19 @@ const ARROWS_CLASSES = "flex flex-wrap gap-x-3 gap-y-2";
 /** The version's name in its arrow, ruled under a pointer or the keyboard's focus. */
 const ARROW_NAME_CLASSES = "decoration-1 underline-offset-4 pointed-group:underline";
 
+/**
+ * Whether a stop's box shows its head: its top below the edge the page's scroll padding keeps
+ * clear of the plan's bar, and its name, the line the focus is said by, whole above the window's
+ * foot. A box with no heading counts by its top alone.
+ */
+function isHeadInView(box: Element): boolean {
+  const { top } = box.getBoundingClientRect();
+  const name = box.querySelector("h1, h2, h3, h4, h5, h6");
+  const foot = name ? name.getBoundingClientRect().bottom : top;
+  const edge = Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop);
+  return top >= (Number.isNaN(edge) ? 0 : edge) && foot <= window.innerHeight;
+}
+
 /** Whether an element has the focus as the keyboard gives it, where the browser can tell. */
 function isKeyboardFocus(element: Element): boolean {
   try {
@@ -239,6 +253,8 @@ export function VersionCarousel({
   const [isDragging, setIsDragging] = useState(false);
   /** A drag let go ends in a click on the stop, which is the drag's and nothing else's. */
   const isClickDragged = useRef(false);
+  /** The version an arrow pressed named, which the stop takes the focus with once it shows it. */
+  const focusWith = useRef<number | null>(null);
 
   useLayoutEffect(() => {
     const box = boxRef.current;
@@ -249,6 +265,26 @@ export function VersionCarousel({
     observer.observe(box);
     return () => observer.disconnect();
   }, [canSwipe]);
+
+  // An arrow pressed may go with the version it named, so the focus stays with the stop. It
+  // reaches the stop once the stop carries the version's name, which a screen reader then says;
+  // a version taken any other way leaves the focus where it is. The focus itself scrolls
+  // nothing. A stop whose head is on screen, its top below the edge the page's scroll padding
+  // keeps and its name whole above the window's foot, stays where it is: a taller version at the
+  // window's foot grows down past it with its row's glide, left for the visitor to scroll to,
+  // where a scroll to its foot would jump the page a line or more in one frame. One whose top is
+  // above that edge, as under the plan's bar, or whose name runs past the foot, is brought in
+  // the least way, never centred, by its box, which no lean or slide moves, so nothing scrolls
+  // sideways.
+  // Both this hand-off and the slide below read the render `take` flushes, so `onPick` must
+  // commit the pick synchronously: in a transition or deferred, it would come after `take` has
+  // dropped them both.
+  useLayoutEffect(() => {
+    if (focusWith.current !== pick) return;
+    groupRef.current?.focus({ preventScroll: true });
+    const box = boxRef.current;
+    if (box && !isHeadInView(box)) box.scrollIntoView({ block: "nearest" });
+  }, [pick]);
 
   // The version taken is now the stop: drawn where it stood as it waited, a stride off, in the
   // same paint, then brought home on the layout spring.
@@ -344,6 +380,11 @@ export function VersionCarousel({
     if (isKeyboardFocus(event.currentTarget)) lean(side);
   };
 
+  const goHome = () => {
+    if (isReduced) x.set(0);
+    else animate(x, 0, SPRINGS.layout);
+  };
+
   const take = (side: Side, isPressed = false) => {
     const version = side === "before" ? before : after;
     if (!version || !onPick) return;
@@ -354,14 +395,20 @@ export function VersionCarousel({
     pointedLean.current = null;
     // The version on the left waits a stride to the left, so once taken it starts from there.
     shift.current = side === "before" ? -stride : stride;
-    onPick(version.index);
-    // An arrow pressed may go with the version it named: the focus stays with the stop.
-    if (isPressed) groupRef.current?.focus();
-  };
-
-  const goHome = () => {
-    if (isReduced) x.set(0);
-    else animate(x, 0, SPRINGS.layout);
+    if (isPressed) focusWith.current = version.index;
+    // The pick's render is flushed within this call, so a version the page takes has used the
+    // slide and the hand-off by the time `onPick` returns. One it does not take, as during a
+    // drag on the curve, or fails to, leaves neither for a later pick of that stop from
+    // elsewhere, and the stop goes home.
+    try {
+      flushSync(() => onPick(version.index));
+    } finally {
+      focusWith.current = null;
+      if (shift.current !== null) {
+        shift.current = null;
+        goHome();
+      }
+    }
   };
 
   /**

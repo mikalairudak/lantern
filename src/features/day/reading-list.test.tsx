@@ -93,6 +93,9 @@ function readTextOf(row: HTMLElement): string {
 /** The arrows that swipe a stop to a version beside it. */
 const ARROW_NAME = /^(Quieter|Livelier|Same energy): /;
 
+/** The page's own `scrollIntoView`, if it has one, put back after each test. */
+const OWN_SCROLL_INTO_VIEW = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView");
+
 // Motion as on a screen that moves, so the pen can be watched: a row on the list when it is
 // first drawn stands whole all the same.
 beforeEach(() => {
@@ -104,10 +107,17 @@ beforeEach(() => {
       disconnect() {}
     },
   );
+  // An arrow pressed brings its stop into view, and jsdom draws no page to scroll.
+  Element.prototype.scrollIntoView = () => undefined;
 });
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  if (OWN_SCROLL_INTO_VIEW) {
+    Object.defineProperty(Element.prototype, "scrollIntoView", OWN_SCROLL_INTO_VIEW);
+  } else {
+    Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+  }
 });
 
 describe("ReadingList", () => {
@@ -148,7 +158,16 @@ describe("ReadingList", () => {
   it("swaps a stop to a version the chart would show, says the original beside it, and keeps the focus", async () => {
     const user = userEvent.setup();
     const onChoose = vi.fn();
-    const { rerender } = render(<ReadingList {...KYOTO} onChoose={onChoose} />);
+    // The list as the page holds it: a version chosen is taken in the same press.
+    function Choosing() {
+      const [picks, setPicks] = useState(KYOTO.picks);
+      const choose = (stopIndex: number, candidate: number) => {
+        onChoose(stopIndex, candidate);
+        setPicks((shown) => shown.map((pick, at) => (at === stopIndex ? candidate : pick)));
+      };
+      return <ReadingList {...KYOTO} picks={picks} onChoose={choose} />;
+    }
+    render(<Choosing />);
     const [version] = KYOTO.stops[0]!.alternatives;
 
     await user.click(
@@ -156,13 +175,6 @@ describe("ReadingList", () => {
     );
     expect(onChoose).toHaveBeenCalledWith(0, 1);
 
-    rerender(
-      <ReadingList
-        {...KYOTO}
-        picks={KYOTO.picks.map((pick, at) => (at === 0 ? 1 : pick))}
-        onChoose={onChoose}
-      />,
-    );
     const swapped = rowsOf()[0]!;
     expect(within(swapped).getByRole("heading", { name: version!.name })).toBeVisible();
     // The planned place waits beside it, an arrow's press away.

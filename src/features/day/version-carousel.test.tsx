@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { candidatesOf } from "@/features/abacus/curve";
 import { completeDraftOf } from "@/features/abacus/day-draft";
 import { itineraryOf } from "@/features/abacus/stop-row-examples";
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
@@ -26,8 +27,24 @@ class SilentObserver {
   unobserve(): void {}
   disconnect(): void {}
 }
-beforeAll(() => vi.stubGlobal("ResizeObserver", SilentObserver));
-afterAll(() => vi.unstubAllGlobals());
+/** The page's own `scrollIntoView`, if it has one, put back once the file's tests are done. */
+const OWN_SCROLL_INTO_VIEW = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView");
+/** The elements the page was asked to scroll into view, and how, as jsdom draws no page. */
+const scrolledTo: { element: Element; options: ScrollIntoViewOptions | boolean | undefined }[] = [];
+beforeAll(() => {
+  vi.stubGlobal("ResizeObserver", SilentObserver);
+  Element.prototype.scrollIntoView = function (this: Element, options) {
+    scrolledTo.push({ element: this, options });
+  };
+});
+afterAll(() => {
+  vi.unstubAllGlobals();
+  if (OWN_SCROLL_INTO_VIEW) {
+    Object.defineProperty(Element.prototype, "scrollIntoView", OWN_SCROLL_INTO_VIEW);
+  } else {
+    Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+  }
+});
 
 describe("a stop's versions along its wire", () => {
   it("names the version on each side, quieter on the left, livelier on the right", () => {
@@ -63,7 +80,213 @@ function Picking() {
   );
 }
 
+/** The carousel named, as the list names it, after the version it shows. */
+function Renaming() {
+  const [pick, setPick] = useState(0);
+  const name = candidatesOf(BOTH)[pick]?.name ?? "";
+  return (
+    <VersionCarousel
+      stop={BOTH}
+      pick={pick}
+      name={name}
+      onPick={setPick}
+      renderVersion={(candidate) => <p>{`version ${candidate}`}</p>}
+    >
+      <h2>{name}</h2>
+    </VersionCarousel>
+  );
+}
+
+/**
+ * The carousel while the page takes none of its versions, as during a drag on the curve, and a
+ * button that takes its livelier version from elsewhere.
+ */
+function IgnoringThenElsewhere() {
+  const [pick, setPick] = useState(0);
+  const name = candidatesOf(BOTH)[pick]?.name ?? "";
+  const { after } = neighboursOf(BOTH, 0);
+  return (
+    <>
+      <VersionCarousel
+        stop={BOTH}
+        pick={pick}
+        name={name}
+        onPick={() => undefined}
+        renderVersion={(candidate) => <p>{`version ${candidate}`}</p>}
+      >
+        <h2>{name}</h2>
+      </VersionCarousel>
+      <button type="button" onClick={() => setPick(after?.index ?? 0)}>
+        Take it from the curve
+      </button>
+    </>
+  );
+}
+
+/** The carousel on a page that fails as it takes a version, and the button from elsewhere. */
+function FailingThenElsewhere() {
+  const [pick, setPick] = useState(0);
+  const name = candidatesOf(BOTH)[pick]?.name ?? "";
+  const { after } = neighboursOf(BOTH, 0);
+  return (
+    <>
+      <VersionCarousel
+        stop={BOTH}
+        pick={pick}
+        name={name}
+        onPick={() => {
+          throw new Error("The page could not take the version");
+        }}
+        renderVersion={(candidate) => <p>{`version ${candidate}`}</p>}
+      >
+        <h2>{name}</h2>
+      </VersionCarousel>
+      <button type="button" onClick={() => setPick(after?.index ?? 0)}>
+        Take it from the curve
+      </button>
+    </>
+  );
+}
+
+/** A transform that stands the stop off its place: a slide under way, not a stop at rest. */
+const OFF_PLACE = /translateX\((?!0px)/;
+
+/** A box's rect standing `top` px down the window, as jsdom lays out none. */
+function rectAt(top: number): DOMRect {
+  return {
+    top,
+    bottom: top + 100,
+    left: 0,
+    right: 300,
+    width: 300,
+    height: 100,
+    x: 0,
+    y: top,
+    toJSON: () => ({}),
+  };
+}
+
 describe("the carousel", () => {
+  // Each stop stands scrolled up under the plan's bar, so a hand-off brings it into view.
+  beforeEach(() => {
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue(rectAt(-40));
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it("hands the focus to the stop from an arrow pressed once it carries the version's name", async () => {
+    const user = userEvent.setup();
+    render(<Renaming />);
+    const { after } = neighboursOf(BOTH, 0);
+    const named: string[] = [];
+    const noteName = (event: FocusEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.getAttribute("role") === "group") named.push(target.getAttribute("aria-label")!);
+    };
+    document.addEventListener("focusin", noteName, true);
+    try {
+      await user.click(screen.getByRole("button", { name: `Livelier: ${after?.name}` }));
+      expect(named).toEqual([after?.name]);
+      expect(screen.getByRole("group", { name: after?.name })).toHaveFocus();
+
+      // The arrow keys on the stop swap it where the focus already is.
+      await user.keyboard("{ArrowLeft}");
+      expect(screen.getByRole("group", { name: candidatesOf(BOTH)[0]?.name })).toHaveFocus();
+    } finally {
+      document.removeEventListener("focusin", noteName, true);
+    }
+  });
+
+  it("brings the stop's box into view the least way as an arrow pressed hands it the focus", async () => {
+    const user = userEvent.setup();
+    render(<Renaming />);
+    const { after } = neighboursOf(BOTH, 0);
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    scrolledTo.length = 0;
+    try {
+      await user.click(screen.getByRole("button", { name: `Livelier: ${after?.name}` }));
+      const stop = screen.getByRole("group", { name: after?.name });
+      // The focus scrolls nothing itself, and the box, which a lean never moves, is what scrolls.
+      const stopFocused = focus.mock.calls.filter((_, call) => focus.mock.contexts[call] === stop);
+      expect(stopFocused).toEqual([[{ preventScroll: true }]]);
+      expect(scrolledTo).toEqual([{ element: stop.parentElement, options: { block: "nearest" } }]);
+    } finally {
+      focus.mockRestore();
+    }
+  });
+
+  it("leaves a stop whose head is on screen where it stands as an arrow pressed hands it the focus", async () => {
+    vi.mocked(Element.prototype.getBoundingClientRect).mockReturnValue(rectAt(120));
+    const user = userEvent.setup();
+    render(<Renaming />);
+    const { after } = neighboursOf(BOTH, 0);
+    scrolledTo.length = 0;
+    await user.click(screen.getByRole("button", { name: `Livelier: ${after?.name}` }));
+
+    expect(screen.getByRole("group", { name: after?.name })).toHaveFocus();
+    // A taller version at the window's foot grows into view with its row, never in one jump.
+    expect(scrolledTo).toEqual([]);
+  });
+
+  it("brings in a stop whose top is on screen but whose name runs past the window's foot", async () => {
+    // The stop's top 2 px above the foot: its name, the line the focus is said by, unseen.
+    vi.mocked(Element.prototype.getBoundingClientRect).mockReturnValue(
+      rectAt(window.innerHeight - 2),
+    );
+    const user = userEvent.setup();
+    render(<Renaming />);
+    const { after } = neighboursOf(BOTH, 0);
+    scrolledTo.length = 0;
+    await user.click(screen.getByRole("button", { name: `Livelier: ${after?.name}` }));
+
+    const stop = screen.getByRole("group", { name: after?.name });
+    expect(stop).toHaveFocus();
+    expect(scrolledTo).toEqual([{ element: stop.parentElement, options: { block: "nearest" } }]);
+  });
+
+  it("hands the focus for its own press alone, not to a later pick of that version from elsewhere", async () => {
+    const user = userEvent.setup();
+    render(<IgnoringThenElsewhere />);
+    const { after } = neighboursOf(BOTH, 0);
+    scrolledTo.length = 0;
+    // The press goes while the page takes no version, as during a drag on the curve; from the
+    // keyboard, so no pointer over the arrow leans the stop.
+    screen.getByRole("button", { name: `Livelier: ${after?.name}` }).focus();
+    await user.keyboard("{Enter}");
+    const elsewhere = screen.getByRole("button", { name: "Take it from the curve" });
+    await user.click(elsewhere);
+
+    const stop = screen.getByRole("group", { name: after?.name });
+    expect(elsewhere).toHaveFocus();
+    expect(scrolledTo).toEqual([]);
+    // Nor does the slide the press set off: the version comes in where it stands.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(stop.style.transform).not.toMatch(OFF_PLACE);
+  });
+
+  it("hands the focus to no later pick of a version whose press failed", async () => {
+    const user = userEvent.setup();
+    render(<FailingThenElsewhere />);
+    const { after } = neighboursOf(BOTH, 0);
+    scrolledTo.length = 0;
+    // The failure is the page's to report; here it is only let past.
+    const letPast = (event: ErrorEvent) => event.preventDefault();
+    window.addEventListener("error", letPast);
+    try {
+      screen.getByRole("button", { name: `Livelier: ${after?.name}` }).focus();
+      await user.keyboard("{Enter}");
+    } finally {
+      window.removeEventListener("error", letPast);
+    }
+    const elsewhere = screen.getByRole("button", { name: "Take it from the curve" });
+    await user.click(elsewhere);
+
+    const stop = screen.getByRole("group", { name: after?.name });
+    expect(elsewhere).toHaveFocus();
+    expect(scrolledTo).toEqual([]);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(stop.style.transform).not.toMatch(OFF_PLACE);
+  });
+
   it("keeps the focus on the stop when the arrow pressed goes with the version it named", async () => {
     const user = userEvent.setup();
     render(<Picking />);
@@ -564,6 +787,75 @@ describe("the drag", () => {
     dragOn(stop, { x: 10, y: 100 }, across(10, WIDTH_PX / 2), "up", { pointerType: "touch" });
     expect(onPick).toHaveBeenCalledTimes(1);
     expect(onPick).toHaveBeenCalledWith(before?.index);
+    await waitFor(() => expect(stop.style.transform).toMatch(/^(none|translateX\(0px\))$/), {
+      timeout: 2000,
+    });
+  });
+});
+
+describe("a version pressed", () => {
+  beforeAll(() => {
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(WIDTH_PX);
+  });
+  afterAll(() => vi.restoreAllMocks());
+
+  it("slides in from the side it waited on once taken", async () => {
+    const user = userEvent.setup();
+    render(<Picking />);
+    const { before } = neighboursOf(BOTH, 0);
+    const stop = screen.getByRole("group", { name: "The stop" });
+    await user.click(screen.getByRole("button", { name: `Quieter: ${before?.name}` }));
+    // The quieter version waited on the left, so it comes in from there.
+    await waitFor(() => expect(stop.style.transform).toMatch(/^translateX\(-\d/));
+  });
+
+  /** The carousel on a page that takes no pick, as while the curve is held. */
+  function renderRefusing() {
+    const onPick = vi.fn();
+    const carousel = (pick: number) => (
+      <VersionCarousel
+        stop={BOTH}
+        pick={pick}
+        name="The stop"
+        onPick={onPick}
+        renderVersion={(candidate) => <p>{`version ${candidate}`}</p>}
+      >
+        <h2>The stop</h2>
+      </VersionCarousel>
+    );
+    const { rerender } = render(carousel(0));
+    return {
+      onPick,
+      repick: (pick: number) => rerender(carousel(pick)),
+      stop: screen.getByRole("group", { name: "The stop" }),
+    };
+  }
+
+  it.each([
+    ["the version it named", "before"],
+    ["another version", "after"],
+  ] as const)(
+    "leaves a pick from elsewhere to arrive as one does when the page did not take it, to %s",
+    async (_, side) => {
+      const user = userEvent.setup();
+      const { onPick, repick, stop } = renderRefusing();
+      const neighbours = neighboursOf(BOTH, 0);
+      stop.focus();
+      await user.keyboard("{ArrowLeft}");
+      expect(onPick).toHaveBeenCalledWith(neighbours.before?.index);
+      // The pick then changes from the chart or the headline.
+      repick(neighbours[side]!.index);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(stop.style.transform).not.toMatch(OFF_PLACE);
+    },
+  );
+
+  it("goes home from a drag let go past a third when the page did not take it", async () => {
+    const { onPick, stop } = renderRefusing();
+    dragOn(stop, { x: 10, y: 100 }, across(10, WIDTH_PX / 2), "none");
+    await waitFor(() => expect(stop.style.transform).toBe("translateX(150px)"));
+    fireEvent.pointerUp(stop, { pointerId: 7, pointerType: "mouse", clientX: 160, clientY: 100 });
+    expect(onPick).toHaveBeenCalled();
     await waitFor(() => expect(stop.style.transform).toMatch(/^(none|translateX\(0px\))$/), {
       timeout: 2000,
     });
