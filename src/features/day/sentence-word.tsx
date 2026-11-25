@@ -404,8 +404,19 @@ export function SentenceWord({
     return () => onOpenChangeRef.current?.(false);
   }, [isOpenable]);
 
-  // The focus its pair had, as the pair leaves or goes.
-  const takeFocusFromPair = useCallback(() => button.current?.focus({ preventScroll: true }), []);
+  // Set as the word itself goes, which React tells it before its pair: a focus on the pair then
+  // goes with them, never to a word that is leaving and would light its stops.
+  const isGoing = useRef(false);
+  useLayoutEffect(() => {
+    isGoing.current = false;
+    return () => {
+      isGoing.current = true;
+    };
+  }, []);
+  // The focus its pair had, as the pair leaves or goes, while the word stays.
+  const takeFocusFromPair = useCallback(() => {
+    if (!isGoing.current) button.current?.focus({ preventScroll: true });
+  }, []);
 
   const close = useCallback((isFocusReturned: boolean, isInstant = false) => {
     setExit({ isInstant });

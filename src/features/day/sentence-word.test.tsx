@@ -454,6 +454,26 @@ describe("SentenceWord's pair as its fork folds", () => {
     expect(screen.getByRole("button", { name: "early dinner" })).toHaveFocus();
   });
 
+  it("gives no focus to a word that goes with its pair, as when a notice takes the day's place", async () => {
+    const { rerender } = await focusedOnThePair();
+    const word = screen.getByRole("button", { name: "early dinner" });
+    const focused: HTMLElement[] = [];
+    const focus = HTMLElement.prototype.focus;
+    const spy = vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(function (
+      this: HTMLElement,
+      options?: FocusOptions,
+    ) {
+      focused.push(this);
+      focus.call(this, options);
+    });
+
+    rerender(<h1>in Elche</h1>);
+    spy.mockRestore();
+
+    // The word goes in the same commit: a focus handed to it would light its stops as it leaves.
+    expect(focused).not.toContain(word);
+  });
+
   it("keeps the pair's join and its comma in the headline's words while the pair leaves", async () => {
     const { rerender } = await focusedOnThePair();
 
