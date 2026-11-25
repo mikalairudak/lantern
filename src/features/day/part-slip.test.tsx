@@ -343,6 +343,19 @@ describe("PartSlip", () => {
     await waitFor(() => expect(slipOf(container)).toBeNull());
   });
 
+  it("takes the slip out of reach while it fades, its proposal no answer to take", () => {
+    const { container, rerender, props } = renderSlip(LUNCH, momentOf("writing: its first"));
+    const { view } = slipStillOf(LUNCH, momentOf("an ending: cut"));
+
+    rerender(<PartSlip {...props} view={view} />);
+
+    const fading = slipOf(container);
+    if (fading === null) throw new Error("The slip is still fading");
+    expect(fading.closest("[inert]")).not.toBeNull();
+    // The answer of the version that stays is still the visitor's to press.
+    expect(screen.getByRole("radio", { checked: true }).closest("[inert]")).toBeNull();
+  });
+
   it("times a part past midnight on the day's clock: a late supper, the river moved", () => {
     const { container } = renderSlip(exampleOf("a part past midnight"), momentOf("whole"));
 

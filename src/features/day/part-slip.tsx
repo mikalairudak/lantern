@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotionConfig } from "motion/react";
+import { AnimatePresence, motion, useIsPresent, useReducedMotionConfig } from "motion/react";
 import {
   useLayoutEffect,
   useRef,
@@ -260,19 +260,28 @@ function useFocusOnChecked(group: RefObject<HTMLDivElement | null>, chosen: Fork
  * and the room they held is given back by the glide around them.
  */
 function SlipPresence({ children }: { children: ReactNode }) {
-  const isReducedMotion = useReducedMotionConfig() ?? false;
   return (
     <AnimatePresence initial={false}>
-      {children && (
-        <motion.div
-          key="slip"
-          exit={{ opacity: 0 }}
-          transition={isReducedMotion ? { duration: 0 } : SPRINGS.brisk}
-        >
-          {children}
-        </motion.div>
-      )}
+      {children && <FadingSlip key="slip">{children}</FadingSlip>}
     </AnimatePresence>
+  );
+}
+
+/**
+ * The slip's lines, out of reach once they start to fade: a proposal that ended is no answer
+ * to take, so no screen reader meets it while it goes (WCAG 4.1.2).
+ */
+function FadingSlip({ children }: { children: ReactNode }) {
+  const isReducedMotion = useReducedMotionConfig() ?? false;
+  const isPresent = useIsPresent();
+  return (
+    <motion.div
+      inert={!isPresent}
+      exit={{ opacity: 0 }}
+      transition={isReducedMotion ? { duration: 0 } : SPRINGS.brisk}
+    >
+      {children}
+    </motion.div>
   );
 }
 
