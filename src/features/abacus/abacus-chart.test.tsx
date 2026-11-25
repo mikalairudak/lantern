@@ -2,11 +2,13 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { CANDIDATE_ATTRIBUTE } from "./chart-stop";
 import { StopRowCell } from "./stop-row-cell";
+import { NAME_HOLD_GRACE_MS } from "./use-name-hold";
 
 /**
  * Escape and the versions' names on the chart: a name shown by a pointer resting on a bead, or
  * by a slider's focus from the keys, is put away by Escape with the pointer and the focus left
- * where they are (WCAG 1.4.13), and an Escape that puts nothing away is left to the page.
+ * where they are (WCAG 1.4.13), and an Escape that puts nothing away is left to the page. A
+ * pointer's name stays while the pointer moves from its bead onto it and rests there.
  */
 
 const CELL_WIDTH = 390;
@@ -14,6 +16,12 @@ const CELL_WIDTH = 390;
 let pointedChart: Element | null = null;
 /** A pen, its bead's slide and Motion's frames, well within this. */
 const SPRINGS_TIMEOUT = { timeout: 3000 };
+/** Longer than a name takes to fade out on jsdom's frames, which is most of a second. */
+const NAME_FADE_MS = 1500;
+/** Past the moment a name stays once the pointer is off its bead and off the name, and its fade. */
+const PAST_THE_GRACE_MS = NAME_HOLD_GRACE_MS + NAME_FADE_MS;
+/** A pointer's place on the screen off every name, which jsdom draws at its corner. */
+const AWAY_FROM_THE_NAME = { clientX: 100, clientY: 100 };
 
 /** jsdom has no layout, so the cell reports a phone's width. */
 class FixedSizeObserver {
@@ -57,6 +65,19 @@ afterAll(() => {
   else Reflect.deleteProperty(Element.prototype, "scrollIntoView");
 });
 
+/** A slice of time after which React draws what it has been told, as a page's frames do. */
+const FRAME_STEP_MS = 50;
+
+/**
+ * Lets time pass as a page lives it, drawing as it goes: one long `act` would draw only at its
+ * end, so a name let go on the way would still be standing.
+ */
+async function letTimePass(ms: number): Promise<void> {
+  for (let passed = 0; passed < ms; passed += FRAME_STEP_MS) {
+    await act(() => new Promise((resolve) => setTimeout(resolve, FRAME_STEP_MS)));
+  }
+}
+
 /** Alicante's calm beach between its neighbours, the day whole and ready for a hand. */
 async function drawTheDay(): Promise<HTMLElement> {
   render(<StopRowCell example={0} state="complete" density={null} />);
@@ -77,6 +98,11 @@ function namesShown(): Element[] {
   return [...document.querySelectorAll("[data-tag]")];
 }
 
+/** Whether a version's bead is drawn filled, as one a pointer names is. */
+function isFilled(bead: Element): boolean {
+  return bead.querySelector("circle")?.classList.contains("fill-swap-drawn") ?? false;
+}
+
 /** The slider of the stop after the beach, whose arrows reach a version either way. */
 function sliderWithVersions(): HTMLElement {
   return screen.getByRole("slider", { name: "Energy at 08:30" });
@@ -91,6 +117,11 @@ describe("a version's name on the chart and Escape", () => {
     fireEvent.pointerEnter(bead);
     await waitFor(() => expect(namesShown()).toHaveLength(1));
     return bead;
+  }
+
+  /** The pointer leaves a bead for somewhere else on the page. */
+  function leaveForThePage(bead: Element): void {
+    fireEvent.pointerLeave(bead, { relatedTarget: document.body });
   }
 
   /** Focuses a slider as the keys do, and waits for its versions' names. */
@@ -115,7 +146,7 @@ describe("a version's name on the chart and Escape", () => {
     fireEvent.keyDown(document.body, { key: "Escape" });
     await waitFor(() => expect(namesShown()).toHaveLength(0));
 
-    fireEvent.pointerLeave(bead);
+    leaveForThePage(bead);
     fireEvent.pointerEnter(bead);
 
     await waitFor(() => expect(namesShown()).toHaveLength(1));
@@ -135,6 +166,157 @@ describe("a version's name on the chart and Escape", () => {
     expect(namesShown()).toHaveLength(1);
     expect(fireEvent.keyDown(document.body, { key: "Escape" })).toBe(false);
     await waitFor(() => expect(namesShown()).toHaveLength(0));
+  });
+
+  it("keeps a pointer's name while the pointer rests on it, and lets it go once it is away", async () => {
+    await drawTheDay();
+    const bead = await pointAtABead();
+
+    leaveForThePage(bead);
+    // jsdom lays nothing out: every box, the name's too, stands at the screen's corner.
+    fireEvent.pointerMove(document, { clientX: 0, clientY: 0 });
+    await letTimePass(PAST_THE_GRACE_MS);
+
+    expect(namesShown()).toHaveLength(1);
+    fireEvent.pointerMove(document, AWAY_FROM_THE_NAME);
+    await waitFor(() => expect(namesShown()).toHaveLength(0));
+  });
+
+  it("keeps a pointer's name that the pointer left its bead for in one move", async () => {
+    await drawTheDay();
+    const bead = await pointAtABead();
+
+    // One move onto the name, heard before the bead's leave: no later move comes. jsdom lays
+    // nothing out: every box, the name's too, stands at the screen's corner.
+    fireEvent.pointerMove(document, { clientX: 0, clientY: 0 });
+    leaveForThePage(bead);
+    await letTimePass(PAST_THE_GRACE_MS);
+
+    expect(namesShown()).toHaveLength(1);
+  });
+
+  it("lets a pointer's name go a moment after the pointer leaves its bead for elsewhere", async () => {
+    await drawTheDay();
+    const bead = await pointAtABead();
+
+    leaveForThePage(bead);
+
+    await waitFor(() => expect(namesShown()).toHaveLength(0));
+  });
+
+  it("puts away a name the pointer holds off its bead and off the chart", async () => {
+    await drawTheDay();
+    const bead = await pointAtABead();
+    // On the name, which may lie over a row's words, off the chart. jsdom lays nothing out:
+    // every box, the name's too, stands at the screen's corner.
+    leaveForThePage(bead);
+    fireEvent.pointerMove(document, { clientX: 0, clientY: 0 });
+    pointedChart = null;
+
+    const isLeftToThePage = fireEvent.keyDown(document.body, { key: "Escape" });
+
+    expect(isLeftToThePage).toBe(false);
+    await waitFor(() => expect(namesShown()).toHaveLength(0));
+  });
+
+  it("leaves an Escape to the page while a pointer that left its bead is off the chart and the name", async () => {
+    await drawTheDay();
+    const bead = await pointAtABead();
+    leaveForThePage(bead);
+    fireEvent.pointerMove(document, AWAY_FROM_THE_NAME);
+    pointedChart = null;
+
+    const isLeftToThePage = fireEvent.keyDown(document.body, { key: "Escape" });
+
+    expect(isLeftToThePage).toBe(true);
+    // Still in its grace, the name is not put away by an Escape that was the page's.
+    expect(namesShown()).toHaveLength(1);
+  });
+
+  it("leaves an Escape to the page while a pointer that left its bead is elsewhere on the chart", async () => {
+    await drawTheDay();
+    const bead = await pointAtABead();
+    // Off the bead and off its name, the pointer still over the chart.
+    leaveForThePage(bead);
+    fireEvent.pointerMove(document, AWAY_FROM_THE_NAME);
+
+    const isLeftToThePage = fireEvent.keyDown(document.body, { key: "Escape" });
+
+    expect(isLeftToThePage).toBe(true);
+    expect(namesShown()).toHaveLength(1);
+  });
+
+  it("lets go of the bead whose name Escape puts away under a pointer resting on it", async () => {
+    await drawTheDay();
+    const bead = await pointAtABead();
+    leaveForThePage(bead);
+    // jsdom lays nothing out: every box, the name's too, stands at the screen's corner.
+    fireEvent.pointerMove(document, { clientX: 0, clientY: 0 });
+    pointedChart = null;
+    await nextFrames();
+    expect(isFilled(bead)).toBe(true);
+
+    expect(fireEvent.keyDown(document.body, { key: "Escape" })).toBe(false);
+
+    await waitFor(() => expect(namesShown()).toHaveLength(0));
+    expect(isFilled(bead)).toBe(false);
+  });
+
+  it("keeps a pointer's name on its way to it once Escape has put the focus's names away", async () => {
+    await drawTheDay();
+    const bead = await pointAtABead();
+    const slider = sliderWithVersions();
+    await focusASlider(slider);
+    fireEvent.keyDown(slider, { key: "Escape" });
+    await waitFor(() => expect(namesShown()).toHaveLength(1), SPRINGS_TIMEOUT);
+
+    leaveForThePage(bead);
+    fireEvent.pointerMove(document, { clientX: 0, clientY: 0 });
+    await letTimePass(PAST_THE_GRACE_MS);
+
+    expect(namesShown()).toHaveLength(1);
+  });
+
+  it("holds no name for a bead a sweep leaves before its name is drawn", async () => {
+    await drawTheDay();
+    const first = await pointAtABead();
+    const next = document.querySelectorAll(`[${CANDIDATE_ATTRIBUTE}]`)[1];
+    if (!next) throw new Error("The day drew one version's bead");
+
+    // Off the first bead, over the next and off it again, between two of the page's frames.
+    act(() => {
+      leaveForThePage(first);
+      fireEvent.pointerEnter(next);
+      leaveForThePage(next);
+    });
+
+    // The first was left for another bead, and the next was never named: neither is held.
+    expect(isFilled(first)).toBe(false);
+    expect(isFilled(next)).toBe(false);
+  });
+
+  it("holds no name for a bead a press takes the pointer from", async () => {
+    await drawTheDay();
+    const bead = await pointAtABead();
+
+    // A press on the bead takes the pointer to the chart, which Chromium tells the bead, at
+    // the press's first move, as the pointer leaving it with its button held.
+    fireEvent.pointerDown(bead, { button: 0, buttons: 1, pointerId: 1, pointerType: "mouse" });
+    fireEvent.pointerLeave(bead, { buttons: 1, pointerId: 1, pointerType: "mouse" });
+
+    expect(isFilled(bead)).toBe(false);
+  });
+
+  it("holds no name for a bead the pointer leaves the page from", async () => {
+    await drawTheDay();
+    const bead = await pointAtABead();
+
+    // Off the window, the leave has nothing on the page to go to.
+    fireEvent.pointerLeave(bead, { relatedTarget: null });
+    await nextFrames();
+
+    // Gone at once, well inside the grace a leave onto the page would keep it for.
+    expect(isFilled(bead)).toBe(false);
   });
 
   it("keeps a still's name, which no pointer holds, whatever its page does", async () => {

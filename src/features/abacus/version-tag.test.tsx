@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { createRef } from "react";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { VersionTags, type TagRequest } from "./version-tag";
 
@@ -41,6 +42,7 @@ function drawTags(tags: readonly TagRequest[]): void {
         readWords={() => []}
         maskLayer={null}
         maskPad={{ x: 3, y: 2, radius: 4 }}
+        layerRef={createRef()}
       />
     </div>,
   );
