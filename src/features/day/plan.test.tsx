@@ -83,6 +83,26 @@ describe("the plan's energy", () => {
     expect(onChoose).toHaveBeenCalledWith("lively");
     expect(onLockedPress).toHaveBeenCalledTimes(1);
   });
+
+  it("marks the day's word with a bead while the words wait, so it is told by more than colour", () => {
+    const beadOf = (name: string) =>
+      screen.getByRole("button", { name }).querySelector("svg[data-bead-mark]");
+    const { rerender } = render(<PlanEnergy energy="calm" isEnabled={false} onChoose={vi.fn()} />);
+    const bead = beadOf("calm");
+    expect(bead).toHaveAttribute("aria-hidden", "true");
+    // Painted in the word's own colour, which forced colours replace with the system's.
+    expect(bead?.querySelector("circle")).toHaveClass("fill-current");
+    for (const other of ["quiet", "balanced", "lively", "social"]) expect(beadOf(other)).toBeNull();
+
+    rerender(<PlanEnergy energy="lively" isEnabled isLocked onChoose={vi.fn()} />);
+    expect(beadOf("calm")).toBeNull();
+    expect(beadOf("lively")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "lively" })).toHaveAttribute("aria-pressed", "true");
+
+    // Free, the others are underlined and the day's word is not: no bead is needed.
+    rerender(<PlanEnergy energy="lively" isEnabled onChoose={vi.fn()} />);
+    expect(beadOf("lively")).toBeNull();
+  });
 });
 
 describe("the headline over the plan", () => {

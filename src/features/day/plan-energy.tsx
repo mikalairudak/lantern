@@ -3,6 +3,7 @@
 import type { Ref } from "react";
 import { cn } from "@/components/ui/cn";
 import { ENERGY_LEVELS, type EnergyLevel } from "@/lib/schema/itinerary.schema";
+import { EnergyBead } from "./energy-glyph";
 import { TARGET_CLASSES } from "./link-classes";
 import { energyLabelOf } from "./sentence";
 import { DayViewSwitch } from "./view-switch";
@@ -13,7 +14,9 @@ import { DayViewSwitch } from "./view-switch";
  * the day's energy stays one tap away. A word chosen is the headline's word chosen: the day moves
  * to the versions nearest it, and the headline says so (`docs/decisions.md`, "A day opens on its
  * plan, lit by the day's light"). Until the day can be changed, the words are said and wait;
- * while a changed word's proposal is written they are locked, as the headline's words are.
+ * while a changed word's proposal is written they are locked, as the headline's words are. While
+ * they wait, the day's word carries the energy's bead before it, so it is told from the others
+ * by more than its colour (`docs/decisions.md`, "One change at a time, the energy's included").
  */
 export function PlanEnergy({
   energy,
@@ -35,6 +38,7 @@ export function PlanEnergy({
   onChoose: (energy: EnergyLevel) => void;
   className?: string;
 }) {
+  const isWaiting = !isEnabled || isLocked;
   return (
     <div
       role="group"
@@ -48,7 +52,7 @@ export function PlanEnergy({
             key={level}
             type="button"
             aria-pressed={isOn}
-            aria-disabled={!isEnabled || isLocked || undefined}
+            aria-disabled={isWaiting || undefined}
             onClick={() => {
               if (isLocked) return onLockedPress?.();
               if (isEnabled && !isOn) onChoose(level);
@@ -62,8 +66,14 @@ export function PlanEnergy({
               isOn
                 ? "text-energy"
                 : "text-muted underline decoration-1 underline-offset-4 aria-disabled:cursor-default aria-disabled:no-underline not-aria-disabled:pointed:text-ink",
+              // Waiting, no word is underlined, so the day's word carries the energy's bead too,
+              // which is told without colour. It stands in the gap before the word, the word's
+              // box and its ring round both, its 8 px given back by the margin so no word moves
+              // as the words wait or answer; the targets that cross there all say the same.
+              isOn && isWaiting && "-ml-2",
             )}
           >
+            {isOn && isWaiting && <EnergyBead className="mr-0.5" />}
             {energyLabelOf(level)}
           </button>
         );

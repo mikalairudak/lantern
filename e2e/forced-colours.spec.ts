@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "./fixtures";
+import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
 import { YOUR_DAYS_KEY, type YourDay } from "../src/features/day/your-days";
 import { writtenDayAt } from "../src/lib/days/written/days";
 
@@ -239,3 +239,34 @@ test("the theme's helper, shown as forced colours turn on, goes with its button"
   await page.emulateMedia({ forcedColors: "active", colorScheme: "light" });
   await expect(helper).toBeHidden();
 });
+
+for (const system of ["light", "dark"] as const) {
+  test(`under forced colours on a ${system} device, the locked energy bar marks the day's word with a bead in the system's text`, async ({
+    page,
+  }) => {
+    // The re-plan bench's Elche, its proposal written at a live pace: the bar waits meanwhile
+    // (`docs/decisions.md`, "One change at a time, the energy's included").
+    const dayTimeoutMs = waitMs(45_000);
+    test.setTimeout(2 * dayTimeoutMs);
+    await page.goto("/lab/concepts/replan");
+    const chart = page.locator('[aria-label^="The day\'s energy"]');
+    await expect(chart).toHaveAttribute("aria-busy", "false", { timeout: dayTimeoutMs });
+    const bar = page.getByRole("group", { name: "How lively the day is" });
+    await expect(bar.locator("svg")).toHaveCount(0);
+    await page.locator("h1").getByRole("button", { name: "early dinner", exact: true }).click();
+    await page.getByRole("option", { name: "eating late" }).click();
+    const day = bar.getByRole("button", { name: "balanced" });
+    await expect(day).toHaveAttribute("aria-disabled", "true");
+    await expect(day).toHaveAttribute("aria-pressed", "true");
+    await page.emulateMedia({ forcedColors: "active", colorScheme: system });
+
+    // One bead, the day's word's, which a screen reader is not given: the word names the level.
+    await expect(bar.locator("svg")).toHaveCount(1);
+    const bead = day.locator("svg");
+    await expect(bead).toHaveAttribute("aria-hidden", "true");
+    await expect(day).toHaveAccessibleName("balanced");
+    const { ink, canvas } = await inkAndCanvasOfBox(page, bead);
+    expect(luminanceOf(canvas) > 0.5).toBe(system === "light");
+    expect(contrastOf(ink, canvas)).toBeGreaterThanOrEqual(GRAPHICS_CONTRAST);
+  });
+}

@@ -46,6 +46,35 @@ const BOX_STYLE = {
   verticalAlign: `${X_HEIGHT_EM / 2 - BOX_HEIGHT / 2 / UNITS_PER_EM}em`,
 };
 
+const BEAD_SIZE = 2 * BEAD_RADIUS;
+
+/** The bead alone, set on the word's baseline as the glyph is: its centre on the x-height's. */
+const BEAD_STYLE = {
+  width: emOf(BEAD_SIZE),
+  height: emOf(BEAD_SIZE),
+  verticalAlign: `${X_HEIGHT_EM / 2 - BEAD_RADIUS / UNITS_PER_EM}em`,
+};
+
+/**
+ * The glyph's bead alone, in the colour of the text it stands in: the mark of the day's level
+ * where the scale's other places are words, as on the plan's bar while its words wait. Painted
+ * with `currentColor`, so where colours are forced it takes the system's text colour as its
+ * word does. Hidden from screen readers, since its word is the one pressed.
+ */
+export function EnergyBead({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox={`0 0 ${BEAD_SIZE} ${BEAD_SIZE}`}
+      style={BEAD_STYLE}
+      className={cn("inline", className)}
+      data-bead-mark=""
+    >
+      <circle cx={BEAD_RADIUS} cy={BEAD_RADIUS} r={BEAD_RADIUS} className="fill-current" />
+    </svg>
+  );
+}
+
 interface EnergyGlyphProps {
   level: EnergyLevel;
   /**
