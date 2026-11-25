@@ -112,7 +112,6 @@ export const SHOW_WHOLE_DAY = "Show the whole day";
  * 544 px) they share one line, the press at its end, where a longer count never reaches it.
  */
 const PLAY_LINE_CLASSES = "flex flex-col gap-1 @measure:flex-row @measure:gap-6";
-const PRESS_CLASSES = cn(LINK_CLASSES, TARGET_CLASSES, "whitespace-nowrap");
 
 interface ProgressLineProps {
   /**
@@ -153,7 +152,7 @@ export function ProgressLine({ children, onShowWhole, className }: ProgressLineP
         {/* Room under the press for its underline, which falls 4 px under the words, past the
             line's box: a box that clips at its edge, as a lab cell does, keeps it whole. */}
         <p className="pb-1 @measure:ml-auto">
-          <button type="button" onClick={onShowWhole} className={PRESS_CLASSES}>
+          <button type="button" onClick={onShowWhole} className={SMALL_LINK_CLASSES}>
             {SHOW_WHOLE_DAY}
           </button>
         </p>

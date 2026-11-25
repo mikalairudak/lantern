@@ -346,7 +346,10 @@ const MADRID = writtenDayAt("madrid")!.itinerary;
 const MADRID_STOPS = MADRID.stops.length;
 /** The press that ends a written day's play with the day whole. */
 const SHOW_WHOLE_DAY = "Show the whole day";
-/** How soon the day stands whole after the press: in the same frame, with a frame to spare. */
+/**
+ * How soon the day stands whole after the press: a second on the laptop, twice that on CI
+ * (`waitMs`), against a play of some ten seconds, so a day that plays on to its end fails it.
+ */
 const LANDS_WITHIN_MS = waitMs(1000);
 /** More presses of Tab than the page holds controls before the line under the day. */
 const TABS_TO_THE_LINE = 60;
@@ -427,8 +430,17 @@ test.describe("a written day's play, shown whole on a press", () => {
     const press = page.getByRole("button", { name: SHOW_WHOLE_DAY });
     await expect(press).toBeAttached({ timeout: DAY_TIMEOUT_MS });
 
+    // Asked of the page, not of the press, which goes as the play ends: then the Tabs run out
+    // and fail, rather than waiting on a press no longer there.
+    const isPressFocused = () =>
+      page.evaluate(
+        (name) =>
+          document.activeElement instanceof HTMLButtonElement &&
+          document.activeElement.textContent === name,
+        SHOW_WHOLE_DAY,
+      );
     let presses = 0;
-    while (!(await press.evaluate((element) => element === document.activeElement))) {
+    while (!(await isPressFocused())) {
       presses += 1;
       expect(presses, "Tab reached the press").toBeLessThanOrEqual(TABS_TO_THE_LINE);
       await page.keyboard.press("Tab");
