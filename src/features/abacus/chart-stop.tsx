@@ -1,7 +1,13 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useRef, type KeyboardEvent, type MouseEvent, type Ref } from "react";
+import {
+  useRef,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type Ref,
+} from "react";
 import { SPRINGS, type SpringName } from "@/lib/tokens/motion";
 import { cn } from "@/components/ui/cn";
 import {
@@ -84,6 +90,14 @@ interface ChartStopProps {
 }
 
 /** One stop on its wire: its candidates as beads, the shown one filled. */
+/**
+ * Whether a pointer leaving an element leaves the page: the browser's event has nothing it goes
+ * to, where React's names the window in its place.
+ */
+function isLeavingThePage(event: ReactPointerEvent): boolean {
+  return event.nativeEvent.relatedTarget === null;
+}
+
 export function ChartStop({
   stop,
   scale,
@@ -174,7 +188,9 @@ export function ChartStop({
               isInteractive={isInteractive}
               isNamed={index === namedIndex}
               label={labelOf(index)}
-              onHover={(isOn, isPressed) => onHoverPlace({ placeId: place.id, isOn, isPressed })}
+              onHover={(isOn, isPressed, isOffThePage) =>
+                onHoverPlace({ placeId: place.id, isOn, isPressed, isOffThePage })
+              }
               // Taken, the bead becomes the stop's shown one and leaves the reader's list: the
               // reader is left on the stop's slider, which says the version it now shows.
               onActivate={() => {
@@ -363,8 +379,8 @@ interface BeadProps {
   isNamed: boolean;
   /** Its version's name and which way it goes; null while its name is not written. */
   label: string | null;
-  /** The pointer came onto it or left it, with a button held or not. */
-  onHover: (isOn: boolean, isPressed: boolean) => void;
+  /** The pointer came onto it or left it, with a button held or not, and for off the page or not. */
+  onHover: (isOn: boolean, isPressed: boolean, isOffThePage: boolean) => void;
   /** Picks it, for a screen reader's press; a pointer's is the chart's to read. */
   onActivate: () => void;
 }
@@ -420,8 +436,8 @@ function Bead({
       animate={{ opacity: 1, transition: SPRINGS[appearing] }}
       exit={{ opacity: 0 }}
       transition={SPRINGS.snappy}
-      onPointerEnter={(event) => onHover(true, event.buttons !== 0)}
-      onPointerLeave={(event) => onHover(false, event.buttons !== 0)}
+      onPointerEnter={(event) => onHover(true, event.buttons !== 0, false)}
+      onPointerLeave={(event) => onHover(false, event.buttons !== 0, isLeavingThePage(event))}
       className={cn("group", isInteractive ? "cursor-pointer" : "pointer-events-none")}
     >
       <path d={target} className="fill-none" pointerEvents={isInteractive ? "all" : "none"} />

@@ -42,11 +42,11 @@ function holdNames() {
   // The bead the pointer is on, which it leaves next.
   let onBead = "";
   /** The pointer comes onto a bead, or off the one it is on, whose name is shown or not. */
-  const hover = (placeId: string | null, isNameShown = true) => {
+  const hover = (placeId: string | null, isNameShown = true, isOffThePage = false) => {
     const bead: BeadHover =
       placeId === null
-        ? { placeId: onBead, isOn: false, isPressed: false }
-        : { placeId, isOn: true, isPressed: false };
+        ? { placeId: onBead, isOn: false, isPressed: false, isOffThePage }
+        : { placeId, isOn: true, isPressed: false, isOffThePage: false };
     onBead = placeId ?? "";
     act(() => view.result.current.onHoverPlace(bead, isNameShown));
     rerender();
@@ -283,6 +283,14 @@ describe("a version's name held under the pointer", () => {
     act(() => {
       fireEvent.pointerOut(document.body, { relatedTarget: null });
     });
+
+    expect(view.result.current.heldPlace).toBeNull();
+  });
+
+  it("holds nothing for a bead the pointer leaves the page from", () => {
+    const { view, hover } = holdNames();
+    hover(BEAD);
+    hover(null, true, true);
 
     expect(view.result.current.heldPlace).toBeNull();
   });

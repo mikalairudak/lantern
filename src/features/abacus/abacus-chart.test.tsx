@@ -119,6 +119,11 @@ describe("a version's name on the chart and Escape", () => {
     return bead;
   }
 
+  /** The pointer leaves a bead for somewhere else on the page. */
+  function leaveForThePage(bead: Element): void {
+    fireEvent.pointerLeave(bead, { relatedTarget: document.body });
+  }
+
   /** Focuses a slider as the keys do, and waits for its versions' names. */
   async function focusASlider(slider: HTMLElement): Promise<void> {
     act(() => slider.focus());
@@ -141,7 +146,7 @@ describe("a version's name on the chart and Escape", () => {
     fireEvent.keyDown(document.body, { key: "Escape" });
     await waitFor(() => expect(namesShown()).toHaveLength(0));
 
-    fireEvent.pointerLeave(bead);
+    leaveForThePage(bead);
     fireEvent.pointerEnter(bead);
 
     await waitFor(() => expect(namesShown()).toHaveLength(1));
@@ -167,7 +172,7 @@ describe("a version's name on the chart and Escape", () => {
     await drawTheDay();
     const bead = await pointAtABead();
 
-    fireEvent.pointerLeave(bead);
+    leaveForThePage(bead);
     // jsdom lays nothing out: every box, the name's too, stands at the screen's corner.
     fireEvent.pointerMove(document, { clientX: 0, clientY: 0 });
     await letTimePass(PAST_THE_GRACE_MS);
@@ -184,7 +189,7 @@ describe("a version's name on the chart and Escape", () => {
     // One move onto the name, heard before the bead's leave: no later move comes. jsdom lays
     // nothing out: every box, the name's too, stands at the screen's corner.
     fireEvent.pointerMove(document, { clientX: 0, clientY: 0 });
-    fireEvent.pointerLeave(bead);
+    leaveForThePage(bead);
     await letTimePass(PAST_THE_GRACE_MS);
 
     expect(namesShown()).toHaveLength(1);
@@ -194,7 +199,7 @@ describe("a version's name on the chart and Escape", () => {
     await drawTheDay();
     const bead = await pointAtABead();
 
-    fireEvent.pointerLeave(bead);
+    leaveForThePage(bead);
 
     await waitFor(() => expect(namesShown()).toHaveLength(0));
   });
@@ -204,7 +209,7 @@ describe("a version's name on the chart and Escape", () => {
     const bead = await pointAtABead();
     // On the name, which may lie over a row's words, off the chart. jsdom lays nothing out:
     // every box, the name's too, stands at the screen's corner.
-    fireEvent.pointerLeave(bead);
+    leaveForThePage(bead);
     fireEvent.pointerMove(document, { clientX: 0, clientY: 0 });
     pointedChart = null;
 
@@ -217,7 +222,7 @@ describe("a version's name on the chart and Escape", () => {
   it("leaves an Escape to the page while a pointer that left its bead is off the chart and the name", async () => {
     await drawTheDay();
     const bead = await pointAtABead();
-    fireEvent.pointerLeave(bead);
+    leaveForThePage(bead);
     fireEvent.pointerMove(document, AWAY_FROM_THE_NAME);
     pointedChart = null;
 
@@ -232,7 +237,7 @@ describe("a version's name on the chart and Escape", () => {
     await drawTheDay();
     const bead = await pointAtABead();
     // Off the bead and off its name, the pointer still over the chart.
-    fireEvent.pointerLeave(bead);
+    leaveForThePage(bead);
     fireEvent.pointerMove(document, AWAY_FROM_THE_NAME);
 
     const isLeftToThePage = fireEvent.keyDown(document.body, { key: "Escape" });
@@ -244,7 +249,7 @@ describe("a version's name on the chart and Escape", () => {
   it("lets go of the bead whose name Escape puts away under a pointer resting on it", async () => {
     await drawTheDay();
     const bead = await pointAtABead();
-    fireEvent.pointerLeave(bead);
+    leaveForThePage(bead);
     // jsdom lays nothing out: every box, the name's too, stands at the screen's corner.
     fireEvent.pointerMove(document, { clientX: 0, clientY: 0 });
     pointedChart = null;
@@ -265,7 +270,7 @@ describe("a version's name on the chart and Escape", () => {
     fireEvent.keyDown(slider, { key: "Escape" });
     await waitFor(() => expect(namesShown()).toHaveLength(1), SPRINGS_TIMEOUT);
 
-    fireEvent.pointerLeave(bead);
+    leaveForThePage(bead);
     fireEvent.pointerMove(document, { clientX: 0, clientY: 0 });
     await letTimePass(PAST_THE_GRACE_MS);
 
@@ -280,9 +285,9 @@ describe("a version's name on the chart and Escape", () => {
 
     // Off the first bead, over the next and off it again, between two of the page's frames.
     act(() => {
-      fireEvent.pointerLeave(first);
+      leaveForThePage(first);
       fireEvent.pointerEnter(next);
-      fireEvent.pointerLeave(next);
+      leaveForThePage(next);
     });
 
     // The first was left for another bead, and the next was never named: neither is held.
@@ -299,6 +304,18 @@ describe("a version's name on the chart and Escape", () => {
     fireEvent.pointerDown(bead, { button: 0, buttons: 1, pointerId: 1, pointerType: "mouse" });
     fireEvent.pointerLeave(bead, { buttons: 1, pointerId: 1, pointerType: "mouse" });
 
+    expect(isFilled(bead)).toBe(false);
+  });
+
+  it("holds no name for a bead the pointer leaves the page from", async () => {
+    await drawTheDay();
+    const bead = await pointAtABead();
+
+    // Off the window, the leave has nothing on the page to go to.
+    fireEvent.pointerLeave(bead, { relatedTarget: null });
+    await nextFrames();
+
+    // Gone at once, well inside the grace a leave onto the page would keep it for.
     expect(isFilled(bead)).toBe(false);
   });
 

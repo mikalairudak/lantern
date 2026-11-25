@@ -29,6 +29,8 @@ export interface BeadHover {
   isOn: boolean;
   /** Whether a button is held, as when a press on the bead hands the pointer to the chart. */
   isPressed: boolean;
+  /** Whether the pointer leaves the page as it leaves the bead, with nothing there to go to. */
+  isOffThePage: boolean;
 }
 
 interface NameHoldOptions {
@@ -50,7 +52,7 @@ export interface NameHold {
    * A bead's pointer came or went; leaving a bead whose name is shown keeps the name, so the
    * pointer can move onto it. Leaving one whose name is not shown, as one Escape put away or one
    * a sweep crossed before its name was drawn, keeps nothing, and nor does a press, whose
-   * pointer the chart takes.
+   * pointer the chart takes, or a pointer that leaves the page from the bead.
    */
   onHoverPlace: (hover: BeadHover, isNamed: boolean) => void;
   /** Ends a hold at once, as Escape puts its name away, so its bead no longer shows it named. */
@@ -157,10 +159,10 @@ export function useNameHold({
 
   return {
     heldPlace,
-    onHoverPlace: ({ placeId, isOn, isPressed }, isNamed) => {
+    onHoverPlace: ({ placeId, isOn, isPressed, isOffThePage }, isNamed) => {
       // The place left is the one held, not the one hovered when the chart last drew: a sweep
       // over several beads between two frames leaves each in turn.
-      setHeldPlace(!isOn && isNamed && !isPressed ? placeId : null);
+      setHeldPlace(!isOn && isNamed && !isPressed && !isOffThePage ? placeId : null);
       onHoverPlace(isOn ? placeId : null);
     },
     letGo: () => setHeldPlace(null),
