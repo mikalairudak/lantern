@@ -172,6 +172,44 @@ test("a pointer's name stays with the pointer flicked onto it in two moves", asy
   await expect(tagOf(page)).toHaveText(said ?? "");
 });
 
+/** On Kanazawa's day at a laptop's width, versions whose names lie off the bead's own pull. */
+const HELD_BEFORE_THE_FIRST_TOUCH = [
+  /^Gyokusen-inmaru Garden, /,
+  /^Soba in Katamachi, /,
+  /^Utatsuyama Craft Workshop Hill, /,
+];
+
+// Until the first touch the chart previews a pull; a name held off its bead previews none, so
+// the one bead filled is the bead whose name shows.
+test("a name held before the first touch previews no pull, and only its bead is filled", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "A finger never rests on a bead: a tap takes it.");
+  await page.setViewportSize(LAPTOP);
+  await openTheDay(page, "/day/kanazawa");
+  const beads = page.getByRole("button", { name: /, (quieter|livelier|same energy)$/ });
+
+  for (const name of HELD_BEFORE_THE_FIRST_TOUCH) {
+    await page.mouse.move(0, 0);
+    await expect(tagOf(page)).toHaveCount(0);
+    const bead = page.getByRole("button", { name });
+    await restOn(page, bead);
+    const { x, y } = await middleOf(wordsOf(page));
+    await page.mouse.move(x, y, { steps: POINTER_STEPS });
+    await page.waitForTimeout(PAST_THE_GRACE_MS);
+    await expect(tagOf(page)).toHaveCount(1);
+
+    await expect(page.locator("[data-preview]")).toHaveCount(0);
+    const filled = await beads.evaluateAll((all) =>
+      all
+        .filter((each) => each.querySelector("circle")?.classList.contains("fill-swap-drawn"))
+        .map((each) => each.getAttribute("aria-label")),
+    );
+    expect(filled).toEqual([await bead.getAttribute("aria-label")]);
+  }
+});
+
 test("a press on a row under a pointer's name reaches the row, and the name stays away", async ({
   page,
   isMobile,

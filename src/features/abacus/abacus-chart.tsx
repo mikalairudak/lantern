@@ -358,6 +358,37 @@ export function AbacusChart({
   const heldAt = pointer.pointerMinutes ?? inHand?.grabbedAt ?? null;
   const knob = heldAt === null ? null : pointOn(heldAt);
 
+  const keyed = keyedStop ?? inHand?.keyedStop ?? null;
+  // What the keys' focus names now: its stop at the version it shows, so a key's step names
+  // anew. A still's held slider has no focus, so the stop it holds is left out.
+  const focusNaming = keyedStop !== null ? `${keyedStop}:${energy.selected[keyedStop] ?? 0}` : null;
+  // Names put away by Escape stay away until their own source names anew (WCAG 1.4.13): the
+  // focus's until the focused stop or its version changes, the pointer's until the place it
+  // names changes.
+  if (focusNamesAway !== null && focusNamesAway !== focusNaming) setFocusNamesAway(null);
+  // The stop whose slider names its versions: the keys', unless Escape has put them away, and
+  // then the pointer names the place it is on.
+  const keyedNaming = focusNamesAway === null ? keyed : null;
+  /** Where the name of a place a pointer named stands on the screen, if it is drawn. */
+  const nameBoxOf = (placeId: string): ScreenBox | null => {
+    const tags = namesLayer.current?.querySelectorAll(`[${TAG_PLACE_ATTRIBUTE}]`) ?? [];
+    const tag = [...tags].find((each) => each.getAttribute(TAG_PLACE_ATTRIBUTE) === placeId);
+    // The words themselves: a name over its wire is drawn up from where its box stands.
+    return tag?.firstElementChild?.getBoundingClientRect() ?? null;
+  };
+  // A pointer's name is held off its bead only while one can show: a finger, a drag, an open
+  // sheet or the keys' names let it go.
+  const nameHold = useNameHold({
+    hoveredPlace,
+    isNameable:
+      isInteractive && !energy.isDragging && openStop === null && keyedNaming === null && !isTouch,
+    onHoverPlace,
+    nameBoxOf,
+  });
+  // The place a pointer names: the bead it is on, or the one whose name it has moved onto.
+  const pointedPlace = hoveredPlace ?? nameHold.heldPlace;
+  if (pointerNamesAway !== null && pointerNamesAway !== pointedPlace) setPointerNamesAway(null);
+
   // The page never changes the day by itself (2026-10-30). Until the first drag or tap the
   // chart draws, dashed over the day there is and changing nothing, the day a pull would
   // give: while the pointer is away, the example at the ring's stop; under a pointer that
@@ -375,8 +406,12 @@ export function AbacusChart({
       : isExampleShown && example
         ? energy.previewOf(example.minutes, example.levels)
         : null;
+  // A name held off its bead is what is being read: no pull is previewed under it, which would
+  // fill another stop's bead, or another of its own, than the one named.
   const preview: CurvePreview | null =
-    previewed && previewed.selected.some((pick, index) => pick !== energy.selected[index])
+    nameHold.heldPlace === null &&
+    previewed &&
+    previewed.selected.some((pick, index) => pick !== energy.selected[index])
       ? previewed
       : null;
   const previewPlaces = stops.map((stop, index) => {
@@ -579,36 +614,6 @@ export function AbacusChart({
   const dragged = energy.isDragging
     ? draggedVersionOf(stops, mids, energy.selected, energy.committed, heldAt)
     : null;
-  const keyed = keyedStop ?? inHand?.keyedStop ?? null;
-  // What the keys' focus names now: its stop at the version it shows, so a key's step names
-  // anew. A still's held slider has no focus, so the stop it holds is left out.
-  const focusNaming = keyedStop !== null ? `${keyedStop}:${energy.selected[keyedStop] ?? 0}` : null;
-  // Names put away by Escape stay away until their own source names anew (WCAG 1.4.13): the
-  // focus's until the focused stop or its version changes, the pointer's until the place it
-  // names changes.
-  if (focusNamesAway !== null && focusNamesAway !== focusNaming) setFocusNamesAway(null);
-  // The stop whose slider names its versions: the keys', unless Escape has put them away, and
-  // then the pointer names the place it is on.
-  const keyedNaming = focusNamesAway === null ? keyed : null;
-  /** Where the name of a place a pointer named stands on the screen, if it is drawn. */
-  const nameBoxOf = (placeId: string): ScreenBox | null => {
-    const tags = namesLayer.current?.querySelectorAll(`[${TAG_PLACE_ATTRIBUTE}]`) ?? [];
-    const tag = [...tags].find((each) => each.getAttribute(TAG_PLACE_ATTRIBUTE) === placeId);
-    // The words themselves: a name over its wire is drawn up from where its box stands.
-    return tag?.firstElementChild?.getBoundingClientRect() ?? null;
-  };
-  // A pointer's name is held off its bead only while one can show: a finger, a drag, an open
-  // sheet or the keys' names let it go.
-  const nameHold = useNameHold({
-    hoveredPlace,
-    isNameable:
-      isInteractive && !energy.isDragging && openStop === null && keyedNaming === null && !isTouch,
-    onHoverPlace,
-    nameBoxOf,
-  });
-  // The place a pointer names: the bead it is on, or the one whose name it has moved onto.
-  const pointedPlace = hoveredPlace ?? nameHold.heldPlace;
-  if (pointerNamesAway !== null && pointerNamesAway !== pointedPlace) setPointerNamesAway(null);
   // An open stop's sheet is what is being read: nothing is named over it.
   const named: NamedVersion[] =
     !isInteractive || energy.isDragging || openStop !== null
