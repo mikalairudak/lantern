@@ -335,7 +335,9 @@ describe("the palette", () => {
      * How much of the curve shows at a corner of a line's own box, its first or last letter at
      * its tallest or deepest: the mask's box stands a pad past it each way, and the blur lets
      * the curve back in towards the box's edge. Modelled as a true Gaussian blur at a square
-     * corner; Chromium's rounded box and shorter blur render at or under it.
+     * corner: Chromium's rounded box and shorter blur render at or under it, while a browser
+     * whose blur runs as long as the model's lets a little more through at the rounded corner.
+     * Amber holds here with nothing to spare, and stands in the gutter, clear of the curve.
      */
     const cornerShareOf = (grey: string): number => {
       const sigma = CHART.underWordsSoftness;
