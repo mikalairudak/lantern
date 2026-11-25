@@ -146,7 +146,6 @@ function holdsRoomOf(room: HTMLElement, height: number): void {
   vi.spyOn(room, "getBoundingClientRect").mockReturnValue({ height } as DOMRect);
 }
 
-/** The facts line on screen, before its unseen copy under the header. */
 /**
  * An element whose words are these, wherever its texts stand: the sun's word and its time
  * stand on either side of a space in a box of its own.
@@ -155,6 +154,7 @@ function wordsAre(words: string) {
   return (_: string, element: Element | null) => element?.textContent === words;
 }
 
+/** The facts line on screen, before its unseen copy under the header. */
 function factsLine(): HTMLElement {
   const line = document.querySelector<HTMLElement>("header p.type-note");
   if (!line) throw new Error("No facts line");
