@@ -1199,11 +1199,13 @@ export function Day({
   /**
    * The page's own written day whole in its play's place, seen on this device from now on, so it
    * never plays here again. Its city word takes the focus, as when a day lands from it: the press
-   * goes with the play, and the whole day reads from its headline down. The stream writes on
-   * unseen and ends the day's opening as complete, as the day on screen is.
+   * goes with the play, and the whole day reads from its headline down. The day's opening ends
+   * complete at the press, as the day on screen is, and the stream writes on unseen, told of no
+   * more.
    */
   const showWholeDay = () => {
     if (asked === null || pageOwnWhole === null || firstSeenKey === null) return;
+    events.end(asked.openedAs, "complete");
     markSeen(firstSeenKey);
     setAsked({ ...asked, run: asked.run + 1, whole: pageOwnWhole, isChosen: true });
   };

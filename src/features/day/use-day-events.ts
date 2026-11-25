@@ -69,6 +69,12 @@ export interface DayEvents {
   resume: (request: DayRequest, via: DayVia) => void;
   /** The day streaming was stopped with no day played in its place yet. */
   leave: () => void;
+  /**
+   * The day opened as this request ends now, this way, before its stream does, as a written day's
+   * play the visitor shows whole ends complete: whatever its stream does after, nothing more is
+   * told of it. A day not the one open, or one already ended or left, is told nothing.
+   */
+  end: (request: DayRequest, ended: DayOutcome["kind"]) => void;
 }
 
 /**
@@ -83,8 +89,8 @@ function sendCounted(event: ProductEvent, options: SendOptions): void {
 /**
  * The product's events about the days played (`docs/decisions.md`, "Product events are kept under a
  * visitor key that lives one day"): one `day-opened` for each, then exactly one of `day-ended`,
- * when its outcome arrives, or `day-left`, when another day replaces it, it is stopped, or the page
- * goes away before then. Counted only on the product's pages: anywhere else every event is dropped
+ * when its outcome arrives or the page ends it first (`end`), or `day-left`, when another day
+ * replaces it, it is stopped, or the page goes away before then. Counted only on the product's pages: anywhere else every event is dropped
  * here.
  */
 export function useDayEvents(
@@ -200,7 +206,17 @@ export function useDayEvents(
   }, [leaveDay]);
 
   const leave = useCallback(() => leaveDay(false), [leaveDay]);
-  return { send, act, answer, answered, open, resume, leave };
+
+  const end = useCallback(
+    (request: DayRequest, ended: DayOutcome["kind"]) => {
+      const current = opening.current;
+      if (current === null || current.isClosed || current.request !== request) return;
+      current.isClosed = true;
+      sendOut({ kind: "day-ended", ...current.day, view: readDayView(), outcome: ended }, false);
+    },
+    [sendOut],
+  );
+  return { send, act, answer, answered, open, resume, leave, end };
 }
 
 /** What a page remembers of having told that the start screen was opened. */

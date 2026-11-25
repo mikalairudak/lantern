@@ -595,29 +595,59 @@ describe("the gestures on a day, as the product counts them", () => {
     expect(sentOf("day-left")).toEqual([]);
   });
 
-  it("counts a written day shown whole from its play as one day, ended complete, never left", async () => {
-    localStorage.clear();
-    const kanazawa = writtenDayAt("kanazawa")!;
-    const version = writtenVersionOf(kanazawa.itinerary);
-    const user = userEvent.setup();
-    render(
-      <Day
-        first={KANAZAWA_START_REQUEST}
-        written={{ itinerary: kanazawa.itinerary, version, checks: {} }}
-        isAddressed
-        isCounted
-      />,
-    );
+  describe("a written day shown whole from its play, its stream still writing", () => {
+    /** Kanazawa's own page, unseen here, its play held after its first stops, then pressed. */
+    async function pressShowWhole() {
+      localStorage.clear();
+      dayReplies.push("held-after-first-stops");
+      const kanazawa = writtenDayAt("kanazawa")!;
+      const version = writtenVersionOf(kanazawa.itinerary);
+      const user = userEvent.setup();
+      render(
+        <Day
+          first={KANAZAWA_START_REQUEST}
+          written={{ itinerary: kanazawa.itinerary, version, checks: {} }}
+          isAddressed
+          isCounted
+        />,
+      );
+      await waitFor(
+        () => expect(within(dayList()).queryAllByRole("listitem").length).toBeGreaterThan(0),
+        DAY_TIMEOUT,
+      );
+      await user.click(screen.getByRole("button", { name: SHOW_WHOLE_DAY }));
+      return user;
+    }
+    const daysTold = () => sent().filter(({ kind }) => kind.startsWith("day-"));
 
-    await user.click(await screen.findByRole("button", { name: SHOW_WHOLE_DAY }, DAY_TIMEOUT));
-    await waitFor(() => expect(sentOf("day-ended")).toHaveLength(1), DAY_TIMEOUT);
+    it("is one day ended complete at the press, never left as the page goes", async () => {
+      await pressShowWhole();
 
-    expect(sent()).toEqual([
-      { kind: "day-opened", ...KANAZAWA_LINK },
-      { kind: "day-ended", ...KANAZAWA_LINK, ...ON_CHART, outcome: "complete" },
-    ]);
-    window.dispatchEvent(new PageTransitionEvent("pagehide"));
-    expect(sentOf("day-left")).toEqual([]);
+      pageHides();
+
+      expect(sent()).toEqual([
+        { kind: "day-opened", ...KANAZAWA_LINK },
+        { kind: "day-ended", ...KANAZAWA_LINK, ...ON_CHART, outcome: "complete" },
+      ]);
+    });
+
+    it("is ended complete, never left, as another day is played after it", async () => {
+      const user = await pressShowWhole();
+
+      await user.click(within(headline()).getByRole("button", { name: "Kanazawa" }));
+      await user.click(screen.getByRole("button", { name: /^Bologna/ }));
+      await waitFor(() => expect(sentOf("day-opened")).toHaveLength(2), DAY_TIMEOUT);
+
+      // The next day's own events follow as it plays, at whatever pace the machine gives it.
+      expect(daysTold().slice(0, 3)).toEqual([
+        { kind: "day-opened", ...KANAZAWA_LINK },
+        { kind: "day-ended", ...KANAZAWA_LINK, ...ON_CHART, outcome: "complete" },
+        { kind: "day-opened", city: "bologna", via: "word", written: true },
+      ]);
+      expect(daysTold().filter((told) => "city" in told && told.city === "kanazawa")).toHaveLength(
+        2,
+      );
+    });
   });
 
   // A day that came back empty is asked for again by the page, not the visitor: one opening.
