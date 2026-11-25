@@ -6,6 +6,7 @@ import { motionValue, type MotionValue } from "motion/react";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { CURATED_REQUESTS, KYOTO_REQUEST, LISBON_REQUEST } from "@/lib/fixtures/curated/requests";
 import { KANAZAWA_START_REQUEST, START_REQUESTS } from "@/lib/days/written/quick-starts";
+import { spacesBesideTextsOf } from "@/lib/fixtures/server-markup";
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
 import type { PartialDay } from "@/lib/stream/outcome";
 import { noticeOf } from "./stream-ending";
@@ -62,6 +63,10 @@ interface Handlers {
   /** The unseen copy the playing's first frame draws beside the header. */
   isCopy?: boolean;
 }
+
+/** A sunrise at 07:15 and a sunset at 18:40, in minutes after midnight. */
+const SUNRISE_MINUTES = 435;
+const SUNSET_MINUTES = 1120;
 
 /** Kyoto's day as Lantern wrote it: every word but the company assumed, and that one asked. */
 const KYOTO_ASSUMPTIONS: PartialDay["assumptions"] = {
@@ -135,25 +140,6 @@ function seenTextOf(element: Element): string {
     if (!node.parentElement?.closest(".opacity-0, .invisible")) text += node.textContent ?? "";
   }
   return text;
-}
-
-/**
- * What follows each text of nothing but spaces that the server writes before another text:
- * React parts the two with a comment, and Chrome leaves such a space out of the name of the
- * element that holds it, "Saturdayin". One shape of the spaces Chrome drops; the heading's name
- * as Chrome gives it is held by `e2e/seen-day.spec.ts`.
- */
-function spacesBeforeTextOf(element: Element): string[] {
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  const spaces: string[] = [];
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    let next = node.nextSibling;
-    while (next?.nodeType === Node.COMMENT_NODE) next = next.nextSibling;
-    if (node.textContent?.trim() === "" && next?.nodeType === Node.TEXT_NODE) {
-      spaces.push(next.textContent ?? "");
-    }
-  }
-  return spaces;
 }
 
 /** The header of a day whose model has assumed nothing, so only the city can be Lantern's. */
@@ -340,17 +326,34 @@ describe("DayStageHeader", () => {
     ["with a clause", "after a slow start", {}],
     ["with Lantern's words", null, KYOTO_ASSUMPTIONS],
   ])(
-    "writes no space of the headline on the server as a text of its own before another text, %s",
+    "writes no space of the headline on the server as a text of its own beside another text, %s",
     (_, clause, assumptions) => {
       const page = document.createElement("div");
       page.innerHTML = renderToString(headerOf(LISBON_REQUEST, clause, null, { assumptions }));
       const headline = page.querySelector("h1");
       if (!headline) throw new Error("The header has no headline");
 
-      expect(spacesBeforeTextOf(headline)).toEqual([]);
+      expect(spacesBesideTextsOf(headline.innerHTML)).toEqual([]);
       expect(headline.textContent).toContain(" in Lisbon");
     },
   );
+
+  it("writes the sun's times on the server with no space as a text of its own beside another text", () => {
+    const page = document.createElement("div");
+    page.innerHTML = renderToString(
+      cloneElement(headerOf(LISBON_REQUEST), {
+        sunrise: SUNRISE_MINUTES,
+        sunset: SUNSET_MINUTES,
+        isSunShown: true,
+      }),
+    );
+    const sunFacts = [...page.querySelectorAll("span")].filter((span) =>
+      /^sun(rise|set) /.test(span.textContent ?? ""),
+    );
+
+    expect(sunFacts.map((span) => span.textContent)).toContain("sunrise 07:15");
+    for (const span of sunFacts) expect(spacesBesideTextsOf(span.innerHTML)).toEqual([]);
+  });
 
   it("holds room for the longest clause the curve could say of any day", () => {
     renderHeader(PORTLAND);

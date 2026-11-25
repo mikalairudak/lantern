@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { LISBON_REQUEST } from "@/lib/fixtures/curated/requests";
+import { spacesBesideTextsOf } from "@/lib/fixtures/server-markup";
 import { QUICK_STARTS } from "@/lib/days/written/quick-starts";
 import { requestSentenceOf } from "./sentence";
 import { AskedSentence } from "./asked-sentence";
@@ -18,6 +20,20 @@ describe("AskedSentence", () => {
       const { container } = render(<AskedSentence request={request} />);
 
       expect(container.textContent).toBe(requestSentenceOf(request));
+    },
+  );
+
+  it.each([
+    ["at the start of a sentence", false],
+    ["mid-sentence", true],
+  ])(
+    "writes no space on the server as a text of its own beside another text, %s",
+    (_, isMidSentence) => {
+      const markup = renderToString(
+        <AskedSentence request={LISBON_REQUEST} isMidSentence={isMidSentence} />,
+      );
+
+      expect(spacesBesideTextsOf(markup)).toEqual([]);
     },
   );
 

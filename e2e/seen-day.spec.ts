@@ -1,4 +1,5 @@
 import { expect, test, type Page, waitMs } from "./fixtures";
+import { chromeReadOf } from "./chrome-tree";
 import { seeWrittenDay } from "./live-page";
 import { shownWrittenDayAt, writtenDayAt } from "../src/lib/days/written/days";
 
@@ -114,18 +115,24 @@ test("a day this device has seen names its headline from its first HTML with eve
   expect(await chromeHeadlineNameOf(page)).toBe(words);
 });
 
+test("a day this device has seen says the sun's times from its first HTML with each word apart", async ({
+  page,
+}) => {
+  await seeWrittenDay(page, "kanazawa", KANAZAWA);
+  await page.goto("/day/kanazawa");
+  await waitForTheDay(page);
+
+  // The server wrote the facts line; a space beside a word there is parted from it in the HTML.
+  const lines = (await chromeReadOf(page, "paragraph")).map(({ text }) => text);
+  const facts = lines.find((line) => line.includes("sunrise"));
+  expect(facts, "a facts line with the sun's times in Chrome's tree").toBeDefined();
+  expect(facts).toMatch(/sunrise \d\d:\d\d · sunset \d\d:\d\d/);
+});
+
 /** The headline's name as Chrome's accessibility tree gives it to a screen reader. */
 async function chromeHeadlineNameOf(page: Page): Promise<string> {
-  const cdp = await page.context().newCDPSession(page);
-  const { nodes } = await cdp.send("Accessibility.getFullAXTree");
-  await cdp.detach();
-  const headline = nodes.find(
-    (node) =>
-      !node.ignored &&
-      node.role?.value === "heading" &&
-      node.properties?.some(({ name, value }) => name === "level" && value.value === 1),
-  );
-  return String(headline?.name?.value ?? "");
+  const headings = await chromeReadOf(page, "heading");
+  return headings.find(({ level }) => level === 1)?.name ?? "";
 }
 
 test.describe("with motion", () => {

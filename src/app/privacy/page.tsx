@@ -92,13 +92,17 @@ async function Notice() {
   );
   return (
     <>
+      {/* A space beside a value or a term stands in a box of its own: as a text beside
+          another text, the server parts the two with a comment and Chrome drops the space
+          from the line a screen reader is given, "kept for 30days". */}
       <Section heading="In short">
         <ul className="flex flex-col gap-2 type-voice text-dek text-ink-soft">
           <li>Lantern has no accounts and sets no cookies.</li>
           {isLive ? (
             <>
               <li>
-                What you type is read by an AI model to plan your day, and kept for{" "}
+                What you type is read by an AI model to plan your day, and kept for
+                <span> </span>
                 {VISITOR_TEXT_RETENTION_DAYS} days.
               </li>
               <li>
@@ -125,7 +129,8 @@ async function Notice() {
           <li>
             <span className={TERM_CLASSES}>Your text.</span> An AI model reads it once to understand
             the request: the city, the date and the kind of day you want. The day is written from
-            that request, not from your words. Your text is kept for {VISITOR_TEXT_RETENTION_DAYS}{" "}
+            that request, not from your words. Your text is kept for {VISITOR_TEXT_RETENTION_DAYS}
+            <span> </span>
             days. Leave out anything you&apos;d rather not share, such as a name or a phone number.
           </li>
           <li>
@@ -139,7 +144,8 @@ async function Notice() {
             The link shows the day and its request, never what you typed.
           </li>
           <li>
-            <span className={TERM_CLASSES}>A count of your requests.</span> Lantern writes up to{" "}
+            <span className={TERM_CLASSES}>A count of your requests.</span> Lantern writes up to
+            <span> </span>
             {VISITOR_DAILY_LIMITS.day} days and reads up to {VISITOR_DAILY_LIMITS.intake} texts per
             visitor a day. To count them, it keeps a code made from your IP address with a secret
             key. The code can&apos;t be turned back into your address, but it isn&apos;t anonymous:
@@ -163,7 +169,10 @@ async function Notice() {
             which it drops after a day.
           </li>
           <li>
-            <span className={TERM_CLASSES}>In your browser.</span> {browserStorageLine()}{" "}
+            <span className={TERM_CLASSES}>In your browser.</span>
+            <span> </span>
+            {browserStorageLine()}
+            <span> </span>
             &ldquo;Forget these days&rdquo; clears the list of your days, and what your browser
             keeps of every day Lantern keeps for you or that you opened by its link: whether you
             watched it to the end, the places you chose on it, and the words of yours it could not

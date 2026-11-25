@@ -4,6 +4,7 @@ import { FAILED_NOTE, READING_NOTE } from "@/features/itinerary/use-still";
 import { KANAZAWA_START_DAY } from "@/lib/days/written/kanazawa";
 import { LISBON_DAY } from "@/lib/fixtures/curated/lisbon";
 import type { DayOutcome } from "@/lib/stream/outcome";
+import { wordsAre } from "@/lib/fixtures/server-markup";
 import { noticeOf } from "./stream-ending";
 import {
   BEING_WRITTEN,
@@ -252,7 +253,7 @@ describe("the day stage header's matrix", () => {
     await renderCell("written", LISBON);
 
     expect(liveDek(LISBON_DAY.day.dek)).toHaveTextContent(LISBON_DAY.day.dek);
-    expect(screen.getAllByText("sunrise 07:18")[0]).toBeInTheDocument();
+    expect(screen.getAllByText(wordsAre("sunrise 07:18"))[0]).toBeInTheDocument();
     expect(screen.getAllByText("click a word to change it")[0]).toBeInTheDocument();
   });
 
