@@ -88,8 +88,8 @@ export function KeptDayPage({ id, stored: first, isLive }: KeptDayPageProps) {
   // up, or, on any turn to no day (the wait over with none, or the day this browser asked
   // gone from its list since), the headline, held as long as a notice is. The page never
   // opens on no day: an address with no record waits first, so each no day is a turn. Behind
-  // another tab the status says nothing, and the headline's hold runs from the moment the page
-  // is seen (`usePageSeen`).
+  // another tab the headline is not said, and its hold runs from the moment the page is seen
+  // (`usePageSeen`); the day's notice comes held by its header's own rule.
   const [heardNotice, setHeardNotice] = useState("");
   const [lastKind, setLastKind] = useState(view.kind);
   const [isNoDaySaid, setIsNoDaySaid] = useState(false);
@@ -103,10 +103,10 @@ export function KeptDayPage({ id, stored: first, isLive }: KeptDayPageProps) {
     const quiet = window.setTimeout(() => setIsNoDaySaid(false), NOTICE_HEARD_MS);
     return () => window.clearTimeout(quiet);
   }, [isNoDaySaid, isSeen]);
-  const keptLine = isNoDaySaid ? NO_DAY_HERE : heardNotice;
+  const noDayLine = isSeen ? NO_DAY_HERE : "";
   return (
     <>
-      <NoticeStatus line={isSeen ? keptLine : ""} />
+      <NoticeStatus line={isNoDaySaid ? noDayLine : heardNotice} />
       <NoticeStatusContext value={setHeardNotice}>
         {isUnknown && !isHydrated ? null : view.kind === "day" ? (
           <Day kept={view.landing} isLive={isLive} isAddressed isCounted />
