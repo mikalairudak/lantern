@@ -653,7 +653,7 @@ export function AbacusChart({
   const isStill = inHand !== undefined;
   const putAwayOnEscape = useEffectEvent((event: KeyboardEvent) => {
     if (event.key !== "Escape" || event.defaultPrevented) return;
-    if (nameHold.heldPlace === null && !chartBox.current?.matches(":hover")) return;
+    if (!chartBox.current?.matches(":hover") && !nameHold.isPointerOnName()) return;
     if (putNamesAway()) event.preventDefault();
   });
   useEffect(() => {

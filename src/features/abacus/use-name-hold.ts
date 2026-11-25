@@ -43,6 +43,8 @@ export interface NameHold {
   onHoverPlace: (placeId: string | null, isNameShown: boolean) => void;
   /** Ends a hold at once, as Escape puts its name away, so its bead no longer shows it named. */
   letGo: () => void;
+  /** Whether the pointer stands on the held name now, as far as its moves have said. */
+  isPointerOnName: () => boolean;
 }
 
 /** Whether a point stands inside a box, its edges included. */
@@ -135,5 +137,9 @@ export function useNameHold({
       onHoverPlace(placeId);
     },
     letGo: () => setHeldPlace(null),
+    isPointerOnName: () => {
+      const box = heldPlace === null ? null : nameBoxOf(heldPlace);
+      return box !== null && pointer.current !== null && isInside(box, pointer.current);
+    },
   };
 }

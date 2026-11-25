@@ -202,14 +202,30 @@ describe("a version's name on the chart and Escape", () => {
   it("puts away a name the pointer holds off its bead and off the chart", async () => {
     await drawTheDay();
     const bead = await pointAtABead();
-    // On its way to the name, which may lie over a row's words, off the chart.
+    // On the name, which may lie over a row's words, off the chart. jsdom lays nothing out:
+    // every box, the name's too, stands at the screen's corner.
     fireEvent.pointerLeave(bead);
+    fireEvent.pointerMove(document, { clientX: 0, clientY: 0 });
     pointedChart = null;
 
     const isLeftToThePage = fireEvent.keyDown(document.body, { key: "Escape" });
 
     expect(isLeftToThePage).toBe(false);
     await waitFor(() => expect(namesShown()).toHaveLength(0));
+  });
+
+  it("leaves an Escape to the page while a pointer that left its bead is off the chart and the name", async () => {
+    await drawTheDay();
+    const bead = await pointAtABead();
+    fireEvent.pointerLeave(bead);
+    fireEvent.pointerMove(document, AWAY_FROM_THE_NAME);
+    pointedChart = null;
+
+    const isLeftToThePage = fireEvent.keyDown(document.body, { key: "Escape" });
+
+    expect(isLeftToThePage).toBe(true);
+    // Still in its grace, the name is not put away by an Escape that was the page's.
+    expect(namesShown()).toHaveLength(1);
   });
 
   it("lets go of the bead whose name Escape puts away under a pointer resting on it", async () => {

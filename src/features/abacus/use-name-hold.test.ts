@@ -284,6 +284,22 @@ describe("a version's name held under the pointer", () => {
     expect(view.result.current.heldPlace).toBeNull();
   });
 
+  it("says the pointer is on the held name only while it stands on it", () => {
+    const { view, hover } = holdNames();
+    hover(BEAD);
+    hover(null);
+    // Not known to be anywhere until it moves.
+    expect(view.result.current.isPointerOnName()).toBe(false);
+
+    movePointer(OFF_THE_NAME);
+    expect(view.result.current.isPointerOnName()).toBe(false);
+    movePointer(ON_THE_NAME);
+    expect(view.result.current.isPointerOnName()).toBe(true);
+
+    act(() => view.result.current.letGo());
+    expect(view.result.current.isPointerOnName()).toBe(false);
+  });
+
   it("leaves no grace running once the chart is gone", () => {
     const { view, hover } = holdNames();
     hover(BEAD);
