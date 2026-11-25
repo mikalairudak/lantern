@@ -18,7 +18,11 @@ function subscribeVisibility(onChange: () => void): () => void {
   return () => document.removeEventListener("visibilitychange", onChange);
 }
 
-function isPageSeenNow(): boolean {
+/**
+ * Whether the page is on screen now: "visible" alone, so a page drawn before its visit, which
+ * some browsers call "prerender", is not seen either.
+ */
+export function isPageSeen(): boolean {
   return document.visibilityState === "visible";
 }
 
@@ -36,7 +40,7 @@ function isPageSeenOnServer(): boolean {
  * page as seen.
  */
 export function usePageSeen(): boolean {
-  return useSyncExternalStore(subscribeVisibility, isPageSeenNow, isPageSeenOnServer);
+  return useSyncExternalStore(subscribeVisibility, isPageSeen, isPageSeenOnServer);
 }
 
 /**

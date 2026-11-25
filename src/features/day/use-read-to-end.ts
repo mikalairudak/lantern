@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
+import { isPageSeen } from "./notice-status";
 
 /**
  * How long the line under a whole day stays in view before the day counts as read to its end:
@@ -14,7 +15,7 @@ export const READ_TO_END_SHARE = 0.5;
 /**
  * Calls `onRead` once the element has stayed in view for `READ_TO_END_MS`, and never again
  * for the same `read`, the thing the element ends; another is watched afresh. The wait starts
- * again from nothing whenever the element leaves the screen or the page is hidden, and ends
+ * again from nothing whenever the element leaves the screen or the page is not seen, and ends
  * unspent when the element goes, as when the visitor plays another day or leaves the page, so
  * a day left first is never counted. Without `onRead`, or in a browser that cannot tell what
  * is on screen, nothing is watched.
@@ -56,7 +57,7 @@ export function useReadToEnd(
       latest.current?.();
     };
     function waitWhileInView() {
-      const isShown = isInView && document.visibilityState !== "hidden";
+      const isShown = isInView && isPageSeen();
       if (!isShown) stopWaiting();
       else if (wait === undefined) wait = window.setTimeout(tell, READ_TO_END_MS);
     }
