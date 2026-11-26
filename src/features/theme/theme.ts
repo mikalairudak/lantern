@@ -67,11 +67,14 @@ let lastChoice: ThemeChoice = "system";
 /** The crossing under way, from the press that starts it until its pictures are gone. */
 let crossing: ViewTransition | null = null;
 /**
- * The wait after a theme set at once, as long as a crossing would have taken, during which the
- * theme's button takes no press either: the page then turns no faster than it does when it
- * crosses, under three flashes a second (WCAG 2.3.1).
+ * The wait after a theme set at once, during which the theme's button takes no press either: a
+ * crossing's length, counted from the frame after the one that paints the new theme, so the page
+ * turns no faster than it does when it crosses, under three flashes a second (WCAG 2.3.1). It
+ * stands from the press, and is a token so that a later wait ends only itself.
  */
-let turnWait: ReturnType<typeof setTimeout> | null = null;
+let turnWait: object | null = null;
+/** Milliseconds in a second, for a length a stylesheet writes in seconds. */
+const MS_PER_SECOND = 1000;
 
 /** Sets a choice on `<html>`: its theme, and the note the theme's button reads. */
 function setRootTheme(choice: ThemeChoice): void {
@@ -121,13 +124,13 @@ export function shownLookOf(choice: ThemeChoice): ThemeLook {
 }
 
 /**
- * Whether the page is crossing from one theme to the other, or waits the length of a crossing
- * after a theme set at once. The theme's button takes no press meanwhile, from a pointer or the
- * keys: a second crossing would cut the first short, and the page would snap to the end of a
- * fade it was halfway through; a theme set at once, as under reduced motion, would otherwise
+ * Whether the page is turning from one theme to the other: crossing, or waiting a crossing's
+ * length after a theme set at once. The theme's button takes no press meanwhile, from a pointer
+ * or the keys: a second crossing would cut the first short, and the page would snap to the end
+ * of a fade it was halfway through; a theme set at once, as under reduced motion, would otherwise
  * turn the page as fast as it is pressed.
  */
-export function isThemeCrossing(): boolean {
+export function isThemeTurning(): boolean {
   return crossing !== null || turnWait !== null;
 }
 
@@ -142,14 +145,26 @@ function crossingMs(): number {
     .trim();
   const value = Number.parseFloat(length);
   if (!Number.isFinite(value)) return 0;
-  return length.endsWith("ms") ? value : value * 1000;
+  return length.endsWith("ms") ? value : value * MS_PER_SECOND;
 }
 
-/** Holds the theme's button still for a crossing's length after a theme set at once. */
+/**
+ * Holds the theme's button still after a theme set at once, until a crossing's length has passed
+ * since the frame after the new theme's first: the second frame's callback runs once the first
+ * has painted, however long that paint took.
+ */
 function waitOutATurn(): void {
-  if (turnWait !== null) clearTimeout(turnWait);
   const length = crossingMs();
-  turnWait = length > 0 ? setTimeout(() => (turnWait = null), length) : null;
+  if (length <= 0) {
+    turnWait = null;
+    return;
+  }
+  const wait = {};
+  turnWait = wait;
+  const end = () => {
+    if (turnWait === wait) turnWait = null;
+  };
+  requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(end, length)));
 }
 
 /** The look the page stands in now: what `<html>` carries, on this device. */
@@ -214,7 +229,7 @@ function showLastChoice(): void {
  * choice changes what the page looks like, the page crosses to it: the browser's view
  * transition of the root fades the last frame in the old theme into the live page in the new
  * (`--duration-theme`, linear, in `globals.css`). Chromium lets no pointer through to the page
- * meanwhile, and the theme's button takes no press until it has ended (`isThemeCrossing`). A
+ * meanwhile, and the theme's button takes no press until it has ended (`isThemeTurning`). A
  * choice that changes no colour, as every choice under forced colours, reduced motion and a
  * browser without view transitions set it at once; where that changes what the page looks
  * like, the button then takes no press for as long as a crossing takes (`docs/decisions.md`,

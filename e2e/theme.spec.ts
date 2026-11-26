@@ -498,9 +498,10 @@ for (const motion of ["no-preference", "reduce"] as const) {
     await crossingEnded(page);
     const gaps = turnedAt.slice(1).map((at, index) => at - turnedAt[index]!);
     // Presses are still taken once a crossing's length has passed, and never sooner: at most
-    // five turns a second, two and a half light-and-back cycles, under WCAG's three flashes.
+    // five turns a second, two and a half light-and-back cycles, under WCAG's three flashes. A
+    // millisecond less, for the clock's own jitter between two readings.
     expect(turnedAt.length).toBeGreaterThanOrEqual(2);
-    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(CROSSING_MS);
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(CROSSING_MS - 1);
   });
 }
 

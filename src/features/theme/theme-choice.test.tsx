@@ -8,10 +8,14 @@ import { ThemeButtonCell } from "./theme-button-cell";
 
 const root = document.documentElement;
 
+/** Long enough for a theme's wait after a look set at once: its two frames, then its length. */
+const WAIT_OUT_MS = 1000;
+
 afterEach(() => {
-  // A test that set the stylesheet's crossing on fake timers lets its wait end, pass or fail.
+  // A test that set the stylesheet's crossing on fake timers lets its wait end, pass or fail:
+  // its frames, then its length.
   if (vi.isFakeTimers()) {
-    vi.runOnlyPendingTimers();
+    vi.advanceTimersByTime(WAIT_OUT_MS);
     vi.useRealTimers();
   }
   root.style.removeProperty("--duration-theme");
@@ -129,7 +133,12 @@ describe("the theme's button", () => {
     render(<ThemeChoice />);
     fireEvent.click(themeButton());
     expect(root.getAttribute("data-theme")).toBe("dark");
-    act(() => vi.advanceTimersByTime(199));
+    // The new look's first frame, and the one after it, from which the wait is counted.
+    act(() => {
+      vi.advanceTimersToNextFrame();
+      vi.advanceTimersToNextFrame();
+      vi.advanceTimersByTime(199);
+    });
     fireEvent.click(themeButton());
     // Refused: the look and its word stand.
     expect(root.getAttribute("data-theme")).toBe("dark");

@@ -5,7 +5,7 @@ import {
   THEME_STORAGE_KEY,
   applyThemeChoice,
   nextThemeChoice,
-  isThemeCrossing,
+  isThemeTurning,
   readShownLook,
   readThemeChoice,
   restoreThemeChoice,
@@ -16,10 +16,14 @@ import {
 
 const root = document.documentElement;
 
+/** Long enough for a theme's wait after a look set at once: its two frames, then its length. */
+const WAIT_OUT_MS = 1000;
+
 afterEach(() => {
-  // A test that set the stylesheet's crossing on fake timers lets its wait end, pass or fail.
+  // A test that set the stylesheet's crossing on fake timers lets its wait end, pass or fail:
+  // its frames, then its length.
   if (vi.isFakeTimers()) {
-    vi.runOnlyPendingTimers();
+    vi.advanceTimersByTime(WAIT_OUT_MS);
     vi.useRealTimers();
   }
   root.style.removeProperty("--duration-theme");
@@ -279,11 +283,14 @@ describe("a theme chosen on the page", () => {
       stubBrowser(browser);
       applyThemeChoice("dark");
       expect(root.getAttribute("data-theme")).toBe("dark");
-      expect(isThemeCrossing()).toBe(true);
+      expect(isThemeTurning()).toBe(true);
+      // Counted from the frame after the new theme's first, not from the press.
+      vi.advanceTimersToNextFrame();
+      vi.advanceTimersToNextFrame();
       vi.advanceTimersByTime(199);
-      expect(isThemeCrossing()).toBe(true);
+      expect(isThemeTurning()).toBe(true);
       vi.advanceTimersByTime(1);
-      expect(isThemeCrossing()).toBe(false);
+      expect(isThemeTurning()).toBe(false);
     },
   );
 
@@ -292,7 +299,7 @@ describe("a theme chosen on the page", () => {
     root.style.setProperty("--duration-theme", "200ms");
     stubBrowser({ motion: "reduce", isForced: true });
     applyThemeChoice("dark");
-    expect(isThemeCrossing()).toBe(false);
+    expect(isThemeTurning()).toBe(false);
   });
 
   it("tells every word once the crossing sets the theme, not before", () => {
@@ -400,16 +407,16 @@ describe("a press on the theme's button", () => {
         return { finished: new Promise<void>((resolve) => (finish = resolve)) };
       },
     });
-    expect(isThemeCrossing()).toBe(false);
+    expect(isThemeTurning()).toBe(false);
     applyThemeChoice("dark");
-    expect(isThemeCrossing()).toBe(true);
+    expect(isThemeTurning()).toBe(true);
     update();
     // The theme is set, and the fade to it still runs.
     expect(readShownLook()).toBe("dark");
-    expect(isThemeCrossing()).toBe(true);
+    expect(isThemeTurning()).toBe(true);
     finish();
     await Promise.resolve();
-    expect(isThemeCrossing()).toBe(false);
+    expect(isThemeTurning()).toBe(false);
     Reflect.deleteProperty(document, "startViewTransition");
   });
 });
