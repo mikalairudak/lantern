@@ -9,6 +9,12 @@ import { ThemeButtonCell } from "./theme-button-cell";
 const root = document.documentElement;
 
 afterEach(() => {
+  // A test that set the stylesheet's crossing on fake timers lets its wait end, pass or fail.
+  if (vi.isFakeTimers()) {
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+  }
+  root.style.removeProperty("--duration-theme");
   Reflect.deleteProperty(document, "startViewTransition");
   vi.unstubAllGlobals();
   root.removeAttribute("data-theme");
@@ -113,6 +119,26 @@ describe("the theme's button", () => {
     expect(themeButton()).toHaveFocus();
     await userEvent.keyboard(" ");
     expect(root.hasAttribute("data-theme")).toBe(false);
+  });
+
+  it("takes no press for a crossing's length after a look set at once, and the next after it", () => {
+    vi.useFakeTimers();
+    // The stylesheet's crossing, which jsdom applies no stylesheet to give.
+    root.style.setProperty("--duration-theme", "200ms");
+    stubDevice("light");
+    render(<ThemeChoice />);
+    fireEvent.click(themeButton());
+    expect(root.getAttribute("data-theme")).toBe("dark");
+    act(() => vi.advanceTimersByTime(199));
+    fireEvent.click(themeButton());
+    // Refused: the look and its word stand.
+    expect(root.getAttribute("data-theme")).toBe("dark");
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("dark");
+    expect(screen.getByRole("status")).toHaveTextContent("The page is dark");
+    act(() => vi.advanceTimersByTime(1));
+    fireEvent.click(themeButton());
+    expect(root.hasAttribute("data-theme")).toBe(false);
+    expect(screen.getByRole("status")).toHaveTextContent("The page is light");
   });
 
   it("takes no press from the keys while the page crosses, and the next once it has", async () => {

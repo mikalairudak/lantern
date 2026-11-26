@@ -17,6 +17,12 @@ import {
 const root = document.documentElement;
 
 afterEach(() => {
+  // A test that set the stylesheet's crossing on fake timers lets its wait end, pass or fail.
+  if (vi.isFakeTimers()) {
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+  }
+  root.style.removeProperty("--duration-theme");
   root.removeAttribute("data-theme");
   root.removeAttribute(THEME_CHOICE_ATTRIBUTE);
   localStorage.clear();
@@ -278,8 +284,6 @@ describe("a theme chosen on the page", () => {
       expect(isThemeCrossing()).toBe(true);
       vi.advanceTimersByTime(1);
       expect(isThemeCrossing()).toBe(false);
-      root.style.removeProperty("--duration-theme");
-      vi.useRealTimers();
     },
   );
 
@@ -289,8 +293,6 @@ describe("a theme chosen on the page", () => {
     stubBrowser({ motion: "reduce", isForced: true });
     applyThemeChoice("dark");
     expect(isThemeCrossing()).toBe(false);
-    root.style.removeProperty("--duration-theme");
-    vi.useRealTimers();
   });
 
   it("tells every word once the crossing sets the theme, not before", () => {
