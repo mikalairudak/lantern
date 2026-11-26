@@ -475,6 +475,36 @@ test("two presses of Enter while the page crosses turn it once, and the crossing
   await expect(page.locator("html")).not.toHaveAttribute("data-theme");
 });
 
+for (const motion of ["no-preference", "reduce"] as const) {
+  test(`presses faster than a crossing turn the page no faster than one, with motion ${motion}`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: "light", reducedMotion: motion });
+    await page.goto("/");
+    const button = page.getByRole("button", { name: "Switch to dark theme" });
+    // A press every 20 ms for a second, each from script, so no pointer waits on the page.
+    const turnedAt = await button.evaluate(async (element) => {
+      const turns: number[] = [];
+      new MutationObserver(() => turns.push(performance.now())).observe(document.documentElement, {
+        attributeFilter: ["data-theme"],
+      });
+      const start = performance.now();
+      while (performance.now() - start < 1000) {
+        (element as HTMLElement).click();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      return turns;
+    });
+    await crossingEnded(page);
+    const gaps = turnedAt.slice(1).map((at, index) => at - turnedAt[index]!);
+    // Presses are still taken once a crossing's length has passed, and never sooner: at most
+    // five turns a second, two and a half light-and-back cycles, under WCAG's three flashes. A
+    // millisecond less, for the clock's own jitter between two readings.
+    expect(turnedAt.length).toBeGreaterThanOrEqual(2);
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(CROSSING_MS - 1);
+  });
+}
+
 test("Escape puts away the helper a pointer raised, with the focus elsewhere", async ({
   page,
   isMobile,

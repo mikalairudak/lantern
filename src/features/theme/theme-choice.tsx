@@ -7,7 +7,7 @@ import { LIST_SHEET_CLASSES } from "@/features/day/word-list";
 import { ICON_SIZES, ICON_STROKE_WIDTH } from "@/lib/tokens/icon";
 import {
   applyThemeChoice,
-  isThemeCrossing,
+  isThemeTurning,
   nextThemeChoice,
   readShownLook,
   readThemeChoice,
@@ -237,10 +237,11 @@ export function ThemeButton({
 
 /**
  * Turns the page to the other look, and keeps the choice that makes (`nextThemeChoice`). A press
- * while the page still crosses from the last one is not taken.
+ * while the page still turns from the last one, crossing or waiting a crossing's length after a
+ * look set at once, is not taken (`isThemeTurning`).
  */
 function turnThePage(): ThemeLook | null {
-  if (isThemeCrossing()) return null;
+  if (isThemeTurning()) return null;
   const choice = nextThemeChoice(readThemeChoice());
   applyThemeChoice(choice);
   return shownLookOf(choice);

@@ -5,7 +5,7 @@ import {
   THEME_STORAGE_KEY,
   applyThemeChoice,
   nextThemeChoice,
-  isThemeCrossing,
+  isThemeTurning,
   readShownLook,
   readThemeChoice,
   restoreThemeChoice,
@@ -16,7 +16,17 @@ import {
 
 const root = document.documentElement;
 
+/** Long enough for a theme's wait after a look set at once: its two frames, then its length. */
+const WAIT_OUT_MS = 1000;
+
 afterEach(() => {
+  // A test that set the stylesheet's crossing on fake timers lets its wait end, pass or fail:
+  // its frames, then its length.
+  if (vi.isFakeTimers()) {
+    vi.advanceTimersByTime(WAIT_OUT_MS);
+    vi.useRealTimers();
+  }
+  root.style.removeProperty("--duration-theme");
   root.removeAttribute("data-theme");
   root.removeAttribute(THEME_CHOICE_ATTRIBUTE);
   localStorage.clear();
@@ -262,6 +272,36 @@ describe("a theme chosen on the page", () => {
     expect(root.getAttribute("data-theme")).toBe("dark");
   });
 
+  it.each([
+    ["under reduced motion", "200ms", { motion: "reduce" }],
+    ["where the browser has no view transitions", ".2s", { hasViewTransitions: false }],
+  ] as const)(
+    "%s, takes no press for a crossing's length (%s) after a theme set at once",
+    (_, length, browser) => {
+      vi.useFakeTimers();
+      root.style.setProperty("--duration-theme", length);
+      stubBrowser(browser);
+      applyThemeChoice("dark");
+      expect(root.getAttribute("data-theme")).toBe("dark");
+      expect(isThemeTurning()).toBe(true);
+      // Counted from the frame after the new theme's first, not from the press.
+      vi.advanceTimersToNextFrame();
+      vi.advanceTimersToNextFrame();
+      vi.advanceTimersByTime(199);
+      expect(isThemeTurning()).toBe(true);
+      vi.advanceTimersByTime(1);
+      expect(isThemeTurning()).toBe(false);
+    },
+  );
+
+  it("takes the next press at once after a choice that changes nothing seen", () => {
+    vi.useFakeTimers();
+    root.style.setProperty("--duration-theme", "200ms");
+    stubBrowser({ motion: "reduce", isForced: true });
+    applyThemeChoice("dark");
+    expect(isThemeTurning()).toBe(false);
+  });
+
   it("tells every word once the crossing sets the theme, not before", () => {
     stubBrowser({});
     const onChange = vi.fn();
@@ -367,16 +407,16 @@ describe("a press on the theme's button", () => {
         return { finished: new Promise<void>((resolve) => (finish = resolve)) };
       },
     });
-    expect(isThemeCrossing()).toBe(false);
+    expect(isThemeTurning()).toBe(false);
     applyThemeChoice("dark");
-    expect(isThemeCrossing()).toBe(true);
+    expect(isThemeTurning()).toBe(true);
     update();
     // The theme is set, and the fade to it still runs.
     expect(readShownLook()).toBe("dark");
-    expect(isThemeCrossing()).toBe(true);
+    expect(isThemeTurning()).toBe(true);
     finish();
     await Promise.resolve();
-    expect(isThemeCrossing()).toBe(false);
+    expect(isThemeTurning()).toBe(false);
     Reflect.deleteProperty(document, "startViewTransition");
   });
 });
