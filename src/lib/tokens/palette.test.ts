@@ -307,16 +307,10 @@ describe("the palette", () => {
       expect(grey.slice(5, 7)).toBe(grey.slice(1, 3));
     });
 
-    /**
-     * The 13 px words a row sets over the curve, by theme. By day the energy word is left out:
-     * it measures about 4.16:1 over the curve, a known issue (docs/accessibility.md, 1.4.3).
-     */
-    const OVER_CURVE: [string, Theme][] = [
-      ...THEMES.flatMap((theme) =>
-        ["muted", "amber", "swap"].map((name): [string, Theme] => [name, theme]),
-      ),
-      ["energy", "dark"],
-    ];
+    /** The 13 px words a row sets over the curve, in both themes. */
+    const OVER_CURVE: [string, Theme][] = THEMES.flatMap((theme) =>
+      ["muted", "amber", "swap", "energy"].map((name): [string, Theme] => [name, theme]),
+    );
 
     /** The share of a standard normal distribution under a value: how far a blur has stepped. */
     const normalShare = (value: number): number => {
