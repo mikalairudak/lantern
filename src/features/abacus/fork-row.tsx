@@ -4,6 +4,7 @@ import { motion, useReducedMotionConfig } from "motion/react";
 import { useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { cn } from "@/components/ui/cn";
 import { SPRINGS } from "@/lib/tokens/motion";
+import { isForkArrow } from "@/features/day/fork-arrows";
 import type { ForkSide } from "@/features/day/replan-controls";
 import type { ForkView } from "@/features/day/replan-work";
 import type { Drawing } from "./rows";
@@ -175,10 +176,9 @@ export function ForkRow({
   // They act on an answer alone: "Compare" stands in the row's group but is a button of its own,
   // and an arrow there must not take the other answer and undo the day.
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const isArrow = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key);
     const isOnAnAnswer =
       event.target instanceof Element && event.target.getAttribute("role") === "radio";
-    if (!isArrow || !isOnAnAnswer || !isToEnabled) return;
+    if (!isForkArrow(event) || !isOnAnAnswer || !isToEnabled) return;
     event.preventDefault();
     const next: ForkSide = view.chosen === "from" ? "to" : "from";
     choose(next);
