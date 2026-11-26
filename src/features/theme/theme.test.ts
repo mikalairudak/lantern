@@ -262,6 +262,37 @@ describe("a theme chosen on the page", () => {
     expect(root.getAttribute("data-theme")).toBe("dark");
   });
 
+  it.each([
+    ["under reduced motion", "200ms", { motion: "reduce" }],
+    ["where the browser has no view transitions", ".2s", { hasViewTransitions: false }],
+  ] as const)(
+    "%s, takes no press for a crossing's length (%s) after a theme set at once",
+    (_, length, browser) => {
+      vi.useFakeTimers();
+      root.style.setProperty("--duration-theme", length);
+      stubBrowser(browser);
+      applyThemeChoice("dark");
+      expect(root.getAttribute("data-theme")).toBe("dark");
+      expect(isThemeCrossing()).toBe(true);
+      vi.advanceTimersByTime(199);
+      expect(isThemeCrossing()).toBe(true);
+      vi.advanceTimersByTime(1);
+      expect(isThemeCrossing()).toBe(false);
+      root.style.removeProperty("--duration-theme");
+      vi.useRealTimers();
+    },
+  );
+
+  it("takes the next press at once after a choice that changes nothing seen", () => {
+    vi.useFakeTimers();
+    root.style.setProperty("--duration-theme", "200ms");
+    stubBrowser({ motion: "reduce", isForced: true });
+    applyThemeChoice("dark");
+    expect(isThemeCrossing()).toBe(false);
+    root.style.removeProperty("--duration-theme");
+    vi.useRealTimers();
+  });
+
   it("tells every word once the crossing sets the theme, not before", () => {
     stubBrowser({});
     const onChange = vi.fn();

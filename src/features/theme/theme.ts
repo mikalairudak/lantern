@@ -66,6 +66,12 @@ const STILL_ATTRIBUTE = "data-theme-still";
 let lastChoice: ThemeChoice = "system";
 /** The crossing under way, from the press that starts it until its pictures are gone. */
 let crossing: ViewTransition | null = null;
+/**
+ * The wait after a theme set at once, as long as a crossing would have taken, during which the
+ * theme's button takes no press either: the page then turns no faster than it does when it
+ * crosses, under three flashes a second (WCAG 2.3.1).
+ */
+let turnWait: ReturnType<typeof setTimeout> | null = null;
 
 /** Sets a choice on `<html>`: its theme, and the note the theme's button reads. */
 function setRootTheme(choice: ThemeChoice): void {
@@ -115,12 +121,35 @@ export function shownLookOf(choice: ThemeChoice): ThemeLook {
 }
 
 /**
- * Whether the page is crossing from one theme to the other. The theme's button takes no press
- * meanwhile, from a pointer or the keys: a second crossing would cut the first short, and the
- * page would snap to the end of a fade it was halfway through.
+ * Whether the page is crossing from one theme to the other, or waits the length of a crossing
+ * after a theme set at once. The theme's button takes no press meanwhile, from a pointer or the
+ * keys: a second crossing would cut the first short, and the page would snap to the end of a
+ * fade it was halfway through; a theme set at once, as under reduced motion, would otherwise
+ * turn the page as fast as it is pressed.
  */
 export function isThemeCrossing(): boolean {
-  return crossing !== null;
+  return crossing !== null || turnWait !== null;
+}
+
+/**
+ * A crossing's length, in milliseconds, as the page's stylesheet sets it (`--duration-theme`,
+ * which a minified stylesheet writes in seconds). Zero where no stylesheet sets it, as in a test's
+ * document.
+ */
+function crossingMs(): number {
+  const length = getComputedStyle(document.documentElement)
+    .getPropertyValue("--duration-theme")
+    .trim();
+  const value = Number.parseFloat(length);
+  if (!Number.isFinite(value)) return 0;
+  return length.endsWith("ms") ? value : value * 1000;
+}
+
+/** Holds the theme's button still for a crossing's length after a theme set at once. */
+function waitOutATurn(): void {
+  if (turnWait !== null) clearTimeout(turnWait);
+  const length = crossingMs();
+  turnWait = length > 0 ? setTimeout(() => (turnWait = null), length) : null;
 }
 
 /** The look the page stands in now: what `<html>` carries, on this device. */
@@ -185,9 +214,11 @@ function showLastChoice(): void {
  * choice changes what the page looks like, the page crosses to it: the browser's view
  * transition of the root fades the last frame in the old theme into the live page in the new
  * (`--duration-theme`, linear, in `globals.css`). Chromium lets no pointer through to the page
- * meanwhile, and the theme's button takes no press until it has ended (`isThemeCrossing`). A choice that changes no colour, as every choice under forced colours, reduced
- * motion and a browser without view transitions set it at once (`docs/decisions.md`, "The theme
- * crosses as one cross-fade of the whole page").
+ * meanwhile, and the theme's button takes no press until it has ended (`isThemeCrossing`). A
+ * choice that changes no colour, as every choice under forced colours, reduced motion and a
+ * browser without view transitions set it at once; where that changes what the page looks
+ * like, the button then takes no press for as long as a crossing takes (`docs/decisions.md`,
+ * "The theme crosses as one cross-fade of the whole page").
  */
 export function applyThemeChoice(choice: ThemeChoice): void {
   try {
@@ -205,7 +236,10 @@ export function applyThemeChoice(choice: ThemeChoice): void {
       if (crossing === transition) crossing = null;
     };
     void transition.finished.then(ended, ended);
-  } else showLastChoice();
+  } else {
+    showLastChoice();
+    if (isSeen) waitOutATurn();
+  }
 }
 
 /**
