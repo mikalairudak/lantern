@@ -113,6 +113,46 @@ function silentSourceFor(request: DayRequest): DaySource {
 
 const PARIS_STOPS = writtenDayAt("paris")!.itinerary.stops.length;
 
+/** How much of a day's text comes before it falls silent: its header and its first stops. */
+const STILL_WRITTEN_AT = 1500;
+/** A stream's event that carries some of the day's text. */
+const TEXT_EVENT = '"type":"text-delta"';
+
+/** The day's text an event of the stream carries, if any. */
+function textOf(event: string): string {
+  if (!event.includes(TEXT_EVENT)) return "";
+  const data = event.slice(event.indexOf("{"), event.lastIndexOf("}") + 1);
+  return (JSON.parse(data) as { delta?: string }).delta ?? "";
+}
+
+/**
+ * `response` falling silent once its text has passed `from` characters, until the page stops
+ * it: a day still being written for as long as the test runs.
+ */
+function silentAfterText(response: Response, from: number): Response {
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  const never = new Promise<void>(() => undefined);
+  let sent = 0;
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const { done, value } = await reader.read();
+      if (done) {
+        controller.close();
+        return;
+      }
+      for (const event of decoder.decode(value, { stream: true }).split(/(?<=\n\n)/)) {
+        if (sent > from) await never;
+        controller.enqueue(encoder.encode(event));
+        sent += textOf(event).length;
+      }
+    },
+    cancel: (reason) => reader.cancel(reason),
+  });
+  return new Response(body, { status: response.status, headers: response.headers });
+}
+
 /** Paris pressed on the start screen and written to its end, then Back to the start screen. */
 async function playParisThenBack(user: ReturnType<typeof userEvent.setup>): Promise<void> {
   await user.click(cityWord("Paris"));
@@ -335,12 +375,13 @@ describe("the focus on Forward", () => {
   it(
     "goes to the city word when Forward brings back the day behind the start screen while it is still written",
     async () => {
-      // Slow enough that the day is still written when Forward brings it back.
-      fetchDay.mockImplementationOnce((path, init) =>
-        answerDayRequest(new Request(new URL(path, ORIGIN), init), {
-          deltaChars: 16,
-          deltaDelayMs: 40,
-        }),
+      // The day falls silent after its first stops, so it is still written when Forward brings
+      // it back, however long the steps before take.
+      fetchDay.mockImplementationOnce(async (path, init) =>
+        silentAfterText(
+          await answerDayRequest(new Request(new URL(path, ORIGIN), init), { deltaChars: 64 }),
+          STILL_WRITTEN_AT,
+        ),
       );
       const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
       const user = userEvent.setup();

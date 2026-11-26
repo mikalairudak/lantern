@@ -131,6 +131,25 @@ function Failing(): ReactNode {
   throw new Error("A bug");
 }
 
+/** `response`, its connection breaking only once `isLetGo` resolves: all it wrote comes first. */
+function droppedOnce(response: Response, isLetGo: Promise<void>): Response {
+  const reader = response.body!.getReader();
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const { done, value } = await reader.read();
+        if (done) controller.close();
+        else controller.enqueue(value);
+      } catch (error) {
+        await isLetGo;
+        controller.error(error);
+      }
+    },
+    cancel: (reason) => reader.cancel(reason),
+  });
+  return new Response(body, { status: response.status, headers: response.headers });
+}
+
 const headline = () => screen.getByRole("heading", { level: 1 });
 
 describe("Open it again", () => {
@@ -259,17 +278,22 @@ describe("Open it again", () => {
     pressedOnPage();
     const user = userEvent.setup();
     window.history.replaceState(null, "", "/day/bologna");
-    // The play breaks off partway, so the page's own written day is drawn whole in its place.
+    // The play writes its first stops, then breaks off when the test lets it, so the page's own
+    // written day is drawn whole in its place.
+    let breakOff = () => {};
+    const isBrokenOff = new Promise<void>((resolve) => {
+      breakOff = resolve;
+    });
     const sourceFor = (request: DayRequest): DaySource => ({
       request,
-      open: (signal) =>
-        Promise.resolve(
-          simulateDayStream({
+      open: async (signal) =>
+        droppedOnce(
+          await simulateDayStream({
             day: BOLOGNA_START_DAY.day,
             ending: { kind: "dropped", at: 2400 },
-            pace: { deltaChars: 24, deltaDelayMs: 25 },
             signal,
           }),
+          isBrokenOff,
         ),
     });
     render(
@@ -293,6 +317,7 @@ describe("Open it again", () => {
     // The visitor moves on before the play breaks off.
     const wordmark = screen.getByRole("link", { name: "Lantern" });
     act(() => wordmark.focus());
+    breakOff();
     await waitFor(() => expect(wordmark).not.toBeInTheDocument(), DAY_TIMEOUT);
 
     expect(within(headline()).getByRole("button", { name: "Bologna" })).not.toHaveFocus();
