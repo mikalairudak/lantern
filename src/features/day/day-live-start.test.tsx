@@ -326,9 +326,7 @@ describe("the start screen with live generation on", () => {
     const field = await screen.findByRole("textbox", { name: "Which city?" });
     await user.type(field, "Springfeld{Enter}");
 
-    await saysBack(
-      "Lantern couldn't find “Springfeld”. Name a city, or pick one of the days below.",
-    );
+    await saysBack("Lantern couldn't find “Springfeld”. Name a city, or pick a day below.");
     expect(screen.getByRole("textbox", { name: "Which city?" })).toBe(field);
     expect(field).toHaveValue("Springfeld");
     expect(field).toHaveAttribute("aria-invalid", "true");
@@ -355,7 +353,7 @@ describe("the start screen with live generation on", () => {
     await ask(user, "a day with my kids");
     const city = await screen.findByRole("textbox", { name: "Which city?" });
     await user.type(city, "Lyonn{Enter}");
-    await saysBack("Lantern couldn't find “Lyonn”. Name a city, or pick one of the days below.");
+    await saysBack("Lantern couldn't find “Lyonn”. Name a city, or pick a day below.");
     await user.type(city, "{Backspace}{Enter}");
     await waitFor(() => expect(city).toHaveAttribute("readonly"));
 
@@ -368,9 +366,7 @@ describe("the start screen with live generation on", () => {
     expect(screen.getByRole("textbox", { name: "Which city?" })).toHaveValue("Lyon");
     expect(screen.queryByText(/^Lantern couldn't find/)).not.toBeInTheDocument();
     expect(
-      screen.getByText(
-        "Lantern needs a city to plan the day. Name one, or pick one of the days below.",
-      ),
+      screen.getByText("Lantern needs a city to plan the day. Name one, or pick a day below."),
     ).toBeInTheDocument();
     expect(intakeTexts).toEqual(["a day with my kids", "Lyonn", "Lyon"]);
   });

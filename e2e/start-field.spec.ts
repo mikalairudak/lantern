@@ -972,7 +972,7 @@ test.describe("an answer to the city's question that is still not a city", () =>
     const pressedAt = await page.evaluate(() => performance.now());
     await city.press("Enter");
 
-    const line = "Lantern couldn't find “Springfeld”. Name a city, or pick one of the days below.";
+    const line = "Lantern couldn't find “Springfeld”. Name a city, or pick a day below.";
     await expectSaidInPlace(page, pressedAt, `A lively day in …? ${line}`, line);
     await expect(city).toBeFocused();
     await expect(city).toHaveValue("Springfeld");
@@ -1063,4 +1063,62 @@ test.describe("a press with nothing in the field moves nothing under it", () => 
       });
     }
   }
+});
+
+test.describe("an answer to the city's question not found, at a phone's narrowest", () => {
+  for (const width of [320, 360]) {
+    test(`at ${width} px, quotes one unbroken word inside its column`, async ({
+      page,
+      isMobile,
+    }) => {
+      test.skip(!isMobile, "measured at a phone's width");
+      await page.setViewportSize({ width, height: 740 });
+      await answerTheIntake(page, { ...PORTLAND_ASKED, readings: [] });
+      await openLive(page, "/");
+      await askFromTheField(page, "a lively day");
+      const city = page.getByRole("textbox", { name: "Which city?" });
+      await city.fill("Springfeld".repeat(6));
+      await city.press("Enter");
+
+      const line = page.locator("main form p", { hasText: /^Lantern couldn't find/ });
+      await expect(line).toBeVisible();
+      const overrun = await line.evaluate((element) => {
+        const column = element.closest("form")!.getBoundingClientRect();
+        return {
+          line: element.getBoundingClientRect().right - column.right,
+          words: element.scrollWidth - element.clientWidth,
+          page: document.documentElement.scrollWidth - window.innerWidth,
+        };
+      });
+      expect(overrun.line, "the line past its column").toBeLessThanOrEqual(0);
+      expect(overrun.words, "the words past the line").toBeLessThanOrEqual(0);
+      expect(overrun.page, "the page past the screen").toBeLessThanOrEqual(0);
+    });
+  }
+});
+
+test("with live generation on, a press of the answer not found again reads nothing, and says it again", async ({
+  page,
+}) => {
+  await page.addInitScript(logStatuses);
+  const reads = await countTheIntake(page, { ...PORTLAND_ASKED, readings: [] });
+  await openLive(page, "/");
+  await askFromTheField(page, "a lively day");
+  const city = page.getByRole("textbox", { name: "Which city?" });
+  await city.fill("Springfeld");
+  const answeredAt = await page.evaluate(() => performance.now());
+  await city.press("Enter");
+  const line = "Lantern couldn't find “Springfeld”. Name a city, or pick a day below.";
+  const said = `A lively day in …? ${line}`;
+  // Said, and fallen quiet, so the line said again is a change of its words.
+  await expectSaidOnceAsChange(page, said, NOTICE_HEARD_MS, answeredAt);
+  await expect(city).toBeFocused();
+
+  const pressedAt = await page.evaluate(() => performance.now());
+  await city.press("Enter");
+
+  await expectSaidOnceAsChange(page, said, NOTICE_HEARD_MS, pressedAt);
+  await expect(city).toBeFocused();
+  await expect(city).toHaveValue("Springfeld");
+  expect(reads(), "a text read").toBe(2);
 });

@@ -54,7 +54,7 @@ const EXAMPLE = "For example: London, with friends";
 /** Under the field from the visitor's Enter, while Lantern reads their words. */
 const READING_SAID = "Reading what you wrote";
 /** Under the city's question when the text named no city at all. */
-const NEEDS_CITY = "Lantern needs a city to plan the day. Name one, or pick one of the days below.";
+const NEEDS_CITY = "Lantern needs a city to plan the day. Name one, or pick a day below.";
 /**
  * In place of the line under the field at a press with nothing in it to read: no wider than the
  * example, so it takes the example's room at every width, over the note with live generation off.
@@ -66,6 +66,11 @@ const NOTHING_TO_READ = "Name a city, or pick a day below.";
  * keeps it whole, leaves the line two or three lines at a phone's width.
  */
 const QUOTED_ANSWER_CHARS = 32;
+/**
+ * How far back from the quote's cut a space may stand for the cut to fall there instead, so the
+ * quote ends on a whole word: a word's length, roughly.
+ */
+const QUOTE_WORD_REACH_CHARS = 10;
 
 /** Read in part, without a city: the sentence so far asks for one. */
 export interface CityQuestion {
@@ -139,11 +144,12 @@ export interface StartHeaderProps {
 }
 
 /**
- * A press with nothing in the field to read, standing until the visitor types or the line
- * changes: the text and the line it was pressed over, how many such presses there have been, and
+ * A press Lantern reads nothing at, standing until the visitor types or the line changes: one
+ * with nothing in the field, or with the answer to "in …?" Lantern found no city in, as it
+ * stands. The text and the line it was pressed over, how many such presses there have been, and
  * whether the status has held its words for as long as it takes to hear them.
  */
-interface EmptyPress {
+interface UnreadPress {
   text: string;
   line: StartLine;
   presses: number;
@@ -257,33 +263,34 @@ export function StartHeader({
   }, [answer, isSeen]);
   const heardAnswer = answer !== answerHeardOut ? answer : null;
   const saidAnswer = heardAnswer !== null && !isSeen ? "" : heardAnswer;
-  // A press with nothing to read says what is missing until the visitor types or the line
-  // changes (`pressSaidOf`), from the status over the form, held as an answer is and said again at
-  // a press once it has fallen quiet. The answer standing at the press counts as heard, so it is
-  // not said again as its line comes back.
-  const [emptyPress, setEmptyPress] = useState<EmptyPress | null>(
+  // A press Lantern reads nothing at says what is missing until the visitor types or the line
+  // changes (`pressSaidOf`), from the status over the form, held as an answer is, while the page
+  // is seen, and said again at a press once it has fallen quiet. The answer standing at the press
+  // counts as heard, so it is not said again as its line comes back.
+  const [unreadPress, setUnreadPress] = useState<UnreadPress | null>(
     isDrawnPressedEmpty ? { text, line, presses: 1, isHeardOut: false } : null,
   );
-  if (emptyPress !== null && (emptyPress.text !== text || emptyPress.line !== line)) {
-    setEmptyPress(null);
+  if (unreadPress !== null && (unreadPress.text !== text || unreadPress.line !== line)) {
+    setUnreadPress(null);
   }
-  const pressEmpty = () => {
+  const pressUnread = () => {
     if (answer !== null) setAnswerHeardOut(answer);
-    setEmptyPress((now) =>
+    setUnreadPress((now) =>
       now !== null && !now.isHeardOut
         ? now
         : { text, line, presses: (now?.presses ?? 0) + 1, isHeardOut: false },
     );
   };
-  const emptyPressSaid = emptyPress !== null && !emptyPress.isHeardOut ? emptyPress.presses : null;
+  const unreadPressSaid =
+    unreadPress !== null && !unreadPress.isHeardOut ? unreadPress.presses : null;
   useEffect(() => {
-    if (emptyPressSaid === null) return undefined;
+    if (unreadPressSaid === null || !isSeen) return undefined;
     const heardOut = window.setTimeout(
-      () => setEmptyPress((now) => now && { ...now, isHeardOut: true }),
+      () => setUnreadPress((now) => now && { ...now, isHeardOut: true }),
       NOTICE_HEARD_MS,
     );
     return () => window.clearTimeout(heardOut);
-  }, [emptyPressSaid]);
+  }, [unreadPressSaid, isSeen]);
 
   return (
     <header className="flex shrink-0 flex-col pt-5 pb-5">
@@ -303,8 +310,10 @@ export function StartHeader({
             standing, as on the way back from a day, draws it holding that answer, as a notice
             the page opens with, for as long. */}
         <div role="status" className="sr-only">
-          {emptyPressSaid !== null
-            ? pressSaidOf(line, isLive)
+          {unreadPress !== null && unreadPressSaid !== null
+            ? isSeen
+              ? pressSaidOf(line, isLive, unreadPress.text)
+              : ""
             : (saidAnswer ?? heardOf(line, wait, isLive, isReadingSaidByFocus, isSaidOverForm))}
         </div>
         <QuestionForm
@@ -325,8 +334,8 @@ export function StartHeader({
           isSaidOverForm={isSaidOverForm}
           isAnswerHeardOut={heardAnswer === null}
           onPlan={onPlan}
-          isPressedEmpty={emptyPress !== null}
-          onPressedEmpty={pressEmpty}
+          isPressedEmpty={unreadPress !== null && unreadPress.text.trim() === ""}
+          onPressUnread={pressUnread}
           onChooseReading={onChooseReading}
           drawnAsPointed={drawnAsPointed}
         />
@@ -372,7 +381,8 @@ interface QuestionFormProps {
   onPlan: (text: string) => void;
   /** A press found nothing in the field to read, and stands until the visitor types (`pressSaidOf`). */
   isPressedEmpty: boolean;
-  onPressedEmpty: () => void;
+  /** A press Lantern reads nothing at: nothing in the field, or the answer not found as it stands. */
+  onPressUnread: () => void;
   onChooseReading: (reading: CityReading) => void;
   drawnAsPointed: DrawnAsPointed;
 }
@@ -512,7 +522,7 @@ function QuestionForm({
   isAnswerHeardOut,
   onPlan,
   isPressedEmpty,
-  onPressedEmpty,
+  onPressUnread,
   onChooseReading,
   drawnAsPointed,
 }: QuestionFormProps) {
@@ -572,10 +582,16 @@ function QuestionForm({
   if (!isAnswerDescribed && isFocusHandedBack && isAnswerHeardOut && !isFieldFocused) {
     setIsAnswerDescribed(true);
   }
+  // What the city's question needs is kept unseen while a press with nothing to read stands in its
+  // place, and the field is not described by words no longer seen.
+  const isNeededHidden = isPressedEmpty && line?.kind === "question" && line.readings.length === 0;
   const describedBy =
-    [isAnswerDescribed && answerId, isCountShown && roomId].filter(Boolean).join(" ") || undefined;
+    [isAnswerDescribed && !isNeededHidden && answerId, isCountShown && roomId]
+      .filter(Boolean)
+      .join(" ") || undefined;
   // The field holds what a press could not read: nothing, or the answer to "in …?" not found.
-  const isInvalid = isPressedEmpty || (line?.kind === "question" && line.notFound === text.trim());
+  const isNotFound = line?.kind === "question" && line.notFound === text.trim();
+  const isInvalid = isPressedEmpty || isNotFound;
 
   // Each way the focus is handed to the field marks it handed back once the page's focus is there,
   // read from the page rather than from a focus event, which a window not in front delivers late.
@@ -630,9 +646,11 @@ function QuestionForm({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isReading) return;
-    // Nothing to read: the field takes the focus, for the words the line now asks for.
-    if (text.trim() === "") {
-      onPressedEmpty();
+    // Nothing new to read: nothing at all, or the answer Lantern found no city in, which read again
+    // would cost a read and find nothing again. The field takes the focus, for the words the line
+    // asks for.
+    if (text.trim() === "" || isNotFound) {
+      onPressUnread();
       field.current?.focus();
       return;
     }
@@ -1004,7 +1022,7 @@ const EXAMPLE_CLASSES = "text-balance";
  * What a press could not read, in the ink an ending's line stands in, a step over the muted
  * lines it takes the place of. A quoted answer with no space in it breaks where it must.
  */
-const MISSING_CLASSES = "text-pretty text-ink-soft wrap-break-word";
+const MISSING_CLASSES = "text-pretty text-ink-soft wrap-anywhere";
 
 /** Under the field: the example, or what Lantern does with the text. */
 function QuestionLine({
@@ -1167,16 +1185,18 @@ function EndingLine({ id, ending, isLive }: { id: string; ending: Ending; isLive
 }
 
 /**
- * What a press with nothing in the field to read says. Where the line standing already says what
- * will work, the line stays and is said again: an ending's, whose way on is the index below, which
- * a city named would not change where Lantern writes no new day, and the cities a shared name could
- * be. Elsewhere, at rest or where the city's question needs a city, what is missing stands in that
- * line's place.
+ * What a press Lantern reads nothing at says. Where the line standing already says what will work,
+ * the line stays and is said again: an ending's, whose way on is the index below, which a city
+ * named would not change where Lantern writes no new day, the cities a shared name could be, and
+ * the answer not found, pressed again as it stands. Elsewhere, at rest or where the city's
+ * question needs a city, what is missing stands in that line's place.
  */
-function pressSaidOf(line: StartLine, isLive: boolean): string {
+function pressSaidOf(line: StartLine, isLive: boolean, pressed: string): string {
   if (isNoDay(line)) return endingSaidOf(line.kind, isLive);
-  if (line?.kind === "question" && line.readings.length > 0) return questionSaidOf(line);
-  return NOTHING_TO_READ;
+  if (line?.kind !== "question") return NOTHING_TO_READ;
+  // The answer not found, pressed again as it stands, is answered by its own line again.
+  const isNotFoundAgain = line.notFound !== undefined && line.notFound === pressed.trim();
+  return line.readings.length > 0 || isNotFoundAgain ? questionSaidOf(line) : NOTHING_TO_READ;
 }
 
 /**
@@ -1200,14 +1220,30 @@ function questionSaidOf(question: CityQuestion): string {
 /** What the city's question needs when no cities are offered: a city, or one found this time. */
 function neededOf({ notFound }: CityQuestion): string {
   if (notFound === undefined) return NEEDS_CITY;
-  return `Lantern couldn't find “${quotedOf(notFound)}”. Name a city, or pick one of the days below.`;
+  return `Lantern couldn't find “${quotedOf(notFound)}”. Name a city, or pick a day below.`;
 }
 
-/** An answer as the line quotes it: whole, or cut between two code points with an ellipsis. */
+/**
+ * An answer as the line quotes it: whole, or cut with an ellipsis at the last space within reach
+ * of its 32nd character, else between two characters.
+ */
 function quotedOf(answer: string): string {
-  const characters = Array.from(answer);
+  const characters = charactersOf(answer);
   if (characters.length <= QUOTED_ANSWER_CHARS) return answer;
-  return `${characters.slice(0, QUOTED_ANSWER_CHARS).join("").trimEnd()}…`;
+  const nearest = QUOTED_ANSWER_CHARS - QUOTE_WORD_REACH_CHARS;
+  let cut = QUOTED_ANSWER_CHARS;
+  while (cut >= nearest && !/^\s$/.test(characters[cut] ?? "")) cut -= 1;
+  const end = cut >= nearest ? cut : QUOTED_ANSWER_CHARS;
+  return `${characters.slice(0, end).join("").trimEnd()}…`;
+}
+
+/**
+ * A text's characters as a reader sees them, so a letter and its accent, a flag or a joined emoji
+ * are never cut apart; where the browser cannot tell them apart, its code points.
+ */
+function charactersOf(text: string): string[] {
+  if (typeof Intl.Segmenter !== "function") return Array.from(text);
+  return Array.from(new Intl.Segmenter().segment(text), (part) => part.segment);
 }
 
 /** The cities a shared name could be, as one sentence offering each: "…, or …". */
