@@ -158,6 +158,9 @@ function yourDays(page: Page): Promise<string[][]> {
   }, YOUR_DAYS_KEY);
 }
 
+/** Long enough for an answer an arrow took to change the day and its address, were it taken. */
+const AFTER_AN_ARROW_MS = 500;
+
 test("a proposal taken and taken back puts each day and its address back, each the visitor's, and Back leaves as before", async ({
   page,
 }) => {
@@ -260,12 +263,22 @@ test("each answer of the fork is named by the words it shows and told apart by w
   await expectTakeNamedAsDrawn(shown);
 
   // Compared, the headline's pair names the day before as the fork does.
-  await fork.getByRole("button", { name: "Compare" }).click();
+  const compare = fork.getByRole("button", { name: "Compare" });
+  await compare.click();
   await expect(
     page
       .getByRole("heading", { level: 1 })
       .getByRole("button", { name: "early dinner, the day before: go to it", exact: true }),
   ).toBeVisible();
+
+  // An arrow on "Compare" takes no answer: the proposal taken stays, at its address. A taken
+  // answer changes the address within a frame or two, so after the wait nothing has.
+  await compare.focus();
+  await page.keyboard.press("ArrowDown");
+  await page.waitForTimeout(AFTER_AN_ARROW_MS);
+  await expect(compare).toBeFocused({ timeout: 0 });
+  await expect(shown).toHaveAccessibleName("eating late, your day", { timeout: 0 });
+  expect(page.url()).toMatch(new RegExp(`/day/${REPLAN_ID}$`));
 });
 
 test("a re-plan merged after an energy re-picked shows its own rows, not the re-picked day's", async ({

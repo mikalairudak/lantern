@@ -181,6 +181,19 @@ describe("PartSlip", () => {
     expect(screen.getByRole("radio", { name: "eating late, your day" })).toHaveFocus();
   });
 
+  it.each(["Alt", "Meta", "Control"])(
+    "takes no answer at an arrow held with %s, the browser's or the system's",
+    async (modifier) => {
+      const user = userEvent.setup();
+      const { onChoose } = renderSlip(LUNCH, momentOf("whole"));
+
+      screen.getByRole("radio", { name: "early dinner, your day" }).focus();
+      await user.keyboard(`{${modifier}>}{ArrowRight}{/${modifier}}`);
+
+      expect(onChoose).not.toHaveBeenCalled();
+    },
+  );
+
   it("gives the focus to the checked answer when the slip's own answer is taken", async () => {
     const user = userEvent.setup();
     const { rerender, props } = renderSlip(LUNCH, momentOf("whole"));

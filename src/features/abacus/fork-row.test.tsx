@@ -139,6 +139,20 @@ describe("ForkRow", () => {
     expect(answer(/^eating late/)).toHaveFocus();
   });
 
+  it.each(["Alt", "Meta", "Control"])(
+    "takes no answer at an arrow held with %s, the browser's or the system's",
+    async (modifier) => {
+      const user = userEvent.setup();
+      const acts = renderRow(momentOf("ready: take it"));
+
+      answer(/^early dinner/).focus();
+      await user.keyboard(`{${modifier}>}{ArrowRight}{/${modifier}}`);
+
+      expect(acts.onChoose).not.toHaveBeenCalled();
+      expect(answer(/^early dinner/)).toHaveFocus();
+    },
+  );
+
   it("folds to its answers once a version is taken, the day before a press away, and compares", async () => {
     const user = userEvent.setup();
     const acts = renderRow(momentOf("taken, folded"));
@@ -152,6 +166,23 @@ describe("ForkRow", () => {
     expect(compare).toHaveAttribute("aria-pressed", "false");
     await user.click(compare);
     expect(acts.onCompare).toHaveBeenCalledOnce();
+  });
+
+  it.each(
+    (["taken, folded", "taken, compared"] as const).flatMap((moment) =>
+      ["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"].map((key) => [key, moment] as const),
+    ),
+  )("takes no answer at %s on Compare, which keeps the focus (%s)", async (key, moment) => {
+    const user = userEvent.setup();
+    const acts = renderRow(momentOf(moment));
+    const compare = screen.getByRole("button", { name: "Compare" });
+
+    compare.focus();
+    await user.keyboard(`{${key}}`);
+
+    expect(acts.onChoose).not.toHaveBeenCalled();
+    expect(compare).toHaveFocus();
+    expect(answer("eating late", "your day")).toHaveAttribute("aria-checked", "true");
   });
 
   it("says the day before's receipt once compared beside the proposal taken", () => {

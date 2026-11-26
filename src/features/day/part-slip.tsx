@@ -29,6 +29,7 @@ import {
 } from "@/features/abacus/fork-row";
 import { HAIRLINE, PROPOSED_WIRE_DASH } from "@/features/abacus/geometry";
 import type { WorkLine, WorkReach } from "@/features/abacus/work-line";
+import { isForkArrow } from "./fork-arrows";
 import { ROW_REACH_PX, SPRINGS } from "@/lib/tokens/motion";
 import { heldLinesOf, SEPARATOR, slipFootOf, slipLinesOf, type SlipLine } from "./part-slip-lines";
 import { DOUBLE_PRESS_MS } from "./plan-fork";
@@ -177,8 +178,7 @@ export function PartSlip({
   };
   // Arrows take the other answer, as a radio group does; the focus follows the checked one.
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const isArrow = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key);
-    if (!isArrow || !isOtherEnabled) return;
+    if (!isForkArrow(event) || !isOtherEnabled) return;
     event.preventDefault();
     choose(otherSide);
   };
