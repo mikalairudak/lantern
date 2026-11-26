@@ -145,6 +145,12 @@ interface Asked {
    * it, as the way on of one written in does, though it stands whole from its first frame.
    */
   isWayOnFocused?: boolean;
+  /**
+   * The same day drawn anew in place of the run before, as the route or the page has it whole:
+   * a city word that takes the focus takes it only where the run before left it on its city
+   * word or nowhere, never from where the visitor took it since.
+   */
+  isRedrawn?: boolean;
   /** The visitor's phrases that fit no word of the request, said back under the day. */
   unplaced: readonly string[];
   /** Lantern's words of a written day that the visitor's text said as they are: theirs. */
@@ -630,6 +636,8 @@ export function Day({
   // taking it, or a kept day's ending without a day's way on (`open-again.ts`).
   // Read once, as the page is drawn anew.
   const [isAgain] = useState(isOpenedAgain);
+  // Where each run's header left the focus as it went, for a run that draws the same day anew.
+  const focusLeftOnCity = useRef(true);
   useEffect(() => clearOpenedAgain(), []);
   // Null while the start screen shows: nothing hands a day back to it, so once a day takes
   // the page there is always one.
@@ -1199,7 +1207,12 @@ export function Day({
     asked.whole === null
   ) {
     const itinerary = stream.outcome.itinerary;
-    setAsked({ ...asked, run: asked.run + 1, whole: { itinerary, checks: stream.checks } });
+    setAsked({
+      ...asked,
+      run: asked.run + 1,
+      whole: { itinerary, checks: stream.checks },
+      isRedrawn: true,
+    });
   }
   // A play of the page's own written day that ends without the day complete, its connection
   // dropped or its route busy, gives way to that day whole, as a device that has seen it draws
@@ -1219,7 +1232,7 @@ export function Day({
       ? wholeInPlaceOf(shown.outcome, pageOwnWhole)
       : null;
   if (asked !== null && wholeInPlace !== null) {
-    setAsked({ ...asked, run: asked.run + 1, whole: wholeInPlace });
+    setAsked({ ...asked, run: asked.run + 1, whole: wholeInPlace, isRedrawn: true });
   }
   // A play of the page's own written day can be ended with the day whole, as a device that has
   // seen it draws it (`docs/decisions.md`, "A written day's play offers the day whole on a
@@ -1238,7 +1251,13 @@ export function Day({
     if (asked === null || pageOwnWhole === null || firstSeenKey === null) return;
     events.end(asked.openedAs, "complete");
     markSeen(firstSeenKey);
-    setAsked({ ...asked, run: asked.run + 1, whole: pageOwnWhole, isChosen: true });
+    setAsked({
+      ...asked,
+      run: asked.run + 1,
+      whole: pageOwnWhole,
+      isChosen: true,
+      isRedrawn: false,
+    });
   };
   // Whether the day on screen ended without one, as last drawn, for the run played next.
   const endingPhase = phaseOf(outcome, endedDayOf(outcome));
@@ -2307,6 +2326,8 @@ export function Day({
               isStreaming={isStreaming}
               isChosen={asked.isChosen}
               isWayOnFocused={asked.isWayOnFocused}
+              isRedrawn={asked.isRedrawn}
+              focusLeftOnCity={focusLeftOnCity}
               isAfterExit={asked.isAfterExit}
               isBehindStart={isStartShown}
               isFromStart={asked.isStreamed && asked.kept === null}

@@ -19,6 +19,7 @@ import {
   useState,
   type ReactNode,
   type Ref,
+  type RefObject,
 } from "react";
 import {
   ASSUMABLE_FACT_KEYS,
@@ -361,6 +362,16 @@ interface DayStageHeaderProps {
    */
   isWayOnFocused?: boolean;
   /**
+   * The same day drawn anew in place of the run before, as the route or the page has it whole:
+   * its city word takes the focus only where the run before left it there or nowhere.
+   */
+  isRedrawn?: boolean;
+  /**
+   * Written as the header goes: whether it left the focus on its city word or nowhere, for a
+   * run drawn anew in its place.
+   */
+  focusLeftOnCity?: RefObject<boolean>;
+  /**
    * The notice's opacity: whole, until it leaves for the next day the visitor asked for,
    * fading as the day's words do.
    */
@@ -578,6 +589,8 @@ export function DayStageHeader({
   notice,
   isNoticeWrittenIn = false,
   isWayOnFocused = false,
+  isRedrawn = false,
+  focusLeftOnCity,
   noticeOpacity,
   isNoticeLeaving = false,
   isChoiceHeld = false,
@@ -922,6 +935,17 @@ export function DayStageHeader({
     setWasBehindStart(isBehindStart);
     setIsBroughtBack(!isBehindStart);
   }
+  // As the header goes, where it leaves the focus, read before the day drawn anew in its place
+  // takes it: the run's whole stage goes, so a focus the visitor took into the day is lost with
+  // it, and is left to the page rather than pulled back up to the headline.
+  useLayoutEffect(() => {
+    const word = cityWordButton.current;
+    return () => {
+      if (focusLeftOnCity === undefined) return;
+      const active = document.activeElement;
+      focusLeftOnCity.current = active === null || active === document.body || active === word;
+    };
+  }, [focusLeftOnCity]);
   useLayoutEffect(() => {
     if (!isBroughtBack) return;
     const active = document.activeElement;
@@ -1212,6 +1236,7 @@ export function DayStageHeader({
                       trailRoom={trailRooms.city}
                       isChoiceHeld={isChoiceHeld}
                       isFocusedOnMount={isCityFocused}
+                      focusLeftBefore={isRedrawn ? focusLeftOnCity : undefined}
                       isAssumptionMarked={notice === null}
                       isLocked={isReplanWriting}
                       onLockedPress={sayLocked}

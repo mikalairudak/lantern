@@ -2,10 +2,11 @@
  * Where "Open it again" on the page for a failure asked for the page in the browser, until the
  * page has come back. The press goes with the page for a failure, so the page that comes back in
  * its place hands the focus where it lands a chosen day: the start screen's headline, the day's
- * city word, or a kept day's way on. Held outside React, since the page that comes back is
- * mounted anew, and only ever set by a press, so a page drawn on the server reads it unset. Held
- * by the page's address, so a page that comes back with no day on it and is left by a link
- * leaves it to no page at another address.
+ * city word, a kept day's way on, or the headline of a page with no day on it. Whichever comes
+ * back ends it as it is drawn. Held outside React, since the page that comes back is mounted
+ * anew, and only ever set by a press, so a page drawn on the server reads it unset. Held by the
+ * page's address, so a page that comes back with neither, as `/privacy`, leaves it to no page at
+ * another address.
  */
 let askedAt: string | null = null;
 

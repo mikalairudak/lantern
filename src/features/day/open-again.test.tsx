@@ -1,10 +1,16 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Component, startTransition, useState, type ReactNode } from "react";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import ErrorPage from "@/app/error";
+import { BOLOGNA_START_DAY } from "@/lib/days/written/bologna";
 import { writtenDayAt } from "@/lib/days/written/days";
+import { writtenVersionOf } from "@/lib/days/written/version";
+import type { StoredDay } from "@/lib/days/stored-day";
+import { simulateDayStream } from "@/lib/stream/simulate-day-stream";
 import type { IntakeReader } from "@/lib/schema/intake.schema";
+import type { DayRequest } from "@/lib/schema/itinerary.schema";
+import type { DaySource } from "@/features/itinerary/use-day-stream";
 import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { Day, type WrittenGist } from "./day";
 import { KeptDayPage } from "./kept-day-page";
@@ -23,7 +29,18 @@ const ORIGIN = "http://lantern.test";
 const DAY_TIMEOUT = { timeout: 5000 };
 const POOL: readonly WrittenGist[] = writtenPool();
 const PORTO = writtenDayAt("porto")!;
+const BOLOGNA = writtenDayAt("bologna")!;
 const KEPT_ID = "1b6f0c2e-4d3a-4f5b-9c7e-2a1d3e4f5a6b";
+/** Porto's day, kept in the log under `KEPT_ID`. */
+const KEPT_WRITTEN: StoredDay = {
+  status: "written",
+  request: PORTO.request,
+  itinerary: PORTO.itinerary,
+  checks: {},
+  writtenAt: "2026-11-05T20:00:00.000Z",
+  seconds: 46,
+  round: 0,
+};
 
 class FixedSizeObserver {
   constructor(private readonly callback: ResizeObserverCallback) {}
@@ -236,6 +253,87 @@ describe("Open it again", () => {
 
     expect(headline()).toHaveTextContent(/^One day in a city/);
     expect(headline()).not.toHaveFocus();
+  });
+
+  it("leaves a focus the visitor took into the day where it is when the day is drawn whole in place of its play", async () => {
+    pressedOnPage();
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", "/day/bologna");
+    // The play breaks off partway, so the page's own written day is drawn whole in its place.
+    const sourceFor = (request: DayRequest): DaySource => ({
+      request,
+      open: (signal) =>
+        Promise.resolve(
+          simulateDayStream({
+            day: BOLOGNA_START_DAY.day,
+            ending: { kind: "dropped", at: 2400 },
+            pace: { deltaChars: 24, deltaDelayMs: 25 },
+            signal,
+          }),
+        ),
+    });
+    render(
+      <FailedPage>
+        <Day
+          first={BOLOGNA.request}
+          written={{
+            itinerary: BOLOGNA.itinerary,
+            version: writtenVersionOf(BOLOGNA.itinerary),
+            checks: {},
+          }}
+          sourceFor={sourceFor}
+          isAddressed
+        />
+      </FailedPage>,
+    );
+    await user.click(screen.getByRole("button", { name: OPEN_IT_AGAIN }));
+    const cityWord = within(headline()).getByRole("button", { name: "Bologna" });
+    await waitFor(() => expect(cityWord).toHaveFocus(), DAY_TIMEOUT);
+
+    // The visitor moves on before the play breaks off.
+    const wordmark = screen.getByRole("link", { name: "Lantern" });
+    act(() => wordmark.focus());
+    await waitFor(() => expect(wordmark).not.toBeInTheDocument(), DAY_TIMEOUT);
+
+    expect(within(headline()).getByRole("button", { name: "Bologna" })).not.toHaveFocus();
+  });
+
+  it("hands the focus to the headline as a page with no day comes back", async () => {
+    pressedOnPage();
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", `/day/${KEPT_ID}`);
+    render(
+      <FailedPage>
+        <KeptDayPage id={KEPT_ID} stored={{ status: "unknown" }} isLive={false} />
+      </FailedPage>,
+    );
+
+    await user.click(screen.getByRole("button", { name: OPEN_IT_AGAIN }));
+
+    expect(headline()).toHaveTextContent(STILL_WRITING);
+    await waitFor(() => expect(headline()).toHaveFocus());
+  });
+
+  it("ends as a page with no day comes back, so a day drawn at its address later takes no focus from it", async () => {
+    pressedOnPage();
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", `/day/${KEPT_ID}`);
+    const { rerender } = render(
+      <FailedPage>
+        <KeptDayPage id={KEPT_ID} stored={{ status: "unknown" }} isLive={false} />
+      </FailedPage>,
+    );
+    await user.click(screen.getByRole("button", { name: OPEN_IT_AGAIN }));
+    expect(headline()).toHaveTextContent(STILL_WRITING);
+
+    // Opened again later at the same address, as Back brings it, its day kept by then.
+    rerender(<KeptDayPage key="later" id={KEPT_ID} stored={KEPT_WRITTEN} isLive={false} />);
+
+    await waitFor(
+      () => expect(within(headline()).getByRole("button", { name: "Porto" })).toBeInTheDocument(),
+      DAY_TIMEOUT,
+    );
+    expect(document.body).toHaveFocus();
   });
 
   it("hands no focus to a page that comes back without the press", async () => {

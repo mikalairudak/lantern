@@ -1,4 +1,5 @@
-import type { ReactNode, RefObject } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { AddressHeadline } from "./address-headline";
 import { FootLine } from "./foot-line";
 import { Masthead } from "./masthead";
 
@@ -8,10 +9,10 @@ interface AddressPageProps {
   /** The ways on, under the headline. */
   children: ReactNode;
   /**
-   * The headline, for a page that hands it the focus: it then takes the focus by script alone,
-   * never by Tab.
+   * The page takes the place of a page the visitor pressed on, as the page for a failure does:
+   * its headline takes the focus the press had (`AddressHeadline`).
    */
-  headlineRef?: RefObject<HTMLHeadingElement | null>;
+  isFocusedAfterPress?: boolean;
 }
 
 /**
@@ -19,7 +20,11 @@ interface AddressPageProps {
  * screen sets them, what follows, and the page's last line at the foot of the screen. The page
  * for no day, for a day still being written and for a page that failed share it.
  */
-export function AddressPage({ headline, children, headlineRef }: AddressPageProps) {
+export function AddressPage({
+  headline,
+  children,
+  isFocusedAfterPress = false,
+}: AddressPageProps): ReactElement {
   return (
     // At least a screen tall, so its last line stands at the foot of the screen.
     <div className="mx-auto flex min-h-svh max-w-page flex-col px-4 md:px-10 lg:px-16">
@@ -27,13 +32,7 @@ export function AddressPage({ headline, children, headlineRef }: AddressPageProp
         {/* Set as the start screen's header sets it, so the wordmark sits where it does there. */}
         <header className="flex shrink-0 flex-col pt-5 pb-5">
           <Masthead />
-          <h1
-            ref={headlineRef}
-            tabIndex={headlineRef === undefined ? undefined : -1}
-            className="mt-5 type-voice text-title text-balance text-ink"
-          >
-            {headline}
-          </h1>
+          <AddressHeadline headline={headline} isFocusedAfterPress={isFocusedAfterPress} />
         </header>
         {children}
       </main>

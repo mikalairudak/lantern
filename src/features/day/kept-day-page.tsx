@@ -106,7 +106,9 @@ export function KeptDayPage({ id, stored: first, isLive }: KeptDayPageProps) {
   const noDayLine = isSeen ? NO_DAY_HERE : "";
   // A day that lands once the page that waits for it has been drawn takes its place and the
   // focus it had: its city word takes it, as on a chosen day, or an ending's way on. A day drawn
-  // here from the first takes none.
+  // here from the first takes none. Unlike the page for a failure, which takes the focus only
+  // after a press, this needs none: the page the visitor waited on goes from under them whether
+  // they pressed anything or not, and a screen reader left on the body would start the page over.
   const isWaitDrawn = isHydrated && view.kind !== "day";
   const [hasWaited, setHasWaited] = useState(false);
   if (isWaitDrawn && !hasWaited) setHasWaited(true);

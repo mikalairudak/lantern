@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { cn } from "@/components/ui/cn";
 import { AddressPage } from "./address-page";
 import { pageTitleOf } from "./day-title";
 import { START_ADDRESS } from "@/lib/days/address";
 import { LINK_CLASSES } from "./link-classes";
-import { clearOpenedAgain, markOpenedAgain } from "./open-again";
+import { markOpenedAgain } from "./open-again";
 
 /** The headline of a page that failed as Lantern drew it. */
 export const PAGE_FAILED = "Lantern couldn't open this page.";
@@ -42,23 +42,14 @@ export function PageFailed({ onRetry }: PageFailedProps) {
       if (document.title === own) document.title = before;
     };
   }, []);
-  // A failure met after a press takes the page from under the focus: its headline takes it, as
-  // the start screen's does on Back, so the visitor is told where they are. A page that failed as
-  // it opened, nothing pressed on it yet, takes none, as the start screen takes none as it opens,
-  // and a focus that stands elsewhere stays. Drawn again, it is the end of an "Open it again".
-  const headline = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    clearOpenedAgain();
-    const active = document.activeElement;
-    const isLost = active === null || active === document.body;
-    if (isLost && hasBeenPressed()) headline.current?.focus({ preventScroll: true });
-  }, []);
   const openAgain = () => {
     markOpenedAgain();
     onRetry();
   };
   return (
-    <AddressPage headline={PAGE_FAILED} headlineRef={headline}>
+    // A failure met after a press takes the page from under the focus: its headline takes it, as
+    // the start screen's does on Back, so the visitor is told where they are.
+    <AddressPage headline={PAGE_FAILED} isFocusedAfterPress>
       <p className="flex flex-wrap gap-x-5 gap-y-1 type-voice text-body text-ink-soft">
         {/* An action named by a verb is set in ink, as in a day's notice. */}
         <button type="button" onClick={openAgain} className={cn(LINK_CLASSES, "text-ink")}>
@@ -72,9 +63,4 @@ export function PageFailed({ onRetry }: PageFailedProps) {
       </p>
     </AddressPage>
   );
-}
-
-/** Whether the visitor has pressed anything on this page since it loaded, as the browser keeps it. */
-function hasBeenPressed(): boolean {
-  return "userActivation" in navigator && navigator.userActivation.hasBeenActive;
 }

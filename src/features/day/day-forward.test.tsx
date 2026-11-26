@@ -333,6 +333,34 @@ describe("Forward to a day left writing behind the start screen", () => {
 
 describe("the focus on Forward", () => {
   it(
+    "goes to the city word when Forward brings back the day behind the start screen while it is still written",
+    async () => {
+      // Slow enough that the day is still written when Forward brings it back.
+      fetchDay.mockImplementationOnce((path, init) =>
+        answerDayRequest(new Request(new URL(path, ORIGIN), init), {
+          deltaChars: 16,
+          deltaDelayMs: 40,
+        }),
+      );
+      const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
+      const user = userEvent.setup();
+      render(<Day start={{ pool: POOL, read }} isAddressed />);
+      await user.click(cityWord("Paris"));
+      await waitFor(() => expect(window.location.pathname).toBe("/day/paris"), DAY_TIMEOUT);
+      act(() => window.history.back());
+      await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+
+      act(() => window.history.forward());
+
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+      // Still written: not every stop has come.
+      expect(screen.queryAllByRole("listitem").length).toBeLessThan(PARIS_STOPS);
+      expect(within(headline()).getByRole("button", { name: "Paris" })).toHaveFocus();
+    },
+    LONG_TEST_MS,
+  );
+
+  it(
     "goes to the city word when Forward brings back the day behind the start screen",
     async () => {
       const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
