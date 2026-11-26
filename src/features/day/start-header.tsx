@@ -257,10 +257,10 @@ export function StartHeader({
   }, [answer, isSeen]);
   const heardAnswer = answer !== answerHeardOut ? answer : null;
   const saidAnswer = heardAnswer !== null && !isSeen ? "" : heardAnswer;
-  // A press with nothing to read says what is missing in place of the line under the field until
-  // the visitor types or the line changes, and from the status over the form, held as an answer
-  // is and said again at a press once it has fallen quiet. The answer standing at the press counts
-  // as heard, so it is not said again as its line comes back.
+  // A press with nothing to read says what is missing until the visitor types or the line
+  // changes (`pressSaidOf`), from the status over the form, held as an answer is and said again at
+  // a press once it has fallen quiet. The answer standing at the press counts as heard, so it is
+  // not said again as its line comes back.
   const [emptyPress, setEmptyPress] = useState<EmptyPress | null>(
     isDrawnPressedEmpty ? { text, line, presses: 1, isHeardOut: false } : null,
   );
@@ -304,7 +304,7 @@ export function StartHeader({
             the page opens with, for as long. */}
         <div role="status" className="sr-only">
           {emptyPressSaid !== null
-            ? NOTHING_TO_READ
+            ? pressSaidOf(line, isLive)
             : (saidAnswer ?? heardOf(line, wait, isLive, isReadingSaidByFocus, isSaidOverForm))}
         </div>
         <QuestionForm
@@ -370,7 +370,7 @@ interface QuestionFormProps {
    */
   isAnswerHeardOut: boolean;
   onPlan: (text: string) => void;
-  /** A press found nothing in the field to read, and what is missing stands in the line's place. */
+  /** A press found nothing in the field to read, and stands until the visitor types (`pressSaidOf`). */
   isPressedEmpty: boolean;
   onPressedEmpty: () => void;
   onChooseReading: (reading: CityReading) => void;
@@ -781,12 +781,7 @@ function QuestionForm({
           it stands over, the count at the row's right end beside it. */}
       {isNoDay(line) && (
         <div className="mt-2 flex items-start justify-between gap-3">
-          <EndingLine
-            id={answerId}
-            ending={line.kind}
-            isLive={isLive}
-            isPressedEmpty={isPressedEmpty}
-          />
+          <EndingLine id={answerId} ending={line.kind} isLive={isLive} />
           {count}
         </div>
       )}
@@ -1163,29 +1158,26 @@ function endingSaidOf(ending: Ending, isLive: boolean): string {
  * written days are offered once, as the index below, which this points to. Its halves stay
  * separate texts: Chromium sets one joined string's glyphs a subpixel apart from these.
  */
-function EndingLine({
-  id,
-  ending,
-  isLive,
-  isPressedEmpty,
-}: {
-  id: string;
-  ending: Ending;
-  isLive: boolean;
-  /** What a press with nothing to read is missing stands in its place, the line kept unseen. */
-  isPressedEmpty: boolean;
-}) {
+function EndingLine({ id, ending, isLive }: { id: string; ending: Ending; isLive: boolean }) {
   return (
-    <>
-      <p id={id} hidden={isPressedEmpty} className={ENDING_LINE_CLASSES}>
-        {endedOf(ending, isLive)} {TO_THE_INDEX}
-      </p>
-      {isPressedEmpty && <p className={ENDING_LINE_CLASSES}>{NOTHING_TO_READ}</p>}
-    </>
+    <p id={id} className="mt-1 type-voice text-quote text-ink-soft">
+      {endedOf(ending, isLive)} {TO_THE_INDEX}
+    </p>
   );
 }
 
-const ENDING_LINE_CLASSES = "mt-1 type-voice text-quote text-ink-soft";
+/**
+ * What a press with nothing in the field to read says. Where the line standing already says what
+ * will work, the line stays and is said again: an ending's, whose way on is the index below, which
+ * a city named would not change where Lantern writes no new day, and the cities a shared name could
+ * be. Elsewhere, at rest or where the city's question needs a city, what is missing stands in that
+ * line's place.
+ */
+function pressSaidOf(line: StartLine, isLive: boolean): string {
+  if (isNoDay(line)) return endingSaidOf(line.kind, isLive);
+  if (line?.kind === "question" && line.readings.length > 0) return questionSaidOf(line);
+  return NOTHING_TO_READ;
+}
 
 /**
  * The city's question in one line, in the words its lines show: the sentence so far, the key
@@ -1244,7 +1236,7 @@ interface QuestionLinesProps {
   isLit?: boolean;
   /** The id of the line saying what it needs, which the field may be described by. */
   neededId?: string;
-  /** What a press with nothing to read is missing stands under the cities, or in the line's place. */
+  /** Where no cities are offered, what a press with nothing to read is missing stands in its place. */
   isPressedEmpty?: boolean;
 }
 
@@ -1315,19 +1307,29 @@ function QuestionLines({
             )}
           </p>
         ) : (
-          // An answer not found is a press that brought no day: its line stands in an ending's ink.
-          <p
-            id={neededId}
-            hidden={isPressedEmpty}
-            className={cn(
-              "type-note",
-              question.notFound === undefined ? "text-muted" : MISSING_CLASSES,
+          // What a press with nothing to read is missing shares the line's cell, the line kept in
+          // it unseen, so the cell holds the taller of the two and nothing under it moves.
+          <div className="grid">
+            {/* An answer not found is a press that brought no day: its line stands in an ending's
+                ink. */}
+            <p
+              id={neededId}
+              aria-hidden={isPressedEmpty || undefined}
+              className={cn(
+                "col-start-1 row-start-1 type-note",
+                question.notFound === undefined ? "text-muted" : MISSING_CLASSES,
+                isPressedEmpty && "invisible",
+              )}
+            >
+              {neededOf(question)}
+            </p>
+            {isPressedEmpty && (
+              <p className={cn("col-start-1 row-start-1 type-note", MISSING_CLASSES)}>
+                {NOTHING_TO_READ}
+              </p>
             )}
-          >
-            {neededOf(question)}
-          </p>
+          </div>
         )}
-        {isPressedEmpty && <p className={cn("type-note", MISSING_CLASSES)}>{NOTHING_TO_READ}</p>}
         {unplaced && <p className="type-note text-muted">{unplaced}</p>}
       </div>
     </div>

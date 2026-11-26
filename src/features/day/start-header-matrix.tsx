@@ -273,8 +273,9 @@ export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
           },
         },
         // A press with nothing in the field to read: what is missing stands in the place of the
-        // line under the field, of what the city's question needs, under the cities a name could
-        // be, and in the place of an ending's line; a field of spaces alone is pressed as empty.
+        // line under the field and of what the city's question needs, holding the taller one's
+        // room, while the cities a name could be and an ending's line stay as they are, since they
+        // say what will work; a field of spaces alone is pressed as empty.
         {
           label: "pressed with the field empty",
           props: { line: null, isDrawnPressedEmpty: true },

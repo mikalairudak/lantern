@@ -1992,7 +1992,7 @@ describe("a press with nothing in the field", () => {
     expect(textOutside(startStatus(), "[aria-hidden=true]")).toBe(EXAMPLE);
   });
 
-  it("says it in the city's field in place of what the question needs, which comes back unsaid", async () => {
+  it("says it in the city's field in place of what the question needs, kept unseen in its room, which comes back unsaid", async () => {
     const user = userEvent.setup();
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"], shouldAdvanceTime: true });
     const { onPlan } = renderStart({
@@ -2009,27 +2009,70 @@ describe("a press with nothing in the field", () => {
     expect(answerStatus().textContent).toBe(NOTHING_TO_READ);
     expect(city).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByText(NOTHING_TO_READ, { selector: "p" })).toBeVisible();
-    expect(screen.queryByText(NEEDS_CITY_SAID)).not.toBeVisible();
+    // Kept in its cell, unseen, so the cell holds the taller of the two lines.
+    expect(screen.getByText(NEEDS_CITY_SAID)).toHaveAttribute("aria-hidden", "true");
 
     await user.type(city, "E");
-    expect(screen.getByText(NEEDS_CITY_SAID)).toBeVisible();
+    expect(screen.getByText(NEEDS_CITY_SAID)).not.toHaveAttribute("aria-hidden");
     expect(city).not.toHaveAttribute("aria-invalid");
     expect(answerStatus().textContent).toBe("");
   });
 
-  it("says it in place of an ending's line, which comes back unsaid", async () => {
+  it.each([
+    [
+      "no new day written, with live generation off",
+      { kind: "not-yet" } as const,
+      false,
+      "Lantern isn't writing new days right now. Start from one of the days below.",
+    ],
+    [
+      "a text not read just now",
+      { kind: "not-yet" } as const,
+      true,
+      "Lantern couldn't read that just now. Start from one of the days below.",
+    ],
+    ["a day Lantern will not plan", { kind: "refused" } as const, true, REFUSED_SAID],
+    [
+      "every day it can write written for now",
+      { kind: "limited" } as const,
+      true,
+      "Lantern has written all the days it can for now. Start from one of the days below.",
+    ],
+  ])(
+    "keeps an ending's line in view at a press and says it again: %s",
+    async (_, line, isLive, said) => {
+      const user = userEvent.setup();
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"], shouldAdvanceTime: true });
+      renderStart({ line, isLive });
+      act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS));
+      expect(answerStatus().textContent).toBe("");
+
+      await user.click(screen.getByRole("button", { name: "Plan this day" }));
+      expect(field()).toHaveFocus();
+      expect(field()).toHaveAttribute("aria-invalid", "true");
+      expect(answerStatus().textContent).toBe(said);
+      expect(screen.queryByText(NOTHING_TO_READ)).not.toBeInTheDocument();
+      expect(screen.getByText(said, { selector: "p" })).toBeVisible();
+
+      await user.type(field(), "E");
+      expect(field()).not.toHaveAttribute("aria-invalid");
+      expect(answerStatus().textContent).toBe("");
+    },
+  );
+
+  it("keeps the cities a shared name could be in view at a press, and says the question again", async () => {
     const user = userEvent.setup();
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"], shouldAdvanceTime: true });
-    renderStart({ line: { kind: "refused" } });
+    renderStart({ isLive: true, line: PORTLAND_QUESTION });
+    const city = screen.getByRole("textbox", { name: "Which city?" });
     act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS));
 
-    await user.click(screen.getByRole("button", { name: "Plan this day" }));
-    expect(answerStatus().textContent).toBe(NOTHING_TO_READ);
-    expect(screen.getByText(NOTHING_TO_READ, { selector: "p" })).toBeVisible();
+    await user.type(city, "{Enter}");
 
-    await user.type(field(), "E");
-    expect(screen.getByText(REFUSED_SAID, { selector: "p" })).toBeVisible();
-    expect(answerStatus().textContent).toBe("");
+    expect(city).toHaveAttribute("aria-invalid", "true");
+    expect(answerStatus().textContent).toBe(PORTLAND_SAID);
+    expect(screen.queryByText(NOTHING_TO_READ)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Portland, Oregon, United States" })).toBeVisible();
   });
 
   it("counts the answer standing at the press as heard, so it is not said again as its line comes back", () => {
@@ -2078,7 +2121,7 @@ describe("a press with nothing in the field", () => {
     expect(field()).toHaveFocus();
     expect(field()).toHaveAttribute("aria-invalid", "true");
     expect(field()).not.toHaveAttribute("aria-describedby");
-    expect(answerStatus().textContent).toBe(NOTHING_TO_READ);
+    expect(answerStatus().textContent).toBe(REFUSED_SAID);
   });
 
   it("draws it still for a lab cell, without the focus", () => {

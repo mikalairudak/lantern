@@ -985,3 +985,82 @@ test.describe("an answer to the city's question that is still not a city", () =>
     await expect(city).not.toHaveAttribute("aria-invalid");
   });
 });
+
+/**
+ * Where the index's heading stands under the question at each width a press with nothing in the
+ * field is measured at: a phone's narrowest and its usual, and a laptop's.
+ */
+const HOLD_WIDTHS = [
+  { width: 360, height: 780, isPhone: true },
+  { width: 390, height: 844, isPhone: true },
+  { width: 1440, height: 900, isPhone: false },
+] as const;
+
+/** The start screen brought to a state, its field emptied, with live generation on or off. */
+const HOLD_STATES: readonly {
+  name: string;
+  isLive: boolean;
+  answer?: IntakeResult;
+  asked?: string;
+  field: string;
+}[] = [
+  {
+    name: "the example, with live generation off",
+    isLive: false,
+    field: "Where, and anything else",
+  },
+  { name: "the example, with live generation on", isLive: true, field: "Where, and anything else" },
+  {
+    name: "the city asked for",
+    isLive: true,
+    answer: { ...PORTLAND_ASKED, readings: [] },
+    asked: "a lively day",
+    field: "Which city?",
+  },
+  {
+    name: "the cities a shared name could be",
+    isLive: true,
+    answer: PORTLAND_ASKED,
+    asked: "Portland, a lively day",
+    field: "Which city?",
+  },
+  {
+    name: "an ending",
+    isLive: true,
+    answer: { kind: "refused" },
+    asked: "a quiet day somewhere",
+    field: "Where, and anything else",
+  },
+];
+
+test.describe("a press with nothing in the field moves nothing under it", () => {
+  for (const size of HOLD_WIDTHS) {
+    for (const state of HOLD_STATES) {
+      test(`at ${size.width} px, over ${state.name}, at the press and at the first keystroke`, async ({
+        page,
+        isMobile,
+      }) => {
+        test.skip(isMobile !== size.isPhone, "measured once, in the project of its width");
+        await page.setViewportSize({ width: size.width, height: size.height });
+        if (state.answer) await answerTheIntake(page, state.answer);
+        if (state.isLive) await openLive(page, "/");
+        else await page.goto("/");
+        const field = page.getByRole("textbox", { name: state.field });
+        if (state.asked) await askFromTheField(page, state.asked);
+        else await field.focus();
+        await expect(field).toBeFocused();
+        await expect(page.getByRole("button", { name: "Plan this day" })).toBeVisible();
+        await field.fill("");
+        const before = await indexHeadingOf(page);
+
+        await field.press("Enter");
+        await expect(field).toHaveAttribute("aria-invalid", "true");
+        expect(await indexHeadingOf(page), "at the press").toBeCloseTo(before, 1);
+
+        await field.pressSequentially("E");
+        await expect(field).not.toHaveAttribute("aria-invalid");
+        expect(await indexHeadingOf(page), "at the first keystroke").toBeCloseTo(before, 1);
+      });
+    }
+  }
+});
