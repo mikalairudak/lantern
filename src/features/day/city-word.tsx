@@ -132,7 +132,10 @@ interface CityWordProps {
    * choice closes the list at once and brings the focus home to the word.
    */
   isChoiceHeld?: boolean;
-  /** The day on screen was chosen from this word, so the focus comes back to it. */
+  /**
+   * The day on screen was chosen, from this word or elsewhere, or landed in place of what had
+   * the focus, so the focus comes to it.
+   */
   isFocusedOnMount: boolean;
   /**
    * A city Lantern assumed is dotted as its other words are, while there is a day it planned

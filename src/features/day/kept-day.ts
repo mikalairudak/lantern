@@ -58,6 +58,15 @@ export function keptKeyOf(landing: KeptLanding): string {
 export type KeptView =
   { kind: "day"; landing: KeptLanding } | { kind: "writing" } | { kind: "none" };
 
+/**
+ * The landing draws a day, written whole or cut short with the stops it kept, rather than an
+ * ending with none, whose notice and its way on stand in its place.
+ */
+export function isDayDrawn(landing: KeptLanding): boolean {
+  const { outcome } = landing;
+  return outcome.kind === "complete" || (outcome.kind === "cut" && outcome.itinerary !== null);
+}
+
 /** A day not written to its end, as the day reads endings: its notice says so and offers it again. */
 const UNFINISHED: DayOutcome = { kind: "cut", itinerary: null };
 

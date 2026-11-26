@@ -402,8 +402,13 @@ interface DayStageHeaderProps {
   cityOpenAt: CityFocus | null;
   /** A city typed on the city word that the page reads, or could not play; null when none. */
   typedCity?: TypedCity | null;
-  /** The day was chosen from the city word, which takes the focus back. */
+  /** The day was chosen, or landed in place of what had the focus: the city word takes it. */
   isCityFocused: boolean;
+  /**
+   * The day stands behind the start screen after Back. Brought back from there, by Forward or
+   * from the visitor's own days, its city word takes the focus the start screen had.
+   */
+  isBehindStart?: boolean;
   /** The word a re-plan merged for, which takes the focus back when it is drawn anew. */
   focusedWord?: AssumableFactKey | null;
   /**
@@ -580,6 +585,7 @@ export function DayStageHeader({
   cityOpenAt,
   typedCity = null,
   isCityFocused,
+  isBehindStart = false,
   focusedWord = null,
   replan: givenReplan = NO_REPLAN,
   onPointToFork = ignore,
@@ -901,6 +907,21 @@ export function DayStageHeader({
   const cityField = useRef<HTMLInputElement>(null);
   const cityWordButton = useRef<HTMLButtonElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
+  // Brought back from behind the start screen, the day takes the focus the start screen had,
+  // which went with it: the city word takes it, as Back gives the start screen's headline the
+  // day's, and the page stays where it stands. A focus held anywhere else stays.
+  const [wasBehindStart, setWasBehindStart] = useState(isBehindStart);
+  const [isBroughtBack, setIsBroughtBack] = useState(false);
+  if (wasBehindStart !== isBehindStart) {
+    setWasBehindStart(isBehindStart);
+    setIsBroughtBack(!isBehindStart);
+  }
+  useLayoutEffect(() => {
+    if (!isBroughtBack) return;
+    const active = document.activeElement;
+    if (active !== null && active !== document.body) return;
+    cityWordButton.current?.focus({ preventScroll: true });
+  }, [isBroughtBack]);
   // Escape on the new day is Escape in the list it opened: the list closes, and the focus goes
   // to the city word, which owns it.
   const closeNewDay = () => {

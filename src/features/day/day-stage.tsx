@@ -216,8 +216,9 @@ interface DayStageProps {
   outcome: DayOutcome | null;
   isStreaming: boolean;
   /**
-   * The day was chosen on the last one, from its city word or its notice, or shown whole from its
-   * play: its city word takes the focus as it is drawn.
+   * The day was chosen on the last one, from its city word or its notice, shown whole from its
+   * play, or landed in place of what had the focus (a kept day's wait, the page for a failure):
+   * its city word takes the focus as it is drawn.
    */
   isChosen: boolean;
   /**
@@ -1573,6 +1574,7 @@ export function DayStage({
       cityOpenAt={cityOpenAt}
       typedCity={typedCity}
       isCityFocused={isChosen}
+      isBehindStart={isBehindStart}
       focusedWord={focusedWord}
       replan={replan}
       isLockSaid={isBarLockPressed}

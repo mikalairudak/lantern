@@ -330,3 +330,22 @@ describe("Forward to a day left writing behind the start screen", () => {
     LONG_TEST_MS,
   );
 });
+
+describe("the focus on Forward", () => {
+  it(
+    "goes to the city word when Forward brings back the day behind the start screen",
+    async () => {
+      const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
+      const user = userEvent.setup();
+      render(<Day start={{ pool: POOL, read }} isAddressed />);
+      await playParisThenBack(user);
+      expect(headline()).toHaveFocus();
+
+      act(() => window.history.forward());
+
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+      expect(within(headline()).getByRole("button", { name: "Paris" })).toHaveFocus();
+    },
+    LONG_TEST_MS,
+  );
+});

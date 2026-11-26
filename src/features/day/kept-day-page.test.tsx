@@ -261,6 +261,78 @@ describe("a day's own address", () => {
     expect(status?.textContent).toBe("");
   });
 
+  it.each([
+    ["the wordmark", true],
+    ["the page", false],
+  ])(
+    "hands a focus on %s to the city word when the day lands in place of the page that waited",
+    async (_, isWordmarkFocused) => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      logAnswers = [Response.json(UNKNOWN), Response.json(WRITTEN)];
+      render(<KeptDayPage id={ID} stored={UNKNOWN} isLive={false} />);
+      if (isWordmarkFocused) screen.getAllByRole("link")[0]!.focus();
+
+      await wait(KEPT_POLL_MS * 2);
+      expect(headline()).toHaveTextContent("A calm Saturday in Kyoto");
+      await waitFor(
+        () => expect(within(headline()).getByRole("button", { name: "Kyoto" })).toHaveFocus(),
+        NOTICE_TIMEOUT,
+      );
+    },
+  );
+
+  it("hands the focus to the city word when a day cut short lands in place of the page that waited", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const cut: StoredDay = { ...WRITTEN, status: "cut" };
+    logAnswers = [Response.json(UNKNOWN), Response.json(cut)];
+    render(<KeptDayPage id={ID} stored={UNKNOWN} isLive={false} />);
+
+    await wait(KEPT_POLL_MS * 2);
+    expect(headline()).toHaveTextContent("A calm Saturday in Kyoto");
+    await waitFor(
+      () => expect(within(headline()).getByRole("button", { name: "Kyoto" })).toHaveFocus(),
+      NOTICE_TIMEOUT,
+    );
+  });
+
+  it("hands the focus to the city word when the day this browser asked lands while its page waits", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    keepYourDay(browserStorage(), asked());
+    logAnswers = [Response.json(UNKNOWN), Response.json(WRITTEN)];
+    render(<KeptDayPage id={ID} stored={UNKNOWN} isLive={false} />);
+    await waitFor(() => expect(notice()).toHaveTextContent(STILL_WRITING), NOTICE_TIMEOUT);
+
+    await wait(KEPT_POLL_MS * 2);
+    await waitFor(() => expect(notice()).toBeNull(), NOTICE_TIMEOUT);
+    await waitFor(
+      () => expect(within(headline()).getByRole("button", { name: "Kyoto" })).toHaveFocus(),
+      NOTICE_TIMEOUT,
+    );
+  });
+
+  it("leaves the focus to the way on when what lands in place of the wait is a link past its days", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    logAnswers = [
+      Response.json(UNKNOWN),
+      Response.json({ status: "expired", request: KYOTO.request }),
+    ];
+    render(<KeptDayPage id={ID} stored={UNKNOWN} isLive={false} />);
+
+    await wait(KEPT_POLL_MS * 2);
+    await waitFor(() => expect(notice()).toHaveTextContent(LINK_EXPIRED), NOTICE_TIMEOUT);
+    await waitFor(
+      () => expect(screen.getByRole("button", { name: "Write it again" })).toHaveFocus(),
+      NOTICE_TIMEOUT,
+    );
+  });
+
+  it("takes no focus for a day drawn at its address from the first", async () => {
+    render(<KeptDayPage id={ID} stored={WRITTEN} isLive={false} />);
+
+    await screen.findByRole("list", { name: "The day" }, NOTICE_TIMEOUT);
+    expect(document.body).toHaveFocus();
+  });
+
   it("says the wait ended with no day behind another tab only once the page is seen, held from then", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     render(<KeptDayPage id={ID} stored={UNKNOWN} isLive={false} />);

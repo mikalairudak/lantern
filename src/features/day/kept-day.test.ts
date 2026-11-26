@@ -5,6 +5,7 @@ import { KYOTO_ITINERARY } from "@/lib/fixtures/replan/kyoto-morning";
 import { shownEnergiesOf } from "./day-shape";
 import {
   askKeptDay,
+  isDayDrawn,
   keptKeyOf,
   keptViewOf,
   restatedYourDayOf,
@@ -113,6 +114,24 @@ describe("a day's address", () => {
       landingOf(keptViewOf(ID, WRITTEN, ASKED, false)),
     ].map(keptKeyOf);
     expect(new Set(keys).size).toBe(3);
+  });
+});
+
+describe("a kept day's landing that draws a day", () => {
+  const landingOf = (stored: StoredDay): KeptLanding => {
+    const view = keptViewOf(ID, stored, null, false);
+    if (view.kind !== "day") throw new Error("No day");
+    return view.landing;
+  };
+
+  it("is a day written whole, or cut short with the stops it kept", () => {
+    expect(isDayDrawn(landingOf(WRITTEN))).toBe(true);
+    expect(isDayDrawn(landingOf(CUT))).toBe(true);
+  });
+
+  it("is not an ending with no day, which its notice stands in for", () => {
+    expect(isDayDrawn(landingOf(FAILED))).toBe(false);
+    expect(isDayDrawn(landingOf({ status: "expired", request: KYOTO_REQUEST }))).toBe(false);
   });
 });
 

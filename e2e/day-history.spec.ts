@@ -241,6 +241,30 @@ test.describe("with reduced motion", () => {
   });
 });
 
+test("Forward to the day behind the start screen hands the focus to its city word, as Back hands it to the start screen's headline", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await page
+    .getByRole("list", { name: INDEX_LABEL })
+    .getByRole("button", { name: /^Paris / })
+    .focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/day\/paris$/);
+  await waitForTheDay(page);
+  const cityWord = headline(page).getByRole("button", { name: "Paris", exact: true });
+  await expect(cityWord).toBeFocused();
+
+  await page.goBack();
+  await expect(headline(page)).toHaveText(/^One day in a city/);
+  await expect(headline(page)).toBeFocused();
+
+  await page.goForward();
+  await expect(headline(page)).toContainText(PARIS);
+  await expect(cityWord).toBeFocused();
+});
+
 test("a Back past another page of the site, which the day's page does not hear, shows that entry's day and keeps the days ahead", async ({
   page,
 }) => {
