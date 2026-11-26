@@ -154,6 +154,22 @@ describe("ForkRow", () => {
     expect(acts.onCompare).toHaveBeenCalledOnce();
   });
 
+  it.each(["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"])(
+    "takes no answer at %s on Compare, which keeps the focus",
+    async (key) => {
+      const user = userEvent.setup();
+      const acts = renderRow(momentOf("taken, folded"));
+      const compare = screen.getByRole("button", { name: "Compare" });
+
+      compare.focus();
+      await user.keyboard(`{${key}}`);
+
+      expect(acts.onChoose).not.toHaveBeenCalled();
+      expect(compare).toHaveFocus();
+      expect(answer("eating late", "your day")).toHaveAttribute("aria-checked", "true");
+    },
+  );
+
   it("says the day before's receipt once compared beside the proposal taken", () => {
     renderRow(momentOf("taken, compared"));
 

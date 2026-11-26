@@ -172,9 +172,13 @@ export function ForkRow({
     onChoose(side);
   };
   // Arrows move between the two answers and take the one they land on, as a radio group does.
+  // They act on an answer alone: "Compare" stands in the row's group but is a button of its own,
+  // and an arrow there must not take the other answer and undo the day.
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const isArrow = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key);
-    if (!isArrow || !isToEnabled) return;
+    const isOnAnAnswer =
+      event.target instanceof Element && event.target.getAttribute("role") === "radio";
+    if (!isArrow || !isOnAnAnswer || !isToEnabled) return;
     event.preventDefault();
     const next: ForkSide = view.chosen === "from" ? "to" : "from";
     choose(next);
