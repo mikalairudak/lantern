@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, type Locator, type Page } from "./fixtures";
 import { openLive } from "./live-page";
 import { expectSaidOnceAsChange, logStatuses } from "./status-log";
 import { NOTICE_HEARD_MS } from "../src/features/day/notice-status";
@@ -863,5 +863,125 @@ test.describe("a city chosen among those a shared name could be", () => {
     expect(await writing(page).evaluate((button) => button.matches(":focus-visible"))).toBe(false);
     release();
     await expect.poll(() => cityWordFocused(page)).toBe(true);
+  });
+});
+
+/** What a press with nothing in the field says, under the field and from the status over it. */
+const NOTHING_TO_READ = "Name a city, or pick a day below.";
+
+/** How wide an element is drawn: a pixel or none when it is kept for a screen reader alone. */
+async function widthOf(locator: Locator): Promise<number> {
+  return (await locator.boundingBox())?.width ?? 0;
+}
+
+/** Counts the page's reads of a text, answering each with `answer`. */
+async function countTheIntake(page: Page, answer: IntakeResult): Promise<() => number> {
+  let reads = 0;
+  await page.route("**/api/intake", (route) => {
+    reads += 1;
+    return route.fulfill({ json: answer });
+  });
+  return () => reads;
+}
+
+test.describe("a press with nothing in the field says what is missing, from a status that stood", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(logStatuses);
+  });
+
+  for (const [how, press] of [
+    [
+      "a click on the button",
+      (page: Page) => page.getByRole("button", { name: "Plan this day" }).click(),
+    ],
+    [
+      "Enter in the field",
+      async (page: Page) => {
+        await page.getByRole("textbox", { name: "Where, and anything else" }).focus();
+        await page.keyboard.press("Enter");
+      },
+    ],
+  ] as const) {
+    test(`by ${how}, the focus handed to the field, until the visitor types`, async ({ page }) => {
+      const reads = await countTheIntake(page, { kind: "refused" });
+      await openLive(page, "/");
+      await expect(
+        page.getByRole("heading", { name: "No city in mind? Start from one of these" }),
+      ).toBeVisible();
+      const field = page.getByRole("textbox", { name: "Where, and anything else" });
+
+      const pressedAt = await page.evaluate(() => performance.now());
+      await press(page);
+
+      await expect(field).toBeFocused();
+      await expect(field).toHaveAttribute("aria-invalid", "true");
+      await expectSaidInPlace(page, pressedAt, NOTHING_TO_READ, NOTHING_TO_READ);
+      // The example stays in its status, heard as it stood, and unseen.
+      const example = page.locator("main form p[role=status]", { hasText: /^For example:/ });
+      expect(await widthOf(example)).toBeLessThanOrEqual(1);
+
+      const typedAt = await page.evaluate(() => performance.now());
+      await field.pressSequentially("Elche");
+      await expect(page.getByText(NOTHING_TO_READ)).toHaveCount(0);
+      expect(await widthOf(example)).toBeGreaterThan(1);
+      await expect(field).not.toHaveAttribute("aria-invalid");
+      const saidSince = await page.evaluate(
+        (since) => window.statusLog.filter((entry) => entry.t >= since && /\S/.test(entry.text)),
+        typedAt,
+      );
+      expect(saidSince, "said as the visitor types").toEqual([]);
+      expect(reads(), "a text read").toBe(0);
+    });
+  }
+
+  test("with live generation on, an answer of spaces alone to the city's question", async ({
+    page,
+  }) => {
+    const reads = await countTheIntake(page, { ...PORTLAND_ASKED, readings: [] });
+    await openLive(page, "/");
+    await askFromTheField(page, "a lively day");
+    const city = page.getByRole("textbox", { name: "Which city?" });
+    await expect(city).toBeFocused();
+
+    await city.fill("   ");
+    const pressedAt = await page.evaluate(() => performance.now());
+    await city.press("Enter");
+
+    await expect(city).toBeFocused();
+    await expect(city).toHaveAttribute("aria-invalid", "true");
+    await expectSaidInPlace(page, pressedAt, NOTHING_TO_READ, NOTHING_TO_READ);
+    expect(reads(), "the answer read").toBe(1);
+  });
+});
+
+test.describe("an answer to the city's question that is still not a city", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(logStatuses);
+  });
+
+  test("stays in the field, and is said as not found from a status that stood", async ({
+    page,
+  }) => {
+    const reads = await countTheIntake(page, { ...PORTLAND_ASKED, readings: [] });
+    await openLive(page, "/");
+    await askFromTheField(page, "a lively day");
+    const city = page.getByRole("textbox", { name: "Which city?" });
+    await expect(city).toBeFocused();
+
+    await city.fill("Springfeld");
+    const pressedAt = await page.evaluate(() => performance.now());
+    await city.press("Enter");
+
+    const line = "Lantern couldn't find “Springfeld”. Name a city, or pick one of the days below.";
+    await expectSaidInPlace(page, pressedAt, `A lively day in …? ${line}`, line);
+    await expect(city).toBeFocused();
+    await expect(city).toHaveValue("Springfeld");
+    await expect(city).toHaveAttribute("aria-invalid", "true");
+    expect(reads()).toBe(2);
+
+    // A typo put right: the field no longer holds the answer not found.
+    await city.press("End");
+    await city.press("Backspace");
+    await expect(city).not.toHaveAttribute("aria-invalid");
   });
 });

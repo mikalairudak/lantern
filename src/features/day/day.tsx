@@ -728,7 +728,11 @@ export function Day({
     if (readingSaid.current !== null) cancelAnimationFrame(readingSaid.current);
     readingSaid.current = null;
     setTypedRead(null);
-    setLine((now) => (now?.kind === "reading" ? (now.answering ?? null) : now));
+    setLine((now) => {
+      if (now?.kind !== "reading") return now;
+      // An answer whose read is stopped was not looked for: the question asks for any city again.
+      return now.answering ? { ...now.answering, notFound: undefined } : null;
+    });
   }, []);
   // Hidden, as a route left by a link is, or gone: React runs this cleanup either way.
   useEffect(() => stopReading, [stopReading]);
@@ -2010,9 +2014,14 @@ export function Day({
       });
     }
     if (read.kind === "question") {
-      setText("");
-      // The city is still open: the same words, asking among the cities this name could be.
-      return setLine({ ...question, readings: read.readings });
+      // The city is still open: the same words, asking among the cities this name could be, the
+      // field emptied for the one chosen; or, where it found none, saying the answer was not found
+      // and keeping it in the field, so a misspelt name can be put right.
+      if (read.readings.length > 0) {
+        setText("");
+        return setLine({ ...question, readings: read.readings, notFound: undefined });
+      }
+      return setLine({ ...question, readings: [], notFound: text });
     }
     sayNoDay(read.kind);
   };

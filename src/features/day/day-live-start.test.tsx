@@ -312,6 +312,108 @@ describe("the start screen with live generation on", () => {
     expect(screen.getByRole("textbox", { name: "Where, and anything else" })).toHaveFocus();
   });
 
+  it("keeps an answer to the question that names no city in the field, and says it was not found", async () => {
+    const noCity = answered({
+      kind: "question",
+      key: "city",
+      readings: [],
+      words: { ...NO_WORDS, energy: "lively", energySource: "chosen" },
+      unplaced: [],
+    });
+    const user = renderLive(noCity, noCity);
+
+    await ask(user, "a lively day");
+    const field = await screen.findByRole("textbox", { name: "Which city?" });
+    await user.type(field, "Springfeld{Enter}");
+
+    await saysBack(
+      "Lantern couldn't find “Springfeld”. Name a city, or pick one of the days below.",
+    );
+    expect(screen.getByRole("textbox", { name: "Which city?" })).toBe(field);
+    expect(field).toHaveValue("Springfeld");
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    expect(intakeTexts).toEqual(["a lively day", "Springfeld"]);
+  });
+
+  it("asks for any city again, quoting no answer, after Forward to the day behind stops the reading of an answer to the question asked again", async () => {
+    const noCity = answered({
+      kind: "question",
+      key: "city",
+      readings: [],
+      words: { ...NO_WORDS, company: "family" },
+      unplaced: [],
+    });
+    intakeReplies.push(noCity, noCity, "pending");
+    const user = userEvent.setup();
+    render(<Day start={{ pool: POOL, read: readIntakeRoute }} isLive isAddressed />);
+    const index = screen.getByRole("list", { name: INDEX_LABEL });
+    await user.click(within(index).getByRole("button", { name: /^Paris / }));
+    await waitFor(() => expect(window.location.pathname).toBe("/day/paris"), DAY_TIMEOUT);
+    await waitForTheDay();
+    act(() => window.history.back());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+    await ask(user, "a day with my kids");
+    const city = await screen.findByRole("textbox", { name: "Which city?" });
+    await user.type(city, "Lyonn{Enter}");
+    await saysBack("Lantern couldn't find “Lyonn”. Name a city, or pick one of the days below.");
+    await user.type(city, "{Backspace}{Enter}");
+    await waitFor(() => expect(city).toHaveAttribute("readonly"));
+
+    act(() => window.history.forward());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+    act(() => window.history.back());
+    await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+
+    // The answer under way was never looked for, so no answer is quoted as not found.
+    expect(screen.getByRole("textbox", { name: "Which city?" })).toHaveValue("Lyon");
+    expect(screen.queryByText(/^Lantern couldn't find/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Lantern needs a city to plan the day. Name one, or pick one of the days below.",
+      ),
+    ).toBeInTheDocument();
+    expect(intakeTexts).toEqual(["a day with my kids", "Lyonn", "Lyon"]);
+  });
+
+  it("empties the field for the cities a name could be, when the answer to the question finds several", async () => {
+    const user = renderLive(
+      answered({
+        kind: "question",
+        key: "city",
+        readings: [],
+        words: { ...NO_WORDS, energy: "lively", energySource: "chosen" },
+        unplaced: [],
+      }),
+      answered({
+        kind: "question",
+        key: "city",
+        readings: [PORTLAND_OREGON, PORTLAND_MAINE],
+        words: { ...NO_WORDS, energy: "lively", energySource: "chosen" },
+        unplaced: [],
+      }),
+    );
+
+    await ask(user, "a lively day");
+    const field = await screen.findByRole("textbox", { name: "Which city?" });
+    await user.type(field, "Portland{Enter}");
+
+    await screen.findByRole("button", { name: "Portland, Oregon, United States" });
+    expect(field).toHaveValue("");
+    expect(field).not.toHaveAttribute("aria-invalid");
+    expect(screen.queryByText(/^Lantern couldn't find/)).not.toBeInTheDocument();
+  });
+
+  it("reads nothing at a press with the field empty, and says what is missing", async () => {
+    const user = renderLive();
+
+    await user.click(screen.getByRole("button", { name: "Plan this day" }));
+
+    const field = screen.getByRole("textbox", { name: "Where, and anything else" });
+    expect(field).toHaveFocus();
+    expect(screen.getByText("Name a city, or pick a day below.", { selector: "p" })).toBeVisible();
+    expect(intakeTexts).toEqual([]);
+  });
+
   it("plays a written city typed for the question without a second read", async () => {
     const user = renderLive(
       answered({

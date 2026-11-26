@@ -55,6 +55,17 @@ const EXAMPLE = "For example: London, with friends";
 const READING_SAID = "Reading what you wrote";
 /** Under the city's question when the text named no city at all. */
 const NEEDS_CITY = "Lantern needs a city to plan the day. Name one, or pick one of the days below.";
+/**
+ * In place of the line under the field at a press with nothing in it to read: no wider than the
+ * example, so it takes the example's room at every width, over the note with live generation off.
+ */
+const NOTHING_TO_READ = "Name a city, or pick a day below.";
+/**
+ * How many characters of an answer not found the line quotes: more than a city's name takes, so
+ * a misspelt one is quoted whole, and few enough that a sentence typed into the field, which
+ * keeps it whole, leaves the line two or three lines at a phone's width.
+ */
+const QUOTED_ANSWER_CHARS = 32;
 
 /** Read in part, without a city: the sentence so far asks for one. */
 export interface CityQuestion {
@@ -63,6 +74,8 @@ export interface CityQuestion {
   /** The cities a shared name could be, offered as answers; empty when none was named. */
   readings: readonly CityReading[];
   unplaced: readonly string[];
+  /** The answer to "in …?" that Lantern read and found no city in, asked again; the field keeps it. */
+  notFound?: string;
 }
 
 /** What the line under the question says, after the visitor has asked. */
@@ -121,6 +134,20 @@ export interface StartHeaderProps {
    * one element alone can hold the focus, and a cell that took it would scroll the lab to it.
    */
   drawnAsPointed?: DrawnAsPointed;
+  /** Drawn as just pressed with nothing in the field, as a lab cell shows it, without the focus. */
+  isDrawnPressedEmpty?: boolean;
+}
+
+/**
+ * A press with nothing in the field to read, standing until the visitor types or the line
+ * changes: the text and the line it was pressed over, how many such presses there have been, and
+ * whether the status has held its words for as long as it takes to hear them.
+ */
+interface EmptyPress {
+  text: string;
+  line: StartLine;
+  presses: number;
+  isHeardOut: boolean;
 }
 
 /**
@@ -153,6 +180,7 @@ export function StartHeader({
   yourDays,
   isReturnedTo = false,
   drawnAsPointed = null,
+  isDrawnPressedEmpty = false,
   wait: waitAsked,
 }: StartHeaderProps) {
   // With live generation off nothing is written: a day on its way is opened from its file.
@@ -229,6 +257,33 @@ export function StartHeader({
   }, [answer, isSeen]);
   const heardAnswer = answer !== answerHeardOut ? answer : null;
   const saidAnswer = heardAnswer !== null && !isSeen ? "" : heardAnswer;
+  // A press with nothing to read says what is missing in place of the line under the field until
+  // the visitor types or the line changes, and from the status over the form, held as an answer
+  // is and said again at a press once it has fallen quiet. The answer standing at the press counts
+  // as heard, so it is not said again as its line comes back.
+  const [emptyPress, setEmptyPress] = useState<EmptyPress | null>(
+    isDrawnPressedEmpty ? { text, line, presses: 1, isHeardOut: false } : null,
+  );
+  if (emptyPress !== null && (emptyPress.text !== text || emptyPress.line !== line)) {
+    setEmptyPress(null);
+  }
+  const pressEmpty = () => {
+    if (answer !== null) setAnswerHeardOut(answer);
+    setEmptyPress((now) =>
+      now !== null && !now.isHeardOut
+        ? now
+        : { text, line, presses: (now?.presses ?? 0) + 1, isHeardOut: false },
+    );
+  };
+  const emptyPressSaid = emptyPress !== null && !emptyPress.isHeardOut ? emptyPress.presses : null;
+  useEffect(() => {
+    if (emptyPressSaid === null) return undefined;
+    const heardOut = window.setTimeout(
+      () => setEmptyPress((now) => now && { ...now, isHeardOut: true }),
+      NOTICE_HEARD_MS,
+    );
+    return () => window.clearTimeout(heardOut);
+  }, [emptyPressSaid]);
 
   return (
     <header className="flex shrink-0 flex-col pt-5 pb-5">
@@ -248,7 +303,9 @@ export function StartHeader({
             standing, as on the way back from a day, draws it holding that answer, as a notice
             the page opens with, for as long. */}
         <div role="status" className="sr-only">
-          {saidAnswer ?? heardOf(line, wait, isLive, isReadingSaidByFocus, isSaidOverForm)}
+          {emptyPressSaid !== null
+            ? NOTHING_TO_READ
+            : (saidAnswer ?? heardOf(line, wait, isLive, isReadingSaidByFocus, isSaidOverForm))}
         </div>
         <QuestionForm
           // Asked for a city, the field starts again empty, with the focus, for the answer; it
@@ -268,6 +325,8 @@ export function StartHeader({
           isSaidOverForm={isSaidOverForm}
           isAnswerHeardOut={heardAnswer === null}
           onPlan={onPlan}
+          isPressedEmpty={emptyPress !== null}
+          onPressedEmpty={pressEmpty}
           onChooseReading={onChooseReading}
           drawnAsPointed={drawnAsPointed}
         />
@@ -311,6 +370,9 @@ interface QuestionFormProps {
    */
   isAnswerHeardOut: boolean;
   onPlan: (text: string) => void;
+  /** A press found nothing in the field to read, and what is missing stands in the line's place. */
+  isPressedEmpty: boolean;
+  onPressedEmpty: () => void;
   onChooseReading: (reading: CityReading) => void;
   drawnAsPointed: DrawnAsPointed;
 }
@@ -399,10 +461,11 @@ const FIELD_LINE_FOCUSED_CLASSES = "-mb-px border-b-2 border-ink";
 
 /**
  * The field's words as it wraps them, its type, its padding and its line: unseen in its cell,
- * so the field is as tall as its words, and lit over it while they are read.
+ * so the field is as tall as its words, and lit over it while they are read. A word longer than
+ * the column breaks where it must rather than widen the field past the button and the page.
  */
 const FIELD_WORDS_CLASSES = cn(
-  "border-b border-transparent pt-1 pb-1 whitespace-pre-wrap wrap-break-word",
+  "border-b border-transparent pt-1 pb-1 whitespace-pre-wrap wrap-anywhere",
   SENTENCE_CLASSES,
   CLEAR_OF_BUTTON_CLASSES,
 );
@@ -448,6 +511,8 @@ function QuestionForm({
   isSaidOverForm,
   isAnswerHeardOut,
   onPlan,
+  isPressedEmpty,
+  onPressedEmpty,
   onChooseReading,
   drawnAsPointed,
 }: QuestionFormProps) {
@@ -509,6 +574,8 @@ function QuestionForm({
   }
   const describedBy =
     [isAnswerDescribed && answerId, isCountShown && roomId].filter(Boolean).join(" ") || undefined;
+  // The field holds what a press could not read: nothing, or the answer to "in …?" not found.
+  const isInvalid = isPressedEmpty || (line?.kind === "question" && line.notFound === text.trim());
 
   // Each way the focus is handed to the field marks it handed back once the page's focus is there,
   // read from the page rather than from a focus event, which a window not in front delivers late.
@@ -562,7 +629,13 @@ function QuestionForm({
   };
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (text.trim() === "" || isReading) return;
+    if (isReading) return;
+    // Nothing to read: the field takes the focus, for the words the line now asks for.
+    if (text.trim() === "") {
+      onPressedEmpty();
+      field.current?.focus();
+      return;
+    }
     const isFocusMoving = document.activeElement !== button.current;
     // A press inside a wait already under way, before the line says it, asks nothing new: what
     // the press that started the wait made heard stands.
@@ -627,6 +700,7 @@ function QuestionForm({
               spellCheck={false}
               maxLength={MAX_INTAKE_TEXT_CHARS}
               aria-describedby={describedBy}
+              aria-invalid={isInvalid || undefined}
               className={cn(
                 FIELD_CLASSES,
                 drawnAsPointed === "field" ? FIELD_LINE_FOCUSED_CLASSES : FIELD_LINE_CLASSES,
@@ -665,6 +739,7 @@ function QuestionForm({
                     answer={null}
                     onChooseReading={chooseReading}
                     neededId={answerId}
+                    isPressedEmpty={isPressedEmpty}
                   />
                 </div>
                 {count}
@@ -681,6 +756,7 @@ function QuestionForm({
                   text={text}
                   isLive={isLive}
                   isExampleShown={!isCountShown}
+                  isPressedEmpty={isPressedEmpty}
                   onChooseReading={onChooseReading}
                 />
                 {count && <span className="absolute top-0 right-0">{count}</span>}
@@ -705,7 +781,12 @@ function QuestionForm({
           it stands over, the count at the row's right end beside it. */}
       {isNoDay(line) && (
         <div className="mt-2 flex items-start justify-between gap-3">
-          <EndingLine id={answerId} ending={line.kind} isLive={isLive} />
+          <EndingLine
+            id={answerId}
+            ending={line.kind}
+            isLive={isLive}
+            isPressedEmpty={isPressedEmpty}
+          />
           {count}
         </div>
       )}
@@ -851,6 +932,8 @@ interface QuestionLineProps {
   isLive: boolean;
   /** At rest, the example is drawn; while the count stands, the line says one thing, the count. */
   isExampleShown: boolean;
+  /** At rest, what a press with nothing to read is missing is seen in the example's place. */
+  isPressedEmpty: boolean;
   onChooseReading: (reading: CityReading) => void;
 }
 
@@ -869,6 +952,7 @@ function SaidLine({
   className,
   isHeard = true,
   isTwoLinesHeld,
+  shownInstead = null,
   children,
 }: {
   className: string;
@@ -881,8 +965,14 @@ function SaidLine({
    * once.
    */
   isHeard?: boolean;
+  /**
+   * Seen in the line's place, and not heard from it: the status over the form says it. The line's
+   * own words stay in its status, unseen, so it is not heard again when they come back.
+   */
+  shownInstead?: ReactNode;
   children: ReactNode;
 }) {
+  const placeClasses = "col-start-1 row-start-1 -mb-6 self-start";
   return (
     <div className="grid">
       <span
@@ -898,10 +988,13 @@ function SaidLine({
       </span>
       <p
         role="status"
-        className={cn(LINE_SIZE_CLASSES, "col-start-1 row-start-1 -mb-6 self-start", className)}
+        className={cn(LINE_SIZE_CLASSES, shownInstead ? "sr-only" : placeClasses, className)}
       >
         {isHeard ? children : <span aria-hidden>{children}</span>}
       </p>
+      {shownInstead && (
+        <p className={cn(LINE_SIZE_CLASSES, placeClasses, MISSING_CLASSES)}>{shownInstead}</p>
+      )}
     </div>
   );
 }
@@ -912,6 +1005,12 @@ function SaidLine({
  */
 const EXAMPLE_CLASSES = "text-balance";
 
+/**
+ * What a press could not read, in the ink an ending's line stands in, a step over the muted
+ * lines it takes the place of. A quoted answer with no space in it breaks where it must.
+ */
+const MISSING_CLASSES = "text-pretty text-ink-soft wrap-break-word";
+
 /** Under the field: the example, or what Lantern does with the text. */
 function QuestionLine({
   line,
@@ -921,12 +1020,18 @@ function QuestionLine({
   text,
   isLive,
   isExampleShown,
+  isPressedEmpty,
   onChooseReading,
 }: QuestionLineProps) {
   if (line === null) {
-    // At rest, the example takes the line's size, so the line takes its place as it is.
+    // At rest, the example takes the line's size, so the line takes its place as it is. While the
+    // count stands in its room, what a press is missing is said and not seen, as the example is.
     return (
-      <SaidLine className={cn("text-muted", EXAMPLE_CLASSES)} isTwoLinesHeld={isLive}>
+      <SaidLine
+        className={cn("text-muted", EXAMPLE_CLASSES)}
+        isTwoLinesHeld={isLive}
+        shownInstead={isPressedEmpty && isExampleShown ? NOTHING_TO_READ : null}
+      >
         {isExampleShown ? EXAMPLE : null}
       </SaidLine>
     );
@@ -1058,29 +1163,59 @@ function endingSaidOf(ending: Ending, isLive: boolean): string {
  * written days are offered once, as the index below, which this points to. Its halves stay
  * separate texts: Chromium sets one joined string's glyphs a subpixel apart from these.
  */
-function EndingLine({ id, ending, isLive }: { id: string; ending: Ending; isLive: boolean }) {
+function EndingLine({
+  id,
+  ending,
+  isLive,
+  isPressedEmpty,
+}: {
+  id: string;
+  ending: Ending;
+  isLive: boolean;
+  /** What a press with nothing to read is missing stands in its place, the line kept unseen. */
+  isPressedEmpty: boolean;
+}) {
   return (
-    <p id={id} className="mt-1 type-voice text-quote text-ink-soft">
-      {endedOf(ending, isLive)} {TO_THE_INDEX}
-    </p>
+    <>
+      <p id={id} hidden={isPressedEmpty} className={ENDING_LINE_CLASSES}>
+        {endedOf(ending, isLive)} {TO_THE_INDEX}
+      </p>
+      {isPressedEmpty && <p className={ENDING_LINE_CLASSES}>{NOTHING_TO_READ}</p>}
+    </>
   );
 }
+
+const ENDING_LINE_CLASSES = "mt-1 type-voice text-quote text-ink-soft";
 
 /**
  * The city's question in one line, in the words its lines show: the sentence so far, the key
  * of an energy Lantern assumed, naming the word it marks so no fact after it reads as assumed,
  * then the cities its name could be, or that it needs one, and what Lantern could not place.
  */
-function questionSaidOf({ words, readings, unplaced }: CityQuestion): string {
+function questionSaidOf(question: CityQuestion): string {
+  const { words, readings, unplaced } = question;
   const energy = energyLabelOf(words.energy);
   const sentence = [`A ${energy} ${dayWordOf(words)} in …?`, ...restLabelsOf(words)].join(", ");
-  const needed = readings.length > 0 ? readingsSaidOf(readings) : NEEDS_CITY;
+  const needed = readings.length > 0 ? readingsSaidOf(readings) : neededOf(question);
   // The sentence ends at its "…?" where it names nothing after the city.
   const asked = sentence.endsWith("?") ? sentence : `${sentence}.`;
   // The key as its line says it, set as a sentence of the status's own.
   const keySaid = assumedKeyOf(words);
   const key = keySaid === null ? null : `${keySaid.charAt(0).toUpperCase()}${keySaid.slice(1)}.`;
   return [asked, key, needed, unplacedLineOf(unplaced)].filter((part) => part !== null).join(" ");
+}
+
+/** What the city's question needs when no cities are offered: a city, or one found this time. */
+function neededOf({ notFound }: CityQuestion): string {
+  if (notFound === undefined) return NEEDS_CITY;
+  return `Lantern couldn't find “${quotedOf(notFound)}”. Name a city, or pick one of the days below.`;
+}
+
+/** An answer as the line quotes it: whole, or cut between two code points with an ellipsis. */
+function quotedOf(answer: string): string {
+  const characters = Array.from(answer);
+  if (characters.length <= QUOTED_ANSWER_CHARS) return answer;
+  return `${characters.slice(0, QUOTED_ANSWER_CHARS).join("").trimEnd()}…`;
 }
 
 /** The cities a shared name could be, as one sentence offering each: "…, or …". */
@@ -1109,6 +1244,8 @@ interface QuestionLinesProps {
   isLit?: boolean;
   /** The id of the line saying what it needs, which the field may be described by. */
   neededId?: string;
+  /** What a press with nothing to read is missing stands under the cities, or in the line's place. */
+  isPressedEmpty?: boolean;
 }
 
 /**
@@ -1124,6 +1261,7 @@ function QuestionLines({
   onChooseReading,
   isLit = false,
   neededId,
+  isPressedEmpty = false,
 }: QuestionLinesProps) {
   const isReading = answer !== null;
   const unplaced = unplacedLineOf(question.unplaced);
@@ -1177,10 +1315,19 @@ function QuestionLines({
             )}
           </p>
         ) : (
-          <p id={neededId} className="type-note text-muted">
-            {NEEDS_CITY}
+          // An answer not found is a press that brought no day: its line stands in an ending's ink.
+          <p
+            id={neededId}
+            hidden={isPressedEmpty}
+            className={cn(
+              "type-note",
+              question.notFound === undefined ? "text-muted" : MISSING_CLASSES,
+            )}
+          >
+            {neededOf(question)}
           </p>
         )}
+        {isPressedEmpty && <p className={cn("type-note", MISSING_CLASSES)}>{NOTHING_TO_READ}</p>}
         {unplaced && <p className="type-note text-muted">{unplaced}</p>}
       </div>
     </div>
