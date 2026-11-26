@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, test, type Locator, type Page } from "./fixtures";
 import { openLive } from "./live-page";
 import { expectSaidOnceAsChange, logStatuses } from "./status-log";
 import { NOTICE_HEARD_MS } from "../src/features/day/notice-status";
@@ -864,4 +864,261 @@ test.describe("a city chosen among those a shared name could be", () => {
     release();
     await expect.poll(() => cityWordFocused(page)).toBe(true);
   });
+});
+
+/** What a press with nothing in the field says, under the field and from the status over it. */
+const NOTHING_TO_READ = "Name a city, or pick a day below.";
+
+/** How wide an element is drawn: a pixel or none when it is kept for a screen reader alone. */
+async function widthOf(locator: Locator): Promise<number> {
+  return (await locator.boundingBox())?.width ?? 0;
+}
+
+/** Counts the page's reads of a text, answering each with `answer`. */
+async function countTheIntake(page: Page, answer: IntakeResult): Promise<() => number> {
+  let reads = 0;
+  await page.route("**/api/intake", (route) => {
+    reads += 1;
+    return route.fulfill({ json: answer });
+  });
+  return () => reads;
+}
+
+test.describe("a press with nothing in the field says what is missing, from a status that stood", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(logStatuses);
+  });
+
+  for (const [how, press] of [
+    [
+      "a click on the button",
+      (page: Page) => page.getByRole("button", { name: "Plan this day" }).click(),
+    ],
+    [
+      "Enter in the field",
+      async (page: Page) => {
+        await page.getByRole("textbox", { name: "Where, and anything else" }).focus();
+        await page.keyboard.press("Enter");
+      },
+    ],
+  ] as const) {
+    test(`by ${how}, the focus handed to the field, until the visitor types`, async ({ page }) => {
+      const reads = await countTheIntake(page, { kind: "refused" });
+      await openLive(page, "/");
+      await expect(
+        page.getByRole("heading", { name: "No city in mind? Start from one of these" }),
+      ).toBeVisible();
+      const field = page.getByRole("textbox", { name: "Where, and anything else" });
+
+      const pressedAt = await page.evaluate(() => performance.now());
+      await press(page);
+
+      await expect(field).toBeFocused();
+      await expect(field).toHaveAttribute("aria-invalid", "true");
+      await expectSaidInPlace(page, pressedAt, NOTHING_TO_READ, NOTHING_TO_READ);
+      // The example stays in its status, heard as it stood, and unseen.
+      const example = page.locator("main form p[role=status]", { hasText: /^For example:/ });
+      expect(await widthOf(example)).toBeLessThanOrEqual(1);
+
+      const typedAt = await page.evaluate(() => performance.now());
+      await field.pressSequentially("Elche");
+      await expect(page.getByText(NOTHING_TO_READ)).toHaveCount(0);
+      expect(await widthOf(example)).toBeGreaterThan(1);
+      await expect(field).not.toHaveAttribute("aria-invalid");
+      const saidSince = await page.evaluate(
+        (since) => window.statusLog.filter((entry) => entry.t >= since && /\S/.test(entry.text)),
+        typedAt,
+      );
+      expect(saidSince, "said as the visitor types").toEqual([]);
+      expect(reads(), "a text read").toBe(0);
+    });
+  }
+
+  test("with live generation on, an answer of spaces alone to the city's question", async ({
+    page,
+  }) => {
+    const reads = await countTheIntake(page, { ...PORTLAND_ASKED, readings: [] });
+    await openLive(page, "/");
+    await askFromTheField(page, "a lively day");
+    const city = page.getByRole("textbox", { name: "Which city?" });
+    await expect(city).toBeFocused();
+
+    await city.fill("   ");
+    const pressedAt = await page.evaluate(() => performance.now());
+    await city.press("Enter");
+
+    await expect(city).toBeFocused();
+    await expect(city).toHaveAttribute("aria-invalid", "true");
+    await expectSaidInPlace(page, pressedAt, NOTHING_TO_READ, NOTHING_TO_READ);
+    expect(reads(), "the answer read").toBe(1);
+  });
+});
+
+test.describe("an answer to the city's question that is still not a city", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(logStatuses);
+  });
+
+  test("stays in the field, and is said as not found from a status that stood", async ({
+    page,
+  }) => {
+    const reads = await countTheIntake(page, { ...PORTLAND_ASKED, readings: [] });
+    await openLive(page, "/");
+    await askFromTheField(page, "a lively day");
+    const city = page.getByRole("textbox", { name: "Which city?" });
+    await expect(city).toBeFocused();
+
+    await city.fill("Springfeld");
+    const pressedAt = await page.evaluate(() => performance.now());
+    await city.press("Enter");
+
+    const line = "Lantern couldn't find “Springfeld”. Name a city, or pick a day below.";
+    await expectSaidInPlace(page, pressedAt, `A lively day in …? ${line}`, line);
+    await expect(city).toBeFocused();
+    await expect(city).toHaveValue("Springfeld");
+    await expect(city).toHaveAttribute("aria-invalid", "true");
+    expect(reads()).toBe(2);
+
+    // A typo put right: the field no longer holds the answer not found.
+    await city.press("End");
+    await city.press("Backspace");
+    await expect(city).not.toHaveAttribute("aria-invalid");
+  });
+});
+
+/**
+ * Where the index's heading stands under the question at each width a press with nothing in the
+ * field is measured at: a phone's narrowest and its usual, and a laptop's.
+ */
+const HOLD_WIDTHS = [
+  { width: 360, height: 780, isPhone: true },
+  { width: 390, height: 844, isPhone: true },
+  { width: 1440, height: 900, isPhone: false },
+] as const;
+
+/** The start screen brought to a state, its field emptied, with live generation on or off. */
+const HOLD_STATES: readonly {
+  name: string;
+  isLive: boolean;
+  answer?: IntakeResult;
+  asked?: string;
+  field: string;
+}[] = [
+  {
+    name: "the example, with live generation off",
+    isLive: false,
+    field: "Where, and anything else",
+  },
+  { name: "the example, with live generation on", isLive: true, field: "Where, and anything else" },
+  {
+    name: "the city asked for",
+    isLive: true,
+    answer: { ...PORTLAND_ASKED, readings: [] },
+    asked: "a lively day",
+    field: "Which city?",
+  },
+  {
+    name: "the cities a shared name could be",
+    isLive: true,
+    answer: PORTLAND_ASKED,
+    asked: "Portland, a lively day",
+    field: "Which city?",
+  },
+  {
+    name: "an ending",
+    isLive: true,
+    answer: { kind: "refused" },
+    asked: "a quiet day somewhere",
+    field: "Where, and anything else",
+  },
+];
+
+test.describe("a press with nothing in the field moves nothing under it", () => {
+  for (const size of HOLD_WIDTHS) {
+    for (const state of HOLD_STATES) {
+      test(`at ${size.width} px, over ${state.name}, at the press and at the first keystroke`, async ({
+        page,
+        isMobile,
+      }) => {
+        test.skip(isMobile !== size.isPhone, "measured once, in the project of its width");
+        await page.setViewportSize({ width: size.width, height: size.height });
+        if (state.answer) await answerTheIntake(page, state.answer);
+        if (state.isLive) await openLive(page, "/");
+        else await page.goto("/");
+        const field = page.getByRole("textbox", { name: state.field });
+        if (state.asked) await askFromTheField(page, state.asked);
+        else await field.focus();
+        await expect(field).toBeFocused();
+        await expect(page.getByRole("button", { name: "Plan this day" })).toBeVisible();
+        await field.fill("");
+        const before = await indexHeadingOf(page);
+
+        await field.press("Enter");
+        await expect(field).toHaveAttribute("aria-invalid", "true");
+        expect(await indexHeadingOf(page), "at the press").toBeCloseTo(before, 1);
+
+        await field.pressSequentially("E");
+        await expect(field).not.toHaveAttribute("aria-invalid");
+        expect(await indexHeadingOf(page), "at the first keystroke").toBeCloseTo(before, 1);
+      });
+    }
+  }
+});
+
+test.describe("an answer to the city's question not found, at a phone's narrowest", () => {
+  for (const width of [320, 360]) {
+    test(`at ${width} px, quotes one unbroken word inside its column`, async ({
+      page,
+      isMobile,
+    }) => {
+      test.skip(!isMobile, "measured at a phone's width");
+      await page.setViewportSize({ width, height: 740 });
+      await answerTheIntake(page, { ...PORTLAND_ASKED, readings: [] });
+      await openLive(page, "/");
+      await askFromTheField(page, "a lively day");
+      const city = page.getByRole("textbox", { name: "Which city?" });
+      await city.fill("Springfeld".repeat(6));
+      await city.press("Enter");
+
+      const line = page.locator("main form p", { hasText: /^Lantern couldn't find/ });
+      await expect(line).toBeVisible();
+      const overrun = await line.evaluate((element) => {
+        const column = element.closest("form")!.getBoundingClientRect();
+        return {
+          line: element.getBoundingClientRect().right - column.right,
+          words: element.scrollWidth - element.clientWidth,
+          page: document.documentElement.scrollWidth - window.innerWidth,
+        };
+      });
+      expect(overrun.line, "the line past its column").toBeLessThanOrEqual(0);
+      expect(overrun.words, "the words past the line").toBeLessThanOrEqual(0);
+      expect(overrun.page, "the page past the screen").toBeLessThanOrEqual(0);
+    });
+  }
+});
+
+test("with live generation on, a press of the answer not found again reads nothing, and says it again", async ({
+  page,
+}) => {
+  await page.addInitScript(logStatuses);
+  const reads = await countTheIntake(page, { ...PORTLAND_ASKED, readings: [] });
+  await openLive(page, "/");
+  await askFromTheField(page, "a lively day");
+  const city = page.getByRole("textbox", { name: "Which city?" });
+  await city.fill("Springfeld");
+  const answeredAt = await page.evaluate(() => performance.now());
+  await city.press("Enter");
+  const line = "Lantern couldn't find “Springfeld”. Name a city, or pick a day below.";
+  const said = `A lively day in …? ${line}`;
+  // Said, and fallen quiet, so the line said again is a change of its words.
+  await expectSaidOnceAsChange(page, said, NOTICE_HEARD_MS, answeredAt);
+  await expect(city).toBeFocused();
+
+  const pressedAt = await page.evaluate(() => performance.now());
+  await city.press("Enter");
+
+  await expectSaidOnceAsChange(page, said, NOTICE_HEARD_MS, pressedAt);
+  await expect(city).toBeFocused();
+  await expect(city).toHaveValue("Springfeld");
+  expect(reads(), "a text read").toBe(2);
 });

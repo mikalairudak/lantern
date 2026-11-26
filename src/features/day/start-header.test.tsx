@@ -79,11 +79,13 @@ type HeldStartProps = Omit<StartHeaderProps, "text" | "onTextChange" | "wait"> &
   wait?: StartWait | null;
   /** The wait the page starts at a press, as `Day` does while it reads the text. */
   waitAtPlan?: StartWait;
+  /** What the field holds as it is drawn, as the page keeps an answer it could not place. */
+  initialText?: string;
 };
 
 /** The header with its text held as the day holds it, and its wait as the page sets it. */
-function HeldStart({ wait, waitAtPlan, onPlan, ...props }: HeldStartProps) {
-  const [text, setText] = useState("");
+function HeldStart({ wait, waitAtPlan, onPlan, initialText = "", ...props }: HeldStartProps) {
+  const [text, setText] = useState(initialText);
   const [waitPressed, setWaitPressed] = useState<StartWait | null>(null);
   const plan = (asked: string) => {
     if (waitAtPlan) setWaitPressed(waitAtPlan);
@@ -316,9 +318,7 @@ describe("StartHeader", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(
-        "Lantern needs a city to plan the day. Name one, or pick one of the days below.",
-      ),
+      screen.getByText("Lantern needs a city to plan the day. Name one, or pick a day below."),
     ).toBeInTheDocument();
     expect(screen.getByText("Lantern can't plan around “by the sea”.")).toBeInTheDocument();
   });
@@ -554,7 +554,7 @@ describe("StartHeader", () => {
     });
 
     expect(answerStatus().textContent).toBe(
-      "A calm day in …?, with family. Lantern needs a city to plan the day. Name one, or pick one of the days below. Lantern can't plan around “by the sea”.",
+      "A calm day in …?, with family. Lantern needs a city to plan the day. Name one, or pick a day below. Lantern can't plan around “by the sea”.",
     );
     // An energy the text chose has no key under the sentence, and none is said.
     expect(answerStatus().textContent).not.toContain(ASSUMED_NOTE);
@@ -585,7 +585,7 @@ describe("StartHeader", () => {
     });
 
     expect(answerStatus().textContent).toBe(
-      `A quiet day in …?, with family. Quiet is ${ASSUMED_NOTE}. Lantern needs a city to plan the day. Name one, or pick one of the days below.`,
+      `A quiet day in …?, with family. Quiet is ${ASSUMED_NOTE}. Lantern needs a city to plan the day. Name one, or pick a day below.`,
     );
   });
 });
@@ -762,8 +762,7 @@ describe("the field's description after an answer without a day", () => {
     readings: [],
     unplaced: [],
   } as const;
-  const NEEDS_CITY_SAID =
-    "Lantern needs a city to plan the day. Name one, or pick one of the days below.";
+  const NEEDS_CITY_SAID = "Lantern needs a city to plan the day. Name one, or pick a day below.";
 
   /** The start as the page draws it for `line` and `wait`. */
   const startOf = (line: StartHeaderProps["line"], wait: StartWait | null, isLive = true) => (
@@ -1910,5 +1909,400 @@ describe("the field's room", () => {
     await user.paste(textOf(100));
     expect(field()).toHaveValue(textOf(MAX_INTAKE_TEXT_CHARS));
     expect(field()).toHaveAccessibleDescription("0 left");
+  });
+});
+
+/** What a press with nothing in the field says, under the field and from the status. */
+const NOTHING_TO_READ = "Name a city, or pick a day below.";
+const EXAMPLE = "For example: London, with friends";
+const NEEDS_CITY_SAID = "Lantern needs a city to plan the day. Name one, or pick a day below.";
+
+describe("a press with nothing in the field", () => {
+  afterEach(() => vi.useRealTimers());
+
+  const field = () => screen.getByRole("textbox", { name: "Where, and anything else" });
+
+  it("hands the focus to the field and says what is missing, once, from the status that stood", async () => {
+    const user = userEvent.setup();
+    const { onPlan } = renderStart();
+    const status = answerStatus();
+    expect(status.textContent).toBe("");
+
+    await user.click(screen.getByRole("button", { name: "Plan this day" }));
+
+    expect(onPlan).not.toHaveBeenCalled();
+    expect(field()).toHaveFocus();
+    expect(field()).toHaveAttribute("aria-invalid", "true");
+    expect(answerStatus()).toBe(status);
+    expect(status.textContent).toBe(NOTHING_TO_READ);
+    // Seen in the example's place, and heard once, from the status over the form: the line's own
+    // status keeps the words it was drawn with.
+    const seen = screen.getByText(NOTHING_TO_READ, { selector: "p" });
+    expect(seen).toBeVisible();
+    expect(seen.closest("[role=status]")).toBeNull();
+    expect(screen.queryByText(EXAMPLE, { selector: "p:not(.sr-only)" })).toBeNull();
+    expect(textOutside(startStatus(), "[aria-hidden=true]")).toBe(EXAMPLE);
+    expect(field()).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("says it at an Enter in the field, and for a field of spaces alone", async () => {
+    const user = userEvent.setup();
+    const { onPlan } = renderStart();
+
+    await user.type(field(), "   {Enter}");
+
+    expect(onPlan).not.toHaveBeenCalled();
+    expect(field()).toHaveFocus();
+    expect(answerStatus().textContent).toBe(NOTHING_TO_READ);
+    expect(field()).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("holds it for as long as it takes to be heard, then falls quiet while the line stays", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    renderStart();
+
+    act(() => screen.getByRole("button", { name: "Plan this day" }).click());
+    act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS - 1));
+    expect(answerStatus().textContent).toBe(NOTHING_TO_READ);
+    act(() => vi.advanceTimersByTime(1));
+    expect(answerStatus().textContent).toBe("");
+    expect(screen.getByText(NOTHING_TO_READ, { selector: "p" })).toBeVisible();
+    expect(field()).toHaveAttribute("aria-invalid", "true");
+
+    // A press again, once it has fallen quiet, says it again.
+    act(() => screen.getByRole("button", { name: "Plan this day" }).click());
+    expect(answerStatus().textContent).toBe(NOTHING_TO_READ);
+  });
+
+  it("goes back to the example once the visitor types, saying nothing", async () => {
+    const user = userEvent.setup();
+    renderStart();
+    await user.click(screen.getByRole("button", { name: "Plan this day" }));
+
+    await user.type(field(), "E");
+
+    expect(screen.queryByText(NOTHING_TO_READ)).not.toBeInTheDocument();
+    expect(screen.getByText(EXAMPLE, { selector: "p" })).toBeVisible();
+    expect(field()).not.toHaveAttribute("aria-invalid");
+    expect(answerStatus().textContent).toBe("");
+    expect(textOutside(startStatus(), "[aria-hidden=true]")).toBe(EXAMPLE);
+  });
+
+  it("says it in the city's field in place of what the question needs, kept unseen in its room, which comes back unsaid", async () => {
+    const user = userEvent.setup();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"], shouldAdvanceTime: true });
+    const { onPlan } = renderStart({
+      isLive: true,
+      line: { kind: "question", words: NO_WORDS, readings: [], unplaced: [] },
+    });
+    const city = screen.getByRole("textbox", { name: "Which city?" });
+    act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS));
+    expect(answerStatus().textContent).toBe("");
+
+    await user.type(city, "{Enter}");
+
+    expect(onPlan).not.toHaveBeenCalled();
+    expect(answerStatus().textContent).toBe(NOTHING_TO_READ);
+    expect(city).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText(NOTHING_TO_READ, { selector: "p" })).toBeVisible();
+    // Kept in its cell, unseen, so the cell holds the taller of the two lines.
+    expect(screen.getByText(NEEDS_CITY_SAID)).toHaveAttribute("aria-hidden", "true");
+
+    await user.type(city, "E");
+    expect(screen.getByText(NEEDS_CITY_SAID)).not.toHaveAttribute("aria-hidden");
+    expect(city).not.toHaveAttribute("aria-invalid");
+    expect(answerStatus().textContent).toBe("");
+  });
+
+  it.each([
+    [
+      "no new day written, with live generation off",
+      { kind: "not-yet" } as const,
+      false,
+      "Lantern isn't writing new days right now. Start from one of the days below.",
+    ],
+    [
+      "a text not read just now",
+      { kind: "not-yet" } as const,
+      true,
+      "Lantern couldn't read that just now. Start from one of the days below.",
+    ],
+    ["a day Lantern will not plan", { kind: "refused" } as const, true, REFUSED_SAID],
+    [
+      "every day it can write written for now",
+      { kind: "limited" } as const,
+      true,
+      "Lantern has written all the days it can for now. Start from one of the days below.",
+    ],
+  ])(
+    "keeps an ending's line in view at a press and says it again: %s",
+    async (_, line, isLive, said) => {
+      const user = userEvent.setup();
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"], shouldAdvanceTime: true });
+      renderStart({ line, isLive });
+      act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS));
+      expect(answerStatus().textContent).toBe("");
+
+      await user.click(screen.getByRole("button", { name: "Plan this day" }));
+      expect(field()).toHaveFocus();
+      expect(field()).toHaveAttribute("aria-invalid", "true");
+      expect(answerStatus().textContent).toBe(said);
+      expect(screen.queryByText(NOTHING_TO_READ)).not.toBeInTheDocument();
+      expect(screen.getByText(said, { selector: "p" })).toBeVisible();
+
+      await user.type(field(), "E");
+      expect(field()).not.toHaveAttribute("aria-invalid");
+      expect(answerStatus().textContent).toBe("");
+    },
+  );
+
+  it("keeps the cities a shared name could be in view at a press, and says the question again", async () => {
+    const user = userEvent.setup();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"], shouldAdvanceTime: true });
+    renderStart({ isLive: true, line: PORTLAND_QUESTION });
+    const city = screen.getByRole("textbox", { name: "Which city?" });
+    act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS));
+
+    await user.type(city, "{Enter}");
+
+    expect(city).toHaveAttribute("aria-invalid", "true");
+    expect(answerStatus().textContent).toBe(PORTLAND_SAID);
+    expect(screen.queryByText(NOTHING_TO_READ)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Portland, Oregon, United States" })).toBeVisible();
+  });
+
+  it("counts the answer standing at the press as heard, so it is not said again as its line comes back", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    renderStart({
+      isLive: true,
+      line: { kind: "question", words: NO_WORDS, readings: [], unplaced: [] },
+    });
+    const city = screen.getByRole("textbox", { name: "Which city?" });
+    expect(answerStatus().textContent).toMatch(/^A balanced day in/);
+
+    // Inside the question's hold, as an Enter straight into the city's field it emptied.
+    act(() => screen.getByRole("button", { name: "Plan this day" }).click());
+    expect(answerStatus().textContent).toBe(NOTHING_TO_READ);
+    fireEvent.change(city, { target: { value: "E" } });
+
+    expect(answerStatus().textContent).toBe("");
+    act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS * 2));
+    expect(answerStatus().textContent).toBe("");
+    expect(screen.getByText(NEEDS_CITY_SAID)).toBeVisible();
+  });
+
+  it("marks the field and leaves it undescribed at a press from the button straight after an ending handed it the focus", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const startOf = (line: StartHeaderProps["line"], wait: StartWait | null) => (
+      <HeldStart
+        starts={STARTS}
+        line={line}
+        wait={wait}
+        isLive
+        isCityFocused={false}
+        onPlan={vi.fn()}
+        onChooseWritten={vi.fn()}
+        onChooseReading={vi.fn()}
+      />
+    );
+    const view = render(startOf({ kind: "reading" }, "reading"));
+    act(() => screen.getByRole("button", { name: "Reading" }).focus());
+    view.rerender(startOf({ kind: "refused" }, null));
+    expect(field()).toHaveFocus();
+
+    const button = screen.getByRole("button", { name: "Plan this day" });
+    act(() => button.focus());
+    act(() => button.click());
+
+    expect(field()).toHaveFocus();
+    expect(field()).toHaveAttribute("aria-invalid", "true");
+    expect(field()).not.toHaveAttribute("aria-describedby");
+    expect(answerStatus().textContent).toBe(REFUSED_SAID);
+  });
+
+  it("leaves the city's field undescribed by the line it hides, until that line comes back", async () => {
+    const user = userEvent.setup();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"], shouldAdvanceTime: true });
+    renderStart({
+      isLive: true,
+      line: { kind: "question", words: NO_WORDS, readings: [], unplaced: [] },
+    });
+    const city = screen.getByRole("textbox", { name: "Which city?" });
+    act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS));
+    act(() => screen.getByRole("button", { name: "Plan this day" }).focus());
+    act(() => city.focus());
+    expect(city).toHaveAccessibleDescription(NEEDS_CITY_SAID);
+
+    await user.type(city, "{Enter}");
+    expect(city).toHaveAccessibleDescription("");
+
+    await user.type(city, "E");
+    expect(city).toHaveAccessibleDescription(NEEDS_CITY_SAID);
+  });
+
+  it("holds it only while the page is seen, and holds it afresh once seen again", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      renderStart();
+      act(() => screen.getByRole("button", { name: "Plan this day" }).click());
+      act(() => vi.advanceTimersByTime(1000));
+
+      showPage(false);
+      expect(answerStatus().textContent).toBe("");
+      act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS * 2));
+
+      showPage(true);
+      expect(answerStatus().textContent).toBe(NOTHING_TO_READ);
+      act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS - 1));
+      expect(answerStatus().textContent).toBe(NOTHING_TO_READ);
+      act(() => vi.advanceTimersByTime(1));
+      expect(answerStatus().textContent).toBe("");
+    } finally {
+      Reflect.deleteProperty(document, "visibilityState");
+    }
+  });
+
+  it("draws it still for a lab cell, without the focus", () => {
+    renderStart({ isCityFocused: false, isDrawnPressedEmpty: true });
+
+    expect(screen.getByText(NOTHING_TO_READ, { selector: "p" })).toBeVisible();
+    expect(field()).toHaveAttribute("aria-invalid", "true");
+    expect(document.activeElement).toBe(document.body);
+  });
+});
+
+describe("an answer to the city's question that is still not a city", () => {
+  const notFound = (answer: string) =>
+    ({
+      kind: "question",
+      words: { ...NO_WORDS, energy: "lively", energySource: "chosen" },
+      readings: [],
+      unplaced: [],
+      notFound: answer,
+    }) as const;
+  const city = () => screen.getByRole("textbox", { name: "Which city?" });
+
+  it("says which answer was not found, the field keeping it, in place of what the question needs", () => {
+    renderStart({ isLive: true, line: notFound("Springfeld"), initialText: "Springfeld" });
+
+    const line = "Lantern couldn't find “Springfeld”. Name a city, or pick a day below.";
+    expect(city()).toHaveValue("Springfeld");
+    expect(city()).toHaveFocus();
+    expect(city()).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText(line, { selector: "p" })).toBeVisible();
+    expect(screen.queryByText(NEEDS_CITY_SAID)).not.toBeInTheDocument();
+    expect(answerStatus().textContent).toBe(`A lively day in …? ${line}`);
+  });
+
+  it("keeps the line once the visitor changes the answer, no longer marking the field", async () => {
+    const user = userEvent.setup();
+    renderStart({ isLive: true, line: notFound("Springfeld"), initialText: "Springfeld" });
+    const said = answerStatus().textContent;
+
+    await user.type(city(), "{Backspace}");
+
+    expect(city()).not.toHaveAttribute("aria-invalid");
+    expect(
+      screen.getByText(/^Lantern couldn't find “Springfeld”/, { selector: "p" }),
+    ).toBeVisible();
+    expect(answerStatus().textContent).toBe(said);
+  });
+
+  it.each([
+    [
+      "a long answer cut at the last space before its 32nd character",
+      "Springfeld, the one with the river and the old bridge, near the coast",
+      "Springfeld, the one with the…",
+    ],
+    [
+      "a long answer cut where a space follows its 32nd character",
+      "Springfeld, the one with the old bridge near the coast",
+      "Springfeld, the one with the old…",
+    ],
+    [
+      "a long answer whose last space is too far back, cut at a character",
+      "Springfeld, the oldbridgeneartheseaandthecoast",
+      "Springfeld, the oldbridgenearthe…",
+    ],
+    [
+      "one word with no space, cut at a character",
+      "Springfeldspringfeldspringfeldspringfeld",
+      "Springfeldspringfeldspringfeldsp…",
+    ],
+    [
+      "an answer cut by a character of two halves, never between them",
+      `${"a".repeat(31)}😀😀`,
+      `${"a".repeat(31)}😀…`,
+    ],
+    ["an answer cut by a flag, never inside it", `${"a".repeat(31)}🇪🇸b`, `${"a".repeat(31)}🇪🇸…`],
+    [
+      "an answer cut by a letter and its accent, never between them",
+      `${"a".repeat(31)}e\u0301b`,
+      `${"a".repeat(31)}e\u0301…`,
+    ],
+    [
+      "an answer cut by a family joined by zero-width joiners, never inside it",
+      `${"a".repeat(31)}👩‍👩‍👧b`,
+      `${"a".repeat(31)}👩‍👩‍👧…`,
+    ],
+  ])("quotes %s, as seen and as said", (_, answer, quoted) => {
+    renderStart({ isLive: true, line: notFound(answer), initialText: answer });
+
+    const line = `Lantern couldn't find “${quoted}”. Name a city, or pick a day below.`;
+    expect(screen.getByText(line, { selector: "p" })).toBeVisible();
+    expect(answerStatus().textContent).toBe(`A lively day in …? ${line}`);
+    expect(city()).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("quotes by code points where the browser cannot tell characters apart", () => {
+    const segmenter = Intl.Segmenter;
+    Reflect.deleteProperty(Intl, "Segmenter");
+    try {
+      const answer = `${"a".repeat(31)}😀😀`;
+      renderStart({ isLive: true, line: notFound(answer), initialText: answer });
+
+      expect(
+        screen.getByText(
+          `Lantern couldn't find “${"a".repeat(31)}😀…”. Name a city, or pick a day below.`,
+          {
+            selector: "p",
+          },
+        ),
+      ).toBeVisible();
+    } finally {
+      Object.assign(Intl, { Segmenter: segmenter });
+    }
+  });
+
+  it("reads nothing at a press of the answer not found again, saying it again instead", async () => {
+    const user = userEvent.setup();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"], shouldAdvanceTime: true });
+    try {
+      const { onPlan } = renderStart({
+        isLive: true,
+        line: notFound("Springfeld"),
+        initialText: "Springfeld",
+      });
+      const said = answerStatus().textContent;
+      act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS));
+      expect(answerStatus().textContent).toBe("");
+
+      await user.click(screen.getByRole("button", { name: "Plan this day" }));
+
+      expect(onPlan).not.toHaveBeenCalled();
+      expect(city()).toHaveFocus();
+      expect(city()).toHaveAttribute("aria-invalid", "true");
+      expect(answerStatus().textContent).toBe(said);
+      expect(screen.queryByText(NOTHING_TO_READ)).not.toBeInTheDocument();
+      expect(
+        screen.getByText(/^Lantern couldn't find “Springfeld”/, { selector: "p" }),
+      ).toBeVisible();
+
+      // Put right, it is read.
+      await user.type(city(), "{Backspace}{Backspace}{Backspace}ield{Enter}");
+      expect(onPlan).toHaveBeenCalledWith("Springfield");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
