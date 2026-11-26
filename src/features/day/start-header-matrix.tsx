@@ -52,8 +52,50 @@ const LISBON_QUESTION: CityQuestion = {
   unplaced: [],
 };
 
+/** A name two cities share, and a phrase Lantern could not place. */
+const PORTLAND_QUESTION: CityQuestion = {
+  kind: "question",
+  words: { ...NO_WORDS, end: "late", company: "friends" },
+  readings: [
+    {
+      placeId: "lab-portland-oregon",
+      name: "Portland",
+      region: "Oregon, United States",
+      timezone: "America/Los_Angeles",
+    },
+    {
+      placeId: "lab-portland-maine",
+      name: "Portland",
+      region: "Maine, United States",
+      timezone: "America/New_York",
+    },
+  ],
+  unplaced: ["somewhere with live music"],
+};
+
 /** The city it was answered with, as Lantern would set the day off for it. */
 const ANSWERED = "Porto";
+
+/** A lively day asked without its city, then answered with a name Lantern found no city in. */
+const NOT_FOUND = "Springfeld";
+const LIVELY_QUESTION: CityQuestion = {
+  kind: "question",
+  words: { ...NO_WORDS, energy: "lively", energySource: "chosen" },
+  readings: [],
+  unplaced: [],
+};
+/** An answer as long as the field takes, and one word with no space to break it at. */
+const NOT_FOUND_LONG =
+  "Springfeld, the one with the river and the old bridge, somewhere near the coast I think, with a market on Saturdays and a long promenade by the sea where we walked last summer with the children and the dog".slice(
+    0,
+    MAX_INTAKE_TEXT_CHARS,
+  );
+const NOT_FOUND_UNBROKEN = "Springfeld".repeat(6);
+/** The question asked again for `answer`, which the field keeps. */
+const notFoundCell = (answer: string): Partial<StartHeaderProps> => ({
+  line: { ...LIVELY_QUESTION, notFound: answer },
+  text: answer,
+});
 
 /** A visitor's words as the intake reads them, and words that run past the field. */
 const READ = "Bologna, with friends";
@@ -180,27 +222,7 @@ export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
         },
         {
           label: "city asked, a shared name, a phrase unplaced",
-          props: {
-            line: {
-              kind: "question",
-              words: { ...NO_WORDS, end: "late", company: "friends" },
-              readings: [
-                {
-                  placeId: "lab-portland-oregon",
-                  name: "Portland",
-                  region: "Oregon, United States",
-                  timezone: "America/Los_Angeles",
-                },
-                {
-                  placeId: "lab-portland-maine",
-                  name: "Portland",
-                  region: "Maine, United States",
-                  timezone: "America/New_York",
-                },
-              ],
-              unplaced: ["somewhere with live music"],
-            },
-          },
+          props: { line: PORTLAND_QUESTION },
         },
         {
           // Each line past one the said line runs into the gap moves the index down by itself. A
@@ -238,9 +260,10 @@ export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
           },
         },
         {
-          // The keyboard's ring on the working button, which holds the focus through the wait. Last,
-          // since a row set among the others moves every cell under it down the grid, and with it
-          // how Chromium smooths their edges, so each would differ from its baseline by a few pixels.
+          // The keyboard's ring on the working button, which holds the focus through the wait. Rows
+          // are added under it and never over it, since a row set among the others moves every
+          // cell under it down the grid, and with it how Chromium smooths their edges, so each
+          // would differ from its baseline by a few pixels.
           label: "reading, the button focused",
           props: {
             line: { kind: "reading" },
@@ -248,6 +271,36 @@ export const START_HEADER_MATRIX: LabMatrix = labMatrix<StartHeaderProps>({
             wait: "reading",
             drawnAsPointed: "button-focus",
           },
+        },
+        // A press with nothing in the field to read: what is missing stands in the place of the
+        // line under the field, of what the city's question needs, under the cities a name could
+        // be, and in the place of an ending's line; a field of spaces alone is pressed as empty.
+        {
+          label: "pressed with the field empty",
+          props: { line: null, isDrawnPressedEmpty: true },
+        },
+        {
+          label: "city asked, pressed with the field empty",
+          props: { line: CALM_QUESTION, isDrawnPressedEmpty: true },
+        },
+        {
+          label: "city asked, a shared name, pressed with the field empty",
+          props: { line: PORTLAND_QUESTION, isDrawnPressedEmpty: true },
+        },
+        {
+          label: "refused, pressed with the field empty",
+          props: { line: { kind: "refused" }, isDrawnPressedEmpty: true },
+        },
+        // An answer to "in …?" in which Lantern found no city: the field keeps it, and the line
+        // quotes it, cut short past a city's length.
+        { label: "city asked again, its answer not found", props: notFoundCell(NOT_FOUND) },
+        {
+          label: "city asked again, the longest answer not found",
+          props: notFoundCell(NOT_FOUND_LONG),
+        },
+        {
+          label: "city asked again, one unbroken word not found",
+          props: notFoundCell(NOT_FOUND_UNBROKEN),
         },
       ],
     },
