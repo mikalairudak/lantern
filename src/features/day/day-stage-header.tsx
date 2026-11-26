@@ -356,6 +356,11 @@ interface DayStageHeaderProps {
    */
   isNoticeWrittenIn?: boolean;
   /**
+   * The ending landed in place of what had the focus: the notice's way on takes it, as one
+   * written in does, though it stands whole from its first frame.
+   */
+  isWayOnFocused?: boolean;
+  /**
    * The notice's opacity: whole, until it leaves for the next day the visitor asked for,
    * fading as the day's words do.
    */
@@ -572,6 +577,7 @@ export function DayStageHeader({
   isFactsShown = true,
   notice,
   isNoticeWrittenIn = false,
+  isWayOnFocused = false,
   noticeOpacity,
   isNoticeLeaving = false,
   isChoiceHeld = false,
@@ -1257,7 +1263,7 @@ export function DayStageHeader({
                   isWritten={isNoticeWritten}
                   opacity={noticeOpacity ?? whole}
                   isLeaving={isNoticeLeaving}
-                  isFocusTaken={isNoticeWrittenIn}
+                  isFocusTaken={isNoticeWrittenIn || isWayOnFocused}
                   onWhole={setIsNoticeWhole}
                   onRetry={onRetry}
                   onChooseWritten={onOpenWritten}
@@ -1765,8 +1771,9 @@ interface NoticeProps {
    */
   isLeaving: boolean;
   /**
-   * Said as a day ends on the page, it takes the focus once whole when nothing else holds
-   * it; a still, whole from its first frame, never does.
+   * Said as a day ends on the page, or landed in place of what had the focus, it takes the
+   * focus once whole when nothing else holds it; a still, whole from its first frame, otherwise
+   * never does.
    */
   isFocusTaken: boolean;
   /** Told when the notice stands whole, so it can be read on the page. */

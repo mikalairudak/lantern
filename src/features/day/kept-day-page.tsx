@@ -5,14 +5,7 @@ import { useHydrated } from "@/components/ui/use-hydrated";
 import type { StoredDay } from "@/lib/days/stored-day";
 import { Day } from "./day";
 import { pageTitleOf } from "./day-title";
-import {
-  KEPT_POLL_MS,
-  KEPT_WAIT_MS,
-  askKeptDay,
-  isDayDrawn,
-  keptViewOf,
-  restatedYourDayOf,
-} from "./kept-day";
+import { KEPT_POLL_MS, KEPT_WAIT_MS, askKeptDay, keptViewOf, restatedYourDayOf } from "./kept-day";
 import { NO_DAY_HERE, NO_DAY_TITLE, StillWritingHere } from "./no-day-here";
 import { NOTICE_HEARD_MS, NoticeStatus, NoticeStatusContext, usePageSeen } from "./notice-status";
 import { restateDay, useYourDays } from "./use-your-days";
@@ -112,12 +105,12 @@ export function KeptDayPage({ id, stored: first, isLive }: KeptDayPageProps) {
   }, [isNoDaySaid, isSeen]);
   const noDayLine = isSeen ? NO_DAY_HERE : "";
   // A day that lands once the page that waits for it has been drawn takes its place and the
-  // focus it had: its city word takes it, as on a chosen day. A day drawn here from the first
-  // takes none, and an ending without a day gives it to its way on (`Notice`).
+  // focus it had: its city word takes it, as on a chosen day, or an ending's way on. A day drawn
+  // here from the first takes none.
   const isWaitDrawn = isHydrated && view.kind !== "day";
   const [hasWaited, setHasWaited] = useState(false);
   if (isWaitDrawn && !hasWaited) setHasWaited(true);
-  const isLandedInPlace = hasWaited && view.kind === "day" && isDayDrawn(view.landing);
+  const isLandedInPlace = hasWaited && view.kind === "day";
   return (
     <>
       <NoticeStatus line={isNoDaySaid ? noDayLine : heardNotice} />

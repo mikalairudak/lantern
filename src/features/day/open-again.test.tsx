@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState, type ReactNode } from "react";
+import { Component, startTransition, useState, type ReactNode } from "react";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import ErrorPage from "@/app/error";
 import { writtenDayAt } from "@/lib/days/written/days";
@@ -9,6 +9,8 @@ import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { Day, type WrittenGist } from "./day";
 import { KeptDayPage } from "./kept-day-page";
 import { OPEN_IT_AGAIN, PAGE_FAILED } from "./page-failed";
+import { keptSeenKeyOf, markSeen } from "./seen-days";
+import { STILL_WRITING } from "./not-yet";
 import { writtenPool } from "./written-pool";
 
 /**
@@ -63,6 +65,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   Reflect.deleteProperty(navigator, "userActivation");
+  localStorage.clear();
 });
 afterAll(() => {
   vi.unstubAllGlobals();
@@ -85,6 +88,30 @@ function FailedPage({ children }: { children: ReactNode }) {
   ) : (
     children
   );
+}
+
+/**
+ * The app's error boundary as the framework draws it: the page for a failure in place of what
+ * threw, and "Open it again" drawing what threw anew, in a transition.
+ */
+class Boundary extends Component<{ children: ReactNode }, { error: unknown }> {
+  override state = { error: null as unknown };
+  static getDerivedStateFromError(error: unknown) {
+    return { error };
+  }
+  retry = () => startTransition(() => this.setState({ error: null }));
+  override render() {
+    return this.state.error === null ? (
+      this.props.children
+    ) : (
+      <ErrorPage error={this.state.error} retry={this.retry} />
+    );
+  }
+}
+
+/** A part of the page that fails each time it is drawn. */
+function Failing(): ReactNode {
+  throw new Error("A bug");
 }
 
 const headline = () => screen.getByRole("heading", { level: 1 });
@@ -145,6 +172,70 @@ describe("Open it again", () => {
       () => expect(screen.getByRole("button", { name: "Write it again" })).toHaveFocus(),
       DAY_TIMEOUT,
     );
+  });
+
+  it("hands the focus to the way on as a kept day past its link, watched to its end here, comes back", async () => {
+    pressedOnPage();
+    markSeen(keptSeenKeyOf(KEPT_ID));
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", `/day/${KEPT_ID}`);
+    render(
+      <FailedPage>
+        <KeptDayPage
+          id={KEPT_ID}
+          stored={{ status: "expired", request: PORTO.request }}
+          isLive={false}
+        />
+      </FailedPage>,
+    );
+
+    await user.click(screen.getByRole("button", { name: OPEN_IT_AGAIN }));
+
+    await waitFor(
+      () => expect(screen.getByRole("button", { name: "Write it again" })).toHaveFocus(),
+      DAY_TIMEOUT,
+    );
+  });
+
+  it("hands no focus to a day a link reaches from the page that came back in its place", async () => {
+    pressedOnPage();
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", `/day/${KEPT_ID}`);
+    const { rerender } = render(
+      <FailedPage>
+        <KeptDayPage id={KEPT_ID} stored={{ status: "unknown" }} isLive={false} />
+      </FailedPage>,
+    );
+    await user.click(screen.getByRole("button", { name: OPEN_IT_AGAIN }));
+    expect(headline()).toHaveTextContent(STILL_WRITING);
+
+    // A link from that page to a written day.
+    window.history.pushState(null, "", "/day/porto");
+    rerender(<Day first={PORTO.request} isAddressed />);
+
+    await waitFor(
+      () => expect(within(headline()).getByRole("button", { name: "Porto" })).toBeInTheDocument(),
+      DAY_TIMEOUT,
+    );
+    expect(document.body).toHaveFocus();
+  });
+
+  it("ends with a retry that fails again, so a page drawn after takes no focus from it", async () => {
+    pressedOnPage();
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <Boundary>
+        <Failing />
+      </Boundary>,
+    );
+    await user.click(screen.getByRole("button", { name: OPEN_IT_AGAIN }));
+    expect(headline()).toHaveTextContent(PAGE_FAILED);
+
+    const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
+    rerender(<Day start={{ pool: POOL, read }} isAddressed />);
+
+    expect(headline()).toHaveTextContent(/^One day in a city/);
+    expect(headline()).not.toHaveFocus();
   });
 
   it("hands no focus to a page that comes back without the press", async () => {

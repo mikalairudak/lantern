@@ -326,6 +326,23 @@ describe("a day's own address", () => {
     );
   });
 
+  it("leaves the focus to the way on when a link past its days, watched to its end here, lands in place of the wait", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    markSeen(keptSeenKeyOf(ID));
+    logAnswers = [
+      Response.json(UNKNOWN),
+      Response.json({ status: "expired", request: KYOTO.request }),
+    ];
+    render(<KeptDayPage id={ID} stored={UNKNOWN} isLive={false} />);
+
+    await wait(KEPT_POLL_MS * 2);
+    await waitFor(() => expect(notice()).toHaveTextContent(LINK_EXPIRED), NOTICE_TIMEOUT);
+    await waitFor(
+      () => expect(screen.getByRole("button", { name: "Write it again" })).toHaveFocus(),
+      NOTICE_TIMEOUT,
+    );
+  });
+
   it("takes no focus for a day drawn at its address from the first", async () => {
     render(<KeptDayPage id={ID} stored={WRITTEN} isLive={false} />);
 

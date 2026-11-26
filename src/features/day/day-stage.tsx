@@ -222,6 +222,11 @@ interface DayStageProps {
    */
   isChosen: boolean;
   /**
+   * An ending without a day, landed in place of what had the focus: its way on takes it, though
+   * it stands whole from its first frame.
+   */
+  isWayOnFocused?: boolean;
+  /**
    * The word a re-plan merged for, which takes the focus back as the merged sentence draws it
    * anew: the visitor's own word where Lantern's assumed one stood.
    */
@@ -416,6 +421,7 @@ export function DayStage({
   outcome,
   isStreaming,
   isChosen,
+  isWayOnFocused = false,
   focusedWord = null,
   isAfterExit = false,
   isBehindStart = false,
@@ -1554,6 +1560,7 @@ export function DayStage({
       // A notice here takes the place of a day that ended, once its chart has gone; a day
       // drawn whole, as one this device has seen, has its notice whole from the first frame.
       isNoticeWrittenIn={!isDrawnWhole}
+      isWayOnFocused={isWayOnFocused}
       noticeOpacity={leavingOpacity}
       isNoticeLeaving={isLeavingForNext}
       isChoiceHeld
