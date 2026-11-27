@@ -11,7 +11,10 @@ const LARGE_TEXT_PX = 32;
 const DAY_TIMEOUT_MS = waitMs(30_000);
 /** The narrowest phone and a common one. */
 const PHONE_WIDTHS = [320, 412];
-/** A phone, and a laptop's width, where the chart stands beside the list. */
+/**
+ * A phone, and a laptop's width. The breakpoints are in rems, which the text size doubles, so at
+ * 1440 px the page still takes its narrow layout, with the chart wider than a phone's.
+ */
 const CHART_WIDTHS = [412, 1440];
 /** A written day the specs play, whose headline holds the longest answers. */
 const DAY = "/day/kanazawa";
@@ -27,6 +30,27 @@ function rootPxOf(page: Page): Promise<number> {
 function overflowOf(page: Page): Promise<number> {
   return page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+}
+
+/**
+ * The foot's links whose words reach past the foot's line, by how far: a link breaks rather
+ * than stand in the page's gutter. Its words are measured, not its target, which reaches past
+ * them on purpose.
+ */
+function footLinksPastTheirLineOf(page: Page): Promise<string[]> {
+  return page.evaluate(() =>
+    [...document.querySelectorAll("footer")].flatMap((foot) => {
+      const line = foot.firstElementChild?.getBoundingClientRect();
+      if (line === undefined) return [];
+      return [...foot.querySelectorAll("a")].flatMap((link) => {
+        const words = document.createRange();
+        words.selectNodeContents(link);
+        const right = Math.max(...[...words.getClientRects()].map((box) => box.right));
+        const past = right - line.right;
+        return past > 0.5 ? [`${link.textContent ?? ""}: ${past.toFixed(1)} px`] : [];
+      });
+    }),
   );
 }
 
@@ -66,6 +90,7 @@ for (const { name, path, until } of PAGES) {
 
       expect(await rootPxOf(page)).toBe(LARGE_TEXT_PX);
       expect(await overflowOf(page)).toBe(0);
+      expect(await footLinksPastTheirLineOf(page)).toEqual([]);
     });
   }
 }

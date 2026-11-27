@@ -28,13 +28,14 @@ export const PRIVACY_PATH = "/privacy";
 /**
  * Each link whole on its line, its press reaching past its words. In a foot narrower than
  * `label`, 10 rem, which only the browser's text at 200% makes of a phone's, a link wraps
- * between its words rather than widening the page: "© OpenStreetMap contributors" is 331 px
- * there, on a line of 256.
+ * between its words, and an address with no space breaks where it must, rather than widening
+ * the page: "© OpenStreetMap contributors" is 323 px there and the support address 265, on a
+ * line of 256.
  */
 const SMALL_LINK_CLASSES = cn(
   LINK_CLASSES,
   TARGET_CLASSES,
-  "whitespace-nowrap @max-label:whitespace-normal",
+  "whitespace-nowrap @max-label:whitespace-normal @max-label:wrap-anywhere",
 );
 
 /**
