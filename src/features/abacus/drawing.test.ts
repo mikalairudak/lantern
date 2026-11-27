@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BROWSER_TEXT_ATTRIBUTE, DEFAULT_ROOT_PX } from "@/lib/tokens/root";
-import { drawingAt, useDrawing } from "./drawing";
+import { drawingAt, drawingForText, useDrawing } from "./drawing";
 import { CHART, HAIRLINE } from "./geometry";
 import { DEFAULT_DRAWING, ROW } from "./rows";
 
@@ -110,5 +110,36 @@ describe("useDrawing", () => {
     });
 
     expect(result.current.row.sheetLeastWidth).toBe(560);
+  });
+});
+
+/**
+ * The gutter's text as Chrome sets it in Literata: "00:00" in the times' type and the lines of
+ * a time and of a sun's minute, at the default size and with the browser's text at 200%.
+ */
+const DEFAULT_GUTTER_TEXT = { timeWidth: 34.59, timeHeight: 19.5, minuteHeight: 15.39 };
+const LARGE_GUTTER_TEXT = { timeWidth: 69.16, timeHeight: 39, minuteHeight: 30.8 };
+
+describe("the drawing for the gutter's text", () => {
+  it("is the same drawing at the default size, and before anything is measured", () => {
+    expect(drawingForText(DEFAULT_DRAWING, DEFAULT_GUTTER_TEXT)).toBe(DEFAULT_DRAWING);
+    expect(drawingForText(DEFAULT_DRAWING, null)).toBe(DEFAULT_DRAWING);
+    const grown = drawingAt(LARGE_FACTOR);
+    expect(drawingForText(grown, { ...DEFAULT_GUTTER_TEXT, timeWidth: 43.24 })).toBe(grown);
+  });
+
+  it("widens the time column to a time and its clearance with the text at 200%", () => {
+    const { chart, row } = drawingForText(DEFAULT_DRAWING, LARGE_GUTTER_TEXT);
+
+    expect(chart.axisWidth).toBe(70 + ROW.beadClear / 2);
+    expect(chart.axisWidth - row.beadClear / 2).toBeGreaterThanOrEqual(LARGE_GUTTER_TEXT.timeWidth);
+    expect(row.sunLabelClearance).toBeCloseTo(34.9, 2);
+  });
+
+  it("changes nothing else in the drawing", () => {
+    const { chart, row } = drawingForText(DEFAULT_DRAWING, LARGE_GUTTER_TEXT);
+
+    expect({ ...chart, axisWidth: CHART.axisWidth }).toEqual(CHART);
+    expect({ ...row, sunLabelClearance: ROW.sunLabelClearance }).toEqual(ROW);
   });
 });

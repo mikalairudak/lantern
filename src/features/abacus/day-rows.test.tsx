@@ -583,3 +583,56 @@ describe("a stop while the day is written", () => {
     expect(writing).toBeDisabled();
   });
 });
+
+describe("the time column", () => {
+  let largeText: { mockRestore: () => void } | null = null;
+  afterEach(() => {
+    largeText?.mockRestore();
+    largeText = null;
+  });
+
+  /** jsdom lays nothing out: "00:00" in the times' type as Chrome sets it with the text at 200%. */
+  function setLargeText() {
+    const read = HTMLElement.prototype.getBoundingClientRect;
+    largeText = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.classList.contains("type-time")) {
+          return {
+            x: 0,
+            y: 0,
+            top: 0,
+            left: 0,
+            width: 69.16,
+            height: 39,
+            right: 69.16,
+            bottom: 39,
+          } as DOMRect;
+        }
+        return read.call(this);
+      });
+  }
+
+  async function timeWidths(): Promise<string[]> {
+    render(<StopRowCell example={0} state="complete" density={null} />);
+    const list = await placedDay();
+    return [...list.querySelectorAll<HTMLElement>("[data-start-time]")].map(
+      (time) => time.style.width,
+    );
+  }
+
+  it("is the drawing's gutter at the default size", async () => {
+    const widths = await timeWidths();
+
+    expect(widths.length).toBeGreaterThan(0);
+    expect(new Set(widths)).toEqual(new Set(["45px"]));
+  });
+
+  it("holds a whole time with the browser's text at 200%", async () => {
+    setLargeText();
+
+    const widths = await timeWidths();
+
+    expect(new Set(widths)).toEqual(new Set(["70px"]));
+  });
+});

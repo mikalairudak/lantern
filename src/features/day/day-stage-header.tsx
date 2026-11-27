@@ -59,6 +59,7 @@ import { useWrittenText } from "@/components/ui/use-written-text";
 import { Ink } from "@/components/ui/ink";
 import { cn } from "@/components/ui/cn";
 import { CityWord, type CityFocus, type TypedCity } from "./city-word";
+import { cityWrapClassesOf, WORD_WRAP_CLASSES } from "./word-trail";
 import { LINK_CLASSES, TARGET_CLASSES } from "./link-classes";
 import { unplacedLineOf } from "./start";
 import { PEN_BEAT_MS } from "./use-pen";
@@ -1478,7 +1479,8 @@ interface SentenceShapeProps {
 
 /**
  * The sentence with its words so far and a clause written in full, unseen and inert. Each
- * word is set as the live one is, unbreakable with its comma, so both wrap alike.
+ * word is set as the live one is, never broken before its comma, its own words wrapping only
+ * where it is wider than the line, so both wrap alike.
  */
 function SentenceShape({
   request,
@@ -1499,7 +1501,7 @@ function SentenceShape({
       <span>{weekdayOf(request.date)}</span>
       <ClauseText text={setOff(clause)} /> in{" "}
       <span className="inline-block whitespace-nowrap">
-        {request.city}
+        <span className={cityWrapClassesOf(request.city)}>{request.city}</span>
         {trails.city}
       </span>
       {ASSUMABLE_FACT_KEYS.map((key) => {
@@ -1509,7 +1511,7 @@ function SentenceShape({
           <span key={key}>
             {" "}
             <span className="inline-block whitespace-nowrap">
-              <span className={wordClassesOf(fact)}>{labelOf(fact)}</span>
+              <span className={cn(wordClassesOf(fact), WORD_WRAP_CLASSES)}>{labelOf(fact)}</span>
               {pair?.key !== key && trails[key]}
             </span>
             {pair?.key === key && (

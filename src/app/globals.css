@@ -678,6 +678,17 @@ html {
 }
 
 /*
+ * A word joiner before what it is set on, which has no width and is not in the page's text: a
+ * line never breaks before it. It holds a word of the headline to the comma after it, a box of
+ * its own a line could otherwise break before once the word may wrap (`WordTrail`).
+ */
+@utility joined-before {
+  &::before {
+    content: "\2060";
+  }
+}
+
+/*
  * No callout on a long press, for a stop under a finger: a hesitant press stays a swipe rather
  * than turning into a menu for the words it lies on.
  */

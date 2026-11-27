@@ -30,10 +30,11 @@ const THEME_LINE_CLASSES = "-ml-2 type-note *:align-middle forced-colors:invisib
  * The group on the right: one interval between what is drawn, 24 px, and 32 px from a row of
  * `@measure`. The theme's box holds 8 px of its own beside its icon, so the theme's line takes
  * them back (`-ml-2`). It stands as tall as the row, so the day's menu can hang from a box of
- * the row's height.
+ * the row's height. Where its items are wider than the row together, as on a phone with the
+ * browser's text at 200%, the last goes to a line of its own rather than widening the page.
  */
 const GROUP_CLASSES =
-  "flex items-center gap-6 self-stretch type-note whitespace-nowrap text-ink-soft @measure:gap-8";
+  "flex flex-wrap items-center gap-x-6 gap-y-1 self-stretch type-note whitespace-nowrap text-ink-soft @measure:gap-x-8";
 
 interface MastheadProps {
   /** On the start screen itself the wordmark is only the name, not a link to the same page. */

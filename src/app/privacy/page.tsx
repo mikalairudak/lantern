@@ -49,7 +49,11 @@ const RECIPIENTS = [
   },
 ] as const;
 
-const BODY_LINK_CLASSES = cn(LINK_CLASSES, "text-ink");
+/**
+ * A link in the text. One wider than the line breaks anywhere, as the support address is on a
+ * phone with the browser's text at 200%, rather than widening the page.
+ */
+const BODY_LINK_CLASSES = cn(LINK_CLASSES, "text-ink wrap-anywhere");
 
 /** The term an item of a list starts with, in the ink the text around it is softer than. */
 const TERM_CLASSES = "text-ink";

@@ -25,8 +25,17 @@ export const CONTACT_EMAIL = "support@lanternday.com";
 /** The page saying what Lantern keeps and why, with its short terms. */
 export const PRIVACY_PATH = "/privacy";
 
-/** Each link whole on its line, its press reaching past its words. */
-const SMALL_LINK_CLASSES = cn(LINK_CLASSES, TARGET_CLASSES, "whitespace-nowrap");
+/**
+ * Each link whole on its line, its press reaching past its words. In a foot narrower than
+ * `label`, 10 rem, which only the browser's text at 200% makes of a phone's, a link wraps
+ * between its words rather than widening the page: "© OpenStreetMap contributors" is 331 px
+ * there, on a line of 256.
+ */
+const SMALL_LINK_CLASSES = cn(
+  LINK_CLASSES,
+  TARGET_CLASSES,
+  "whitespace-nowrap @max-label:whitespace-normal",
+);
 
 /**
  * The smallest type, muted: a credit or a way out, never whose product the day is. Muted on

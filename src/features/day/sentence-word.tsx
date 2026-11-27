@@ -30,7 +30,7 @@ import {
   ROW_NOTE_CLASSES,
   useHangingList,
 } from "./word-list";
-import { WordTrail } from "./word-trail";
+import { WORD_WRAP_CLASSES, WordTrail } from "./word-trail";
 
 /** One answer in a word's picker. */
 export interface OptionView {
@@ -122,7 +122,8 @@ export type WordReplanning = "writing" | "after" | null;
  */
 const HOVER_CLASSES =
   "pointed:underline pointed:decoration-ink pointed:decoration-solid pointed:decoration-1 underline-offset-4";
-const BUTTON_CLASSES = "rounded-sm transition-colors focus-ring";
+/** A word's lines, where it wraps, start at its left as the sentence's do, not centred. */
+const BUTTON_CLASSES = "rounded-sm text-start transition-colors focus-ring";
 /**
  * The list keeps the focus while the arrows move the active option, so it wears a line
  * ring of its own, and the active option is drawn as the city word's focused row: the
@@ -422,13 +423,15 @@ export function SentenceWord({
         <del className="text-muted line-through decoration-muted decoration-1">{struck.text}</del>
       )}
       {struckSpace}
-      {/* One unbreakable box, so the comma after the word never opens a line. */}
+      {/* One box that never breaks before its comma, so the comma never opens a line; the
+        word's own words wrap inside it only where it is wider than the line
+        (`WORD_WRAP_CLASSES`). */}
       {(isBoxShown || unwritten) && (
         <span className="relative inline-block whitespace-nowrap">
           {/* Unseen and of no height, they make the box as wide as the wider answer. First,
             so the box's baseline stays on its word's line. */}
           {heldRooms.map((label) => (
-            <span key={label} aria-hidden className="invisible block h-0">
+            <span key={label} aria-hidden className={cn("invisible block h-0", WORD_WRAP_CLASSES)}>
               {label}
               {trailRoom ?? trail}
             </span>
@@ -463,6 +466,7 @@ export function SentenceWord({
               onBlur={() => onLight(false)}
               className={cn(
                 BUTTON_CLASSES,
+                WORD_WRAP_CLASSES,
                 isLocked ? lockedClassesOf(view) : wordClassesOf(view),
                 isEnabled && HOVER_CLASSES,
                 OPEN_WORD_CLASSES,
@@ -481,7 +485,7 @@ export function SentenceWord({
             </button>
           )}
           {unwritten && (
-            <span aria-hidden className="invisible">
+            <span aria-hidden className={cn("invisible", WORD_WRAP_CLASSES)}>
               {unwritten}
               {trailRoom ?? trail}
             </span>

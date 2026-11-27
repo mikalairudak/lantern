@@ -20,7 +20,7 @@ The chart a day is drawn on. Time runs down and energy runs across five lanes, r
 - `use-energy-curve.ts`. `useEnergyCurve` holds the curve's levels and the visitor's picks, by stop id and place id: `selected` is what the chart shows during a drag, `committed` what the words show once it ends. A swap lives here; `Stop.selectedPlaceId` stays the model's pick, where a reset returns.
 - `curve.ts`. The pure maths: a pull bends only the stops either side of the hand (`bendCurve`), a stop switches only when another version is clearly nearer (`SWITCH_MARGIN`), and the curve is a monotone cubic.
 - `chart-stop.tsx`. Each stop is a keyboard slider; its beads are hidden from assistive technology.
-- `geometry.ts`. The drawing's sizes, and bead targets 24 px across (WCAG 2.5.8).
+- `geometry.ts`. The drawing's sizes, and bead targets 24 px across (WCAG 2.5.8). The drawing follows the root's growth alone; the time column widens to the times at the visitor's text size (`drawing.ts`'s `drawingForText`, measured by `gutter-text.tsx`).
 - An open stop's sheet: `sheet-placement.ts` picks the side it unrolls to, `stop-details.ts` and `stop-details-view.tsx` say what it holds, and `map-action.ts` links the place on a map.
 
 ## Re-plans

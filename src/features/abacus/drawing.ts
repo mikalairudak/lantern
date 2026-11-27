@@ -2,8 +2,8 @@
 
 import { useMemo } from "react";
 import { useRootGrowth } from "@/components/ui/use-root-font-px";
-import { CHART, type ChartSizes } from "./geometry";
-import { DEFAULT_DRAWING, ROW, type Drawing, type RowSizes } from "./rows";
+import { CHART, axisWidthOf, type ChartSizes } from "./geometry";
+import { DEFAULT_DRAWING, ROW, sunLabelClearanceOf, type Drawing, type RowSizes } from "./rows";
 
 /** Every value of a drawing's pixels, multiplied by `factor`. */
 function scaledBy<Sizes extends Readonly<Record<string, number>>>(
@@ -28,12 +28,41 @@ export function drawingAt(factor: number): Drawing {
   return { chart, row };
 }
 
+/** The gutter's text as the page sets it, in pixels: a stop's time and a sun's minute. */
+export interface GutterText {
+  /** The widest time, "00:00", in the times' type. */
+  timeWidth: number;
+  /** A time's line and a sun's minute's line, top to bottom. */
+  timeHeight: number;
+  minuteHeight: number;
+}
+
+/**
+ * The drawing with room for the gutter's text as the visitor's text size sets it: the time
+ * column as wide as a time and its clearance from the axis (`axisWidthOf`), and a sun's minute
+ * kept as far from a time as their lines need (`sunLabelClearanceOf`). Where the drawing already
+ * holds them, as it does at the default size, or nothing is measured yet, the same drawing.
+ */
+export function drawingForText(drawing: Drawing, text: GutterText | null): Drawing {
+  if (text === null) return drawing;
+  const { chart, row } = drawing;
+  const axisWidth = axisWidthOf(chart.axisWidth, text.timeWidth, row.beadClear / 2);
+  const sunLabelClearance = sunLabelClearanceOf(
+    row.sunLabelClearance,
+    text.timeHeight,
+    text.minuteHeight,
+  );
+  if (axisWidth === chart.axisWidth && sunLabelClearance === row.sunLabelClearance) return drawing;
+  return { chart: { ...chart, axisWidth }, row: { ...row, sunLabelClearance } };
+}
+
 /**
  * The drawing for how far the root has grown on a large screen: its size over the browser's own,
  * read as the page renders, before the browser paints, so a chart's first frame is drawn at it, and
  * again when the window is resized. Exactly 1 up to the viewport the growth starts at, whatever
  * text size the visitor has set: a phone in large text keeps the drawing as written, where its
- * little width is the words'. On the server, which has no root to read, the drawing as written.
+ * little width is the words', but for the time column the day's rows widen to their times
+ * (`drawingForText`). On the server, which has no root to read, the drawing as written.
  */
 export function useDrawing(): Drawing {
   const factor = useRootGrowth();

@@ -18,10 +18,13 @@ export const INDEX_LABEL = "No city in mind? Start from one of these";
  * A cell spans its row's two tracks, the pictures' and the captions', so every picture of a row
  * stands on one foot however its caption wraps, and every caption starts on one line. The space
  * between columns is the cells' own, half on each side, so a pointer crossing a row is always
- * over a cell and no picture flickers between them.
+ * over a cell and no picture flickers between them. A cell keeps to its column, and a word of
+ * its caption wider than the column breaks, as a city's name can with the browser's text at 200%
+ * on a phone, rather than widening the page.
  */
 const CELL_CLASSES =
-  "group/pointed row-span-2 grid w-full grid-rows-subgrid rounded-sm px-3 text-center focus-ring";
+  "group/pointed row-span-2 grid w-full min-w-0 grid-rows-subgrid rounded-sm px-3 text-center focus-ring";
+const CAPTION_CLASSES = "flex flex-col items-center pt-1 pb-6 wrap-anywhere";
 
 /**
  * A cell pointed at, by a pointer or the keyboard, stands forward: its city takes the ink rule
@@ -162,7 +165,7 @@ export function StartIndex({
                     files={arePicturesHeld ? "none" : "all"}
                   />
                 </motion.span>
-                <span className="flex flex-col items-center pt-1 pb-6">
+                <span className={CAPTION_CLASSES}>
                   <span className={CITY_CLASSES}>{start.request.city}</span>
                   {/* A space between lines, so the cell's name reads as words; a column shows none. */}{" "}
                   <span className="type-note text-muted">{gist.day}</span>{" "}

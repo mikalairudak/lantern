@@ -83,6 +83,20 @@ export const ROW = {
   lineMaskRadius: 4,
 } as const;
 
+/**
+ * How far a sun's minute keeps from a stop's time, middle to middle: as far as the drawing sets
+ * it, or half of the two lines together where they are taller, as they are with the browser's
+ * text at 200%, so the two never meet. At the default size the lines take 17.45 px of the
+ * drawing's 18.
+ */
+export function sunLabelClearanceOf(
+  drawnClearance: number,
+  timeHeight: number,
+  minuteHeight: number,
+): number {
+  return Math.max(drawnClearance, (timeHeight + minuteHeight) / 2);
+}
+
 /** A time in the gutter: its minute, running past midnight, and the middle of its line. */
 export interface GutterTime {
   minutes: number;

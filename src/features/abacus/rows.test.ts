@@ -10,9 +10,11 @@ import {
   rowScaleLeaving,
   rowsKeptClear,
   ROW,
+  sunLabelClearanceOf,
   sunLabelsAt,
   wordsRightOf,
   anchorsOf,
+  DEFAULT_DRAWING,
   type RowExtent,
 } from "./rows";
 import { CURATED_DAYS } from "@/lib/fixtures/curated/curated-days";
@@ -146,10 +148,34 @@ describe("sunLabelsAt", () => {
     expect(afreshScaleSaid.sunset).toBe(true);
   });
 
+  it("weighs a sun's minute by the clearance its drawing gives, as the text's size sets it", () => {
+    const resting = { rows: extents, anchors: held, times: heldTimes };
+    const dinner = heldTimes[2] ?? { minutes: 0, y: 0 };
+    // A sunset whose middle stands 25 px over the dinner's time: clear of it at the default
+    // size, and not with the browser's text at 200%, where the two lines need 34.9 px.
+    const sunset = Math.floor(heldScale.minutesAt(dinner.y - 25));
+    const large = {
+      ...DEFAULT_DRAWING,
+      row: { ...ROW, sunLabelClearance: sunLabelClearanceOf(ROW.sunLabelClearance, 39, 30.8) },
+    };
+    expect(sunLabelsAt({ sunrise: null, sunset }, FRAME, resting).sunset).toBe(true);
+    expect(sunLabelsAt({ sunrise: null, sunset }, FRAME, resting, large).sunset).toBe(false);
+  });
+
   it("says a sun clear of every time where the rows rest, and none that does not rise", () => {
     const resting = { rows: extents, anchors: held, times: heldTimes };
     const labels = sunLabelsAt({ sunrise: null, sunset: clock(16, 30) }, FRAME, resting);
     expect(labels).toEqual({ sunrise: false, sunset: true });
+  });
+});
+
+describe("sunLabelClearanceOf", () => {
+  it("keeps the drawing's clearance at the default size, where the lines take less", () => {
+    expect(sunLabelClearanceOf(ROW.sunLabelClearance, 19.5, 15.39)).toBe(ROW.sunLabelClearance);
+  });
+
+  it("keeps a sun's minute half of the two lines from a time where they are taller", () => {
+    expect(sunLabelClearanceOf(ROW.sunLabelClearance, 39, 30.8)).toBeCloseTo(34.9, 9);
   });
 });
 
