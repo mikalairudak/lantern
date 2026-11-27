@@ -146,11 +146,11 @@ interface Asked {
    */
   isWayOnFocused?: boolean;
   /**
-   * The same day drawn anew in place of the run before, as the route or the page has it whole:
-   * a city word that takes the focus takes it only where the run before left it on its city
-   * word or nowhere, never from where the visitor took it since.
+   * The run that draws the same day anew in place of the run before, as the route or the page
+   * has it whole: a city word that takes the focus takes it where the page stands. Tied to its
+   * run, so a later run that copies this one is no redraw.
    */
-  isRedrawn?: boolean;
+  redrawnAt?: number;
   /** The visitor's phrases that fit no word of the request, said back under the day. */
   unplaced: readonly string[];
   /** Lantern's words of a written day that the visitor's text said as they are: theirs. */
@@ -636,8 +636,6 @@ export function Day({
   // taking it, or a kept day's ending without a day's way on (`open-again.ts`).
   // Read once, as the page is drawn anew.
   const [isAgain] = useState(isOpenedAgain);
-  // Where each run's header left the focus as it went, for a run that draws the same day anew.
-  const focusLeftOnCity = useRef(true);
   useEffect(() => clearOpenedAgain(), []);
   // Null while the start screen shows: nothing hands a day back to it, so once a day takes
   // the page there is always one.
@@ -1197,6 +1195,10 @@ export function Day({
   // with nothing to stream. One whose stream a request asked since has taken comes back from
   // memory instead.
   const isShownDrawn = shown.isFromStream || !shown.isStreaming;
+  // Where the keyboard's focus stands, as the focus moves in and out of the box the day's stage
+  // stands in, which outlives each run's stage: kept as it moves, so a redraw set while rendering
+  // reads it without asking the page.
+  const [focusAt, setFocusAt] = useState<FocusAt>("page");
   // A written day this device has seen comes from the route whole at once: it lands whole,
   // as the page's own does, before a frame of it is drawn played.
   if (
@@ -1211,7 +1213,8 @@ export function Day({
       ...asked,
       run: asked.run + 1,
       whole: { itinerary, checks: stream.checks },
-      isRedrawn: true,
+      isChosen: isCityFocusedOnRedraw(focusAt, asked.isChosen),
+      redrawnAt: asked.run + 1,
     });
   }
   // A play of the page's own written day that ends without the day complete, its connection
@@ -1232,7 +1235,13 @@ export function Day({
       ? wholeInPlaceOf(shown.outcome, pageOwnWhole)
       : null;
   if (asked !== null && wholeInPlace !== null) {
-    setAsked({ ...asked, run: asked.run + 1, whole: wholeInPlace, isRedrawn: true });
+    setAsked({
+      ...asked,
+      run: asked.run + 1,
+      whole: wholeInPlace,
+      isChosen: isCityFocusedOnRedraw(focusAt, asked.isChosen),
+      redrawnAt: asked.run + 1,
+    });
   }
   // A play of the page's own written day can be ended with the day whole, as a device that has
   // seen it draws it (`docs/decisions.md`, "A written day's play offers the day whole on a
@@ -1251,13 +1260,7 @@ export function Day({
     if (asked === null || pageOwnWhole === null || firstSeenKey === null) return;
     events.end(asked.openedAs, "complete");
     markSeen(firstSeenKey);
-    setAsked({
-      ...asked,
-      run: asked.run + 1,
-      whole: pageOwnWhole,
-      isChosen: true,
-      isRedrawn: false,
-    });
+    setAsked({ ...asked, run: asked.run + 1, whole: pageOwnWhole, isChosen: true });
   };
   // Whether the day on screen ended without one, as last drawn, for the run played next.
   const endingPhase = phaseOf(outcome, endedDayOf(outcome));
@@ -2306,6 +2309,8 @@ export function Day({
         // of the page's flow at the size it had, unseen and out of reach. Behind the start
         // screen it says its notice in its own unheard status.
         <div
+          onFocus={() => setFocusAt("stage")}
+          onBlur={(event) => setFocusAt(focusAtAfter(event.currentTarget, event.relatedTarget))}
           className={isStartShown ? BEHIND_START_CLASSES : undefined}
           inert={isStartShown}
           aria-hidden={isStartShown || undefined}
@@ -2326,8 +2331,7 @@ export function Day({
               isStreaming={isStreaming}
               isChosen={asked.isChosen}
               isWayOnFocused={asked.isWayOnFocused}
-              isRedrawn={asked.isRedrawn}
-              focusLeftOnCity={focusLeftOnCity}
+              isRedrawn={asked.redrawnAt === asked.run}
               isAfterExit={asked.isAfterExit}
               isBehindStart={isStartShown}
               isFromStart={asked.isStreamed && asked.kept === null}
@@ -2479,6 +2483,29 @@ function hasStreamTaken(
  */
 function isNoDayOf(ending: DayOutcome["kind"]): boolean {
   return ending !== "disconnected" && ending !== "complete";
+}
+
+/**
+ * Where the keyboard's focus stands, as the day's page tells it: in the day's stage, which each
+ * run draws anew, on the page itself, or elsewhere, on what outlives the stage.
+ */
+type FocusAt = "stage" | "page" | "elsewhere";
+
+/** Where the focus went as it left the stage's box (`box`) for `next`, if it went anywhere. */
+function focusAtAfter(box: HTMLElement, next: EventTarget | null): FocusAt {
+  if (next === null) return "page";
+  return next instanceof Node && box.contains(next) ? "stage" : "elsewhere";
+}
+
+/**
+ * Whether the same day drawn anew in place of the run before gives its city word the focus. A
+ * focus anywhere in the stage, the city word's own included, goes with it, so the new city word
+ * takes it, where the page stands; a focus on the page goes to the city word only on a day the
+ * visitor chose, as it did as the day landed; a focus elsewhere stays where it is.
+ */
+function isCityFocusedOnRedraw(focusAt: FocusAt, isChosen: boolean): boolean {
+  if (focusAt === "page") return isChosen;
+  return focusAt === "stage";
 }
 
 /** The day a page lands on, played from the route on arrival: its address was opened. */

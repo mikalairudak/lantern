@@ -115,6 +115,8 @@ const PARIS_STOPS = writtenDayAt("paris")!.itinerary.stops.length;
 
 /** How much of a day's text comes before it falls silent: its header and its first stops. */
 const STILL_WRITTEN_AT = 1500;
+/** Characters in each of its text deltas. */
+const STILL_WRITTEN_DELTA_CHARS = 64;
 /** A stream's event that carries some of the day's text. */
 const TEXT_EVENT = '"type":"text-delta"';
 
@@ -127,7 +129,8 @@ function textOf(event: string): string {
 
 /**
  * `response` falling silent once its text has passed `from` characters, until the page stops
- * it: a day still being written for as long as the test runs.
+ * it: a day still being written for as long as the test runs. Its events are passed on whole,
+ * however the reads split them.
  */
 function silentAfterText(response: Response, from: number): Response {
   const reader = response.body!.getReader();
@@ -135,6 +138,7 @@ function silentAfterText(response: Response, from: number): Response {
   const encoder = new TextEncoder();
   const never = new Promise<void>(() => undefined);
   let sent = 0;
+  let unread = "";
   const body = new ReadableStream<Uint8Array>({
     async pull(controller) {
       const { done, value } = await reader.read();
@@ -142,9 +146,12 @@ function silentAfterText(response: Response, from: number): Response {
         controller.close();
         return;
       }
-      for (const event of decoder.decode(value, { stream: true }).split(/(?<=\n\n)/)) {
+      unread += decoder.decode(value, { stream: true });
+      const events = unread.split("\n\n");
+      unread = events.pop() ?? "";
+      for (const event of events) {
         if (sent > from) await never;
-        controller.enqueue(encoder.encode(event));
+        controller.enqueue(encoder.encode(`${event}\n\n`));
         sent += textOf(event).length;
       }
     },
@@ -379,7 +386,9 @@ describe("the focus on Forward", () => {
       // it back, however long the steps before take.
       fetchDay.mockImplementationOnce(async (path, init) =>
         silentAfterText(
-          await answerDayRequest(new Request(new URL(path, ORIGIN), init), { deltaChars: 64 }),
+          await answerDayRequest(new Request(new URL(path, ORIGIN), init), {
+            deltaChars: STILL_WRITTEN_DELTA_CHARS,
+          }),
           STILL_WRITTEN_AT,
         ),
       );

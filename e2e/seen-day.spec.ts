@@ -278,6 +278,40 @@ test.describe("a written day whose play ends without the day", () => {
     await expect(page.getByText(ENDINGS_SAID)).toHaveCount(0);
   });
 
+  test("hands a focus in the day to the city word as the play stops among its stops, the page left where it stands", async ({
+    page,
+  }) => {
+    await page.route("**/api/day", async (route) => {
+      const answer = await route.fetch();
+      const text = await answer.text();
+      await route.fulfill({
+        status: answer.status(),
+        headers: answer.headers(),
+        body: text.slice(0, Math.floor(text.length * AMONG_THE_STOPS)),
+      });
+    });
+    await page.addInitScript(holdThePlaysEnd);
+    await page.addInitScript(() => localStorage.setItem("lantern-day-view", "read"));
+    await page.goto("/day/kanazawa");
+    const list = page.getByRole("list", { name: "The day, to read" });
+    await expect(list.getByRole("listitem").first()).toBeVisible({ timeout: DAY_TIMEOUT_MS });
+    // The visitor reads on to the foot of the day while it is still written.
+    const foot = page.getByRole("contentinfo").getByRole("link", { name: "Privacy and terms" });
+    await foot.focus();
+    await expect(foot).toBeFocused();
+    const scrolled = await page.evaluate(() => window.scrollY);
+
+    await page.evaluate(() => (window as unknown as { endThePlay: () => void }).endThePlay());
+
+    await waitForTheDay(page);
+    await expect(list.getByRole("listitem")).toHaveCount(KANAZAWA_STOPS);
+    const cityWord = page
+      .getByRole("heading", { level: 1 })
+      .getByRole("button", { name: "Kanazawa", exact: true });
+    await expect(cityWord).toBeFocused();
+    expect(await page.evaluate(() => window.scrollY)).toBe(scrolled);
+  });
+
   test("is drawn whole when the play stops among its stops", async ({ page }) => {
     // The route's own stream, cut where the stops are still being written, as a connection
     // that drops mid-stream ends it.
@@ -299,6 +333,40 @@ test.describe("a written day whose play ends without the day", () => {
     await expect(page.getByText(ENDINGS_SAID)).toHaveCount(0);
   });
 });
+
+/**
+ * The day's play holds its end, all it wrote sent, until the test calls `endThePlay`. Run as an
+ * init script, so it has no outside names.
+ */
+function holdThePlaysEnd(): void {
+  let end = () => {};
+  const ended = new Promise<void>((resolve) => {
+    end = resolve;
+  });
+  (window as unknown as { endThePlay: () => void }).endThePlay = () => end();
+  const fetched = window.fetch.bind(window);
+  window.fetch = async (input, init) => {
+    const response = await fetched(input, init);
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (!new URL(url, location.href).pathname.endsWith("/api/day") || response.body === null) {
+      return response;
+    }
+    const reader = response.body.getReader();
+    const body = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        const { done, value } = await reader.read();
+        if (!done) {
+          controller.enqueue(value);
+          return;
+        }
+        await ended;
+        controller.close();
+      },
+      cancel: (reason) => reader.cancel(reason),
+    });
+    return new Response(body, { status: response.status, headers: response.headers });
+  };
+}
 
 /** Every frame from the page's start: whether a date or the view switch stands on screen. */
 function sampleUnderTheHeadline(): void {

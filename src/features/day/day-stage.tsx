@@ -12,7 +12,6 @@ import {
   useState,
   useSyncExternalStore,
   type Ref,
-  type RefObject,
 } from "react";
 import { cn } from "@/components/ui/cn";
 import { useHydrated } from "@/components/ui/use-hydrated";
@@ -229,8 +228,6 @@ interface DayStageProps {
   isWayOnFocused?: boolean;
   /** The same day drawn anew in place of the run before (`DayStageHeader`'s `isRedrawn`). */
   isRedrawn?: boolean;
-  /** Where the run before's header left the focus as it went (`DayStageHeader`). */
-  focusLeftOnCity?: RefObject<boolean>;
   /**
    * The word a re-plan merged for, which takes the focus back as the merged sentence draws it
    * anew: the visitor's own word where Lantern's assumed one stood.
@@ -428,7 +425,6 @@ export function DayStage({
   isChosen,
   isWayOnFocused = false,
   isRedrawn = false,
-  focusLeftOnCity,
   focusedWord = null,
   isAfterExit = false,
   isBehindStart = false,
@@ -1569,7 +1565,6 @@ export function DayStage({
       isNoticeWrittenIn={!isDrawnWhole}
       isWayOnFocused={isWayOnFocused}
       isRedrawn={isRedrawn}
-      focusLeftOnCity={focusLeftOnCity}
       noticeOpacity={leavingOpacity}
       isNoticeLeaving={isLeavingForNext}
       isChoiceHeld

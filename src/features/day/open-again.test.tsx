@@ -132,7 +132,7 @@ function Failing(): ReactNode {
 }
 
 /** `response`, its connection breaking only once `isLetGo` resolves: all it wrote comes first. */
-function droppedOnce(response: Response, isLetGo: Promise<void>): Response {
+function droppedOnce(response: Response, letGo: Promise<void>): Response {
   const reader = response.body!.getReader();
   const body = new ReadableStream<Uint8Array>({
     async pull(controller) {
@@ -141,13 +141,67 @@ function droppedOnce(response: Response, isLetGo: Promise<void>): Response {
         if (done) controller.close();
         else controller.enqueue(value);
       } catch (error) {
-        await isLetGo;
+        await letGo;
         controller.error(error);
       }
     },
     cancel: (reason) => reader.cancel(reason),
   });
   return new Response(body, { status: response.status, headers: response.headers });
+}
+
+/** How much of Bologna's text its play writes before it breaks off: its header and first stops. */
+const BROKEN_OFF_AT = 2400;
+
+/**
+ * Bologna's own page, opened again from the page for a failure, its play writing its first
+ * stops and breaking off when the test calls `breakOff`, so the page's own written day is then
+ * drawn whole in its place. `beside` stands on the page outside the day. Resolves once the city
+ * word has the focus "Open it again" hands it.
+ */
+async function openBolognaAgain(beside?: ReactNode): Promise<{ breakOff: () => void }> {
+  pressedOnPage();
+  const user = userEvent.setup();
+  window.history.replaceState(null, "", "/day/bologna");
+  let breakOff = () => {};
+  const brokenOff = new Promise<void>((resolve) => {
+    breakOff = resolve;
+  });
+  const sourceFor = (request: DayRequest): DaySource => ({
+    request,
+    open: async (signal) =>
+      droppedOnce(
+        await simulateDayStream({
+          day: BOLOGNA_START_DAY.day,
+          ending: { kind: "dropped", at: BROKEN_OFF_AT },
+          signal,
+        }),
+        brokenOff,
+      ),
+  });
+  render(
+    <>
+      {beside}
+      <FailedPage>
+        <Day
+          first={BOLOGNA.request}
+          written={{
+            itinerary: BOLOGNA.itinerary,
+            version: writtenVersionOf(BOLOGNA.itinerary),
+            checks: {},
+          }}
+          sourceFor={sourceFor}
+          isAddressed
+        />
+      </FailedPage>
+    </>,
+  );
+  await user.click(screen.getByRole("button", { name: OPEN_IT_AGAIN }));
+  await waitFor(
+    () => expect(within(headline()).getByRole("button", { name: "Bologna" })).toHaveFocus(),
+    DAY_TIMEOUT,
+  );
+  return { breakOff };
 }
 
 const headline = () => screen.getByRole("heading", { level: 1 });
@@ -274,53 +328,30 @@ describe("Open it again", () => {
     expect(headline()).not.toHaveFocus();
   });
 
-  it("leaves a focus the visitor took into the day where it is when the day is drawn whole in place of its play", async () => {
-    pressedOnPage();
-    const user = userEvent.setup();
-    window.history.replaceState(null, "", "/day/bologna");
-    // The play writes its first stops, then breaks off when the test lets it, so the page's own
-    // written day is drawn whole in its place.
-    let breakOff = () => {};
-    const isBrokenOff = new Promise<void>((resolve) => {
-      breakOff = resolve;
-    });
-    const sourceFor = (request: DayRequest): DaySource => ({
-      request,
-      open: async (signal) =>
-        droppedOnce(
-          await simulateDayStream({
-            day: BOLOGNA_START_DAY.day,
-            ending: { kind: "dropped", at: 2400 },
-            signal,
-          }),
-          isBrokenOff,
-        ),
-    });
-    render(
-      <FailedPage>
-        <Day
-          first={BOLOGNA.request}
-          written={{
-            itinerary: BOLOGNA.itinerary,
-            version: writtenVersionOf(BOLOGNA.itinerary),
-            checks: {},
-          }}
-          sourceFor={sourceFor}
-          isAddressed
-        />
-      </FailedPage>,
-    );
-    await user.click(screen.getByRole("button", { name: OPEN_IT_AGAIN }));
-    const cityWord = within(headline()).getByRole("button", { name: "Bologna" });
-    await waitFor(() => expect(cityWord).toHaveFocus(), DAY_TIMEOUT);
-
-    // The visitor moves on before the play breaks off.
+  it("hands a focus the visitor took into the day to the new city word as the day is drawn whole in place of its play, scrolling nothing", async () => {
+    const { breakOff } = await openBolognaAgain();
+    // The visitor moves into the day before the play breaks off.
     const wordmark = screen.getByRole("link", { name: "Lantern" });
     act(() => wordmark.focus());
+    const scrolled = vi.spyOn(Element.prototype, "scrollIntoView");
+
     breakOff();
     await waitFor(() => expect(wordmark).not.toBeInTheDocument(), DAY_TIMEOUT);
 
-    expect(within(headline()).getByRole("button", { name: "Bologna" })).not.toHaveFocus();
+    expect(within(headline()).getByRole("button", { name: "Bologna" })).toHaveFocus();
+    expect(scrolled).not.toHaveBeenCalled();
+  });
+
+  it("leaves a focus outside the day where it is as the day is drawn whole in place of its play", async () => {
+    const { breakOff } = await openBolognaAgain(<button type="button">Elsewhere</button>);
+    const elsewhere = screen.getByRole("button", { name: "Elsewhere" });
+    const wordmark = screen.getByRole("link", { name: "Lantern" });
+    act(() => elsewhere.focus());
+
+    breakOff();
+    await waitFor(() => expect(wordmark).not.toBeInTheDocument(), DAY_TIMEOUT);
+
+    expect(elsewhere).toHaveFocus();
   });
 
   it("hands the focus to the headline as a page with no day comes back", async () => {
