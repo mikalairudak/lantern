@@ -524,7 +524,13 @@
   --color-lamp: light-dark(#bb660a, #ffba4d);
   --color-lamp-glow: light-dark(#ffdaa3, #543109);
   --color-lamp-haze: light-dark(#ffe5be, #3b220e);
-  --color-energy: light-dark(#006e54, #34b7b1);
+  /*
+   * The energy words. By day the green is deep enough that a swapped row's "quieter" or
+   * "livelier" keeps 4.5:1 where the curve passes under it, so the curve need not step back
+   * further under words by day than by night (docs/decisions.md, "The day is drawn as an
+   * abacus").
+   */
+  --color-energy: light-dark(#00654c, #34b7b1);
   /*
    * Energy drawn: the curve and the rings on it, 3:1 as the lamp; by night it is the words'.
    * By day it is the energy words' own green, drawn brighter, so "calm" and its line are one.
@@ -536,8 +542,8 @@
    * #1f1f1f 12%. Enough to follow its shape through the words, little enough that they read
    * clean. By night, where the curve is brighter against the ground, it steps back further,
    * so the words a row sets over it keep 4.5:1 (docs/decisions.md, "The day is drawn as an
-   * abacus"): palette.test.ts holds muted and swap in both themes and the energy word by night,
-   * inside a line and at its corner, and amber inside a line.
+   * abacus"): palette.test.ts holds muted, swap and energy in both themes, inside a line and at
+   * its corner, and amber inside a line.
    */
   --color-curve-under-words: light-dark(#383838, #1f1f1f);
   --color-swap: light-dark(#005d8e, #8dccf8);
