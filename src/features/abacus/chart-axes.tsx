@@ -354,8 +354,9 @@ export const CURVE_NAME = "drag the curve";
  * wider setting, with a pixel more on each side.
  *
  * On a phone the span is the viewport less the page's gutters, a rem either side, and the
- * chart's 96 px beside its lanes, which grow only on a large screen: 128 px at the default
- * size, and 136 px with the browser's text at 125 %.
+ * chart's 96 px beside its lanes, which grow on a large screen, and on a phone only once the
+ * browser's text is large enough to widen the time column, from about 150 %: 128 px at the
+ * default size, and 136 px with the browser's text at 125 %.
  */
 
 /**

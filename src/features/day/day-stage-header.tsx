@@ -1409,8 +1409,9 @@ interface VisitorsWordProps {
 }
 
 /**
- * A word of the visitor's in the headline, one unbreakable box with its comma, which sits
- * inside the word's own box (`WordTrail`). Once Lantern's words have gone the box glides to
+ * A word of the visitor's in the headline, one box with its comma, which sits inside the word's
+ * own box (`WordTrail`): the box never breaks at its edges, and a phrase in it wraps between its
+ * words only once it is wider than its line. Once Lantern's words have gone the box glides to
  * wherever their going moved it (`glideMovedWords`).
  */
 function VisitorsWord({ word, children }: VisitorsWordProps) {

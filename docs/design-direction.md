@@ -211,7 +211,7 @@ The phone is where a day is used: in the street, one hand, in sunlight, tired. T
 
 ### On a large screen
 
-From 1440 px wide, the root's size grows with the viewport to a quarter more at 2560 px, and every rem with it: the page's column, the chart, the type and the icons. The chart's drawing grows by that growth alone. The visitor's own text size never grows the drawing, because a phone has little width. A finished day's frame ends on the whole hour after its last visit, not the hour asked, so no empty tail hangs under it.
+From 1440 px wide, the root's size grows with the viewport to a quarter more at 2560 px, and every rem with it: the page's column, the chart, the type and the icons. The chart's drawing grows by that growth alone. The visitor's own text size never grows the drawing, because a phone has little width, but for its time column, which widens to a whole time once the text is large (`docs/decisions.md`, "With the visitor's text large, the chart's time column widens to its times, and a headline word wraps"). A finished day's frame ends on the whole hour after its last visit, not the hour asked, so no empty tail hangs under it.
 
 ## How the look was found
 
