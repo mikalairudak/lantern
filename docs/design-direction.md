@@ -30,7 +30,7 @@ Each meaning has two tokens: one says it in words, at 5:1 like all text, and one
 | Meaning  | In words                 | Drawn                        | Drawn as                                          |
 | -------- | ------------------------ | ---------------------------- | ------------------------------------------------- |
 | Light    | `amber` #8B4800/#EDAD60  | `lamp` #BB660A/#FFBA4D       | The mark's bead, the suns, golden hour, lit beads |
-| Energy   | `energy` #006E54/#34B7B1 | `curve` #119574/#34B7B1      | The energy curve and the rings on it              |
+| Energy   | `energy` #00654C/#34B7B1 | `curve` #119574/#34B7B1      | The energy curve and the rings on it              |
 | Versions | `swap` #005D8E/#8DCCF8   | `swap-drawn` #4086BD/#4381AA | The hollow beads, and the ring that names one     |
 | Chosen   | `ink`                    | `ink`                        | The filled bead of the place shown                |
 
