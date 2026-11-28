@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CHART } from "@/features/abacus/geometry";
 import { ROW } from "@/features/abacus/rows";
+import { CITY_FIELD_COLOR_CLASSES } from "@/features/day/city-word";
+import { LIST_SHEET_CLASSES } from "@/features/day/word-list";
 import { themeColor, themeColorsOf, type Theme } from "./theme-colors";
 
 /*
@@ -24,6 +26,13 @@ function declared(name: string): Record<Theme, string> {
   const [, light = "", dark = ""] =
     new RegExp(`--color-${name}:\\s*light-dark\\(([^,]+),\\s*([^)]+)\\)`).exec(stylesheet) ?? [];
   return { light: light.trim(), dark: dark.trim() };
+}
+
+/** The colour token a class string sets for one property, as `border-line` sets the border's. */
+function tokenOf(classes: string, property: "border" | "bg"): string {
+  const token = new RegExp(`(?:^|\\s)${property}-([a-z-]+)(?:\\s|$)`).exec(classes)?.[1];
+  if (!token) throw new Error(`"${classes}" sets no ${property} colour`);
+  return token;
 }
 
 type Rgb = [number, number, number];
@@ -202,6 +211,14 @@ describe("the palette", () => {
       const ratio = contrast(color("line", theme), color("ground", theme));
       expect(ratio).toBeGreaterThanOrEqual(LINE_CONTRAST.least);
       expect(ratio).toBeLessThanOrEqual(LINE_CONTRAST.most);
+    });
+
+    it("outlines the city list's field 3:1 or more from its fill and from the list's sheet", () => {
+      const line = color(tokenOf(CITY_FIELD_COLOR_CLASSES, "border"), theme);
+      const fill = color(tokenOf(CITY_FIELD_COLOR_CLASSES, "bg"), theme);
+      const sheet = color(tokenOf(LIST_SHEET_CLASSES, "bg"), theme);
+      expect(contrast(line, fill)).toBeGreaterThanOrEqual(GRAPHIC_CONTRAST);
+      expect(contrast(line, sheet)).toBeGreaterThanOrEqual(GRAPHIC_CONTRAST);
     });
 
     it("draws the lamp at 3:1 or more on its glow and on its haze", () => {
