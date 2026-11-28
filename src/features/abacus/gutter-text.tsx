@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import type { GutterText } from "./drawing";
 
 /** The widest time: the times' figures are tabular, so every time is as wide as this one. */
@@ -17,7 +17,11 @@ const TIME_CLASSES = "absolute type-time whitespace-nowrap";
  * when the fonts arrive. The chart's drawing follows the root's growth alone; its time column
  * follows them (`drawingForText`).
  */
-export function GutterTextProbe({ onMeasure }: { onMeasure: (text: GutterText) => void }) {
+export function GutterTextProbe({
+  onMeasure,
+}: {
+  onMeasure: (text: GutterText) => void;
+}): ReactNode {
   const time = useRef<HTMLSpanElement>(null);
   const minute = useRef<HTMLSpanElement>(null);
   const onMeasureRef = useRef(onMeasure);

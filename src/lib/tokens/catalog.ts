@@ -138,6 +138,10 @@ export const CONTAINER_TOKENS = [
     name: "masthead",
     role: "The shortest masthead row that holds the day's menu, the new day and the theme",
   },
+  {
+    name: "narrow",
+    role: "Narrower than a phone's column at the default size: one index column, wrapping links",
+  },
 ] as const;
 
 /** The columns a grid is set in, each with its one use. */

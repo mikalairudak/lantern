@@ -1,3 +1,5 @@
+import { ALICANTE_REQUEST } from "../src/lib/fixtures/curated/requests";
+import type { StoredDay } from "../src/lib/days/stored-day";
 import { expect, test, type Page, waitMs, chooseTheChart, setBrowserTextSize } from "./fixtures";
 
 /**
@@ -9,8 +11,11 @@ import { expect, test, type Page, waitMs, chooseTheChart, setBrowserTextSize } f
 const LARGE_TEXT_PX = 32;
 /** A written day lands in about twelve seconds; a cold dev server adds a few. */
 const DAY_TIMEOUT_MS = waitMs(30_000);
-/** The narrowest phone and a common one. */
-const PHONE_WIDTHS = [320, 412];
+/**
+ * The narrowest phone, common ones, and those between where the foot's longest link,
+ * "© OpenStreetMap contributors", and its press come within a few pixels of the line at 200%.
+ */
+const PHONE_WIDTHS = [320, 386, 390, 393, 412];
 /**
  * A phone, and a laptop's width. The breakpoints are in rems, which the text size doubles, so at
  * 1440 px the page still takes its narrow layout, with the chart wider than a phone's.
@@ -54,12 +59,33 @@ function footLinksPastTheirLineOf(page: Page): Promise<string[]> {
   );
 }
 
+/** How far the headline reaches past the right edge of the page's column, in whole pixels. */
+function headlinePastItsColumnOf(page: Page): Promise<number> {
+  return page.getByRole("heading", { level: 1 }).evaluate((headline) => {
+    const column = headline.closest("main") ?? document.body;
+    const right = column.getBoundingClientRect().right;
+    const inset = Number.parseFloat(getComputedStyle(column).paddingRight);
+    return Math.round(headline.getBoundingClientRect().right - (right - inset));
+  });
+}
+
 async function untilDayRests(page: Page): Promise<void> {
   await expect(page.locator('[aria-label^="The day\'s energy"]')).toHaveAttribute(
     "aria-busy",
     "false",
     { timeout: DAY_TIMEOUT_MS },
   );
+}
+
+/**
+ * The day at rest and its end line under it, which comes once the day has played: the page is
+ * measured as it stands then, with every line it will hold.
+ */
+async function untilDayEnds(page: Page): Promise<void> {
+  await untilDayRests(page);
+  await expect(page.getByText(/^Home by/)).toBeVisible({
+    timeout: DAY_TIMEOUT_MS,
+  });
 }
 
 const PAGES = [
@@ -69,7 +95,7 @@ const PAGES = [
     until: (page: Page) =>
       expect(page.getByRole("list", { name: /^No city in mind/ })).toBeVisible(),
   },
-  { name: "a written day", path: DAY, until: untilDayRests },
+  { name: "a written day", path: DAY, until: untilDayEnds },
   {
     name: "the privacy page",
     path: "/privacy",
@@ -94,6 +120,100 @@ for (const { name, path, until } of PAGES) {
     });
   }
 }
+
+/** A day's link, whose day the test answers in place of the log. */
+const KEPT_ID = "1b6f0c2e-4d3a-4f5b-9c7e-2a1d3e4f5a6b";
+/** Alicante's day asked for a Wednesday, the longest weekday, its link past its days. */
+const ON_A_WEDNESDAY: StoredDay = {
+  status: "expired",
+  request: { ...ALICANTE_REQUEST, date: "2026-11-18" },
+};
+
+// A written day is shown on the next date of its own weekday, so a Wednesday is asked for
+// through a day's link, which answers with the request it holds.
+test("with the text at 200%, a day on a Wednesday keeps its headline inside the page at 320 px", async ({
+  page,
+}) => {
+  await page.route(`**/api/day/${KEPT_ID}`, (route) => route.fulfill({ json: ON_A_WEDNESDAY }));
+  await setBrowserTextSize(page, LARGE_TEXT_PX);
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto(`/day/${KEPT_ID}`);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("A calm Wednesday", {
+    timeout: DAY_TIMEOUT_MS,
+  });
+
+  expect(await rootPxOf(page)).toBe(LARGE_TEXT_PX);
+  expect(await overflowOf(page)).toBe(0);
+  // Clipped by the header, a headline wider than its column scrolls nothing: it is cut.
+  expect(await headlinePastItsColumnOf(page)).toBeLessThanOrEqual(0);
+});
+
+/** Each word under `selector` that the page sets across two lines, as "Madri / d". */
+function wordsBrokenIn(page: Page, selector: string): Promise<string[]> {
+  return page.evaluate((selector) => {
+    const broken: string[] = [];
+    for (const root of document.querySelectorAll(selector)) {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const text = node.textContent ?? "";
+        for (const match of text.matchAll(/\S+/g)) {
+          const tops = new Set<number>();
+          for (let at = match.index; at < match.index + match[0].length; at += 1) {
+            const range = document.createRange();
+            range.setStart(node, at);
+            range.setEnd(node, at + 1);
+            tops.add(Math.round(range.getBoundingClientRect().top));
+          }
+          if (tops.size > 1) broken.push(match[0]);
+        }
+      }
+    }
+    return broken;
+  }, selector);
+}
+
+for (const width of [320, 412]) {
+  test(`with the text at 200%, no word of the start screen's index breaks at ${width} px`, async ({
+    page,
+  }) => {
+    await setBrowserTextSize(page, LARGE_TEXT_PX);
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/");
+    await expect(page.getByRole("list", { name: /^No city in mind/ })).toBeVisible();
+
+    expect(await rootPxOf(page)).toBe(LARGE_TEXT_PX);
+    expect(await wordsBrokenIn(page, "[data-index-cell]")).toEqual([]);
+  });
+}
+
+// Wider than a 320 px phone's foot at 200%, the support address breaks after its "@".
+test("with the text at 200%, the foot's support address breaks only after its @ at 320 px", async ({
+  page,
+}) => {
+  await setBrowserTextSize(page, LARGE_TEXT_PX);
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto("/");
+  const address = page.locator('footer a[href^="mailto:"]');
+  await expect(address).toBeAttached();
+
+  expect(await rootPxOf(page)).toBe(LARGE_TEXT_PX);
+  const lines = await address.evaluate((link) => {
+    const walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT);
+    const byTop = new Map<number, string>();
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const text = node.textContent ?? "";
+      for (let at = 0; at < text.length; at += 1) {
+        const range = document.createRange();
+        range.setStart(node, at);
+        range.setEnd(node, at + 1);
+        const top = Math.round(range.getBoundingClientRect().top);
+        byTop.set(top, (byTop.get(top) ?? "") + text[at]);
+      }
+    }
+    return [...byTop.values()];
+  });
+  expect(lines).toEqual(["support@", "lanternday.com"]);
+});
 
 // A phrase of the headline wider than the line wraps inside its box, and a city wider than the
 // line breaks inside its name, and the comma after either stays on the line of the letter before

@@ -3,8 +3,8 @@ import { motion, type MotionValue } from "motion/react";
 /**
  * A word of the sentence inside its box (`whitespace-nowrap`), which wraps only where it is
  * wider than the line, as a long answer is on a phone with the browser's text at 200%; narrower,
- * the box stands whole on one line, as it always has. Its words, in an element of these, wrap
- * between them, and the comma after them stays with the last (`WordTrail`).
+ * the box stands whole on one line. Its words, in an element of these, wrap between them, and
+ * the comma after them stays with the last (`WordTrail`).
  */
 export const WORD_WRAP_CLASSES = "whitespace-normal";
 

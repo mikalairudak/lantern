@@ -33,7 +33,8 @@ const CAPTION_CLASSES = "flex flex-col items-center pt-1 pb-6 wrap-anywhere";
  */
 const CITY_CLASSES =
   "type-voice text-quote text-pretty text-ink decoration-ink decoration-1 underline-offset-4 pointed-group:underline";
-const PICTURE_CLASSES = "self-end";
+/** In one column (`narrow`), the plate stands at half the column's width, at its middle. */
+const PICTURE_CLASSES = "self-end @max-narrow:w-1/2 @max-narrow:justify-self-center";
 /**
  * How strongly a plate stands while Lantern reads and writes a typed text: stepped back, its low
  * pool of light with it, so the one light left on the screen is the working button's.
@@ -122,7 +123,9 @@ export function StartIndex({
       <ul
         ref={listRef}
         aria-labelledby={label}
-        className="-mx-3 grid grid-cols-2 @abacus:grid-cols-4"
+        // One column where the index is narrow, which only a large text size makes of a
+        // phone's (`narrow`): two would cut a city's name and its day's words mid-word.
+        className="-mx-3 grid grid-cols-2 @max-narrow:grid-cols-1 @abacus:grid-cols-4"
       >
         {starts.map((start) => {
           const gist = requestShortGistOf(start.request);

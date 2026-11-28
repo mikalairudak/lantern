@@ -355,8 +355,10 @@ export const CURVE_NAME = "drag the curve";
  *
  * On a phone the span is the viewport less the page's gutters, a rem either side, and the
  * chart's 96 px beside its lanes, which grow on a large screen, and on a phone only once the
- * browser's text is large enough to widen the time column, from about 150 %: 128 px at the
- * default size, and 136 px with the browser's text at 125 %.
+ * browser's text is large enough to widen the time column, where "00:00", 34.59 px at the
+ * default size, and its 7 px clearance pass the drawing's 52 px: from the browser's 21 px, about
+ * 131 % (ceil(34.59 × 21 / 16) + 7 = 53). 128 px at the default size, and 136 px with the
+ * browser's text at 125 %.
  */
 
 /**

@@ -3,7 +3,17 @@ import { describe, expect, it } from "vitest";
 import { DayEnd, type DayEndProps } from "./day-end-line";
 import { DAY_END_EXAMPLES, KANAZAWA_CHECKS, writtenPicksOf } from "./day-end-examples";
 
-const TIED = "\u00A0";
+/**
+ * The summary as it reads, and each run it keeps whole on a line: a box that does not wrap,
+ * but in a narrow line (`TIED_CLASSES`).
+ */
+function summaryOf(): { text: string; runs: string[] } {
+  const summary = screen.getByText(/^Home by/, { selector: "p" });
+  const runs = [...summary.querySelectorAll("span")]
+    .filter((run) => run.classList.contains("whitespace-nowrap"))
+    .map((run) => run.textContent);
+  return { text: summary.textContent, runs };
+}
 
 function exampleOf(label: RegExp): DayEndProps {
   const found = DAY_END_EXAMPLES.find((example) => label.test(example.label));
@@ -20,9 +30,10 @@ describe("DayEnd", () => {
 
     expect(screen.getByText("20:15")).toBeInTheDocument();
     // Each count whole on a line, and a dot never starting one.
-    expect(screen.getByText(/^Home by quarter past eight/).textContent).toMatch(
-      new RegExp(`^Home by quarter past eight ·${TIED}8${TIED}stops ·${TIED}about${TIED}`),
-    );
+    const { text, runs } = summaryOf();
+    expect(text).toMatch(/^Home by quarter past eight · 8 stops · about /);
+    expect(runs[0]).toBe("· 8 stops");
+    expect(runs[1]).toMatch(/^· about \d/);
     expect(screen.getByText(/places found on OpenStreetMap$/)).toHaveTextContent(
       "3 of 8 places found on OpenStreetMap",
     );
@@ -35,7 +46,7 @@ describe("DayEnd", () => {
   it("says no distance and keeps no route for a day of one stop", () => {
     const { container } = render(<DayEnd {...exampleOf(/^one stop/)} />);
 
-    expect(screen.getByText(/^Home by/).textContent).toBe(`Home by noon ·${TIED}1${TIED}stop`);
+    expect(summaryOf()).toEqual({ text: "Home by noon · 1 stop", runs: ["· 1 stop"] });
     expect(container.querySelector("noscript")).toBeNull();
   });
 

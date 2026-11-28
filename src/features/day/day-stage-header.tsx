@@ -122,6 +122,12 @@ const DATE_FORMAT = new Intl.DateTimeFormat("en-GB", {
  */
 const SENTENCE_CLASSES = "type-voice text-title text-pretty text-ink-soft";
 /**
+ * The day's weekday, which breaks inside itself only where it is wider than the line, as
+ * "Wednesday" is on a 320 px phone with the browser's text at 200%, rather than stand past the
+ * headline's column, where the header cuts it.
+ */
+const WEEKDAY_CLASSES = "wrap-anywhere";
+/**
  * The waiting line's light through the headline, every word of it (`docs/decisions.md`, "A row's
  * words go where its bead comes to rest, and rows ease rather than jump"): its pass and its muted
  * ground, as the start screen had them through the visitor's words before its light was quickened
@@ -1178,7 +1184,11 @@ export function DayStageHeader({
                   {/* Muted with the locked words while a re-plan is written, so the word
                     changed is the one word in ink. */}
                   <span
-                    className={cn("transition-colors", isReplanWriting ? "text-muted" : "text-ink")}
+                    className={cn(
+                      WEEKDAY_CLASSES,
+                      "transition-colors",
+                      isReplanWriting ? "text-muted" : "text-ink",
+                    )}
                   >
                     {weekdayOf(request.date)}
                   </span>
@@ -1499,7 +1509,7 @@ function SentenceShape({
       className={cn(SENTENCE_CLASSES, "invisible col-start-1 row-start-1", className)}
     >
       A <span>{facts.energy ? labelOf(facts.energy) : ""}</span>{" "}
-      <span>{weekdayOf(request.date)}</span>
+      <span className={WEEKDAY_CLASSES}>{weekdayOf(request.date)}</span>
       <ClauseText text={setOff(clause)} /> in{" "}
       <span className="inline-block whitespace-nowrap">
         <span className={cityWrapClassesOf(request.city)}>{request.city}</span>
@@ -1861,14 +1871,16 @@ function Notice({
                   className={cn(LINK_CLASSES, "text-left type-voice text-dek text-ink-soft")}
                 >
                   {/* Set as `AskedSentence` sets it: its energy word in its colour, and each
-                      word of the request one unbreakable box with its comma. */}
+                      word of the request one unbreakable box with its comma, but in a narrow
+                      header (`narrow`), where a word wider than the line, "slow morning," at
+                      320 px with the browser's text at 200%, wraps between its words. */}
                   {write("A ")}
                   <span className="text-energy">{write(energy)}</span>
                   {write(lead)}
                   {words.map((word, index) => (
                     <Fragment key={word}>
                       {index > 0 && write(" ")}
-                      <span className="whitespace-nowrap">
+                      <span className="whitespace-nowrap @max-narrow:whitespace-normal">
                         {write(index < words.length - 1 ? `${word},` : word)}
                       </span>
                     </Fragment>

@@ -338,6 +338,19 @@ describe("DayStageHeader", () => {
     },
   );
 
+  // "Wednesday" at 200% is wider than a 320 px phone's line of 256 px: it breaks inside itself,
+  // there alone, rather than widen the page, in the headline and in each copy that holds its
+  // room alike.
+  it("lets the longest weekday break inside itself where it is wider than the line", () => {
+    const { container } = renderHeader({ ...LISBON_REQUEST, date: "2026-11-18" });
+
+    const weekdays = [...container.querySelectorAll("span")].filter(
+      (span) => span.childElementCount === 0 && span.textContent === "Wednesday",
+    );
+    expect(weekdays.length).toBeGreaterThan(0);
+    for (const weekday of weekdays) expect(weekday).toHaveClass("wrap-anywhere");
+  });
+
   it("writes the sun's times on the server with no space as a text of its own beside another text", () => {
     const page = document.createElement("div");
     page.innerHTML = renderToString(

@@ -281,6 +281,7 @@ export function StopRow({
     Math.min(wordsWidth, placement.maxWidth),
     isPlacing,
     isRiding,
+    drawing.chart.axisWidth,
   );
   const onPen = useCallback(
     (isPenning: boolean) => onPenning(stop.id, isPenning),

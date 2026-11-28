@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
 import { cn } from "@/components/ui/cn";
-import { CONTACT_EMAIL, PRIVACY_PATH } from "@/features/day/foot-line";
+import { CONTACT_EMAIL, ContactAddress, PRIVACY_PATH } from "@/features/day/foot-line";
 import { LINK_CLASSES } from "@/features/day/link-classes";
 import { Masthead } from "@/features/day/masthead";
 import { DAY_LINK_DAYS } from "@/lib/days/stored-day";
@@ -50,10 +50,11 @@ const RECIPIENTS = [
 ] as const;
 
 /**
- * A link in the text. One wider than the line breaks anywhere, as the support address is on a
- * phone with the browser's text at 200%, rather than widening the page.
+ * A link in the text. In a narrow page (`narrow`), which only a large text size makes of a
+ * phone's, it stands whole while it fits a line, and one wider than its line breaks inside
+ * itself, the support address after its "@" (`ContactAddress`), rather than widen the page.
  */
-const BODY_LINK_CLASSES = cn(LINK_CLASSES, "text-ink wrap-anywhere");
+const BODY_LINK_CLASSES = cn(LINK_CLASSES, "text-ink wrap-anywhere @max-narrow:inline-block");
 
 /** The term an item of a list starts with, in the ink the text around it is softer than. */
 const TERM_CLASSES = "text-ink";
@@ -67,7 +68,8 @@ const TERM_CLASSES = "text-ink";
  */
 export default function Privacy() {
   return (
-    <main className="mx-auto flex max-w-page flex-col px-4 pb-16 md:px-10 lg:px-16">
+    // A container, so its links read the page's width in the text's own rems (`narrow`).
+    <main className="@container mx-auto flex max-w-page flex-col px-4 pb-16 md:px-10 lg:px-16">
       <header className="flex shrink-0 flex-col pt-5 pb-5">
         <Masthead />
         <h1 className="mt-5 type-voice text-title text-pretty text-ink">{TITLE}</h1>
@@ -91,7 +93,7 @@ async function Notice() {
   const isLive = await isLiveNow();
   const contact = (
     <a href={`mailto:${CONTACT_EMAIL}`} className={BODY_LINK_CLASSES}>
-      {CONTACT_EMAIL}
+      <ContactAddress />
     </a>
   );
   return (

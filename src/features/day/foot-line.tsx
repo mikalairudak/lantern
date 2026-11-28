@@ -26,17 +26,34 @@ export const CONTACT_EMAIL = "support@lanternday.com";
 export const PRIVACY_PATH = "/privacy";
 
 /**
- * Each link whole on its line, its press reaching past its words. In a foot narrower than
- * `label`, 10 rem, which only the browser's text at 200% makes of a phone's, a link wraps
- * between its words, and an address with no space breaks where it must, rather than widening
- * the page: "© OpenStreetMap contributors" is 323 px there and the support address 265, on a
- * line of 256.
+ * Each link whole on its line, its press reaching past its words. In a narrow foot (`narrow`),
+ * which only a large text size makes of a phone's, a link still stands whole while it fits a
+ * line, and one wider than its line wraps inside itself, between its words and after the
+ * address's "@" (`ContactAddress`), rather than widen the page: with the browser's text at 200%,
+ * "© OpenStreetMap contributors" is 323 px and the support address 265, on a 320 px phone's
+ * line of 256. Its press then reaches past its words only above and below them, so it never
+ * stands past the line.
  */
 const SMALL_LINK_CLASSES = cn(
   LINK_CLASSES,
   TARGET_CLASSES,
-  "whitespace-nowrap @max-label:whitespace-normal @max-label:wrap-anywhere",
+  "whitespace-nowrap @max-narrow:inline-block @max-narrow:whitespace-normal @max-narrow:wrap-anywhere @max-narrow:after:inset-x-0",
 );
+
+/**
+ * The support address, which may break after its "@" in a narrow column (`narrow`), as
+ * "support@ / lanternday.com", and nowhere else; elsewhere it is one word, as it reads.
+ */
+export function ContactAddress(): ReactNode {
+  const at = CONTACT_EMAIL.indexOf("@") + 1;
+  return (
+    <span className="whitespace-nowrap @max-narrow:whitespace-normal">
+      {CONTACT_EMAIL.slice(0, at)}
+      <wbr />
+      {CONTACT_EMAIL.slice(at)}
+    </span>
+  );
+}
 
 /**
  * The smallest type, muted: a credit or a way out, never whose product the day is. Muted on
@@ -90,7 +107,7 @@ export function FootLine({ sources = [], className }: FootLineProps) {
                 Privacy and terms
               </Link>,
               <a key="contact" href={`mailto:${CONTACT_EMAIL}`} className={SMALL_LINK_CLASSES}>
-                {CONTACT_EMAIL}
+                <ContactAddress />
               </a>,
             ]}
           />
