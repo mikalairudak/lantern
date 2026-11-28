@@ -162,6 +162,22 @@ describe("the wait for the rows to rest", () => {
     expect(scrolled).toBe(taken);
   });
 
+  it("goes on through a key held down repeating, before the rows rest and while the slider comes in", () => {
+    const slider = sliderAt(928);
+    const wait = waitOn(slider, false);
+    const repeat = () =>
+      slider.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", repeat: true, bubbles: true }),
+      );
+    repeat();
+    wait.rest();
+    drawFrames(10);
+    repeat();
+    drawFrames(120);
+
+    expect(scrolled).toBe(928 + KNOB_PX - SCREEN_PX);
+  });
+
   it("stops the slider's reveal on its way when it is cancelled, as the chart goes", () => {
     const wait = waitOn(sliderAt(928), false);
     wait.rest();

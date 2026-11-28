@@ -51,6 +51,14 @@ export function scrollToPlace(element: HTMLElement, options: ScrollIntoViewOptio
 /** What the visitor does that takes the page back from a reveal on its way. */
 export const TAKEN_BACK_BY = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
 
+/**
+ * Whether one of `TAKEN_BACK_BY` is the visitor's own act: every one but a key held down
+ * repeating, which goes on from the press that set things off, as Enter held on a button.
+ */
+export function isTakenBackBy(event: Event): boolean {
+  return !(event instanceof KeyboardEvent && event.repeat);
+}
+
 /** How close to its end the spring is once it has come there, as a share of its way. */
 const SPRING_DONE = 0.001;
 /** How close to where it goes the page is once it is there, in px. */
@@ -129,7 +137,8 @@ const WATCH_MS = (() => {
  * scrolls further than `REVEAL_STEP_PX`, so a frame drawn late catches up over the next ones.
  * An element in view is watched for the spring's time (`WATCH_MS`), scrolling nothing, and
  * revealed from where the page stands once growth above pushes it out. One reveal at a time:
- * a new one stops the one on its way, and so does the visitor's wheel, touch, press or key.
+ * a new one stops the one on its way, and so does the visitor's wheel, touch, press or key, but
+ * for a key held down repeating (`isTakenBackBy`).
  * `coveredTop` is the room at the screen's top that something held there covers, which an
  * element revealed by its top stands clear of. The reveal ends where the edge is wholly in.
  * Gives back a stop.
@@ -156,7 +165,10 @@ export function revealInView(
     revealing = null;
     cancelAnimationFrame(frame);
     if (current.isScrolling) root.style.overflowAnchor = anchoring;
-    for (const kind of TAKEN_BACK_BY) removeEventListener(kind, stop, { capture: true });
+    for (const kind of TAKEN_BACK_BY) removeEventListener(kind, takenBack, { capture: true });
+  };
+  const takenBack = (event: Event) => {
+    if (isTakenBackBy(event)) stop();
   };
   current.stop = stop;
   /** Sets off for `edge` from where the page stands; at once with reduced motion. */
@@ -197,7 +209,7 @@ export function revealInView(
   };
   revealing = current;
   for (const kind of TAKEN_BACK_BY) {
-    addEventListener(kind, stop, { capture: true, passive: true });
+    addEventListener(kind, takenBack, { capture: true, passive: true });
   }
   // Out of view already, it sets off at once; with reduced motion it is there in this call.
   const edge = edgeOf(element, coveredTop);

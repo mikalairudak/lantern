@@ -159,6 +159,17 @@ describe("revealInView", () => {
     expect(scrolled).toBe(before);
   });
 
+  it("goes on through a key held down repeating, and stops at a key pressed anew", () => {
+    revealInView(elementAt(900, 400), false);
+    drawFrame();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", repeat: true }));
+    drawFrame();
+    expect(isRevealing()).toBe(true);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+    expect(isRevealing()).toBe(false);
+  });
+
   it("stops the reveal on its way when another starts", () => {
     revealInView(elementAt(900, 400), false);
     drawFrame();

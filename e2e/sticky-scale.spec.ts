@@ -1,4 +1,12 @@
-import { expect, test, type Locator, type Page, waitMs, chooseTheChart } from "./fixtures";
+import {
+  CPU_RATE,
+  expect,
+  test,
+  type Locator,
+  type Page,
+  waitMs,
+  chooseTheChart,
+} from "./fixtures";
 import { seeWrittenDay } from "./live-page";
 import { writtenDayAt } from "../src/lib/days/written/days";
 import { BACK_FOCUS_WAIT_MS } from "../src/features/abacus/back-to-plan";
@@ -508,5 +516,89 @@ test(`"Back to the plan" moves the focus once under reduced motion, to a slider 
   expect(moves, "the focus's moves from the button").toEqual(["Energy at 10:30"]);
   const rest = await focusedSliderOf(page);
   expect(rest.top, "the slider's ring, under the held band").toBeGreaterThanOrEqual(rest.clearFrom);
+  expect(rest.bottom, "the slider's ring, over the window's foot").toBeLessThanOrEqual(rest.foot);
+});
+
+/**
+ * How soon after the press, under reduced motion, the slider "Back to the plan" focused stands
+ * in the window: once it and the page have stood still four frames, about 90 ms on a laptop and
+ * up to about 160 ms beside other tests, well inside the half second the press waits for a
+ * glide. A page made slower takes as many times longer.
+ */
+const REDUCED_IN_VIEW_MS = 200;
+/** How long Enter is held on "Back to the plan", past a keyboard's repeat delay. */
+const ENTER_HELD_MS = 600;
+/** When a held key starts to repeat, and how often it repeats after that, as a keyboard does. */
+const REPEAT_DELAY_MS = 500;
+const REPEAT_EVERY_MS = 33;
+
+test(`"Back to the plan" pressed from the keys under reduced motion has its slider in the window within ${REDUCED_IN_VIEW_MS} ms`, async ({
+  page,
+}) => {
+  await openSeenKanazawaChart(page);
+  await changeFromTheKeys(page, "17:30");
+  // From the Enter that presses the button, every frame reads whether the focused slider,
+  // ring and all, is wholly in the window under the band, and notes how long that took.
+  await page.evaluate((attribute) => {
+    const timing = window as unknown as { inViewAfterMs?: number };
+    document.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key !== "Enter") return;
+        const pressed = performance.now();
+        const read = () => {
+          const focused = document.activeElement;
+          const band = document.querySelector(`[${attribute}="held"]`);
+          const clearFrom = Math.max(0, band?.getBoundingClientRect().bottom ?? 0);
+          if (focused?.getAttribute("role") === "slider") {
+            const { top, bottom } = focused.getBoundingClientRect();
+            const style = getComputedStyle(focused);
+            const ringTop = top - Number.parseFloat(style.scrollMarginTop);
+            const ringBottom = bottom + Number.parseFloat(style.scrollMarginBottom);
+            if (ringTop >= clearFrom && ringBottom <= innerHeight) {
+              timing.inViewAfterMs = performance.now() - pressed;
+              return;
+            }
+          }
+          requestAnimationFrame(read);
+        };
+        requestAnimationFrame(read);
+      },
+      { capture: true, once: true },
+    );
+  }, BAND);
+
+  await page.keyboard.press("Enter");
+  const inViewAfterMs = await page
+    .waitForFunction(() => (window as unknown as { inViewAfterMs?: number }).inViewAfterMs)
+    .then((handle) => handle.jsonValue());
+
+  expect(inViewAfterMs, "ms from the press to the slider in the window").toBeLessThanOrEqual(
+    REDUCED_IN_VIEW_MS * CPU_RATE,
+  );
+});
+
+test(`Enter held on "Back to the plan" until it repeats still brings its slider into the window`, async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await openSeenKanazawaChart(page);
+  await changeFromTheKeys(page, "17:30");
+  await page.keyboard.down("Enter");
+  await page.waitForTimeout(REPEAT_DELAY_MS);
+  // Each keydown after the first, with the key still down, is a repeat.
+  for (let held = REPEAT_DELAY_MS; held < ENTER_HELD_MS; held += REPEAT_EVERY_MS) {
+    await page.keyboard.down("Enter");
+    await page.waitForTimeout(REPEAT_EVERY_MS);
+  }
+  await page.keyboard.up("Enter");
+  const slider = page.getByRole("slider", { name: "Energy at 17:30" });
+  await expect(slider).toBeFocused();
+  await untilWaitedOut(page, slider);
+
+  const rest = await focusedSliderOf(page);
+  expect(rest.top, "the slider's ring, under anything held at the top").toBeGreaterThanOrEqual(
+    rest.clearFrom,
+  );
   expect(rest.bottom, "the slider's ring, over the window's foot").toBeLessThanOrEqual(rest.foot);
 });
