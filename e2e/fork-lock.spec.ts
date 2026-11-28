@@ -1,4 +1,6 @@
 import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
+import { logStatuses } from "./status-log";
+import { STATUS_STANDS_MS } from "../src/features/day/notice-status";
 
 /**
  * One change at a time, the energy's included (`docs/decisions.md`, "One change at a time, the
@@ -16,6 +18,12 @@ const BENCH = "/lab/concepts/replan";
  */
 const DAY_TIMEOUT_MS = waitMs(45_000);
 const LOCKED = "one change at a time";
+/**
+ * How much of its stand the log must see the fork's status keep, empty, before its words: the
+ * log notes the status coming onto the page once the press's task is done, which on a phone
+ * opening the fork is a long one, so it may note the status a good part of the stand late.
+ */
+const STAND_SEEN_SHARE = 0.5;
 /** The proposal's last new stop, Elche's dinner eaten late. */
 const NEW_DINNER = "Tapas along Carrer Major de la Vila";
 
@@ -98,4 +106,94 @@ test("the energy waits while a proposal is written, on the plan's bar and in the
   ).toBeVisible();
   await expect(factsLine(page)).not.toContainText("set aside");
   await expect(factsLine(page)).not.toContainText("not kept");
+});
+
+/** What the page's statuses said, in order, as `logStatuses` logged it. */
+function statusLogOf(page: Page) {
+  return page.evaluate(() => window.statusLog);
+}
+
+/** Elche on the bench, its re-plans ending as `ending` says, the day written to its end. */
+async function openElcheEnding(page: Page, ending: "complete" | "busy"): Promise<Locator> {
+  await page.addInitScript(logStatuses);
+  await page.goto(BENCH);
+  const controls = page.getByRole("complementary", { name: "Lab controls" });
+  await controls.getByRole("button", { name: "Re-plan" }).click();
+  await controls
+    .getByRole("group", { name: "Ending" })
+    .getByRole("button", { name: ending })
+    .click();
+  await controls.getByRole("button", { name: "Re-plan" }).click();
+  const headline = page.locator("h1");
+  await expect(headline).toContainText("Elche", { timeout: DAY_TIMEOUT_MS });
+  await expect(page.locator('[aria-label^="The day\'s energy"]')).toHaveAttribute(
+    "aria-busy",
+    "false",
+    { timeout: DAY_TIMEOUT_MS },
+  );
+  return headline;
+}
+
+test("each press on a waiting word says one change at a time again, the facts line as it stood", async ({
+  page,
+}) => {
+  test.setTimeout(2 * DAY_TIMEOUT_MS);
+  const headline = await openElcheEnding(page, "complete");
+  await headline.getByRole("button", { name: "early dinner", exact: true }).click();
+  await page.getByRole("option", { name: "eating late" }).click();
+  await expect(
+    shownForkRow(page).getByRole("radio", { name: "eating late, being written", exact: true }),
+  ).toBeVisible({ timeout: DAY_TIMEOUT_MS });
+
+  const lively = energyBar(page).getByRole("button", { name: "lively" });
+  const onFoot = headline.getByRole("button", { name: /^on foot/ });
+  const since = await page.evaluate(() => performance.now());
+  // The bar's word twice, then a word of the headline twice: four presses, each answered.
+  for (const word of [lively, lively, onFoot, onFoot]) {
+    const saidBefore = (await statusLogOf(page)).filter((entry) => entry.text === LOCKED).length;
+    await word.click({ force: true });
+    await expect
+      .poll(async () => (await statusLogOf(page)).filter((entry) => entry.text === LOCKED).length)
+      .toBe(saidBefore + 1);
+  }
+  await expect(factsLine(page)).toContainText(LOCKED);
+
+  const log = (await statusLogOf(page)).filter((entry) => entry.t >= since);
+  const said = log.filter((entry) => entry.text === LOCKED);
+  expect(said).toHaveLength(4);
+  // One status, emptied at each press and written again: each a change a screen reader hears.
+  expect(new Set(said.map((entry) => entry.id)).size).toBe(1);
+  expect(said.every((entry) => entry.kind === "changed")).toBe(true);
+  const between = log.filter((entry) => entry.id === said[0]!.id && entry.text !== LOCKED);
+  expect(between.map((entry) => entry.text)).toEqual(["", "", "", ""]);
+});
+
+test("a re-plan the route refuses at once is said from a status that stood before its words", async ({
+  page,
+}) => {
+  test.setTimeout(2 * DAY_TIMEOUT_MS);
+  const headline = await openElcheEnding(page, "busy");
+  const NOT_JUST_NOW = "Couldn't re-plan just now";
+  const pressed = await page.evaluate(() => performance.now());
+  await headline.getByRole("button", { name: "early dinner", exact: true }).click();
+  await page.getByRole("option", { name: "eating late" }).click();
+  await expect(shownForkRow(page).getByText(NOT_JUST_NOW, { exact: false }).first()).toBeVisible({
+    timeout: DAY_TIMEOUT_MS,
+  });
+  await expect
+    .poll(async () =>
+      (await statusLogOf(page)).some((entry) => entry.text.startsWith(NOT_JUST_NOW)),
+    )
+    .toBe(true);
+
+  const log = await statusLogOf(page);
+  const said = log.filter((entry) => entry.t >= pressed && entry.text.startsWith(NOT_JUST_NOW));
+  expect(said.length).toBeGreaterThan(0);
+  for (const failure of said) {
+    const born = log.find((entry) => entry.id === failure.id && entry.kind === "added")!;
+    // Put on the page empty, at the press, and said only once it had stood.
+    expect(failure.kind, "a status put on the page already holding the line").toBe("changed");
+    expect(born.text).toBe("");
+    expect(failure.t - born.t).toBeGreaterThanOrEqual(STATUS_STANDS_MS * STAND_SEEN_SHARE);
+  }
 });

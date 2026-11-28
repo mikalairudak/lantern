@@ -1069,6 +1069,7 @@ export function DayRows({
                     time={stop.startTime}
                     width={timeWidth}
                     tone={timeToneOf(false, isGoldenStart(index))}
+                    isGoldenStart={isGoldenStart(index)}
                   />
                 </motion.li>
               );

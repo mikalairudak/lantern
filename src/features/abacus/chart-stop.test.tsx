@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { ALICANTE_DAY } from "@/lib/fixtures/curated/alicante";
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import type { WrittenDay } from "@/lib/days/written/written-day";
 import { CROWDED_DAY, MINIMAL_DAY, NEVER_QUIET_DAY } from "@/lib/fixtures/edge/edge-days";
@@ -163,13 +164,23 @@ describe("a stop's beads", () => {
 describe("a version's bead to a screen reader", () => {
   const kyoto = stopsOf(KYOTO_DAY);
 
-  it("is named by its version and the way it goes, and is no stop of the Tab order", () => {
-    drawStop(kyoto, "11:15");
+  it("is named by its version, the way it goes and its stop's time, and is no stop of the Tab order", () => {
+    const alicante = stopsOf(ALICANTE_DAY);
+    drawStop(alicante, "08:30");
     const beads = screen.getAllByRole("button");
+    const planned = alicante.find((stop) => stop.startTime === "08:30")!.primary;
 
+    // The stop's time is the one its slider is named by, so a bead met alone says whose it is;
+    // the slider says the energy and place the stop shows, as its lane draws it.
+    const slider = screen.getByRole("slider");
+    expect(slider).toHaveAccessibleName("Energy at 08:30");
+    expect(slider).toHaveAttribute(
+      "aria-valuetext",
+      `${planned.sensory?.energy}: Barrio de Santa Cruz`,
+    );
     expect(beads.map((bead) => bead.getAttribute("aria-label"))).toEqual([
-      "Tofu on the approach road, quieter",
-      "Tofu courses near Keage, livelier",
+      "Parque de la Ereta, quieter at 08:30",
+      "Calle Mayor, livelier at 08:30",
     ]);
     for (const bead of beads) expect(bead).toHaveAttribute("tabindex", "-1");
   });

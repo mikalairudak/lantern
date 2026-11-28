@@ -63,7 +63,8 @@ import { cityWrapClassesOf, WORD_WRAP_CLASSES } from "./word-trail";
 import { LINK_CLASSES, TARGET_CLASSES } from "./link-classes";
 import { unplacedLineOf } from "./start";
 import { PEN_BEAT_MS } from "./use-pen";
-import { NOTICE_HEARD_MS, useNoticeStatus, usePageSeen } from "./notice-status";
+import { NOTICE_HEARD_MS, STATUS_STANDS_MS, useNoticeStatus, usePageSeen } from "./notice-status";
+import { useSaidAgain } from "./said-again";
 import { ROOM_REACH_PX, SPRINGS } from "@/lib/tokens/motion";
 import {
   chosenLabelsOf,
@@ -274,6 +275,8 @@ const NO_REPLAN: ReplanControls = {
  * is written: one word changes at a time, and nothing else happens.
  */
 export const ONE_CHANGE_AT_A_TIME = "one change at a time";
+/** What a screen reader hears once a day it heard being written is whole. */
+export const THE_DAY_IS_WRITTEN = "The day is written";
 
 /** No way to take the day along: no menu is drawn, and the new day stands in the row. */
 const NO_WAYS_ALONG: readonly DayMenuItem[] = [];
@@ -421,6 +424,11 @@ interface DayStageHeaderProps {
    * from the visitor's own days, its city word takes the focus the start screen had.
    */
   isBehindStart?: boolean;
+  /**
+   * The day's wait was heard in the run before this header, which gave way to this one as the
+   * same day came whole: read once, as it mounts, as though this header had heard it.
+   */
+  isWaitHeard?: boolean;
   /** The word a re-plan merged for, which takes the focus back when it is drawn anew. */
   focusedWord?: AssumableFactKey | null;
   /**
@@ -469,10 +477,16 @@ interface DayStageHeaderProps {
   /** A word whose list is drawn open, as a lab cell draws it, taking no focus; null for none. */
   openedWord?: FactKey | null;
   /**
-   * A locked control outside the header, the plan's energy, was pressed while a re-plan is
-   * written, or a lab cell draws a locked word pressed: the facts line says one change at a time.
+   * A lab cell draws a locked word pressed while a re-plan is written: the facts line says one
+   * change at a time.
    */
   isLockSaid?: boolean;
+  /**
+   * How many times a locked control outside the header, the plan's energy, has been pressed
+   * while this re-plan is written: the facts line says one change at a time, and each press says
+   * it again to a screen reader.
+   */
+  lockPresses?: number;
   onCityOpenChange: (openAt: CityFocus | null) => void;
   /**
    * The ways to take the day along, for the day menu, which holds them; none for a day that
@@ -599,6 +613,7 @@ export function DayStageHeader({
   typedCity = null,
   isCityFocused,
   isBehindStart = false,
+  isWaitHeard = false,
   focusedWord = null,
   replan: givenReplan = NO_REPLAN,
   onPointToFork = ignore,
@@ -610,6 +625,7 @@ export function DayStageHeader({
   energyRepicks = null,
   openedWord = null,
   isLockSaid = false,
+  lockPresses = 0,
   onCityOpenChange,
   takeAlong = NO_WAYS_ALONG,
   onMenuOpen,
@@ -910,9 +926,15 @@ export function DayStageHeader({
   if (status === "idle" && slotKeyOf(restSlot) !== slotKeyOf(slot)) setRestSlot(slot);
   const changeSlot = status === "writing" ? restSlot : settledSlotOf(restSlot);
   const shownSlot = status === "idle" ? slot : changeSlot;
-  const [isLockedPressed, setIsLockedPressed] = useState(false);
-  if (!isReplanWriting && isLockedPressed) setIsLockedPressed(false);
-  const sayLocked = () => setIsLockedPressed(true);
+  // Each press of a locked word, here or on the plan's energy, is answered: the line stands in
+  // the facts line from the first, and the status empties at each press and says it again once
+  // it has stood empty (`useSaidAgain`), as a status says only a change of its words
+  // (`docs/decisions.md`, "One change at a time, the energy's included").
+  const [ownLockPresses, setOwnLockPresses] = useState(0);
+  if (!isReplanWriting && ownLockPresses !== 0) setOwnLockPresses(0);
+  const sayLocked = () => setOwnLockPresses((presses) => presses + 1);
+  const allLockPresses = ownLockPresses + lockPresses;
+  const isLockHeard = useSaidAgain(allLockPresses);
   // The new day opens the city word at its field. The button counts as the list's own word, so
   // a press with the list open folds nothing, and puts the focus back in the field itself, as
   // the list's own state does not change.
@@ -954,7 +976,7 @@ export function DayStageHeader({
   // the new day, which stands in the row from the frame the menu is gone.
   const giveNewDayTheFocus = () => requestAnimationFrame(() => newDayButton.current?.focus());
   const hasWaysAlong = takeAlong.length > 0;
-  const isLockedSaid = isReplanWriting && (isLockedPressed || isLockSaid);
+  const isLockedSaid = isReplanWriting && (allLockPresses > 0 || isLockSaid);
   // The status says the day is being written once a wait, as a live region is heard each time
   // it is filled: the words stand from the wait's first silence until it ends, through the
   // silences after it, and then only while the waiting line fades with the chart.
@@ -1004,7 +1026,9 @@ export function DayStageHeader({
         : ""
       : replanningLine !== null
         ? isLockedSaid
-          ? ONE_CHANGE_AT_A_TIME
+          ? isLockHeard
+            ? ONE_CHANGE_AT_A_TIME
+            : ""
           : setAsideHeard !== null
             ? `${setAsideHeard}; ${replanningLine}`
             : replanningLine
@@ -1023,6 +1047,42 @@ export function DayStageHeader({
     setOverstoodChange(changeHeard);
   }
   const heardChange = changeHeard === overstoodChange ? "" : changeHeard;
+  // A day written where a screen reader could hear its wait says once that it is whole, as it
+  // can be used, held as a notice is and only while the page is seen, below every other line:
+  // the visitor's own change, or a line that comes over it, lets it go, never said after. A day
+  // drawn whole, or written behind the start screen, says nothing (`docs/decisions.md`, "A day
+  // heard being written says once that it is whole").
+  const [isWritingHeard, setIsWritingHeard] = useState(isWaitHeard);
+  // Drawn with a wait carried from the run before, the status is put on the page with this
+  // header: it stands empty `STATUS_STANDS_MS` before it may say the day is written.
+  const [hasStatusStood, setHasStatusStood] = useState(!isWaitHeard);
+  useEffect(() => {
+    if (hasStatusStood) return undefined;
+    const stood = window.setTimeout(() => setHasStatusStood(true), STATUS_STANDS_MS);
+    return () => window.clearTimeout(stood);
+  }, [hasStatusStood]);
+  if (isDayBeingWritten && !isBehindStart && !isWritingHeard) setIsWritingHeard(true);
+  if (isBehindStart && isWritingHeard) setIsWritingHeard(false);
+  const isWrittenDue = isWritingHeard && !isDayBeingWritten && isEnabled && notice === null;
+  const [isWrittenHeardOut, setIsWrittenHeardOut] = useState(false);
+  if (isDayBeingWritten && isWrittenHeardOut) setIsWrittenHeardOut(false);
+  const isWrittenOverstood = heardChange !== "" || (higherLine !== null && !isWritingSaid);
+  if (isWrittenDue && !isWrittenHeardOut && isWrittenOverstood) setIsWrittenHeardOut(true);
+  // Its hold runs only while the status says it: under "Writing the day" as the wait's line
+  // fades, it waits.
+  const isWrittenSaid =
+    isWrittenDue &&
+    !isWrittenHeardOut &&
+    isSeen &&
+    hasStatusStood &&
+    higherLine === null &&
+    heardChange === "";
+  useEffect(() => {
+    if (!isWrittenSaid) return undefined;
+    const heardOut = window.setTimeout(() => setIsWrittenHeardOut(true), NOTICE_HEARD_MS);
+    return () => window.clearTimeout(heardOut);
+  }, [isWrittenSaid]);
+  const heardWritten = isWrittenSaid ? THE_DAY_IS_WRITTEN : "";
   /**
    * An answer chosen from a word's list: the fork's two take either version from memory, as its
    * rows do, and while the proposal is written neither changes anything; any other answer is a
@@ -1336,9 +1396,9 @@ export function DayStageHeader({
                 once. What a change set aside is heard with what the new word re-plans, in one
                 line that stays as the note on screen steps on. Below all of these, the
                 visitor's own change to the day, while it is heard and none of them has stood
-                over it. */}
+                over it; and below that, once, that a day it heard being written is whole. */}
               <p role="status" className="sr-only">
-                {higherLine ?? heardChange}
+                {higherLine ?? (heardChange || heardWritten)}
               </p>
             </div>
             {!notice && (

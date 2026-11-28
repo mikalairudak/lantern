@@ -4,15 +4,30 @@ import { cloneElement, useState, type ReactNode } from "react";
 import userEvent from "@testing-library/user-event";
 import { motionValue, type MotionValue } from "motion/react";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { CURATED_REQUESTS, KYOTO_REQUEST, LISBON_REQUEST } from "@/lib/fixtures/curated/requests";
+import {
+  ALICANTE_REQUEST,
+  CURATED_REQUESTS,
+  KYOTO_REQUEST,
+  LISBON_REQUEST,
+} from "@/lib/fixtures/curated/requests";
 import { KANAZAWA_START_REQUEST, START_REQUESTS } from "@/lib/days/written/quick-starts";
 import { spacesBesideTextsOf } from "@/lib/fixtures/server-markup";
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
 import type { PartialDay } from "@/lib/stream/outcome";
 import { noticeOf } from "./stream-ending";
 import { requestSentenceOf, sentenceFactsOf } from "./sentence";
-import { DayStageHeader, type ForkNoteShown, type HeaderNotice } from "./day-stage-header";
-import { NOTICE_HEARD_MS, NoticeStatus, NoticeStatusContext } from "./notice-status";
+import {
+  DayStageHeader,
+  THE_DAY_IS_WRITTEN,
+  type ForkNoteShown,
+  type HeaderNotice,
+} from "./day-stage-header";
+import {
+  NOTICE_HEARD_MS,
+  NoticeStatus,
+  NoticeStatusContext,
+  STATUS_STANDS_MS,
+} from "./notice-status";
 import type { ReplanControls } from "./replan-controls";
 import { ASSUMED_NOTE } from "./sentence-word";
 
@@ -62,6 +77,8 @@ interface Handlers {
   isWaiting?: boolean;
   /** The unseen copy the playing's first frame draws beside the header. */
   isCopy?: boolean;
+  /** The day is written and still, its words can be opened; so by default. */
+  isEnabled?: boolean;
 }
 
 /** A sunrise at 07:15 and a sunset at 18:40, in minutes after midnight. */
@@ -167,6 +184,7 @@ function headerOf(
     isDayBeingWritten = false,
     isWaiting = false,
     isCopy,
+    isEnabled = true,
   }: Handlers = {},
 ) {
   const facts = sentenceFactsOf(request, assumptions);
@@ -194,7 +212,7 @@ function headerOf(
       replan={replan}
       onPointToFork={onPointToFork}
       forkNote={forkNote}
-      isEnabled
+      isEnabled={isEnabled}
       isDayBeingWritten={isDayBeingWritten}
       isWaiting={isWaiting}
       written={CURATED_REQUESTS}
@@ -715,8 +733,12 @@ describe("DayStageHeader", () => {
       notice?: HeaderNotice | null;
     }
 
-    /** Every text the header's status holds, each once in a row, as each step renders. */
-    function hearSteps([first, ...rest]: readonly Step[]): string[] {
+    /**
+     * Every text the header's status holds, each once in a row, as each step renders: the day
+     * cannot be used at a step unless it says so, as while it is written.
+     */
+    function hearSteps(steps: readonly Step[]): string[] {
+      const [first, ...rest] = steps.map((step) => ({ isEnabled: false, ...step }));
       const view = renderHeader(KYOTO_REQUEST, null, first?.notice ?? null, first);
       const heard = [headerStatus().textContent ?? ""];
       for (const step of rest) {
@@ -735,6 +757,146 @@ describe("DayStageHeader", () => {
       ]);
 
       expect(heard).toEqual(["", WRITING, ""]);
+    });
+
+    it("says once that the day is written as it can be used, held as long as a notice, then falls quiet", () => {
+      vi.useFakeTimers();
+      try {
+        const steps: Step[] = [
+          { isDayBeingWritten: true },
+          ...SILENCES.map((isWaiting) => ({ isDayBeingWritten: true, isWaiting })),
+          { isDayBeingWritten: false },
+          { isDayBeingWritten: false, isEnabled: true },
+        ];
+        const heard = hearSteps(steps);
+        expect(heard).toEqual(["", WRITING, "", THE_DAY_IS_WRITTEN]);
+        // Not the words the wait was said in, which a page's checks count.
+        expect(THE_DAY_IS_WRITTEN).not.toContain(WRITING);
+
+        act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS - 1));
+        expect(headerStatus()).toHaveTextContent(THE_DAY_IS_WRITTEN);
+        act(() => vi.advanceTimersByTime(1));
+        expect(headerStatus()).toBeEmptyDOMElement();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("holds the day written its whole time from when it is said, not while the wait's line stands", () => {
+      vi.useFakeTimers();
+      try {
+        const view = renderHeader(ALICANTE_REQUEST, null, null, {
+          isDayBeingWritten: true,
+          isWaiting: true,
+          isEnabled: false,
+        });
+        // Whole and usable while the wait's line still stands over it.
+        view.rerender(headerOf(ALICANTE_REQUEST, null, null, { isWaiting: true, isEnabled: true }));
+        expect(headerStatus()).toHaveTextContent(WRITING);
+        act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS));
+        view.rerender(headerOf(ALICANTE_REQUEST, null, null, { isEnabled: true }));
+        expect(headerStatus()).toHaveTextContent(THE_DAY_IS_WRITTEN);
+
+        act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS - 1));
+        expect(headerStatus()).toHaveTextContent(THE_DAY_IS_WRITTEN);
+        act(() => vi.advanceTimersByTime(1));
+        expect(headerStatus()).toBeEmptyDOMElement();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("says nothing of a day written to its end behind the start screen", () => {
+      const at = (handlers: Handlers, isBehindStart: boolean) =>
+        cloneElement(headerOf(ALICANTE_REQUEST, null, null, handlers), { isBehindStart });
+      const view = render(at({ isDayBeingWritten: true, isEnabled: false }, false));
+      // Back to the start screen: the page tells the header the day is no longer heard.
+      view.rerender(at({ isDayBeingWritten: false, isEnabled: false }, true));
+      view.rerender(at({ isEnabled: true }, true));
+      view.rerender(at({ isEnabled: true }, false));
+
+      expect(headerStatus()).toBeEmptyDOMElement();
+    });
+
+    it("says nothing of a day told it is being written while it stands behind the start screen", () => {
+      const at = (handlers: Handlers, isBehindStart: boolean) =>
+        cloneElement(headerOf(ALICANTE_REQUEST, null, null, handlers), { isBehindStart });
+      const view = render(at({ isDayBeingWritten: true, isEnabled: false }, true));
+      view.rerender(at({ isEnabled: true }, true));
+      view.rerender(at({ isEnabled: true }, false));
+
+      expect(headerStatus()).toBeEmptyDOMElement();
+    });
+
+    it("waits to say the day written until the page is seen, and holds it from then", () => {
+      vi.useFakeTimers();
+      const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+      try {
+        const view = renderHeader(ALICANTE_REQUEST, null, null, {
+          isDayBeingWritten: true,
+          isEnabled: false,
+        });
+        view.rerender(headerOf(ALICANTE_REQUEST, null, null, { isEnabled: true }));
+        act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS * 2));
+        expect(headerStatus()).toBeEmptyDOMElement();
+
+        visibility.mockReturnValue("visible");
+        act(() => document.dispatchEvent(new Event("visibilitychange")));
+        expect(headerStatus()).toHaveTextContent(THE_DAY_IS_WRITTEN);
+        act(() => vi.advanceTimersByTime(NOTICE_HEARD_MS));
+        expect(headerStatus()).toBeEmptyDOMElement();
+      } finally {
+        visibility.mockRestore();
+        vi.useRealTimers();
+      }
+    });
+
+    it("says the day written for a wait carried from the run before, once its status has stood empty", () => {
+      vi.useFakeTimers();
+      try {
+        // Drawn whole and usable from its first render, in place of the run that heard the wait.
+        render(
+          cloneElement(headerOf(ALICANTE_REQUEST, null, null, { isEnabled: true }), {
+            isWaitHeard: true,
+          }),
+        );
+        const status = headerStatus();
+        expect(status).toBeEmptyDOMElement();
+        act(() => vi.advanceTimersByTime(STATUS_STANDS_MS - 1));
+        expect(status).toBeEmptyDOMElement();
+        act(() => vi.advanceTimersByTime(1));
+        expect(headerStatus()).toBe(status);
+        expect(status).toHaveTextContent(THE_DAY_IS_WRITTEN);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("says nothing of a day drawn whole, which no one heard being written", () => {
+      const heard = hearSteps([{ isEnabled: true }, { isEnabled: true, isAsPlanned: true }]);
+
+      expect(heard).toEqual([""]);
+    });
+
+    it("lets the day written go for the visitor's first change, never said after it", () => {
+      const steps: Step[] = [
+        { isDayBeingWritten: true },
+        { isDayBeingWritten: true, isWaiting: true },
+        { isDayBeingWritten: false, isEnabled: true },
+      ];
+      const view = renderHeader(ALICANTE_REQUEST, null, null, { isEnabled: false, ...steps[0] });
+      for (const step of steps.slice(1)) {
+        view.rerender(headerOf(ALICANTE_REQUEST, null, null, { isEnabled: false, ...step }));
+      }
+      expect(headerStatus()).toHaveTextContent(THE_DAY_IS_WRITTEN);
+      const CHANGE = "Explanada de España, livelier in the evening";
+      const withChange = (changeHeard: string) =>
+        cloneElement(headerOf(ALICANTE_REQUEST, null, null, { isEnabled: true }), { changeHeard });
+
+      view.rerender(withChange(CHANGE));
+      expect(headerStatus()).toHaveTextContent(CHANGE);
+      view.rerender(withChange(""));
+      expect(headerStatus()).toBeEmptyDOMElement();
     });
 
     it("says it once more for the next wait, the same day asked again", () => {
@@ -787,14 +949,15 @@ describe("DayStageHeader", () => {
       const heard = hearSteps([
         { isDayBeingWritten: true },
         ...SILENCES.map((isWaiting) => ({ isDayBeingWritten: true, isWaiting })),
-        { isDayBeingWritten: false },
-        { isDayBeingWritten: false, replan: slowMorning({ status: "writing" }) },
-        { isDayBeingWritten: false, replan: slowMorning({ status: "proposed" }) },
-        { isDayBeingWritten: false, replan: slowMorning({ status: "taken" }) },
+        { isDayBeingWritten: false, isEnabled: true },
+        { isDayBeingWritten: false, isEnabled: true, replan: slowMorning({ status: "writing" }) },
+        { isDayBeingWritten: false, isEnabled: true, replan: slowMorning({ status: "proposed" }) },
+        { isDayBeingWritten: false, isEnabled: true, replan: slowMorning({ status: "taken" }) },
       ]);
 
+      // The day written, once, let go for the re-plan's line and not said again as it goes.
       expect(heard).toHaveLength(5);
-      expect(heard.slice(0, 3)).toEqual(["", WRITING, ""]);
+      expect(heard.slice(0, 3)).toEqual(["", WRITING, THE_DAY_IS_WRITTEN]);
       expect(heard[3]).toMatch(/re-planning/);
       expect(heard[4]).toBe("");
     });

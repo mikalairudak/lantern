@@ -6,6 +6,7 @@ import { ROME_REQUEST } from "../src/lib/days/written/city-days";
 import { writtenDayAt } from "../src/lib/days/written/days";
 import { candidatesOf, keyStepOf } from "../src/features/abacus/curve";
 import { NOTICE_HEARD_MS } from "../src/features/day/notice-status";
+import { SAID_AGAIN_PAUSE_MS } from "../src/features/day/said-again";
 
 // These tests drive the chart: each page opens as for a visitor who chose it, since a day
 // opens on its plan otherwise.
@@ -355,9 +356,14 @@ test.describe("under reduced motion", () => {
     await expect(said(page, REPLANNING)).toBeVisible();
     const since = await page.evaluate(() => performance.now());
     const place = await swapByKey(page);
-    // The swap's line is written a frame after the act, while the re-plan's line stands.
+    // The swap's line is written once the status has stood empty after the act, while the
+    // re-plan's line stands.
     await page.evaluate(
-      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+      (pauseMs) =>
+        new Promise((resolve) =>
+          setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(resolve)), pauseMs),
+        ),
+      SAID_AGAIN_PAUSE_MS,
     );
     release();
     await expect(workSaid(page, NOT_JUST_NOW)).toBeVisible({ timeout: DAY_TIMEOUT_MS });

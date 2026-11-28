@@ -19,7 +19,7 @@ const CROWDED = exampleOf("twelve stops, past the route's nine waypoints");
 const ignore = () => undefined;
 
 function exportsOf(copied: DayExports["copied"]): DayExports {
-  return { copied, sendLink: async () => undefined, saveCalendar: ignore };
+  return { copied, isSendSaid: true, sendLink: async () => undefined, saveCalendar: ignore };
 }
 
 const NEW_DAY_ROW: DayMenuItem = {

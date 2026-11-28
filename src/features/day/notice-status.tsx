@@ -13,6 +13,15 @@ export type SayNotice = (line: string) => void;
  */
 export const NOTICE_HEARD_MS = 3000;
 
+/**
+ * How long a status put on the page with nothing in it stands empty before its first words, where
+ * those words could otherwise come at once: a status is said reliably only once it stood in the
+ * page before its words came (W3C technique ARIA22). A re-plan the route refuses at once fails in
+ * the frame after the press that put the fork's status on the page, and a day drawn whole in place
+ * of the run that heard its wait says it is written from a status drawn with it.
+ */
+export const STATUS_STANDS_MS = 500;
+
 function subscribeVisibility(onChange: () => void): () => void {
   document.addEventListener("visibilitychange", onChange);
   return () => document.removeEventListener("visibilitychange", onChange);

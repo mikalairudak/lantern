@@ -187,7 +187,7 @@ describe("the day menu", () => {
 const KANAZAWA = DAY_END_EXAMPLES[0]!;
 
 function exportsOf(copied: DayExports["copied"] = COPY_LINK): DayExports {
-  return { copied, sendLink: async () => undefined, saveCalendar: ignore };
+  return { copied, isSendSaid: true, sendLink: async () => undefined, saveCalendar: ignore };
 }
 
 describe("the ways to take a day along", () => {

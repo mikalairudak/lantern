@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { KANAZAWA_START_REQUEST } from "@/lib/days/written/quick-starts";
 import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { Day } from "./day";
+import { THE_DAY_IS_WRITTEN } from "./day-stage-header";
 import { PLACES } from "./energy-glyph";
 import { repickedLineOf, repickLineOf } from "./not-yet";
 import { NOTICE_HEARD_MS } from "./notice-status";
@@ -204,12 +205,15 @@ describe("the energy word's list, against what its press does", () => {
   );
 });
 
-/** The page's statuses that say anything. */
+/**
+ * The page's statuses that say anything of the visitor's change: the line that the day is
+ * written, which a day landing says, is no change of theirs.
+ */
 const saidNow = () =>
   screen
     .getAllByRole("status")
     .map((status) => status.textContent ?? "")
-    .filter((text) => text !== "");
+    .filter((text) => text !== "" && text !== THE_DAY_IS_WRITTEN);
 
 /**
  * Records what the page's statuses say, as they say it now and each time it changes: "" where
@@ -240,10 +244,13 @@ function arrowNamed(name: RegExp, row?: HTMLElement): { arrow: HTMLElement; plac
 const rowOf = (element: HTMLElement) => element.closest("li")!;
 
 describe("what a screen reader is told of the visitor's change to the day", () => {
-  it("says nothing of the day as it landed", async () => {
+  it("says nothing of the day as it landed but that it is written", async () => {
     await landOnThePlan();
 
     expect(saidNow()).toEqual([]);
+    expect(
+      screen.getAllByRole("status").filter((status) => status.textContent === THE_DAY_IS_WRITTEN),
+    ).toHaveLength(1);
   });
 
   it("says a swap on the plan as the place now standing and the clause it brought, then falls quiet", async () => {

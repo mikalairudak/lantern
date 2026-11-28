@@ -5,6 +5,7 @@ import { DAY_END_EXAMPLES, type DayEndExample } from "./day-end-examples";
 import { COPIED_FOR_MS, type DayExport } from "./day-export-words";
 import { useDayExports } from "./day-exports";
 import { DayMenu } from "./day-menu";
+import { SAID_AGAIN_PAUSE_MS } from "./said-again";
 import { REVOKE_AFTER_MS } from "./save-file";
 import { ADD_TO_YOUR_CALENDAR, COPY_THE_LINK, takeAlongOf } from "./take-along";
 import { MAX_ROUTE_WAYPOINTS } from "./walk-route";
@@ -45,6 +46,11 @@ function TakeAlong({
 async function pressed(element: HTMLElement): Promise<void> {
   fireEvent.click(element);
   await act(() => Promise.resolve());
+}
+
+/** The status's pause after a send, by the end of which it says how the send went. */
+async function pauseAfterSend(): Promise<void> {
+  await act(() => new Promise((resolve) => setTimeout(resolve, SAID_AGAIN_PAUSE_MS)));
 }
 
 /** What a file made in the page holds: jsdom's Blob has no `text()`. */
@@ -110,10 +116,11 @@ describe("the ways to take a finished day along, from its menu", () => {
 
     expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/day/kanazawa`);
     expect(linkItem()).toHaveTextContent(/^Link copied/);
+    act(() => vi.advanceTimersByTime(SAID_AGAIN_PAUSE_MS));
     expect(screen.getByRole("status")).toHaveTextContent("The day's link is copied");
     expect(onExport).toHaveBeenCalledWith("link");
 
-    act(() => vi.advanceTimersByTime(COPIED_FOR_MS));
+    act(() => vi.advanceTimersByTime(COPIED_FOR_MS - SAID_AGAIN_PAUSE_MS));
     expect(linkItem()).toHaveTextContent(new RegExp(`^${COPY_THE_LINK}`));
     expect(screen.getByRole("status")).toHaveTextContent("");
   });
@@ -128,8 +135,55 @@ describe("the ways to take a finished day along, from its menu", () => {
     await pressed(linkItem());
 
     expect(linkItem()).toHaveTextContent(/^Link not copied/);
+    await pauseAfterSend();
     expect(screen.getByRole("status")).toHaveTextContent("could not be copied");
     expect(onExport).not.toHaveBeenCalled();
+  });
+
+  it("says a second failed copy again, its words unchanged on screen", async () => {
+    vi.stubGlobal("navigator", {
+      clipboard: { writeText: vi.fn(async () => Promise.reject(new Error("denied"))) },
+    });
+    render(<TakeAlong example={KANAZAWA} />);
+    const status = screen.getByRole("status");
+    const heard: string[] = [];
+    const observer = new MutationObserver(() => {
+      const text = status.textContent ?? "";
+      if (text !== heard.at(-1)) heard.push(text);
+    });
+    observer.observe(status, { subtree: true, childList: true, characterData: true });
+
+    await pressed(linkItem());
+    await pauseAfterSend();
+    await pressed(linkItem());
+    expect(linkItem()).toHaveTextContent(/^Link not copied/);
+    await pauseAfterSend();
+    observer.disconnect();
+
+    // The status empties at the second press and says it again: a change a screen reader hears.
+    expect(heard).toEqual([
+      "The day's link could not be copied",
+      "",
+      "The day's link could not be copied",
+    ]);
+    expect(linkItem()).toHaveTextContent(/^Link not copied/);
+  });
+
+  it("keeps a second send's words their whole time from that send", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("navigator", {
+      clipboard: { writeText: vi.fn(async () => Promise.reject(new Error("denied"))) },
+    });
+    render(<TakeAlong example={KANAZAWA} />);
+
+    await pressed(linkItem());
+    act(() => vi.advanceTimersByTime(COPIED_FOR_MS - SAID_AGAIN_PAUSE_MS));
+    await pressed(linkItem());
+    // Past the first send's time, inside the second's.
+    act(() => vi.advanceTimersByTime(COPIED_FOR_MS - 1));
+    expect(linkItem()).toHaveTextContent(/^Link not copied/);
+    act(() => vi.advanceTimersByTime(1));
+    expect(linkItem()).toHaveTextContent(new RegExp(`^${COPY_THE_LINK}`));
   });
 
   it("saves the day as a calendar file made in the page, for the versions shown", async () => {

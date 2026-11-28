@@ -47,12 +47,14 @@ test("a pointer resting on a version's bead names it there, and the rows stay as
   await openTheDay(page, "/day/kanazawa");
   const rows = page.getByRole("list", { name: "The day" });
   const written = await rows.getByRole("listitem").allTextContents();
-  // Each version's bead is named to a screen reader by the version and the way it goes, and
-  // is no stop of the Tab order: the stop's slider is.
-  const bead = page.getByRole("button", { name: /, (quieter|livelier)$/ }).first();
+  // Each version's bead is named to a screen reader by the version, the way it goes and its
+  // stop's time, and is no stop of the Tab order: the stop's slider is. The name drawn on
+  // screen says the version and the way alone.
+  const bead = page.getByRole("button", { name: /, (quieter|livelier) at \d\d:\d\d$/ }).first();
   await expect(bead).toHaveAttribute("tabindex", "-1");
   const label = (await bead.getAttribute("aria-label")) ?? "";
-  const [name, way] = label.split(", ");
+  const [name, wayAt = ""] = label.split(", ");
+  const way = wayAt.replace(/ at \d\d:\d\d$/, "");
 
   // Aimed at again once the pointer is over the chart: until the first touch a hover there
   // previews a pull on the chart, and the page may still be settling under it.
@@ -104,7 +106,10 @@ test("a pointer's name stays with the pointer moved onto it, and goes once it is
   test.skip(isMobile, "A finger never rests on a bead: a tap takes it.");
   await page.setViewportSize(LAPTOP);
   await openTheDay(page, "/day/kanazawa");
-  await restOn(page, page.getByRole("button", { name: /, (quieter|livelier)$/ }).first());
+  await restOn(
+    page,
+    page.getByRole("button", { name: /, (quieter|livelier) at \d\d:\d\d$/ }).first(),
+  );
   const said = await tagOf(page).textContent();
 
   const { x, y } = await middleOf(wordsOf(page));
@@ -130,7 +135,7 @@ test("a pointer's name stays with the pointer moved onto it in one move", async 
   test.skip(isMobile, "A finger never rests on a bead: a tap takes it.");
   await page.setViewportSize(LAPTOP);
   await openTheDay(page, "/day/kanazawa");
-  const beads = page.getByRole("button", { name: /, (quieter|livelier)$/ });
+  const beads = page.getByRole("button", { name: /, (quieter|livelier) at \d\d:\d\d$/ });
 
   for (let index = 0; index < BEADS_MOVED_FROM_AT_ONCE; index += 1) {
     await page.mouse.move(0, 0);
@@ -188,7 +193,9 @@ test("a name held before the first touch previews no pull, and only its bead is 
   test.skip(isMobile, "A finger never rests on a bead: a tap takes it.");
   await page.setViewportSize(LAPTOP);
   await openTheDay(page, "/day/kanazawa");
-  const beads = page.getByRole("button", { name: /, (quieter|livelier|same energy)$/ });
+  const beads = page.getByRole("button", {
+    name: /, (quieter|livelier|same energy) at \d\d:\d\d$/,
+  });
 
   for (const name of HELD_BEFORE_THE_FIRST_TOUCH) {
     await page.mouse.move(0, 0);
@@ -378,7 +385,7 @@ async function letFramesPass(page: Page): Promise<void> {
 
 /** Rests the pointer on the day's first version's bead, aimed at again as the page settles. */
 async function restOnABead(page: Page): Promise<Locator> {
-  const bead = page.getByRole("button", { name: /, (quieter|livelier)$/ }).first();
+  const bead = page.getByRole("button", { name: /, (quieter|livelier) at \d\d:\d\d$/ }).first();
   await bead.scrollIntoViewIfNeeded();
   for (let aim = 0; aim < 2; aim += 1) {
     const { x, y } = await middleOf(bead);

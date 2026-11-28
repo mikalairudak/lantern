@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useEffectEvent, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { NOTICE_HEARD_MS } from "./notice-status";
+import { useSaidAgain } from "./said-again";
 
 /**
  * The words that lead the line about the day while the day differs from its plan, said lower
@@ -11,7 +12,8 @@ export const AS_FIRST_PLANNED = "As first planned";
 
 /**
  * The visitor's own change to the day, as it stood at the act: what is said of it is worked out
- * once, from the day as it stands a frame after the act (`useChangeHeard`), against the day as
+ * once, from the day as it stands once the status has stood empty after the act
+ * (`useChangeHeard`), against the day as
  * the act found it: its clause, and whether every stop showed its planned place.
  */
 export type DayChange =
@@ -79,7 +81,7 @@ function dayChangeOf(
 export interface ChangeHeard {
   /** What the status says of the change, "" for nothing. */
   line: string;
-  /** Records an act on the day: the status empties, and says it a frame later. */
+  /** Records an act on the day: the status empties, and says it once it has stood empty. */
   hear: (change: DayChange) => void;
   /** Lets the line go before its hold ends: the status empties and says nothing. */
   drop: () => void;
@@ -88,27 +90,30 @@ export interface ChangeHeard {
 /**
  * What a screen reader is told of the visitor's last change to the day, for `NOTICE_HEARD_MS`.
  * Each act empties the status, so one that says the same words as the one before is still a
- * change heard; a frame later, once the day has taken the act, its line is worked out from the
- * day as it stands and kept as written. Once written, the line only ever gives way to "": a
+ * change heard; once it has stood empty (`useSaidAgain`), by when the day has taken the act,
+ * its line is worked out from the day as it stands and kept as written. Once written, the line only ever gives way to "": a
  * change that is no act, a re-plan landing or picks brought back, never rewrites it
  * (`docs/decisions.md`, "The visitor's own change to the day is said from the header's status").
  */
 export function useChangeHeard(after: DayAfterChange): ChangeHeard {
   const [change, setChange] = useState<DayChange | null>(null);
+  const [acts, setActs] = useState(0);
+  const isSaid = useSaidAgain(acts);
+  // Written in the render the pause ends in, from the day as it stands then, and kept.
   const [written, setWritten] = useState<{ change: DayChange; line: string } | null>(null);
-  const write = useEffectEvent((act: DayChange) =>
-    setWritten({ change: act, line: changeLineOf(act, after) }),
-  );
+  if (isSaid && change !== null && written?.change !== change) {
+    setWritten({ change, line: changeLineOf(change, after) });
+  }
   useEffect(() => {
     if (change === null) return undefined;
-    const said = window.requestAnimationFrame(() => write(change));
     const quiet = window.setTimeout(() => setChange(null), NOTICE_HEARD_MS);
-    return () => {
-      window.cancelAnimationFrame(said);
-      window.clearTimeout(quiet);
-    };
+    return () => window.clearTimeout(quiet);
   }, [change]);
+  const hear = useCallback((act: DayChange) => {
+    setChange(act);
+    setActs((count) => count + 1);
+  }, []);
   const drop = useCallback(() => setChange(null), []);
   const line = change !== null && written?.change === change ? written.line : "";
-  return { line, hear: setChange, drop };
+  return { line, hear, drop };
 }

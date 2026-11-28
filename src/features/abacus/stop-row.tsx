@@ -19,6 +19,7 @@ import { byEnergy, versionOf, writtenEnergyOf } from "./curve";
 import { hasEnergy, isWriting, type PlaceDraft, type StopDraft } from "./day-draft";
 import { type Density } from "./density";
 
+import { GoldenHourWords } from "./golden-hour-words";
 import { type BestLight } from "./light";
 import { lineBoxesOf, type LineBox } from "./line-boxes";
 import { SHOWN_WORDS_SLACK, type Drawing, type LabelPlacement } from "./rows";
@@ -186,13 +187,16 @@ interface StartTimeProps {
   time: string;
   width: number;
   tone: TimeTone;
+  /** The stop starts where the time axis runs in golden hour, which the time says in words too. */
+  isGoldenStart: boolean;
 }
 
 /**
  * A stop's start time, on the baseline of its name's first line. It is final once the row is
- * placed, so it shows before the name is written, beside a bead not yet weighed.
+ * placed, so it shows before the name is written, beside a bead not yet weighed. Where the stop
+ * starts in golden hour a screen reader hears that after the time, whatever ink the time is in.
  */
-export function StartTime({ time, width, tone }: StartTimeProps): ReactNode {
+export function StartTime({ time, width, tone, isGoldenStart }: StartTimeProps): ReactNode {
   return (
     <span
       data-start-time={time}
@@ -206,6 +210,8 @@ export function StartTime({ time, width, tone }: StartTimeProps): ReactNode {
         {" "}
       </span>
       {time}
+      {/* Inside the time's own box, so a screen reader reads the two as one line. */}
+      {isGoldenStart && <GoldenHourWords />}
     </span>
   );
 }
@@ -400,6 +406,7 @@ export function StopRow({
         time={stop.startTime}
         width={timeWidth}
         tone={isProposed ? "swap" : timeToneOf(isLit || isOpen, isGoldenStart)}
+        isGoldenStart={isGoldenStart}
       />
       <motion.div className="absolute top-0 left-0" style={{ x: wordsX }}>
         {/* A proposal's row has no sheet: one still rolling up as its row folds away goes. */}

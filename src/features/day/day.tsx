@@ -1188,6 +1188,14 @@ export function Day({
     [mergedShown, keptShown, whole, takenStream, held],
   );
   const { partial, outcome, checks, isStreaming } = shown;
+  // The run whose day was written in front of the start screen, where a screen reader heard
+  // its wait; and the run that came in its place whole from the route, the same day, which takes
+  // that wait as its own, once, as it mounts (`docs/decisions.md`, "A day heard being written
+  // says once that it is whole").
+  const [writtenInFrontRun, setWrittenInFrontRun] = useState<number | null>(null);
+  const isWrittenInFront = asked !== null && isStreaming && !isStartShown;
+  if (isWrittenInFront && writtenInFrontRun !== asked.run) setWrittenInFrontRun(asked.run);
+  const [waitHeardRun, setWaitHeardRun] = useState<number | null>(null);
   // The day on screen can be shown again as it stands: drawn from its own stream, or as it is
   // with nothing to stream. One whose stream a request asked since has taken comes back from
   // memory instead.
@@ -1203,6 +1211,7 @@ export function Day({
     asked.whole === null
   ) {
     const itinerary = stream.outcome.itinerary;
+    if (isWrittenInFront || writtenInFrontRun === asked.run) setWaitHeardRun(asked.run + 1);
     setAsked({ ...asked, run: asked.run + 1, whole: { itinerary, checks: stream.checks } });
   }
   // A play of the page's own written day that ends without the day complete, its connection
@@ -2314,6 +2323,7 @@ export function Day({
               isWayOnFocused={asked.isWayOnFocused}
               isAfterExit={asked.isAfterExit}
               isBehindStart={isStartShown}
+              isWaitHeard={waitHeardRun === asked.run}
               isFromStart={asked.isStreamed && asked.kept === null}
               isDrawnWhole={asked.whole !== null || asked.isKeptWhole}
               onPlayedThrough={notePlayedThrough}

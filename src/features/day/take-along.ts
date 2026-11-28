@@ -53,10 +53,10 @@ export function takeAlongOf({
       isDisabled: isWaiting,
       keepsOpen: true,
       status:
-        exports.copied === LINK_COPIED
-          ? "The day's link is copied"
-          : exports.copied === COPY_LINK
-            ? undefined
+        exports.copied === COPY_LINK || !exports.isSendSaid
+          ? undefined
+          : exports.copied === LINK_COPIED
+            ? "The day's link is copied"
             : "The day's link could not be copied",
     });
   }

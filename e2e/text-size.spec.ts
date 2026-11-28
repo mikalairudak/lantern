@@ -451,12 +451,15 @@ function chartLabelsOf(page: Page): Promise<{ times: ChartLabel[]; suns: ChartLa
       // A time's text may reach past its own box; a sun's minute is a box of its own.
       const range = document.createRange();
       range.selectNodeContents(element);
+      // A time's words a screen reader alone hears, as "golden hour", take no room of its text.
+      const heardAlone = element.querySelector(".sr-only");
+      if (heardAlone) range.setEndBefore(heardAlone);
       const text =
         element instanceof SVGElement
           ? element.getBoundingClientRect()
           : range.getBoundingClientRect();
       return {
-        text: element.textContent.trim(),
+        text: (element.getAttribute("data-start-time") ?? element.textContent).trim(),
         left: text.left,
         right: text.right,
         top: text.top,
