@@ -132,7 +132,10 @@ export interface StartHeaderProps {
    * keeps them, so the index waits for the list to be read rather than be pushed down by it.
    */
   yourDays?: YourDaysProps;
-  /** Shown again by Back from a day: its headline takes the focus the day had. */
+  /**
+   * Shown again by Back from a day, or drawn again by "Open it again" in place of the page for a
+   * failure: its headline takes the focus the page before had.
+   */
   isReturnedTo?: boolean;
   /**
    * The field drawn as focused, or the button as pointed at, still, as a lab cell shows it:

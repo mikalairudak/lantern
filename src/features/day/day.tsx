@@ -106,7 +106,8 @@ import { useDayEvents } from "./use-day-events";
 import { NO_CONFIRMED, DayStage } from "./day-stage";
 import { shownDayOf, wholeInPlaceOf, type EndedDay } from "./shown-day";
 import { startOffersOf } from "./start-offers";
-import { keptKeyOf, type KeptLanding } from "./kept-day";
+import { isDayDrawn, keptKeyOf, type KeptLanding } from "./kept-day";
+import { clearOpenedAgain, isOpenedAgain } from "./open-again";
 import type { StartReader, StartResult } from "./written-reader";
 
 /**
@@ -134,10 +135,16 @@ interface Asked {
   /** How the visitor reached it, as the product's events count it. */
   via: DayVia;
   /**
-   * Chosen by the visitor, rather than by landing or by a replay, or shown whole from its play by
-   * the visitor's press: the city word takes the focus.
+   * Chosen by the visitor, rather than by landing or by a replay, shown whole from its play by
+   * the visitor's press, or landed in place of what had the focus (a kept day's wait, the page
+   * for a failure): the city word takes the focus.
    */
   isChosen: boolean;
+  /**
+   * A kept day's ending without a day, landed in place of what had the focus: its way on takes
+   * it, as the way on of one written in does, though it stands whole from its first frame.
+   */
+  isWayOnFocused?: boolean;
   /** The visitor's phrases that fit no word of the request, said back under the day. */
   unplaced: readonly string[];
   /** Lantern's words of a written day that the visitor's text said as they are: theirs. */
@@ -557,6 +564,11 @@ type DayProps = DayLanding & {
    * script, and played for a visitor who has not watched it to its end on this device.
    */
   written?: { itinerary: Itinerary; version: string; checks: PlaceChecks };
+  /**
+   * The kept day lands in place of its address's wait, which had the focus: its city word
+   * takes it, as on a chosen day, or its ending's way on. Read as the day is first drawn.
+   */
+  isLandedInPlace?: boolean;
   ref?: Ref<DayHandle>;
 };
 
@@ -578,6 +590,7 @@ export function Day({
   isCounted = false,
   firstPlace,
   written,
+  isLandedInPlace = false,
   ref,
 }: DayProps) {
   const isReducedMotion = useReducedMotion() ?? false;
@@ -612,18 +625,28 @@ export function Day({
         : null,
     [first, written, firstSeenKey],
   );
+  // Drawn in place of the page for a failure by "Open it again", whose press goes with it: the
+  // page lands the focus as on a chosen day, the start screen's headline or the day's city word
+  // taking it, or a kept day's ending without a day's way on (`open-again.ts`).
+  // Read once, as the page is drawn anew.
+  const [isAgain] = useState(isOpenedAgain);
+  useEffect(() => clearOpenedAgain(), []);
   // Null while the start screen shows: nothing hands a day back to it, so once a day takes
   // the page there is always one.
-  const [asked, setAsked] = useState<Asked | null>(() =>
-    first
+  const [asked, setAsked] = useState<Asked | null>(() => {
+    const landing = first
       ? {
           ...landingOf(first, newEntryKey()),
           whole: written ? { itinerary: written.itinerary, checks: written.checks } : null,
         }
       : kept
         ? keptLandingOf(kept, 0, false, newEntryKey())
-        : null,
-  );
+        : null;
+    if (landing === null || !(isLandedInPlace || isAgain)) return landing;
+    return kept === undefined || isDayDrawn(kept)
+      ? { ...landing, isChosen: true }
+      : { ...landing, isWayOnFocused: true };
+  });
   // A visitor who has not watched the page's day to its end has it played, from its empty
   // frame, as soon as the page can tell, before it first paints it: drawn whole in the first
   // HTML, it was unseen. The server and the page as it hydrates take it as seen.
@@ -643,7 +666,10 @@ export function Day({
   // A kept day's page draws the pen's first frame, as its server did, and a day this device
   // has seen is drawn whole as soon as the page can tell (`docs/decisions.md`, "A written day's
   // page is built whole, and plays only for a visitor who has not seen it"): its first frame holds
-  // the whole day's room, so its words and rows come with nothing moving.
+  // the whole day's room, so its words and rows come with nothing moving. The focus it was
+  // given stays with it: the pen's frame is drawn only as a page opened here hydrates, which
+  // takes no focus, and a day drawn in place of the wait or of the page for a failure is drawn
+  // whole before its first paint.
   const isKeptAwaitingWhole =
     asked?.kept != null && !asked.isKeptWhole && asked.run === 0 && seenAtStart === true;
   if (isKeptAwaitingWhole) {
@@ -659,13 +685,17 @@ export function Day({
   }, [asked, firstSeenKey, isFirstWhole]);
 
   // A kept day that lands another way, as one still being written lands once done, takes the
-  // page as a new run while the kept day is still on screen.
+  // page as a new run while the kept day is still on screen, and the focus the run before had:
+  // a day drawn gives it to its city word, as on a chosen day, an ending to its way on.
   const keptKey = kept ? keptKeyOf(kept) : null;
   const [landedKey, setLandedKey] = useState(keptKey);
   if (keptKey !== landedKey) {
     setLandedKey(keptKey);
     if (kept && asked?.kept?.id === kept.id) {
-      setAsked(keptLandingOf(kept, asked.run + 1, isKeptSeen(kept.id), asked.entry));
+      const landing = keptLandingOf(kept, asked.run + 1, isKeptSeen(kept.id), asked.entry);
+      setAsked(
+        isDayDrawn(kept) ? { ...landing, isChosen: true } : { ...landing, isWayOnFocused: true },
+      );
     }
   }
   // What the day says back of the visitor's words that Lantern could not plan around: those it
@@ -1163,7 +1193,8 @@ export function Day({
   // memory instead.
   const isShownDrawn = shown.isFromStream || !shown.isStreaming;
   // A written day this device has seen comes from the route whole at once: it lands whole,
-  // as the page's own does, before a frame of it is drawn played.
+  // as the page's own does, before a frame of it is drawn played. Its run so far drew nothing of
+  // it, so a city word asked to take the focus still takes it.
   if (
     shown.isFromStream &&
     asked !== null &&
@@ -1178,7 +1209,8 @@ export function Day({
   // dropped or its route busy, gives way to that day whole, as a device that has seen it draws
   // it: the page holds it in its first HTML, so no ending is said for a day the page has
   // (`docs/decisions.md`, "A written day's page is built whole, and plays only for a visitor who
-  // has not seen it"). A live day, and another written day played here, keep their endings.
+  // has not seen it"). A live day, and another written day played here, keep their endings. The
+  // play was drawn and the visitor may have moved on in it, so the day whole takes no focus.
   const pageOwnWhole =
     asked !== null &&
     asked.kept === null &&
@@ -1192,7 +1224,7 @@ export function Day({
       ? wholeInPlaceOf(shown.outcome, pageOwnWhole)
       : null;
   if (asked !== null && wholeInPlace !== null) {
-    setAsked({ ...asked, run: asked.run + 1, whole: wholeInPlace });
+    setAsked({ ...asked, run: asked.run + 1, whole: wholeInPlace, isChosen: false });
   }
   // A play of the page's own written day can be ended with the day whole, as a device that has
   // seen it draws it (`docs/decisions.md`, "A written day's play offers the day whole on a
@@ -2279,6 +2311,7 @@ export function Day({
               outcome={outcome}
               isStreaming={isStreaming}
               isChosen={asked.isChosen}
+              isWayOnFocused={asked.isWayOnFocused}
               isAfterExit={asked.isAfterExit}
               isBehindStart={isStartShown}
               isFromStart={asked.isStreamed && asked.kept === null}
@@ -2384,8 +2417,9 @@ export function Day({
                 onOpen: (day) => openYourDay(day.id),
                 onForget: forgetDays,
               }}
-              // Back from a day: the start screen's headline takes the focus the day had.
-              isReturnedTo={isStartShown}
+              // Back from a day: the start screen's headline takes the focus the day had, and
+              // so it does from "Open it again", which the start screen comes back from.
+              isReturnedTo={isStartShown || isAgain}
             />
           </main>
           {/* Lantern's own links, and no source: the start screen shows no place. Outside

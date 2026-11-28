@@ -356,6 +356,11 @@ interface DayStageHeaderProps {
    */
   isNoticeWrittenIn?: boolean;
   /**
+   * The ending landed in place of what had the focus: the notice's way on takes it, as one
+   * written in does, though it stands whole from its first frame.
+   */
+  isWayOnFocused?: boolean;
+  /**
    * The notice's opacity: whole, until it leaves for the next day the visitor asked for,
    * fading as the day's words do.
    */
@@ -402,8 +407,13 @@ interface DayStageHeaderProps {
   cityOpenAt: CityFocus | null;
   /** A city typed on the city word that the page reads, or could not play; null when none. */
   typedCity?: TypedCity | null;
-  /** The day was chosen from the city word, which takes the focus back. */
+  /** The day was chosen, or landed in place of what had the focus: the city word takes it. */
   isCityFocused: boolean;
+  /**
+   * The day stands behind the start screen after Back. Brought back from there, by Forward or
+   * from the visitor's own days, its city word takes the focus the start screen had.
+   */
+  isBehindStart?: boolean;
   /** The word a re-plan merged for, which takes the focus back when it is drawn anew. */
   focusedWord?: AssumableFactKey | null;
   /**
@@ -567,6 +577,7 @@ export function DayStageHeader({
   isFactsShown = true,
   notice,
   isNoticeWrittenIn = false,
+  isWayOnFocused = false,
   noticeOpacity,
   isNoticeLeaving = false,
   isChoiceHeld = false,
@@ -580,6 +591,7 @@ export function DayStageHeader({
   cityOpenAt,
   typedCity = null,
   isCityFocused,
+  isBehindStart = false,
   focusedWord = null,
   replan: givenReplan = NO_REPLAN,
   onPointToFork = ignore,
@@ -901,6 +913,21 @@ export function DayStageHeader({
   const cityField = useRef<HTMLInputElement>(null);
   const cityWordButton = useRef<HTMLButtonElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
+  // Brought back from behind the start screen, the day takes the focus the start screen had,
+  // which went with it: the city word takes it, as Back gives the start screen's headline the
+  // day's, and the page stays where it stands. A focus held anywhere else stays.
+  const [wasBehindStart, setWasBehindStart] = useState(isBehindStart);
+  const [isBroughtBack, setIsBroughtBack] = useState(false);
+  if (wasBehindStart !== isBehindStart) {
+    setWasBehindStart(isBehindStart);
+    setIsBroughtBack(!isBehindStart);
+  }
+  useLayoutEffect(() => {
+    if (!isBroughtBack) return;
+    const active = document.activeElement;
+    if (active !== null && active !== document.body) return;
+    cityWordButton.current?.focus({ preventScroll: true });
+  }, [isBroughtBack]);
   // Escape on the new day is Escape in the list it opened: the list closes, and the focus goes
   // to the city word, which owns it.
   const closeNewDay = () => {
@@ -1236,7 +1263,7 @@ export function DayStageHeader({
                   isWritten={isNoticeWritten}
                   opacity={noticeOpacity ?? whole}
                   isLeaving={isNoticeLeaving}
-                  isFocusTaken={isNoticeWrittenIn}
+                  isFocusTaken={isNoticeWrittenIn || isWayOnFocused}
                   onWhole={setIsNoticeWhole}
                   onRetry={onRetry}
                   onChooseWritten={onOpenWritten}
@@ -1744,8 +1771,9 @@ interface NoticeProps {
    */
   isLeaving: boolean;
   /**
-   * Said as a day ends on the page, it takes the focus once whole when nothing else holds
-   * it; a still, whole from its first frame, never does.
+   * Said as a day ends on the page, or landed in place of what had the focus, it takes the
+   * focus once whole when nothing else holds it; a still, whole from its first frame, otherwise
+   * never does.
    */
   isFocusTaken: boolean;
   /** Told when the notice stands whole, so it can be read on the page. */

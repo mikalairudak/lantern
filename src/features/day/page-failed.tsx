@@ -6,6 +6,7 @@ import { AddressPage } from "./address-page";
 import { pageTitleOf } from "./day-title";
 import { START_ADDRESS } from "@/lib/days/address";
 import { LINK_CLASSES } from "./link-classes";
+import { markOpenedAgain } from "./open-again";
 
 /** The headline of a page that failed as Lantern drew it. */
 export const PAGE_FAILED = "Lantern couldn't open this page.";
@@ -41,11 +42,17 @@ export function PageFailed({ onRetry }: PageFailedProps) {
       if (document.title === own) document.title = before;
     };
   }, []);
+  const openAgain = () => {
+    markOpenedAgain();
+    onRetry();
+  };
   return (
-    <AddressPage headline={PAGE_FAILED}>
+    // A failure met after a press takes the page from under the focus: its headline takes it, as
+    // the start screen's does on Back, so the visitor is told where they are.
+    <AddressPage headline={PAGE_FAILED} isFocusedAfterPress>
       <p className="flex flex-wrap gap-x-5 gap-y-1 type-voice text-body text-ink-soft">
         {/* An action named by a verb is set in ink, as in a day's notice. */}
-        <button type="button" onClick={onRetry} className={cn(LINK_CLASSES, "text-ink")}>
+        <button type="button" onClick={openAgain} className={cn(LINK_CLASSES, "text-ink")}>
           {OPEN_IT_AGAIN}
         </button>
         {/* A whole page load, as the wordmark's: a client one would keep whatever failed, and

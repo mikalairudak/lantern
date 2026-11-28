@@ -110,6 +110,23 @@ test("a link past its days says so, with the day to write again", async ({ page 
     "This day's link has expired",
   );
   await expect(page.getByRole("button", { name: "Write it again" })).toBeVisible();
+  // The way on takes the focus the page that waited had.
+  await expect(page.getByRole("button", { name: "Write it again" })).toBeFocused();
+});
+
+test("a day that lands in place of its link's wait hands the focus on the wordmark to its city word", async ({
+  page,
+}) => {
+  await answerTheLog(page, { status: "unknown" }, WRITTEN);
+  await page.goto(`/day/${ID}`);
+  const headline = page.getByRole("heading", { level: 1 });
+  await expect(headline).toHaveText("Lantern is still writing this day.");
+  const wordmark = page.getByRole("link", { name: "Lantern", exact: true });
+  await wordmark.focus();
+  await expect(wordmark).toBeFocused();
+
+  await expect(headline).toContainText("A calm Saturday in Kyoto", { timeout: LANDED_TIMEOUT_MS });
+  await expect(headline.getByRole("button", { name: "Kyoto", exact: true })).toBeFocused();
 });
 
 test("a link whose day turns out past its days says so from a status that stood while it waited", async ({

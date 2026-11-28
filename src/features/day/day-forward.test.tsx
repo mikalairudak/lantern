@@ -113,6 +113,56 @@ function silentSourceFor(request: DayRequest): DaySource {
 
 const PARIS_STOPS = writtenDayAt("paris")!.itinerary.stops.length;
 
+/** How much of a day's text comes before it falls silent: its header and its first stops. */
+const STILL_WRITTEN_AT = 1500;
+/** Characters in each of its text deltas. */
+const STILL_WRITTEN_DELTA_CHARS = 64;
+/** A stream's event that carries some of the day's text. */
+const TEXT_EVENT = '"type":"text-delta"';
+
+/** The day's text an event of the stream carries, if any. */
+function textOf(event: string): string {
+  if (!event.includes(TEXT_EVENT)) return "";
+  const data = event.slice(event.indexOf("{"), event.lastIndexOf("}") + 1);
+  return (JSON.parse(data) as { delta?: string }).delta ?? "";
+}
+
+/**
+ * `response` falling silent once its text has passed `from` characters, until the page stops
+ * it: a day still being written for as long as the test runs. Its events are passed on whole,
+ * however the reads split them.
+ */
+function silentAfterText(response: Response, from: number): Response {
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  const never = new Promise<void>(() => undefined);
+  let sent = 0;
+  let unread = "";
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const { done, value } = await reader.read();
+      if (done) {
+        // What the last read left unsplit, and what the decoder still holds, is the last event.
+        const last = unread + decoder.decode();
+        if (last !== "" && sent <= from) controller.enqueue(encoder.encode(last));
+        controller.close();
+        return;
+      }
+      unread += decoder.decode(value, { stream: true });
+      const events = unread.split("\n\n");
+      unread = events.pop() ?? "";
+      for (const event of events) {
+        if (sent > from) await never;
+        controller.enqueue(encoder.encode(`${event}\n\n`));
+        sent += textOf(event).length;
+      }
+    },
+    cancel: (reason) => reader.cancel(reason),
+  });
+  return new Response(body, { status: response.status, headers: response.headers });
+}
+
 /** Paris pressed on the start screen and written to its end, then Back to the start screen. */
 async function playParisThenBack(user: ReturnType<typeof userEvent.setup>): Promise<void> {
   await user.click(cityWord("Paris"));
@@ -326,6 +376,77 @@ describe("Forward to a day left writing behind the start screen", () => {
 
       expect(heard).toBe(1);
       expect(screen.queryByText("Writing the day")).not.toBeInTheDocument();
+    },
+    LONG_TEST_MS,
+  );
+});
+
+describe("the focus on a day this device has seen", () => {
+  it(
+    "goes to the city word when the day, pressed again on the start screen after Back, arrives whole",
+    async () => {
+      const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
+      const user = userEvent.setup();
+      render(<Day start={{ pool: POOL, read }} isAddressed />);
+      // Written to its end here, Paris is seen, and the route answers it whole from now on.
+      await playParisThenBack(user);
+
+      await user.click(cityWord("Paris"));
+
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+      await waitFor(() =>
+        expect(within(headline()).getByRole("button", { name: "Paris" })).toHaveFocus(),
+      );
+    },
+    LONG_TEST_MS,
+  );
+});
+
+describe("the focus on Forward", () => {
+  it(
+    "goes to the city word when Forward brings back the day behind the start screen while it is still written",
+    async () => {
+      // The day falls silent after its first stops, so it is still written when Forward brings
+      // it back, however long the steps before take.
+      fetchDay.mockImplementationOnce(async (path, init) =>
+        silentAfterText(
+          await answerDayRequest(new Request(new URL(path, ORIGIN), init), {
+            deltaChars: STILL_WRITTEN_DELTA_CHARS,
+          }),
+          STILL_WRITTEN_AT,
+        ),
+      );
+      const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
+      const user = userEvent.setup();
+      render(<Day start={{ pool: POOL, read }} isAddressed />);
+      await user.click(cityWord("Paris"));
+      await waitFor(() => expect(window.location.pathname).toBe("/day/paris"), DAY_TIMEOUT);
+      act(() => window.history.back());
+      await waitFor(() => expect(headline()).toHaveTextContent(/^One day in a city/));
+
+      act(() => window.history.forward());
+
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+      // Still written: not every stop has come.
+      expect(screen.queryAllByRole("listitem").length).toBeLessThan(PARIS_STOPS);
+      expect(within(headline()).getByRole("button", { name: "Paris" })).toHaveFocus();
+    },
+    LONG_TEST_MS,
+  );
+
+  it(
+    "goes to the city word when Forward brings back the day behind the start screen",
+    async () => {
+      const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
+      const user = userEvent.setup();
+      render(<Day start={{ pool: POOL, read }} isAddressed />);
+      await playParisThenBack(user);
+      expect(headline()).toHaveFocus();
+
+      act(() => window.history.forward());
+
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+      expect(within(headline()).getByRole("button", { name: "Paris" })).toHaveFocus();
     },
     LONG_TEST_MS,
   );
