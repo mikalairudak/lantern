@@ -138,11 +138,6 @@ interface CityWordProps {
    */
   isFocusedOnMount: boolean;
   /**
-   * The word takes the focus where the page stands, as for a day drawn anew in place of the same
-   * day: the visitor may be reading far down it, so the page does not come up to the word.
-   */
-  isFocusInPlace?: boolean;
-  /**
    * A city Lantern assumed is dotted as its other words are, while there is a day it planned
    * on it; under a notice there is none.
    */
@@ -184,7 +179,6 @@ export function CityWord({
   trailRoom,
   isChoiceHeld = false,
   isFocusedOnMount,
-  isFocusInPlace = false,
   isAssumptionMarked = true,
   isLocked = false,
   onLockedPress,
@@ -208,9 +202,8 @@ export function CityWord({
     const word = button.current;
     if (!isFocusedOnMount || !word) return;
     word.focus({ preventScroll: true });
-    if (isFocusInPlace) return;
     word.scrollIntoView({ block: "nearest", behavior: scrollBehavior.current });
-  }, [isFocusedOnMount, button, isFocusInPlace]);
+  }, [isFocusedOnMount, button]);
   const panelId = useId();
   const [exit, setExit] = useState<FoldExit>({ isInstant: false });
   // A choice made, the list stays as it stands until the day chosen takes this one's place.

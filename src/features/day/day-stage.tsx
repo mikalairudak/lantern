@@ -226,8 +226,6 @@ interface DayStageProps {
    * it stands whole from its first frame.
    */
   isWayOnFocused?: boolean;
-  /** The same day drawn anew in place of the run before (`DayStageHeader`'s `isRedrawn`). */
-  isRedrawn?: boolean;
   /**
    * The word a re-plan merged for, which takes the focus back as the merged sentence draws it
    * anew: the visitor's own word where Lantern's assumed one stood.
@@ -424,7 +422,6 @@ export function DayStage({
   isStreaming,
   isChosen,
   isWayOnFocused = false,
-  isRedrawn = false,
   focusedWord = null,
   isAfterExit = false,
   isBehindStart = false,
@@ -1564,7 +1561,6 @@ export function DayStage({
       // drawn whole, as one this device has seen, has its notice whole from the first frame.
       isNoticeWrittenIn={!isDrawnWhole}
       isWayOnFocused={isWayOnFocused}
-      isRedrawn={isRedrawn}
       noticeOpacity={leavingOpacity}
       isNoticeLeaving={isLeavingForNext}
       isChoiceHeld

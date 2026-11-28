@@ -281,6 +281,20 @@ describe("a day's own address", () => {
     },
   );
 
+  it("hands the focus to the city word when a day this device has watched lands in place of the page that waited", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    markSeen(keptSeenKeyOf(ID));
+    logAnswers = [Response.json(UNKNOWN), Response.json(WRITTEN)];
+    render(<KeptDayPage id={ID} stored={UNKNOWN} isLive={false} />);
+
+    await wait(KEPT_POLL_MS * 2);
+    expect(headline()).toHaveTextContent("A calm Saturday in Kyoto");
+    await waitFor(
+      () => expect(within(headline()).getByRole("button", { name: "Kyoto" })).toHaveFocus(),
+      NOTICE_TIMEOUT,
+    );
+  });
+
   it("hands the focus to the city word when a day cut short lands in place of the page that waited", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const cut: StoredDay = { ...WRITTEN, status: "cut" };

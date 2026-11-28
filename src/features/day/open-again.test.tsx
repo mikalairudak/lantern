@@ -131,7 +131,7 @@ function Failing(): ReactNode {
   throw new Error("A bug");
 }
 
-/** `response`, its connection breaking only once `isLetGo` resolves: all it wrote comes first. */
+/** `response`, its connection breaking only once `letGo` resolves: all it wrote comes first. */
 function droppedOnce(response: Response, letGo: Promise<void>): Response {
   const reader = response.body!.getReader();
   const body = new ReadableStream<Uint8Array>({
@@ -328,7 +328,7 @@ describe("Open it again", () => {
     expect(headline()).not.toHaveFocus();
   });
 
-  it("hands a focus the visitor took into the day to the new city word as the day is drawn whole in place of its play, scrolling nothing", async () => {
+  it("takes no focus to the city word as the day is drawn whole in place of its play, once the visitor has moved into the day", async () => {
     const { breakOff } = await openBolognaAgain();
     // The visitor moves into the day before the play breaks off.
     const wordmark = screen.getByRole("link", { name: "Lantern" });
@@ -338,7 +338,8 @@ describe("Open it again", () => {
     breakOff();
     await waitFor(() => expect(wordmark).not.toBeInTheDocument(), DAY_TIMEOUT);
 
-    expect(within(headline()).getByRole("button", { name: "Bologna" })).toHaveFocus();
+    // The wordmark went with the play's stage: the focus falls to the page, and nothing scrolls.
+    expect(document.body).toHaveFocus();
     expect(scrolled).not.toHaveBeenCalled();
   });
 

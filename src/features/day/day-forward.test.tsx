@@ -143,6 +143,9 @@ function silentAfterText(response: Response, from: number): Response {
     async pull(controller) {
       const { done, value } = await reader.read();
       if (done) {
+        // What the last read left unsplit, and what the decoder still holds, is the last event.
+        const last = unread + decoder.decode();
+        if (last !== "" && sent <= from) controller.enqueue(encoder.encode(last));
         controller.close();
         return;
       }
@@ -373,6 +376,27 @@ describe("Forward to a day left writing behind the start screen", () => {
 
       expect(heard).toBe(1);
       expect(screen.queryByText("Writing the day")).not.toBeInTheDocument();
+    },
+    LONG_TEST_MS,
+  );
+});
+
+describe("the focus on a day this device has seen", () => {
+  it(
+    "goes to the city word when the day, pressed again on the start screen after Back, arrives whole",
+    async () => {
+      const read = vi.fn<IntakeReader>(async () => ({ kind: "unavailable" }));
+      const user = userEvent.setup();
+      render(<Day start={{ pool: POOL, read }} isAddressed />);
+      // Written to its end here, Paris is seen, and the route answers it whole from now on.
+      await playParisThenBack(user);
+
+      await user.click(cityWord("Paris"));
+
+      await waitFor(() => expect(headline()).toHaveTextContent(/^A calm Sunday in Paris/));
+      await waitFor(() =>
+        expect(within(headline()).getByRole("button", { name: "Paris" })).toHaveFocus(),
+      );
     },
     LONG_TEST_MS,
   );

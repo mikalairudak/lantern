@@ -361,11 +361,6 @@ interface DayStageHeaderProps {
    */
   isWayOnFocused?: boolean;
   /**
-   * The same day drawn anew in place of the run before, as the route or the page has it whole:
-   * a city word that takes the focus takes it where the page stands.
-   */
-  isRedrawn?: boolean;
-  /**
    * The notice's opacity: whole, until it leaves for the next day the visitor asked for,
    * fading as the day's words do.
    */
@@ -583,7 +578,6 @@ export function DayStageHeader({
   notice,
   isNoticeWrittenIn = false,
   isWayOnFocused = false,
-  isRedrawn = false,
   noticeOpacity,
   isNoticeLeaving = false,
   isChoiceHeld = false,
@@ -1218,7 +1212,6 @@ export function DayStageHeader({
                       trailRoom={trailRooms.city}
                       isChoiceHeld={isChoiceHeld}
                       isFocusedOnMount={isCityFocused}
-                      isFocusInPlace={isRedrawn}
                       isAssumptionMarked={notice === null}
                       isLocked={isReplanWriting}
                       onLockedPress={sayLocked}

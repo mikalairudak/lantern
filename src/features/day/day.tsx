@@ -145,12 +145,6 @@ interface Asked {
    * it, as the way on of one written in does, though it stands whole from its first frame.
    */
   isWayOnFocused?: boolean;
-  /**
-   * The run that draws the same day anew in place of the run before, as the route or the page
-   * has it whole: a city word that takes the focus takes it where the page stands. Tied to its
-   * run, so a later run that copies this one is no redraw.
-   */
-  redrawnAt?: number;
   /** The visitor's phrases that fit no word of the request, said back under the day. */
   unplaced: readonly string[];
   /** Lantern's words of a written day that the visitor's text said as they are: theirs. */
@@ -672,7 +666,10 @@ export function Day({
   // A kept day's page draws the pen's first frame, as its server did, and a day this device
   // has seen is drawn whole as soon as the page can tell (`docs/decisions.md`, "A written day's
   // page is built whole, and plays only for a visitor who has not seen it"): its first frame holds
-  // the whole day's room, so its words and rows come with nothing moving.
+  // the whole day's room, so its words and rows come with nothing moving. The focus it was
+  // given stays with it: the pen's frame is drawn only as a page opened here hydrates, which
+  // takes no focus, and a day drawn in place of the wait or of the page for a failure is drawn
+  // whole before its first paint.
   const isKeptAwaitingWhole =
     asked?.kept != null && !asked.isKeptWhole && asked.run === 0 && seenAtStart === true;
   if (isKeptAwaitingWhole) {
@@ -1195,12 +1192,9 @@ export function Day({
   // with nothing to stream. One whose stream a request asked since has taken comes back from
   // memory instead.
   const isShownDrawn = shown.isFromStream || !shown.isStreaming;
-  // Where the keyboard's focus stands, as the focus moves in and out of the box the day's stage
-  // stands in, which outlives each run's stage: kept as it moves, so a redraw set while rendering
-  // reads it without asking the page.
-  const [focusAt, setFocusAt] = useState<FocusAt>("page");
   // A written day this device has seen comes from the route whole at once: it lands whole,
-  // as the page's own does, before a frame of it is drawn played.
+  // as the page's own does, before a frame of it is drawn played. Its run so far drew nothing of
+  // it, so a city word asked to take the focus still takes it.
   if (
     shown.isFromStream &&
     asked !== null &&
@@ -1209,19 +1203,14 @@ export function Day({
     asked.whole === null
   ) {
     const itinerary = stream.outcome.itinerary;
-    setAsked({
-      ...asked,
-      run: asked.run + 1,
-      whole: { itinerary, checks: stream.checks },
-      isChosen: isCityFocusedOnRedraw(focusAt, asked.isChosen),
-      redrawnAt: asked.run + 1,
-    });
+    setAsked({ ...asked, run: asked.run + 1, whole: { itinerary, checks: stream.checks } });
   }
   // A play of the page's own written day that ends without the day complete, its connection
   // dropped or its route busy, gives way to that day whole, as a device that has seen it draws
   // it: the page holds it in its first HTML, so no ending is said for a day the page has
   // (`docs/decisions.md`, "A written day's page is built whole, and plays only for a visitor who
-  // has not seen it"). A live day, and another written day played here, keep their endings.
+  // has not seen it"). A live day, and another written day played here, keep their endings. The
+  // play was drawn and the visitor may have moved on in it, so the day whole takes no focus.
   const pageOwnWhole =
     asked !== null &&
     asked.kept === null &&
@@ -1235,13 +1224,7 @@ export function Day({
       ? wholeInPlaceOf(shown.outcome, pageOwnWhole)
       : null;
   if (asked !== null && wholeInPlace !== null) {
-    setAsked({
-      ...asked,
-      run: asked.run + 1,
-      whole: wholeInPlace,
-      isChosen: isCityFocusedOnRedraw(focusAt, asked.isChosen),
-      redrawnAt: asked.run + 1,
-    });
+    setAsked({ ...asked, run: asked.run + 1, whole: wholeInPlace, isChosen: false });
   }
   // A play of the page's own written day can be ended with the day whole, as a device that has
   // seen it draws it (`docs/decisions.md`, "A written day's play offers the day whole on a
@@ -2309,8 +2292,6 @@ export function Day({
         // of the page's flow at the size it had, unseen and out of reach. Behind the start
         // screen it says its notice in its own unheard status.
         <div
-          onFocus={() => setFocusAt("stage")}
-          onBlur={(event) => setFocusAt(focusAtAfter(event.currentTarget, event.relatedTarget))}
           className={isStartShown ? BEHIND_START_CLASSES : undefined}
           inert={isStartShown}
           aria-hidden={isStartShown || undefined}
@@ -2331,7 +2312,6 @@ export function Day({
               isStreaming={isStreaming}
               isChosen={asked.isChosen}
               isWayOnFocused={asked.isWayOnFocused}
-              isRedrawn={asked.redrawnAt === asked.run}
               isAfterExit={asked.isAfterExit}
               isBehindStart={isStartShown}
               isFromStart={asked.isStreamed && asked.kept === null}
@@ -2483,29 +2463,6 @@ function hasStreamTaken(
  */
 function isNoDayOf(ending: DayOutcome["kind"]): boolean {
   return ending !== "disconnected" && ending !== "complete";
-}
-
-/**
- * Where the keyboard's focus stands, as the day's page tells it: in the day's stage, which each
- * run draws anew, on the page itself, or elsewhere, on what outlives the stage.
- */
-type FocusAt = "stage" | "page" | "elsewhere";
-
-/** Where the focus went as it left the stage's box (`box`) for `next`, if it went anywhere. */
-function focusAtAfter(box: HTMLElement, next: EventTarget | null): FocusAt {
-  if (next === null) return "page";
-  return next instanceof Node && box.contains(next) ? "stage" : "elsewhere";
-}
-
-/**
- * Whether the same day drawn anew in place of the run before gives its city word the focus. A
- * focus anywhere in the stage, the city word's own included, goes with it, so the new city word
- * takes it, where the page stands; a focus on the page goes to the city word only on a day the
- * visitor chose, as it did as the day landed; a focus elsewhere stays where it is.
- */
-function isCityFocusedOnRedraw(focusAt: FocusAt, isChosen: boolean): boolean {
-  if (focusAt === "page") return isChosen;
-  return focusAt === "stage";
 }
 
 /** The day a page lands on, played from the route on arrival: its address was opened. */
