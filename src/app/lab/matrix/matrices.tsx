@@ -20,6 +20,7 @@ import { PLAN_ROW_MATRIX } from "@/features/day/plan-row-matrix";
 import { PLAN_BAR_MATRIX } from "@/features/day/plan-bar-matrix";
 import { FOOT_LINE_MATRIX } from "@/features/day/foot-line-matrix";
 import { DAY_END_MATRIX } from "@/features/day/day-end-matrix";
+import { NARROW_COLUMN_MATRIX } from "@/features/day/narrow-column-matrix";
 import { START_HEADER_MATRIX } from "@/features/day/start-header-matrix";
 import { DAY_STAGE_HEADER_MATRIX } from "@/features/day/day-stage-header-matrix";
 import { DAY_HEAD_MATRIX } from "@/features/day/day-head-matrix";
@@ -49,6 +50,7 @@ export const MATRICES: readonly LabMatrix[] = [
   DAY_END_MATRIX,
   DAY_ANSWER_MATRIX,
   FOOT_LINE_MATRIX,
+  NARROW_COLUMN_MATRIX,
   DAY_MENU_MATRIX,
   MASTHEAD_MATRIX,
   START_HEADER_MATRIX,
