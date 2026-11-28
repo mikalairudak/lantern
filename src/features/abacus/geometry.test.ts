@@ -13,6 +13,7 @@ import { runningSpans } from "@/lib/time/clock";
 import {
   CHART,
   askedHoursOf,
+  axisWidthOf,
   basisAtPaceOf,
   dayBounds,
   paceOf,
@@ -299,5 +300,24 @@ describe("twins on the wire", () => {
         }
       }
     }
+  });
+});
+
+describe("axisWidthOf", () => {
+  /** "00:00" in the times' type at the default size and with the browser's text at 200%. */
+  const DEFAULT_TIME = 34.59;
+  const LARGE_TIME = 69.16;
+  const CLEARANCE = 7;
+
+  it("keeps the drawing's gutter where a time fits it, as at the default size", () => {
+    expect(axisWidthOf(CHART.axisWidth, DEFAULT_TIME, CLEARANCE)).toBe(CHART.axisWidth);
+  });
+
+  it("widens to a whole time and its clearance where the time is wider", () => {
+    expect(axisWidthOf(CHART.axisWidth, LARGE_TIME, CLEARANCE)).toBe(70 + CLEARANCE);
+  });
+
+  it("never narrows a gutter the root's growth has widened", () => {
+    expect(axisWidthOf(65, DEFAULT_TIME * 1.25, CLEARANCE * 1.25)).toBe(65);
   });
 });

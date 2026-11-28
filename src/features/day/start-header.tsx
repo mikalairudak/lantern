@@ -1017,9 +1017,11 @@ function SaidLine({
 
 /**
  * The example's wrap, balanced where it takes two lines, as at 320 px: "For example: /
- * London, with friends", the text to type whole on its line.
+ * London, with friends", the text to type whole on its line. A word wider than the line breaks,
+ * as "example:" is under the field at 320 px with the browser's text at 200%, rather than
+ * widening the page.
  */
-const EXAMPLE_CLASSES = "text-balance";
+const EXAMPLE_CLASSES = "text-balance wrap-anywhere";
 
 /**
  * What a press could not read, in the ink an ending's line stands in, a step over the muted

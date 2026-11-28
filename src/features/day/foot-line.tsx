@@ -25,8 +25,47 @@ export const CONTACT_EMAIL = "support@lanternday.com";
 /** The page saying what Lantern keeps and why, with its short terms. */
 export const PRIVACY_PATH = "/privacy";
 
-/** Each link whole on its line, its press reaching past its words. */
-const SMALL_LINK_CLASSES = cn(LINK_CLASSES, TARGET_CLASSES, "whitespace-nowrap");
+/**
+ * Each link whole on its line, its press reaching past its words. In a narrow foot (`narrow`),
+ * which only a large text size makes of a phone's, a link still stands whole while it fits a
+ * line, and one wider than its line wraps inside itself, between its words and after the
+ * address's "@" (`ContactLink`), rather than widen the page: with the browser's text at 200%,
+ * "© OpenStreetMap contributors" is 323 px and the support address 265, on a 320 px phone's
+ * line of 256. Its press then reaches past its words only above and below them, so it never
+ * stands past the line.
+ */
+const SMALL_LINK_CLASSES = cn(
+  LINK_CLASSES,
+  TARGET_CLASSES,
+  "whitespace-nowrap @max-narrow:inline-block @max-narrow:whitespace-normal @max-narrow:wrap-anywhere @max-narrow:after:inset-x-0",
+);
+
+/**
+ * The support address as a link, in a box with what follows it, `after`, as the full stop that
+ * ends its sentence. The box stands whole on a line while it fits one; wider than its line, as
+ * it is in large text on a phone, the address breaks after its "@", "support@ / lanternday.com",
+ * and what follows stays on its last line. A break after the "@" is the browser's to take even
+ * where the text does not wrap, so the box, not the link, keeps it whole while it fits.
+ */
+export function ContactLink({
+  className,
+  after = "",
+}: {
+  className: string;
+  after?: string;
+}): ReactNode {
+  const at = CONTACT_EMAIL.indexOf("@") + 1;
+  return (
+    <span className="inline-block">
+      <a href={`mailto:${CONTACT_EMAIL}`} className={className}>
+        {CONTACT_EMAIL.slice(0, at)}
+        <wbr />
+        {CONTACT_EMAIL.slice(at)}
+      </a>
+      {after}
+    </span>
+  );
+}
 
 /**
  * The smallest type, muted: a credit or a way out, never whose product the day is. Muted on
@@ -79,9 +118,7 @@ export function FootLine({ sources = [], className }: FootLineProps) {
               <Link key="privacy" href={PRIVACY_PATH} className={SMALL_LINK_CLASSES}>
                 Privacy and terms
               </Link>,
-              <a key="contact" href={`mailto:${CONTACT_EMAIL}`} className={SMALL_LINK_CLASSES}>
-                {CONTACT_EMAIL}
-              </a>,
+              <ContactLink key="contact" className={SMALL_LINK_CLASSES} />,
             ]}
           />
         </p>

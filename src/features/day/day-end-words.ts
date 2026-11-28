@@ -81,6 +81,28 @@ export function summaryLineOf(summary: DaySummary): string {
   return [home, stops, distance].filter(Boolean).join(` ·${TIED}`);
 }
 
+/** The dot that parts the summary's parts, which stands on the line of the words after it. */
+const PART_DOT = "·";
+/** A count, which keeps its unit: "8 stops", "7.1 km". */
+const COUNT = /^\d/;
+
+/**
+ * A run the summary ties whole on a line, "· about 7.1 km on foot", as the pieces a narrow line
+ * may part it into: the dot with the word after it, and a count with its unit, each one piece,
+ * its words still tied, and every other space a place it may break: "· about", "7.1 km", "on",
+ * "foot".
+ */
+export function joinedPiecesOf(run: string): string[] {
+  return run.split(TIED).reduce<string[]>((pieces, word, index, words) => {
+    const before = words[index - 1];
+    const last = pieces.at(-1);
+    if (last !== undefined && before !== undefined && (before === PART_DOT || COUNT.test(before))) {
+      return [...pieces.slice(0, -1), `${last}${TIED}${word}`];
+    }
+    return [...pieces, word];
+  }, []);
+}
+
 /** What the route's link says: the whole day, or as far as the map takes it. */
 export function routeLabelOf(route: WalkRoute): string {
   return route.included < route.total

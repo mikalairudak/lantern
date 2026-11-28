@@ -39,6 +39,17 @@ export async function chooseTheChart(page: Page): Promise<void> {
   }, DAY_VIEW_KEY);
 }
 
+/**
+ * Sets the browser's own text size for the page, in pixels, as Chrome's "Font size" setting
+ * does: `medium`, and with it the root and every rem, takes it; 16 is Chrome's default, so 32
+ * is 200%. It holds across the page's loads. A full-page screenshot drops it, so a spec that
+ * measures at it reads the root's size as it measures.
+ */
+export async function setBrowserTextSize(page: Page, pixels: number): Promise<void> {
+  const session = await page.context().newCDPSession(page);
+  await session.send("Page.setFontSizes", { fontSizes: { standard: pixels } });
+}
+
 /** The product's events route, which a page posts to as the visitor plays days. */
 const EVENTS_ROUTE = "**/api/events";
 

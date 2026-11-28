@@ -268,6 +268,16 @@ export function beadTargetPath(
   ].join(" ");
 }
 
+/**
+ * The gutter of hour labels and the time axis, as wide as the drawing sets it or as a time in
+ * the visitor's text and its clearance from the axis, whichever is wider: the drawing follows
+ * the root's growth alone, and a time follows the browser's text size too, so with the text
+ * at 200% "00:00" is 69 px wide where the drawing's gutter is 52. The lanes take what is left.
+ */
+export function axisWidthOf(drawnWidth: number, timeWidth: number, clearance: number): number {
+  return Math.max(drawnWidth, Math.ceil(timeWidth) + clearance);
+}
+
 /** Maps time and energy to pixels for a chart of this size, drawn at `chart`'s pixels. */
 export function chartScale(
   width: number,

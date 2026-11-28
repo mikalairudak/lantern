@@ -64,3 +64,20 @@ describe("useWordsX", () => {
     expect(result.current.get()).toBe(100 + ROW.beadClear);
   });
 });
+
+describe("useWordsX with a new drawing", () => {
+  it("moves at once with a time axis a new drawing moves, and glides again after", () => {
+    const { result, rerender } = renderHook(
+      (props) => useWordsX(props.beadX, "right", 120, false, false, props.axisX),
+      { initialProps: { beadX: 200, axisX: 52 } },
+    );
+
+    // The time column widens as the fonts arrive: the bead moves with the lanes, the words too.
+    rerender({ beadX: 201, axisX: 53 });
+    expect(result.current.get()).toBe(201 + ROW.beadClear);
+
+    // A bead that moves on the same drawing glides as before.
+    rerender({ beadX: 260, axisX: 53 });
+    expect(result.current.get()).toBe(201 + ROW.beadClear);
+  });
+});

@@ -14,7 +14,7 @@ import {
 import type { DayRequest } from "@/lib/schema/itinerary.schema";
 import type { CityReading } from "@/lib/schema/intake.schema";
 import { cn } from "@/components/ui/cn";
-import { WordTrail } from "./word-trail";
+import { cityWrapClassesOf, WordTrail } from "./word-trail";
 import { Fold, type FoldExit } from "@/components/ui/fold";
 import { requestGistOf } from "./sentence";
 import { ASSUMED_CLASSES } from "./sentence-word";
@@ -29,8 +29,9 @@ import {
   useHangingList,
 } from "./word-list";
 
+/** Its lines, where the name wraps, start at its left as the sentence's do, not centred. */
 const WORD_CLASSES = cn(
-  "rounded-sm transition-colors underline-offset-4 focus-ring",
+  "rounded-sm text-start transition-colors underline-offset-4 focus-ring",
   OPEN_WORD_CLASSES,
 );
 /** The word as it reads when it can be opened: in ink, the hairline under it under a pointer or the keyboard's focus. */
@@ -259,6 +260,7 @@ export function CityWord({
         }}
         className={cn(
           WORD_CLASSES,
+          cityWrapClassesOf(city),
           isLocked ? LOCKED_CLASSES : OPENABLE_CLASSES,
           isMarked && ASSUMED_CLASSES,
         )}

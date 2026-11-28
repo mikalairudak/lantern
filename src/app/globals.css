@@ -221,6 +221,12 @@
    * (`docs/decisions.md`, "The day's ways along live in one menu, in the masthead").
    */
   --container-masthead: 21.375rem;
+  /*
+   * A column narrower than any phone gives at the default size (18 rem at 320 px), which only a
+   * large text size makes of one: there the index takes one column, a day's end sets its time
+   * over its lines, and the foot's links and the support address wrap inside themselves.
+   */
+  --container-narrow: 14rem;
 
   /*
    * A ledger's line, from the text column's width: its date, in a column that keeps one width
@@ -675,6 +681,17 @@ html {
  */
 @utility browser-text-size {
   font-size: medium;
+}
+
+/*
+ * A word joiner before what it is set on, which has no width and is not in the page's text: a
+ * line never breaks before it. It holds a word of the headline to the comma after it, a box of
+ * its own a line could otherwise break before once the word may wrap (`WordTrail`).
+ */
+@utility joined-before {
+  &::before {
+    content: "\2060";
+  }
 }
 
 /*

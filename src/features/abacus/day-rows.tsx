@@ -12,8 +12,9 @@ import { AbacusChart, type AbacusChartProps } from "./abacus-chart";
 import { candidatesOf, midsOf, plannedPlace, twinRankOf, writtenEnergyOf } from "./curve";
 import { hasEnergy, type PlaceDraft } from "./day-draft";
 import { densityOf, type Density } from "./density";
-import { useDrawing } from "./drawing";
+import { drawingForText, useDrawing, type GutterText } from "./drawing";
 import { drawnEnergyOf } from "./geometry";
+import { GutterTextProbe } from "./gutter-text";
 import type { DayContext } from "@/lib/geo/sun";
 import { axisLightTo, bestLightOf, isGoldenAt } from "./light";
 import { isSameLines, type LineBox } from "./line-boxes";
@@ -198,6 +199,16 @@ interface DayRowsProps extends ChartPassThrough {
   onGlide?: (isGliding: boolean) => void;
 }
 
+/** Whether two measures of the gutter's text are the same, so an unchanged one draws nothing. */
+function isSameGutterText(last: GutterText | null, text: GutterText): boolean {
+  return (
+    last !== null &&
+    last.timeWidth === text.timeWidth &&
+    last.timeHeight === text.timeHeight &&
+    last.minuteHeight === text.minuteHeight
+  );
+}
+
 /**
  * How far a spring may stand from its target and count as there: the springs run to targets
  * rounded to tenths of a pixel, and a spring that ends lands on its own exactly.
@@ -286,8 +297,19 @@ export function DayRows({
     if (part === -1) return 0;
     return (forkHeights[part] ?? rowSizes.lineEstimate) + rowSizes.gap;
   };
-  // The pixels the chart and its rows are drawn at, for the root's size as the day draws.
-  const drawing = useDrawing();
+  // The pixels the chart and its rows are drawn at, for the root's size as the day draws, with
+  // the time column and a sun's minute given the room their text takes at the visitor's text
+  // size, measured before the first paint (`drawingForText`).
+  const [gutterText, setGutterText] = useState<GutterText | null>(null);
+  const onGutterText = useCallback(
+    (text: GutterText) => setGutterText((last) => (isSameGutterText(last, text) ? last : text)),
+    [],
+  );
+  const drawnForRoot = useDrawing();
+  const drawing = useMemo(
+    () => drawingForText(drawnForRoot, gutterText),
+    [drawnForRoot, gutterText],
+  );
   const { row: rowSizes } = drawing;
   // The words' unseen one-line copies live outside the list, so only the day is read.
   const [measuring, setMeasuring] = useState<HTMLDivElement | null>(null);
@@ -1162,6 +1184,7 @@ export function DayRows({
           height={scale.height}
           className="pointer-events-none absolute inset-0 z-20 overflow-visible"
         />
+        <GutterTextProbe onMeasure={onGutterText} />
         {/* Clipped to nothing, so a long name's one-line copy never widens the page. */}
         <div
           ref={setMeasuring}

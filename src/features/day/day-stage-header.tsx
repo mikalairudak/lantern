@@ -59,6 +59,7 @@ import { useWrittenText } from "@/components/ui/use-written-text";
 import { Ink } from "@/components/ui/ink";
 import { cn } from "@/components/ui/cn";
 import { CityWord, type CityFocus, type TypedCity } from "./city-word";
+import { cityWrapClassesOf, WORD_WRAP_CLASSES } from "./word-trail";
 import { LINK_CLASSES, TARGET_CLASSES } from "./link-classes";
 import { unplacedLineOf } from "./start";
 import { PEN_BEAT_MS } from "./use-pen";
@@ -120,6 +121,12 @@ const DATE_FORMAT = new Intl.DateTimeFormat("en-GB", {
  * headline as a word writes in, moving words already written from line to line.
  */
 const SENTENCE_CLASSES = "type-voice text-title text-pretty text-ink-soft";
+/**
+ * The day's weekday, which breaks inside itself only where it is wider than the line, as
+ * "Wednesday" is on a 320 px phone with the browser's text at 200%, rather than stand past the
+ * headline's column, where the header cuts it.
+ */
+const WEEKDAY_CLASSES = "wrap-anywhere";
 /**
  * The waiting line's light through the headline, every word of it (`docs/decisions.md`, "A row's
  * words go where its bead comes to rest, and rows ease rather than jump"): its pass and its muted
@@ -1177,7 +1184,11 @@ export function DayStageHeader({
                   {/* Muted with the locked words while a re-plan is written, so the word
                     changed is the one word in ink. */}
                   <span
-                    className={cn("transition-colors", isReplanWriting ? "text-muted" : "text-ink")}
+                    className={cn(
+                      WEEKDAY_CLASSES,
+                      "transition-colors",
+                      isReplanWriting ? "text-muted" : "text-ink",
+                    )}
                   >
                     {weekdayOf(request.date)}
                   </span>
@@ -1408,8 +1419,9 @@ interface VisitorsWordProps {
 }
 
 /**
- * A word of the visitor's in the headline, one unbreakable box with its comma, which sits
- * inside the word's own box (`WordTrail`). Once Lantern's words have gone the box glides to
+ * A word of the visitor's in the headline, one box with its comma, which sits inside the word's
+ * own box (`WordTrail`): the box never breaks at its edges, and a phrase in it wraps between its
+ * words only once it is wider than its line. Once Lantern's words have gone the box glides to
  * wherever their going moved it (`glideMovedWords`).
  */
 function VisitorsWord({ word, children }: VisitorsWordProps) {
@@ -1478,7 +1490,8 @@ interface SentenceShapeProps {
 
 /**
  * The sentence with its words so far and a clause written in full, unseen and inert. Each
- * word is set as the live one is, unbreakable with its comma, so both wrap alike.
+ * word is set as the live one is, never broken before its comma, its own words wrapping only
+ * where it is wider than the line, so both wrap alike.
  */
 function SentenceShape({
   request,
@@ -1496,10 +1509,10 @@ function SentenceShape({
       className={cn(SENTENCE_CLASSES, "invisible col-start-1 row-start-1", className)}
     >
       A <span>{facts.energy ? labelOf(facts.energy) : ""}</span>{" "}
-      <span>{weekdayOf(request.date)}</span>
+      <span className={WEEKDAY_CLASSES}>{weekdayOf(request.date)}</span>
       <ClauseText text={setOff(clause)} /> in{" "}
       <span className="inline-block whitespace-nowrap">
-        {request.city}
+        <span className={cityWrapClassesOf(request.city)}>{request.city}</span>
         {trails.city}
       </span>
       {ASSUMABLE_FACT_KEYS.map((key) => {
@@ -1509,7 +1522,7 @@ function SentenceShape({
           <span key={key}>
             {" "}
             <span className="inline-block whitespace-nowrap">
-              <span className={wordClassesOf(fact)}>{labelOf(fact)}</span>
+              <span className={cn(wordClassesOf(fact), WORD_WRAP_CLASSES)}>{labelOf(fact)}</span>
               {pair?.key !== key && trails[key]}
             </span>
             {pair?.key === key && (
@@ -1858,14 +1871,16 @@ function Notice({
                   className={cn(LINK_CLASSES, "text-left type-voice text-dek text-ink-soft")}
                 >
                   {/* Set as `AskedSentence` sets it: its energy word in its colour, and each
-                      word of the request one unbreakable box with its comma. */}
+                      word of the request one unbreakable box with its comma, but in a narrow
+                      header (`narrow`), where a word wider than the line, "slow morning," at
+                      320 px with the browser's text at 200%, wraps between its words. */}
                   {write("A ")}
                   <span className="text-energy">{write(energy)}</span>
                   {write(lead)}
                   {words.map((word, index) => (
                     <Fragment key={word}>
                       {index > 0 && write(" ")}
-                      <span className="whitespace-nowrap">
+                      <span className="whitespace-nowrap @max-narrow:whitespace-normal">
                         {write(index < words.length - 1 ? `${word},` : word)}
                       </span>
                     </Fragment>

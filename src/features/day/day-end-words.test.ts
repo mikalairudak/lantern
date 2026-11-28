@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import { KYOTO_ITINERARY } from "@/lib/fixtures/replan/kyoto-morning";
 import type { PlaceChecks } from "@/features/itinerary/use-day-stream";
 import { daySummaryOf, type DaySummary } from "./day-end";
-import { clockWordsOf, dayEndWordsOf, routeLabelOf, summaryLineOf } from "./day-end-words";
+import {
+  clockWordsOf,
+  dayEndWordsOf,
+  joinedPiecesOf,
+  routeLabelOf,
+  summaryLineOf,
+} from "./day-end-words";
 
 const TIED = " ";
 
@@ -114,5 +120,27 @@ describe("dayEndWordsOf", () => {
       facts: { ...KYOTO_ITINERARY.facts, travel: { value: "transit", source: "assumed" } },
     } as const;
     expect(dayEndWordsOf(transit, WRITTEN, {}).summary).not.toContain("on foot");
+  });
+});
+
+describe("joinedPiecesOf", () => {
+  const TIED = "\u00A0";
+  const run = (...words: string[]) => words.join(TIED);
+
+  it("keeps the dot with the word after it, and a count with its unit", () => {
+    expect(joinedPiecesOf(run("·", "about", "7.1", "km", "on", "foot"))).toEqual([
+      run("·", "about"),
+      run("7.1", "km"),
+      "on",
+      "foot",
+    ]);
+  });
+
+  it("keeps a run of a dot and a count whole, the count with its unit", () => {
+    expect(joinedPiecesOf(run("·", "8", "stops"))).toEqual([run("·", "8", "stops")]);
+  });
+
+  it("leaves a word of its own as it is", () => {
+    expect(joinedPiecesOf("foot")).toEqual(["foot"]);
   });
 });

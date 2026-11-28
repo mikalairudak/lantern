@@ -7,7 +7,7 @@ import {
   useTransform,
   type MotionValue,
 } from "motion/react";
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { SPRINGS } from "@/lib/tokens/motion";
 import { useDrawing } from "./drawing";
 import type { LabelSide } from "./rows";
@@ -19,7 +19,9 @@ import type { LabelSide } from "./rows";
  * cross in one move. They take their first place at once, every place while `isImmediate`
  * (as the day is first placed and measured, or a row lands), and with reduced motion every
  * place. While `isRiding`, as their bead slides in, they take each place the bead is drawn
- * at at once, so they move with it frame for frame, and only a change of side glides.
+ * at at once, so they move with it frame for frame, and only a change of side glides. A
+ * drawing that moves the time axis (`axisX`), as the time column does when the fonts arrive or
+ * the text's size changes, moves the beads at once, and the words with them.
  */
 export function useWordsX(
   beadX: number,
@@ -27,35 +29,43 @@ export function useWordsX(
   width: number,
   isImmediate: boolean = false,
   isRiding: boolean = false,
+  axisX?: number,
 ): MotionValue<number> {
   const isReducedMotion = useReducedMotion() ?? false;
   const { beadClear } = useDrawing().row;
   const bead = useMotionValue(beadX);
   const leftward = useMotionValue(side === "left" ? 1 : 0);
   const wide = useMotionValue(width);
+  // The axis each place was last taken by, so a place a new drawing moves is taken at once.
+  const placedAxisX = useRef(axisX);
+  const sidedAxisX = useRef(axisX);
 
   useLayoutEffect(() => {
     wide.set(width);
   }, [wide, width]);
 
   useLayoutEffect(() => {
-    if (isReducedMotion || isImmediate || isRiding) {
+    const isRedrawn = placedAxisX.current !== axisX;
+    placedAxisX.current = axisX;
+    if (isReducedMotion || isImmediate || isRiding || isRedrawn) {
       bead.set(beadX);
       return undefined;
     }
     const glide = animate(bead, beadX, SPRINGS.layout);
     return () => glide.stop();
-  }, [bead, beadX, isReducedMotion, isImmediate, isRiding]);
+  }, [bead, beadX, axisX, isReducedMotion, isImmediate, isRiding]);
 
   useLayoutEffect(() => {
     const target = side === "left" ? 1 : 0;
-    if (isReducedMotion || isImmediate) {
+    const isRedrawn = sidedAxisX.current !== axisX;
+    sidedAxisX.current = axisX;
+    if (isReducedMotion || isImmediate || isRedrawn) {
       leftward.set(target);
       return undefined;
     }
     const glide = animate(leftward, target, SPRINGS.layout);
     return () => glide.stop();
-  }, [leftward, side, isReducedMotion, isImmediate]);
+  }, [leftward, side, axisX, isReducedMotion, isImmediate]);
 
   return useTransform(() => {
     const at = bead.get();
