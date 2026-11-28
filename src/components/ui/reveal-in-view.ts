@@ -49,7 +49,7 @@ export function scrollToPlace(element: HTMLElement, options: ScrollIntoViewOptio
 }
 
 /** What the visitor does that takes the page back from a reveal on its way. */
-const TAKEN_BACK_BY = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
+export const TAKEN_BACK_BY = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
 
 /** How close to its end the spring is once it has come there, as a share of its way. */
 const SPRING_DONE = 0.001;
@@ -57,12 +57,15 @@ const SPRING_DONE = 0.001;
 const ARRIVED_PX = 0.5;
 const MS_PER_SECOND = 1000;
 
-/** `element`'s box on the screen, with its scroll margins around it. */
-function marginBoxOf(element: HTMLElement): { top: number; bottom: number } {
+/**
+ * `element`'s box on the screen, with its scroll margins around it, and over it the room at the
+ * screen's top that something held there covers.
+ */
+export function marginBoxOf(element: Element, coveredTop = 0): { top: number; bottom: number } {
   const box = element.getBoundingClientRect();
   const style = getComputedStyle(element);
   return {
-    top: box.top - (Number.parseFloat(style.scrollMarginTop) || 0),
+    top: box.top - (Number.parseFloat(style.scrollMarginTop) || 0) - coveredTop,
     bottom: box.bottom + (Number.parseFloat(style.scrollMarginBottom) || 0),
   };
 }
@@ -72,8 +75,8 @@ function marginBoxOf(element: HTMLElement): { top: number; bottom: number } {
  * when it is in view, its top when it is above the screen or taller than it, and its foot to
  * the screen's foot when it is below.
  */
-function edgeOf(element: HTMLElement): Edge | null {
-  const { top, bottom } = marginBoxOf(element);
+function edgeOf(element: Element, coveredTop: number): Edge | null {
+  const { top, bottom } = marginBoxOf(element, coveredTop);
   if (top >= 0 && bottom <= innerHeight) return null;
   return top < 0 || bottom - top > innerHeight ? "top" : "foot";
 }
@@ -82,15 +85,18 @@ function edgeOf(element: HTMLElement): Edge | null {
  * The edge a reveal on its way keeps to: the one it set off for, but the top once the element
  * has grown taller than the screen, whose foot would carry its top out of view.
  */
-function keptEdgeOf(element: HTMLElement, edge: Edge): Edge {
-  const { top, bottom } = marginBoxOf(element);
+function keptEdgeOf(element: Element, edge: Edge, coveredTop: number): Edge {
+  const { top, bottom } = marginBoxOf(element, coveredTop);
   return edge === "foot" && bottom - top > innerHeight ? "top" : edge;
 }
 
-/** Where the page's scroll brings `edge` of `element` into place, read where it stands now. */
-function scrollTopFor(element: HTMLElement, edge: Edge): number {
-  const { top, bottom } = marginBoxOf(element);
-  const to = scrollY + (edge === "top" ? top : bottom - innerHeight);
+/**
+ * Where the page's scroll brings `edge` of `element` into place, read where it stands now, in
+ * whole pixels on the side that keeps the edge inside the screen.
+ */
+function scrollTopFor(element: Element, edge: Edge, coveredTop: number): number {
+  const { top, bottom } = marginBoxOf(element, coveredTop);
+  const to = edge === "top" ? Math.floor(scrollY + top) : Math.ceil(scrollY + bottom - innerHeight);
   const most = document.documentElement.scrollHeight - innerHeight;
   return Math.min(Math.max(to, 0), Math.max(most, 0));
 }
@@ -124,9 +130,15 @@ const WATCH_MS = (() => {
  * An element in view is watched for the spring's time (`WATCH_MS`), scrolling nothing, and
  * revealed from where the page stands once growth above pushes it out. One reveal at a time:
  * a new one stops the one on its way, and so does the visitor's wheel, touch, press or key.
+ * `coveredTop` is the room at the screen's top that something held there covers, which an
+ * element revealed by its top stands clear of. The reveal ends where the edge is wholly in.
  * Gives back a stop.
  */
-export function revealInView(element: HTMLElement, isReducedMotion: boolean): () => void {
+export function revealInView(
+  element: Element,
+  isReducedMotion: boolean,
+  { coveredTop = 0 }: { coveredTop?: number } = {},
+): () => void {
   revealing?.stop();
   let frame = 0;
   // Set once the element is out of view: where the page stood then, and the edge it goes for.
@@ -150,7 +162,7 @@ export function revealInView(element: HTMLElement, isReducedMotion: boolean): ()
   /** Sets off for `edge` from where the page stands; at once with reduced motion. */
   const setOff = (edge: Edge): boolean => {
     if (isReducedMotion) {
-      window.scrollTo({ top: scrollTopFor(element, edge), behavior: "instant" });
+      window.scrollTo({ top: scrollTopFor(element, edge, coveredTop), behavior: "instant" });
       return false;
     }
     shown = scrollY;
@@ -162,7 +174,7 @@ export function revealInView(element: HTMLElement, isReducedMotion: boolean): ()
   const step = (now: number) => {
     if (way === null) {
       watchedSince ??= now;
-      const edge = edgeOf(element);
+      const edge = edgeOf(element, coveredTop);
       if (edge !== null && !setOff(edge)) return stop();
       if (edge === null && now - watchedSince >= WATCH_MS) return stop();
       if (way === null) {
@@ -171,14 +183,16 @@ export function revealInView(element: HTMLElement, isReducedMotion: boolean): ()
       }
     }
     way.started ??= now;
-    way.edge = keptEdgeOf(element, way.edge);
+    way.edge = keptEdgeOf(element, way.edge, coveredTop);
     const share = gentleShareAt((now - way.started) / MS_PER_SECOND);
-    const to = scrollTopFor(element, way.edge);
+    const to = scrollTopFor(element, way.edge, coveredTop);
     const wanted = way.from + (to - way.from) * Math.min(share, 1);
     shown += Math.max(-REVEAL_STEP_PX, Math.min(REVEAL_STEP_PX, wanted - shown));
     window.scrollTo({ top: shown, behavior: "instant" });
-    if (share >= 1 - SPRING_DONE && Math.abs(to - shown) < ARRIVED_PX) stop();
-    else frame = requestAnimationFrame(step);
+    if (share >= 1 - SPRING_DONE && Math.abs(to - shown) < ARRIVED_PX) {
+      window.scrollTo({ top: to, behavior: "instant" });
+      stop();
+    } else frame = requestAnimationFrame(step);
     return undefined;
   };
   revealing = current;
@@ -186,7 +200,7 @@ export function revealInView(element: HTMLElement, isReducedMotion: boolean): ()
     addEventListener(kind, stop, { capture: true, passive: true });
   }
   // Out of view already, it sets off at once; with reduced motion it is there in this call.
-  const edge = edgeOf(element);
+  const edge = edgeOf(element, coveredTop);
   if (edge !== null && !setOff(edge)) {
     stop();
     return () => {};

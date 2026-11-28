@@ -126,6 +126,7 @@ import type { DayExport } from "./day-export-words";
 import { useDayExports } from "./day-exports";
 import { takeAlongOf } from "./take-along";
 import { PlanBar } from "./plan-energy";
+import { usePlanBarHeight } from "./use-plan-bar-height";
 import { progressOf, progressWordsOf } from "./progress";
 import { readDayView, serverDayView, subscribeDayView } from "./view-choice";
 import { enteredOf, versionsWrittenOf } from "./reading-gates";
@@ -1304,7 +1305,9 @@ export function DayStage({
   }, [isEndAtOnce, isEndShown, isHydrated]);
   // A day the salvage rule kept, cut or dropped inside its swaps, offers its link alone.
   const isCut = ended !== null && shownOutcome?.kind !== "complete";
-  const planBar = useRef<HTMLDivElement>(null);
+  // The page's scroll padding clears the plan's bar at its height, however many rows it takes.
+  const [planBar, setPlanBar] = useState<HTMLDivElement | null>(null);
+  usePlanBarHeight(planBar);
   const takeable = isEndShown ? ended : null;
   const dayExports = useDayExports({
     day: takeable,
@@ -1697,7 +1700,7 @@ export function DayStage({
               // On the plan the day's energy and the switch are held at the screen's top while
               // the plan scrolls; on the chart its own scale is, and the bar stands still.
               <PlanBar
-                ref={planBar}
+                ref={setPlanBar}
                 energy={(facts.energy?.value as EnergyLevel | undefined) ?? request.energy}
                 isEnabled={isInteractive}
                 // Locked with the headline's words while a proposal is written, saying so in

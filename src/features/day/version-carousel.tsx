@@ -188,16 +188,19 @@ const ARROWS_CLASSES = "flex flex-wrap gap-x-3 gap-y-2";
 const ARROW_NAME_CLASSES = "decoration-1 underline-offset-4 pointed-group:underline";
 
 /**
- * Whether a stop's box shows its head: its top below the edge the page's scroll padding keeps
- * clear of the plan's bar, and its name, the line the focus is said by, whole above the window's
- * foot. A box with no heading counts by its top alone.
+ * How a stop's box is brought in to show its head: none while its top is below the edge the
+ * page's scroll padding keeps clear of the plan's bar and its name, the line the focus is said
+ * by, whole above the window's foot. A top above that edge comes to it, a box taller than the
+ * window included, whose foot "nearest" would bring up instead, its top still out of view; a
+ * name past the foot comes up the least way. A box with no heading counts by its top alone.
  */
-function isHeadInView(box: Element): boolean {
+function headScrollOf(box: Element): ScrollLogicalPosition | null {
   const { top } = box.getBoundingClientRect();
   const name = box.querySelector("h1, h2, h3, h4, h5, h6");
   const foot = name ? name.getBoundingClientRect().bottom : top;
   const edge = Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop);
-  return top >= (Number.isNaN(edge) ? 0 : edge) && foot <= window.innerHeight;
+  if (top < (Number.isNaN(edge) ? 0 : edge)) return "start";
+  return foot > window.innerHeight ? "nearest" : null;
 }
 
 /** Whether an element has the focus as the keyboard gives it, where the browser can tell. */
@@ -273,9 +276,9 @@ export function VersionCarousel({
   // keeps and its name whole above the window's foot, stays where it is: a taller version at the
   // window's foot grows down past it with its row's glide, left for the visitor to scroll to,
   // where a scroll to its foot would jump the page a line or more in one frame. One whose top is
-  // above that edge, as under the plan's bar, or whose name runs past the foot, is brought in
-  // the least way, never centred, by its box, which no lean or slide moves, so nothing scrolls
-  // sideways.
+  // above that edge, as under the plan's bar, comes down to it, and one whose name runs past the
+  // foot comes up the least way, never centred, by its box, which no lean or slide moves, so
+  // nothing scrolls sideways.
   // Both this hand-off and the slide below read the render `take` flushes, so `onPick` must
   // commit the pick synchronously: in a transition or deferred, it would come after `take` has
   // dropped them both.
@@ -283,7 +286,8 @@ export function VersionCarousel({
     if (focusWith.current !== pick) return;
     groupRef.current?.focus({ preventScroll: true });
     const box = boxRef.current;
-    if (box && !isHeadInView(box)) box.scrollIntoView({ block: "nearest" });
+    const block = box ? headScrollOf(box) : null;
+    if (box && block) box.scrollIntoView({ block });
   }, [pick]);
 
   // The version taken is now the stop: drawn where it stood as it waited, a stride off, in the

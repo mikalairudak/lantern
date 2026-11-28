@@ -101,7 +101,8 @@
    * face that stands in before it lands; `xs` keeps a few pixels above both. Both are counted
    * in the browser's own rems, so the two move together with a visitor's text size while the
    * bar keeps to two rows; at a large text size on a narrow screen the energy's words wrap
-   * again, and a third row stands taller than the padding under `xs`.
+   * again, to a third row, which the page's scroll padding clears by the bar's measured height
+   * (`scroll-pt-plan-bar`).
    */
   --breakpoint-xs: 23rem;
   --breakpoint-sm: 40rem;
@@ -591,6 +592,27 @@ html {
 
 [data-theme="dark"] {
   color-scheme: dark;
+}
+
+/*
+ * The page's scroll padding, the edge that focus scrolled to stays clear of: the plan's bar, held
+ * at the screen's top, and a step more. The day's page measures the bar (`--plan-bar-height`,
+ * `usePlanBarHeight`), so the edge clears it on however many rows a large text size wraps it to.
+ * It stands at least 3rem down, where the bar takes one row, and 5rem under `xs`, where it
+ * takes two, 48 px and 80 px at the browser's default text size: there it stands at that size,
+ * and on a page with no bar.
+ */
+@utility scroll-pt-plan-bar {
+  scroll-padding-top: max(
+    --theme(--spacing-12),
+    var(--plan-bar-height, 0px) + --theme(--spacing-4)
+  );
+  @variant max-xs {
+    scroll-padding-top: max(
+      --theme(--spacing-20),
+      var(--plan-bar-height, 0px) + --theme(--spacing-4)
+    );
+  }
 }
 
 /*
