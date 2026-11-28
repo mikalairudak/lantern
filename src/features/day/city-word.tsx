@@ -44,11 +44,19 @@ const ROW_CLASSES = cn(
   "hover:bg-ground focus-visible:bg-ground focus-ring-inset",
 );
 /**
+ * The field's line and fill, its colours alone: palette.test.ts holds the line 3:1 from the fill
+ * and from the list's sheet (WCAG 1.4.11). The line is in its label's colour at rest, `muted`, so
+ * the focus's ink ring is a step up from it that a line in `ink-soft` would not be.
+ */
+export const CITY_FIELD_COLOR_CLASSES = "border-muted bg-ground";
+/**
  * The field for a city named whole. On a touch screen it takes the list's own size: Safari on a
  * phone zooms the page into a field set under 16 px as it takes the focus, and stays zoomed.
  */
-const INPUT_CLASSES =
-  "mt-1 block w-full min-w-0 rounded-sm border border-line bg-ground px-2 py-1 font-serif text-small text-ink placeholder:text-muted focus-ring-inset pointer-coarse:text-quote";
+const INPUT_CLASSES = cn(
+  "mt-1 block w-full min-w-0 rounded-sm border px-2 py-1 font-serif text-small text-ink placeholder:text-muted focus-ring-inset pointer-coarse:text-quote",
+  CITY_FIELD_COLOR_CLASSES,
+);
 
 /** No readings: a city named whole, or a written day. */
 const NO_READINGS: readonly CityReading[] = [];
