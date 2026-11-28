@@ -8,10 +8,12 @@ import {
   openableStopsOf,
   type StopDraft,
 } from "@/features/abacus/day-draft";
+import { GOLDEN_HOUR } from "@/features/abacus/golden-hour-words";
 import { dayContextOf } from "@/features/abacus/light";
 import { itineraryOf } from "@/features/abacus/stop-row-examples";
 import { revealedOf } from "@/features/itinerary/revealed";
 import { firstAt, partialAt } from "@/features/itinerary/stream-frames";
+import { ALICANTE_DAY } from "@/lib/fixtures/curated/alicante";
 import { KYOTO_DAY } from "@/lib/fixtures/curated/kyoto";
 import { LISBON_DAY } from "@/lib/fixtures/curated/lisbon";
 import { CROWDED_DAY } from "@/lib/fixtures/edge/edge-days";
@@ -744,6 +746,37 @@ describe("the list as the day's plan", () => {
     expect(screen.getByText("Sunset")).toBeInTheDocument();
     // No rule between the rows: the rail does that work.
     expect(container.querySelector(".border-t.py-4")).toBeNull();
+  });
+
+  it("says in words after its time that a stop starts in golden hour, where the time is amber", () => {
+    const alicante = wholeOf(ALICANTE_DAY);
+    render(<ReadingList {...alicante} />);
+    const gutterOf = (time: string) =>
+      rowsOf()
+        .map((row) => row.querySelector(".type-time.tabular-nums"))
+        .find((gutter) => gutter?.textContent?.startsWith(time))!;
+
+    // The Explanada at 17:20, as the sun goes down over the bay; the museum before it at 16:15
+    // is in plain daylight.
+    expect(gutterOf("17:20")).toHaveClass("text-amber");
+    expect(gutterOf("17:20").textContent).toBe(`17:20, ${GOLDEN_HOUR}`);
+    expect(gutterOf("16:15")).toHaveClass("text-muted");
+    expect(gutterOf("16:15").textContent).toBe("16:15");
+    expect(screen.getAllByText(`, ${GOLDEN_HOUR}`)).toHaveLength(1);
+    // Heard alone: nothing a sighted visitor sees.
+    expect(screen.getByText(`, ${GOLDEN_HOUR}`)).toHaveClass("sr-only");
+  });
+
+  it("says golden hour only once the pen has written the time it follows", () => {
+    const alicante = wholeOf(ALICANTE_DAY);
+    const explanada = alicante.stops.find((stop) => stop.startTime === "17:20")!;
+    const { rerender } = render(
+      <ReadingList {...alicante} heldPen={{ id: explanada.id, written: 3 }} />,
+    );
+    expect(screen.queryByText(`, ${GOLDEN_HOUR}`)).toBeNull();
+
+    rerender(<ReadingList {...alicante} heldPen={{ id: explanada.id, written: 5 }} />);
+    expect(screen.getByText(`, ${GOLDEN_HOUR}`)).toBeInTheDocument();
   });
 
   it("lets a stop swipe along its versions in place of the line of them, and swaps through the list", async () => {

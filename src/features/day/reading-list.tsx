@@ -13,6 +13,7 @@ import { cn } from "@/components/ui/cn";
 import { Fold } from "@/components/ui/fold";
 import { createGlideGroup, GlidingHeight, type GlideGroup } from "@/components/ui/gliding-height";
 import { BestLightIcon } from "@/features/abacus/best-light-icon";
+import { GoldenHourWords } from "@/features/abacus/golden-hour-words";
 import { candidatesOf } from "@/features/abacus/curve";
 import type { PlaceDraft, StopDraft } from "@/features/abacus/day-draft";
 import { PennedText } from "@/components/ui/penned-text";
@@ -541,6 +542,9 @@ function ReadingRow({
   const quarter = shown.neighborhood ?? "";
   const isQuarterSaid = quarter !== "" && !isQuarterNamed(name, quarter);
   const time = formatClock(span.from);
+  // A stop that starts in golden hour says its time in amber, and in words to a screen reader,
+  // which hears neither the amber nor the rail.
+  const isGolden = isGoldenAt(daylight, span.from);
   const what = [
     kindWordOf(shown.kind, span.from),
     isQuarterSaid ? quarter : null,
@@ -604,13 +608,10 @@ function ReadingRow({
       shouldHoldTheView
     >
       <div {...{ [ROW_AT_REST_ATTRIBUTE]: "" }} className={cn(ROW_CLASSES, "text-ink")}>
-        <span
-          className={cn(
-            GUTTER_CLASSES,
-            isGoldenAt(daylight, span.from) ? "text-amber" : "text-muted",
-          )}
-        >
+        <span className={cn(GUTTER_CLASSES, isGolden ? "text-amber" : "text-muted")}>
           <PennedText text={time} written={written} isActive={false} />
+          {/* Said once the pen has written the time, as the rail beside it comes with it. */}
+          {isGolden && written >= time.length && <GoldenHourWords />}
         </span>
         <LightRail
           daylight={daylight}

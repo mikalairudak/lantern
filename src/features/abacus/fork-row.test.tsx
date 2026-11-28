@@ -2,6 +2,7 @@ import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { FORK_ROW_ATTRIBUTE, ForkLine, ForkRow, ForkStatus, shownFirstForkRow } from "./fork-row";
+import { STATUS_STANDS_MS } from "@/features/day/notice-status";
 import { FORK_EXAMPLES, FORK_MOMENTS, forkViewAt, type ForkMoment } from "./fork-row-examples";
 import { FORK_ROW_MATRIX } from "./fork-row-matrix";
 import { DEFAULT_DRAWING } from "./rows";
@@ -98,6 +99,47 @@ describe("ForkRow", () => {
     // Chosen, nothing is said.
     rerender(<ForkStatus view={{ ...ready, isReady: false, isChosen: true, line: null }} />);
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  });
+
+  it("stands on the page before it says a failure that comes at once", () => {
+    vi.useFakeTimers();
+    try {
+      // Elche's dinner changed to eating late, the route refusing it in the next frame.
+      const { rerender } = render(
+        <ForkStatus view={forkViewAt(ELCHE, momentOf("writing: looking"))} />,
+      );
+      const status = screen.getByRole("status");
+      rerender(<ForkStatus view={forkViewAt(ELCHE, momentOf("failed: our limit"))} />);
+      expect(status).toBeEmptyDOMElement();
+
+      act(() => vi.advanceTimersByTime(STATUS_STANDS_MS - 1));
+      expect(status).toBeEmptyDOMElement();
+      act(() => vi.advanceTimersByTime(1));
+      // The same region, its words now changed.
+      expect(screen.getByRole("status")).toBe(status);
+      expect(status.textContent).toBe("No more re-plans for now");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("says a failure as it comes once it has stood, and the words it is drawn with from its first frame", () => {
+    vi.useFakeTimers();
+    try {
+      const { rerender, unmount } = render(
+        <ForkStatus view={forkViewAt(ELCHE, momentOf("writing: looking"))} />,
+      );
+      act(() => vi.advanceTimersByTime(STATUS_STANDS_MS));
+      rerender(<ForkStatus view={forkViewAt(ELCHE, momentOf("failed: our limit"))} />);
+      expect(screen.getByRole("status").textContent).toBe("No more re-plans for now");
+      unmount();
+
+      // Drawn again in the other view, the fork says what it said, not after a wait.
+      render(<ForkStatus view={forkViewAt(ELCHE, momentOf("failed: our limit"))} />);
+      expect(screen.getByRole("status").textContent).toBe("No more re-plans for now");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("offers the whole proposal to take, with what it would change, in one control", async () => {

@@ -284,7 +284,8 @@ test.describe("the light on the time axis", () => {
     // The Explanada starts in the evening's gold, and says its time in the sunset's amber.
     const list = page.getByRole("list", { name: "The day" });
     const [explanada, sunset] = await Promise.all([
-      list.getByText("17:20", { exact: true }).evaluate((time) => getComputedStyle(time).color),
+      // By its minute: its words go on, for a screen reader, with "golden hour".
+      list.locator('[data-start-time="17:20"]').evaluate((time) => getComputedStyle(time).color),
       page
         .getByText(/^sunset \d\d:\d\d$/)
         .first()

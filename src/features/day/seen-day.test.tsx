@@ -6,6 +6,7 @@ import { KANAZAWA_START_REQUEST } from "@/lib/days/written/quick-starts";
 import { answerDayRequest } from "@/lib/stream/answer-day-request";
 import { dayText } from "@/lib/stream/simulate-day-stream";
 import { Day } from "./day";
+import { THE_DAY_IS_WRITTEN } from "./day-stage-header";
 import { SHOW_WHOLE_DAY } from "./foot-line";
 import { SEEN_DAY_HEADER } from "@/lib/days/written/version";
 import { isSeen, markSeen, seenKeyAt, seenKeyOf } from "./seen-days";
@@ -16,6 +17,8 @@ const ORIGIN = "http://lantern.test";
 /** Large deltas and no pauses, so a day streams in a few frames. */
 const QUICK = { deltaChars: 64 };
 const DAY_TIMEOUT = { timeout: 5000 };
+/** Past the silence after which a wait says the day is being written, under reduced motion. */
+const WAIT_SAID_MS = 1500;
 const KANAZAWA = writtenDayAt("kanazawa")!;
 const WRITTEN = {
   itinerary: KANAZAWA.itinerary,
@@ -49,13 +52,16 @@ function reducedMotion(query: string): MediaQueryList {
   };
 }
 
-/** The route answers each day at once, or, while `held.isOn`, as far as its stops and no further. */
-const held = { isOn: false };
-const fetchDay = vi.fn((path: string, init: RequestInit) =>
-  held.isOn && String(path).endsWith("/api/day")
-    ? Promise.resolve(heldPlayResponse())
-    : answerDayRequest(new Request(new URL(path, ORIGIN), init), QUICK),
-);
+/**
+ * The route answers each day at once, or after `held.delayMs`, or, while `held.isOn`, as far as
+ * its stops and no further.
+ */
+const held = { isOn: false, delayMs: 0 };
+const fetchDay = vi.fn(async (path: string, init: RequestInit) => {
+  if (held.isOn && String(path).endsWith("/api/day")) return heldPlayResponse();
+  if (held.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, held.delayMs));
+  return answerDayRequest(new Request(new URL(path, ORIGIN), init), QUICK);
+});
 
 /**
  * Kanazawa's day as the route plays it, its stops written and its versions never coming, so the
@@ -86,6 +92,7 @@ afterEach(() => {
   localStorage.clear();
   fetchDay.mockClear();
   held.isOn = false;
+  held.delayMs = 0;
 });
 afterAll(() => {
   vi.unstubAllGlobals();
@@ -169,6 +176,25 @@ describe("a written day seen here that the page did not give", () => {
     );
     const chart = screen.getByRole("group", { name: /The day's energy/ });
     await vi.waitFor(() => expect(chart).toHaveAttribute("aria-busy", "false"), DAY_TIMEOUT);
+  });
+
+  it("says it is written once it lands whole, when its wait was said before the route answered", async () => {
+    markSeen(KEY);
+    // Long enough a wait for the page to say the day is being written.
+    held.delayMs = WAIT_SAID_MS;
+    render(<Day first={KANAZAWA_START_REQUEST} isAddressed />);
+
+    expect(await screen.findByText("Writing the day", undefined, DAY_TIMEOUT)).toHaveAttribute(
+      "role",
+      "status",
+    );
+    const chart = await screen.findByRole("group", { name: /The day's energy/ }, DAY_TIMEOUT);
+    await vi.waitFor(() => expect(chart).toHaveAttribute("aria-busy", "false"), DAY_TIMEOUT);
+    // Drawn anew, whole, the day says it is written, once.
+    await vi.waitFor(
+      () => expect(screen.getAllByText(THE_DAY_IS_WRITTEN)).toHaveLength(1),
+      DAY_TIMEOUT,
+    );
   });
 
   it("is seen once played to its end, by the version its answer said", async () => {

@@ -122,7 +122,7 @@ describe("useChangeHeard", () => {
     return hearing;
   }
 
-  it("empties at the act, then says it from the day as it stands a frame later", async () => {
+  it("empties at the act, then says it from the day as it stands once the status has stood empty", async () => {
     await hearSwap();
   });
 

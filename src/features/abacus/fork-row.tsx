@@ -1,10 +1,18 @@
 "use client";
 
 import { motion, useReducedMotionConfig } from "motion/react";
-import { useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { cn } from "@/components/ui/cn";
 import { SPRINGS } from "@/lib/tokens/motion";
 import { isForkArrow } from "@/features/day/fork-arrows";
+import { STATUS_STANDS_MS } from "@/features/day/notice-status";
 import type { ForkSide } from "@/features/day/replan-controls";
 import type { ForkView } from "@/features/day/replan-work";
 import type { Drawing } from "./rows";
@@ -460,7 +468,10 @@ function LineWords({ line }: { line: WorkLine }): ReactNode {
  * What a screen reader hears of the fork once, from a live region on its first row: that the
  * proposal is ready, or why it failed. Nothing while it is written, nor once a version is
  * chosen. What a proposal would change is read in the row and never said here: it follows the
- * energy and a swap, and a region whose words change says "ready" again.
+ * energy and a swap, and a region whose words change says "ready" again. Words that come
+ * within `STATUS_STANDS_MS` of the region coming onto the page wait out that time, so a
+ * failure at once is a change of a region that stood; words it is drawn with stand from its
+ * first frame, as a fork drawn again in the other view says nothing again.
  */
 export function ForkStatus({ view }: { view: ForkView }) {
   const said = view.isReady
@@ -468,9 +479,15 @@ export function ForkStatus({ view }: { view: ForkView }) {
     : view.isFailed
       ? (view.line?.words ?? "")
       : "";
+  const [bornWith] = useState(said);
+  const [hasStood, setHasStood] = useState(false);
+  useEffect(() => {
+    const stood = window.setTimeout(() => setHasStood(true), STATUS_STANDS_MS);
+    return () => window.clearTimeout(stood);
+  }, []);
   return (
     <p role="status" className="sr-only">
-      {said}
+      {hasStood || said === bornWith ? said : ""}
     </p>
   );
 }

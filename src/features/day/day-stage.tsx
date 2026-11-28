@@ -243,6 +243,11 @@ interface DayStageProps {
    */
   isBehindStart?: boolean;
   /**
+   * The same day's wait was heard in the run before, which gave way to this one as the day came
+   * whole from the route: read once, as the day mounts, so it says it is written once usable.
+   */
+  isWaitHeard?: boolean;
+  /**
    * Taken from the start screen, which kept its place while the day's header streamed, so
    * the header is written in the order of its words (`DayStageHeader`).
    */
@@ -426,6 +431,7 @@ export function DayStage({
   focusedWord = null,
   isAfterExit = false,
   isBehindStart = false,
+  isWaitHeard = false,
   isFromStart = false,
   isDrawnWhole = false,
   onPlayedThrough,
@@ -751,9 +757,10 @@ export function DayStage({
   // (`docs/decisions.md`, "One change at a time, the energy's included"). The header locks its
   // words on the same condition.
   const isReplanWriting = replan?.status === "writing" && replan.change !== null;
-  // A press on the plan's locked energy, which the header's facts line answers.
-  const [isBarLockPressed, setIsBarLockPressed] = useState(false);
-  if (!isReplanWriting && isBarLockPressed) setIsBarLockPressed(false);
+  // The presses on the plan's locked energy, which the header's facts line answers, and its
+  // status at each.
+  const [barLockPresses, setBarLockPresses] = useState(0);
+  if (!isReplanWriting && barLockPresses !== 0) setBarLockPresses(0);
   const [isActedOn, setIsActedOn] = useState(false);
   // The search is said a beat after the press: a route that answers at once that it cannot
   // write, as a busy one does in a tenth of a second, says so with nothing said before it.
@@ -1585,9 +1592,10 @@ export function DayStage({
       typedCity={typedCity}
       isCityFocused={isChosen}
       isBehindStart={isBehindStart}
+      isWaitHeard={isWaitHeard}
       focusedWord={focusedWord}
       replan={replan}
-      isLockSaid={isBarLockPressed}
+      lockPresses={barLockPresses}
       onPointToFork={pointToFork}
       forkNote={isSetAsideShown ? setAsideShown : forkNoteShown}
       // The new word's note follows what its change set aside, in room held from the press.
@@ -1706,7 +1714,7 @@ export function DayStage({
                 // Locked with the headline's words while a proposal is written, saying so in
                 // the facts line as they do.
                 isLocked={isReplanWriting}
-                onLockedPress={() => setIsBarLockPressed(true)}
+                onLockedPress={() => setBarLockPresses((presses) => presses + 1)}
                 // The headline's own answer, which counts the changed word itself, as the bar's.
                 onChoose={(level) => answer({ key: "energy", value: level }, "bar")}
                 className={wholeClasses}

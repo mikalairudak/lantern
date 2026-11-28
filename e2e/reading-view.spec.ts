@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
 import { logStatuses } from "./status-log";
 import { BROWSER_STORAGE } from "../src/lib/browser-storage";
 import { NOTICE_HEARD_MS } from "../src/features/day/notice-status";
+import { SAID_AGAIN_PAUSE_MS } from "../src/features/day/said-again";
 import type { StoredDay } from "../src/lib/days/stored-day";
 import { writtenVersionOf } from "../src/lib/days/written/version";
 import { writtenDayAt } from "../src/lib/days/written/days";
@@ -303,7 +304,10 @@ async function dragKnob(page: Page, slider: Locator, by: number): Promise<void> 
 const OTHER_STOP = KANAZAWA.stops.find((stop) => stop.startTime !== LIVELIER_STOP.startTime)!;
 /** Far enough along the scale to be a drag, and short of a lane, as a hand still dragging. */
 const HELD_DRAG_PX = 24;
-/** Frames the page is given to say an act, which it writes a frame after the act. */
+/**
+ * Frames the page is given, after the status's pause, to say an act, which it writes once the
+ * status has stood empty for `SAID_AGAIN_PAUSE_MS`.
+ */
 const FRAMES_TO_SAY = 3;
 
 test("Chart: a stop's arrow key while a drag of the curve is held changes nothing and says nothing", async ({
@@ -322,11 +326,15 @@ test("Chart: a stop's arrow key while a drag of the curve is held changes nothin
   await keyed.focus();
   const since = await page.evaluate(() => performance.now());
   await page.keyboard.press("ArrowRight");
-  await page.evaluate(async (frames) => {
-    for (let frame = 0; frame < frames; frame += 1) {
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-    }
-  }, FRAMES_TO_SAY);
+  await page.evaluate(
+    async ([frames, pauseMs]) => {
+      await new Promise((resolve) => setTimeout(resolve, pauseMs));
+      for (let frame = 0; frame < frames; frame += 1) {
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      }
+    },
+    [FRAMES_TO_SAY, SAID_AGAIN_PAUSE_MS] as const,
+  );
   const said = await page.evaluate(
     (since) => window.statusLog.filter(({ t, text }) => t >= since && text !== ""),
     since,

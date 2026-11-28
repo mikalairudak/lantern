@@ -91,6 +91,8 @@ interface Moment {
   onCityOpenChange?: (openAt: unknown) => void;
   /** What the page says at the facts line's end: the hint, unless it says more. */
   slot?: HeaderSlot;
+  /** The presses on the plan's locked energy, as the page counts them. */
+  lockPresses?: number;
 }
 
 /** Elche's sentence before its dinner word, and after it. */
@@ -108,6 +110,7 @@ function headerAt({
   onChoose = ignore,
   onCityOpenChange = ignore,
   slot = { kind: "hint" },
+  lockPresses,
 }: Moment) {
   const facts = sentenceFactsOf(request, assumptionsOf(day));
   const controls: ReplanControls | undefined = replan && {
@@ -147,6 +150,7 @@ function headerAt({
       replan={controls}
       replanDay={day}
       onCityOpenChange={onCityOpenChange}
+      lockPresses={lockPresses}
       onChooseWritten={ignore}
       onChooseCity={ignore}
       onChoose={onChoose}
@@ -360,7 +364,7 @@ describe("DayStageHeader through a word's fork", () => {
     await user.click(energy);
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     expect(seenTextOf(factsLine())).toContain(ONE_CHANGE_AT_A_TIME);
-    expect(status).toHaveTextContent(ONE_CHANGE_AT_A_TIME);
+    await waitFor(() => expect(status).toHaveTextContent(ONE_CHANGE_AT_A_TIME));
 
     await user.click(onFoot);
     await user.click(within(headline()).getByRole("button", { name: /Elx \/ Elche/ }));
@@ -373,10 +377,53 @@ describe("DayStageHeader through a word's fork", () => {
     await user.click(newDay);
 
     expect(seenTextOf(factsLine())).toContain(ONE_CHANGE_AT_A_TIME);
-    expect(status).toHaveTextContent(ONE_CHANGE_AT_A_TIME);
+    await waitFor(() => expect(status).toHaveTextContent(ONE_CHANGE_AT_A_TIME));
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     expect(onChoose).not.toHaveBeenCalled();
     expect(onCityOpenChange).not.toHaveBeenCalled();
+  });
+
+  it("says one change at a time again at each press of a waiting word, here or on the plan's energy", async () => {
+    const user = userEvent.setup();
+    const moment: Moment = {
+      request: ELCHE_REQUEST,
+      day: ELCHE_ITINERARY,
+      replan: { status: "writing", change: ELCHE_CHANGE, reach: "part" },
+    };
+    const view = render(headerAt(moment));
+    const status = screen.getAllByRole("status").find((each) => each.tagName === "P")!;
+    const heard = watchLetters(status, (element) => element.textContent ?? "");
+    const onFoot = within(headline()).getByRole("button", { name: /^on foot/ });
+
+    await user.click(onFoot);
+    await waitFor(() => expect(status).toHaveTextContent(ONE_CHANGE_AT_A_TIME));
+    const facts = seenTextOf(factsLine());
+    // A second press of the same word, then the energy's on the plan, twice.
+    await user.click(onFoot);
+    await waitFor(() => expect(heard().filter((text) => text === "")).toHaveLength(2));
+    await waitFor(() => expect(status).toHaveTextContent(ONE_CHANGE_AT_A_TIME));
+    view.rerender(headerAt({ ...moment, lockPresses: 1 }));
+    await waitFor(() => expect(heard().filter((text) => text === "")).toHaveLength(3));
+    await waitFor(() => expect(status).toHaveTextContent(ONE_CHANGE_AT_A_TIME));
+    view.rerender(headerAt({ ...moment, lockPresses: 2 }));
+    await waitFor(() => expect(heard().filter((text) => text === "")).toHaveLength(4));
+    await waitFor(() => expect(status).toHaveTextContent(ONE_CHANGE_AT_A_TIME));
+
+    // Each press empties the status and says the line again; never the re-plan's line between.
+    const REPLANNING = "re-planning lunch, the afternoon, dinner and the evening";
+    expect(heard()).toEqual([
+      REPLANNING,
+      "",
+      ONE_CHANGE_AT_A_TIME,
+      "",
+      ONE_CHANGE_AT_A_TIME,
+      "",
+      ONE_CHANGE_AT_A_TIME,
+      "",
+      ONE_CHANGE_AT_A_TIME,
+    ]);
+    // The facts line a sighted visitor reads stands as the first press left it.
+    expect(seenTextOf(factsLine())).toBe(facts);
   });
 
   it("lights the proposal's answer while it is written, and no word once it is whole", async () => {

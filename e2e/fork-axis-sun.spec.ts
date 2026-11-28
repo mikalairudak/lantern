@@ -34,7 +34,8 @@ function gutterLabels(page: Page): Promise<{ suns: Label[]; times: Label[] }> {
     const labelOf = (element: Element) => {
       const box = element.getBoundingClientRect();
       return {
-        text: element.textContent.trim(),
+        // A time by its own minute, without the words a screen reader alone hears after it.
+        text: (element.getAttribute("data-start-time") ?? element.textContent).trim(),
         top: box.top + scrollY,
         bottom: box.bottom + scrollY,
       };

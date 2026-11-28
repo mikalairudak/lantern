@@ -28,6 +28,8 @@ import {
 } from "./not-yet";
 import { requestSentenceOf, widestClauses } from "./sentence";
 import { DayStage } from "./day-stage";
+import { THE_DAY_IS_WRITTEN } from "./day-stage-header";
+import { NOTICE_HEARD_MS } from "./notice-status";
 import { TAKE_THIS_DAY } from "./day-menu";
 
 const ORIGIN = "http://lantern.test";
@@ -310,6 +312,8 @@ describe("a written day's page whose play ends without the day", () => {
       const rows = within(screen.getByRole("list", { name: "The day" })).getAllByRole("listitem");
       expect(rows).toHaveLength(KANAZAWA.itinerary.stops.length);
       for (const said of ENDINGS_SAID) expect(screen.queryByText(said)).toBeNull();
+      // Drawn whole in place of its play, it was not written to its end where it was heard.
+      expect(screen.queryByText(THE_DAY_IS_WRITTEN)).toBeNull();
     },
   );
 });
@@ -360,6 +364,20 @@ describe("the day", () => {
     );
     await waitForTheDay();
     expect(screen.queryByText("Writing the day")).not.toBeInTheDocument();
+  });
+
+  it("tells screen readers once that the day is written as it can be used, from the status that said it was being written", async () => {
+    route.pace = { startDelayMs: 1500 };
+    render(<Day first={KANAZAWA_START_REQUEST} />);
+    const writing = await screen.findByText("Writing the day", undefined, DAY_TIMEOUT);
+
+    await waitForTheDay();
+    // The same region, its words changed: no status born holding them.
+    await waitFor(() => expect(writing).toHaveTextContent(THE_DAY_IS_WRITTEN), DAY_TIMEOUT);
+    expect(screen.getAllByText(THE_DAY_IS_WRITTEN)).toHaveLength(1);
+    await waitFor(() => expect(writing).toBeEmptyDOMElement(), {
+      timeout: NOTICE_HEARD_MS + DAY_TIMEOUT.timeout,
+    });
   });
 
   it("tells screen readers the day is being written once, however many silences its wait holds", async () => {

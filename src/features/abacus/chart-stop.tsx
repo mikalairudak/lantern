@@ -139,11 +139,16 @@ export function ChartStop({
     const energy = writtenEnergyOf(place);
     return index === selected || energy === null ? null : drawnXOf(index, energy);
   });
-  /** What a version's bead is called to a screen reader: its name and which way it goes. */
+  /**
+   * What a version's bead is called to a screen reader: its name, which way it goes, and the
+   * stop's time, as its stop's slider is named, so a bead met out of its row still says whose
+   * version it is ("Churros on Plaça de Baix, livelier at 07:45").
+   */
   const labelOf = (index: number): string | null => {
     const place = candidates[index];
     if (!curveStop || !place?.name) return null;
-    return `${place.name}, ${versionOf(curveStop, candidatesOf(curveStop)[index] ?? curveStop.primary)}`;
+    const version = versionOf(curveStop, candidatesOf(curveStop)[index] ?? curveStop.primary);
+    return `${place.name}, ${version} at ${curveStop.startTime}`;
   };
 
   const handleKeyDown = (event: KeyboardEvent<SVGGElement>) => {

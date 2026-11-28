@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Locator, type Page, waitMs } from "./fixtures";
+import { logStatuses } from "./status-log";
 
 /**
  * The masthead's three kinds (`docs/decisions.md`, "The day's ways along live in one menu, in
@@ -205,4 +206,37 @@ test("Escape on the new day with the city's list open closes it, the focus to th
   await page.keyboard.press("Escape");
   await expect(cityWord(page)).toHaveAttribute("aria-expanded", "false");
   await expect(cityWord(page)).toBeFocused();
+});
+
+test("a second copy of the link that fails is said again, the menu's words as they stood", async ({
+  page,
+}) => {
+  await page.addInitScript(logStatuses);
+  // A clipboard that refuses, as a browser does without the page's permission.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: () => Promise.reject(new Error("refused")) },
+    });
+  });
+  await openDay(page, 1280);
+  await trigger(page).click();
+  const NOT_COPIED = "The day's link could not be copied";
+  const saidCount = async () =>
+    (await page.evaluate(() => window.statusLog)).filter((entry) => entry.text === NOT_COPIED)
+      .length;
+  const link = page.getByRole("menuitem", { name: /^(Copy the link|Link not copied)/ });
+
+  await link.click();
+  await expect.poll(saidCount).toBe(1);
+  await expect(link).toHaveText(/^Link not copied/);
+  await link.click();
+  await expect.poll(saidCount).toBe(2);
+  await expect(link).toHaveText(/^Link not copied/);
+
+  const said = (await page.evaluate(() => window.statusLog)).filter(
+    (entry) => entry.text === NOT_COPIED,
+  );
+  // One status, emptied between the two: each a change a screen reader hears.
+  expect(said[0]!.id).toBe(said[1]!.id);
+  expect(said.map((entry) => entry.kind)).toEqual(["changed", "changed"]);
 });
