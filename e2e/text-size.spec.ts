@@ -215,6 +215,38 @@ test("with the text at 200%, the foot's support address breaks only after its @ 
   expect(lines).toEqual(["support@", "lanternday.com"]);
 });
 
+// The day's end line's summary keeps each dot on the line of the words after it, as it does at
+// the default size, where its runs wrap at 320 px with the text at 200%.
+test("with the text at 200%, no line of Kanazawa's day's end ends with its dot at 320 px", async ({
+  page,
+}) => {
+  await setBrowserTextSize(page, LARGE_TEXT_PX);
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto(DAY);
+  await untilDayEnds(page);
+
+  expect(await rootPxOf(page)).toBe(LARGE_TEXT_PX);
+  const lines = await page.locator("p", { hasText: /^Home by/ }).evaluate((summary) => {
+    const walker = document.createTreeWalker(summary, NodeFilter.SHOW_TEXT);
+    const byTop = new Map<number, string>();
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const text = node.textContent ?? "";
+      for (let at = 0; at < text.length; at += 1) {
+        const range = document.createRange();
+        range.setStart(node, at);
+        range.setEnd(node, at + 1);
+        const box = range.getBoundingClientRect();
+        if (box.width === 0) continue;
+        const top = Math.round(box.top);
+        byTop.set(top, (byTop.get(top) ?? "") + text[at]);
+      }
+    }
+    return [...byTop.values()].map((line) => line.trim());
+  });
+  expect(lines.length).toBeGreaterThan(1);
+  expect(lines.filter((line) => line.endsWith("·"))).toEqual([]);
+});
+
 // A phrase of the headline wider than the line wraps inside its box, and a city wider than the
 // line breaks inside its name, and the comma after either stays on the line of the letter before
 // it. Amsterdam's name with its comma is wider than a 320 px phone's line at 200%.

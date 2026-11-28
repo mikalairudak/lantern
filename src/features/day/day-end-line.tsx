@@ -9,7 +9,7 @@ import type { DayAnswer } from "@/lib/events/event.schema";
 import type { Itinerary } from "@/lib/schema/itinerary.schema";
 import { ICON_SIZES } from "@/lib/tokens/icon";
 import { DayAnswerLine } from "./day-answer";
-import { dayEndWordsOf, routeLabelOf } from "./day-end-words";
+import { dayEndWordsOf, joinedPiecesOf, routeLabelOf } from "./day-end-words";
 import { LINK_CLASSES, TARGET_CLASSES } from "./link-classes";
 import { useReadToEnd } from "./use-read-to-end";
 
@@ -22,8 +22,8 @@ import { useReadToEnd } from "./use-read-to-end";
 const ROW_CLASSES = "flex gap-4 @max-narrow:flex-col @max-narrow:gap-1";
 /**
  * A count or a distance the summary keeps whole on a line (`summaryLineOf`, its spaces tied):
- * in a narrow line (`narrow`) it wraps between its words where it is wider than the line, as
- * "· about 7.1 km on foot" is at 320 px with the browser's text at 200%.
+ * in a narrow line (`narrow`) it wraps between its pieces (`joinedPiecesOf`) where it is wider
+ * than the line, as "· about 7.1 km on foot" is at 320 px with the browser's text at 200%.
  */
 const TIED_CLASSES = "whitespace-nowrap @max-narrow:whitespace-normal";
 /** The space the summary ties a count or a distance with, which a line never breaks at. */
@@ -118,9 +118,11 @@ export function DayEnd({
 
 /**
  * The summary with each run its tied spaces keep whole set in a box of its own, whole on a
- * line as the tied spaces keep it, and wrapping between its words in a narrow line. The words
- * between the runs stay one text with their spaces, so no space stands as a text of its own
- * beside another, which the server would part with a comment and Chrome drop from what is read.
+ * line as the tied spaces keep it. In a narrow line it wraps between its pieces only, the dot
+ * kept with the word after it and a count with its unit by the spaces still tied in them
+ * (`joinedPiecesOf`); the run stays one text, set as it is at any size. The words between the
+ * boxes stay one text with their spaces, so no space stands as a text of its own beside
+ * another, which the server would part with a comment and Chrome drop from what is read.
  */
 function TiedWords({ text }: { text: string }): ReactNode {
   const parts: ReactNode[] = [];
@@ -135,7 +137,7 @@ function TiedWords({ text }: { text: string }): ReactNode {
     plain = "";
     parts.push(
       <span key={index} className={TIED_CLASSES}>
-        {word.replaceAll(TIED_SPACE, " ")}
+        {joinedPiecesOf(word).join(" ")}
       </span>,
     );
   });
