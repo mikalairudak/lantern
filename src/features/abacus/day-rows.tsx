@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
@@ -47,7 +47,8 @@ import {
 
 import { ListWaiting, type WaitingPlace } from "./waiting-list";
 
-import { StickyScale } from "./sticky-scale";
+import { heldBandFootIn, StickyScale } from "./sticky-scale";
+import { waitToBringIn, type BackFocusWait } from "./back-to-plan";
 import { FORK_LINE_ATTRIBUTE, ForkLine, ForkRow } from "./fork-row";
 import type { ForkSide } from "@/features/day/replan-controls";
 import type { ForkView } from "@/features/day/replan-work";
@@ -83,6 +84,14 @@ type BackToPlan = "pressed" | "gliding" | null;
  * a few frames, once their words are measured; a press that moves none lets the pace go.
  */
 const BACK_TO_PLAN_WAIT_MS = 500;
+
+/**
+ * How many frames in a row the slider "Back to the plan" focused, and the page, stand still
+ * under reduced motion before the rows count as at rest: the header above the screen takes its
+ * new height a frame or a few late, from its observer, and its hold scrolls the page by it.
+ * Two frames let that scroll land after the slider was brought in, and carry it back out.
+ */
+const BACK_STILL_FRAMES = 4;
 
 /** A changed word's fork as the rows draw it: its view, the stops its rows stand over, its acts. */
 export interface ForkRows {
@@ -525,6 +534,9 @@ export function DayRows({
   // the rows on screen when it was pressed never jump. On `layout`, as a drag's release takes
   // them, Bologna's moved up to 9 px a frame on a phone.
   const [backToPlan, setBackToPlan] = useState<BackToPlan>(null);
+  const backFocusWait = useRef<BackFocusWait | null>(null);
+  useEffect(() => () => backFocusWait.current?.cancel(), []);
+  const isReducedMotion = useReducedMotion() ?? false;
   useEffect(() => {
     if (backToPlan !== "pressed") return undefined;
     // A press that set no row gliding lets the pace go.
@@ -860,8 +872,10 @@ export function DayRows({
           };
   /**
    * Every stop shows its plan again, its rows gliding at a re-plan's pace, and the keys go on
-   * from a stop it changed back, on screen where one is, so the focus never falls to the page
-   * as the button that had it goes.
+   * from a stop it changed back, so the focus never falls to the page as the button that had it
+   * goes: to a changed stop's slider on screen where one is, else the first, with no scroll,
+   * since the rows have yet to move. The focus moves no more; once the rows rest, the page
+   * weighs once whether to bring that slider in (`waitToBringIn`).
    */
   const takeBackToPlan = () => {
     const sliders = stops.flatMap((stop, index) => {
@@ -876,10 +890,46 @@ export function DayRows({
       const { top, bottom } = slider.getBoundingClientRect();
       return bottom > 0 && top < window.innerHeight;
     });
+    const slider = onScreen ?? sliders[0];
     setBackToPlan("pressed");
     chart.energy.reset();
-    (onScreen ?? sliders[0])?.focus({ preventScroll: true });
+    slider?.focus({ preventScroll: true });
+    backFocusWait.current?.cancel();
+    backFocusWait.current = slider
+      ? waitToBringIn(slider, {
+          isReducedMotion,
+          coveredTopOf: () => (outer ? heldBandFootIn(outer) : 0),
+        })
+      : null;
   };
+  // The rows "Back to the plan" set gliding rest once its pace lets go: a glide seen since the
+  // press has ended, or none came within `BACK_TO_PLAN_WAIT_MS`. Under reduced motion nothing
+  // glides, and the rows stand where they rest once their words are measured, so they count as
+  // at rest once the slider, and the page around it, have stood still `BACK_STILL_FRAMES`
+  // frames since the last measure after the press. The slider it gave the focus to is then
+  // brought in while it shows its ring and is not wholly in the window, under the energy
+  // scale's band where the band is held (`docs/decisions.md`, "Back to the plan brings its
+  // slider into view while its focus shows a ring").
+  useEffect(() => {
+    if (backToPlan === null) backFocusWait.current?.rest();
+  }, [backToPlan]);
+  useEffect(() => {
+    if (backToPlan === null || !isReducedMotion) return undefined;
+    let still = 0;
+    let last = "";
+    let frame = 0;
+    const hold = () => {
+      const wait = backFocusWait.current;
+      if (!wait) return;
+      const place = `${wait.slider.getBoundingClientRect().top} ${scrollY}`;
+      still = place === last ? still + 1 : 0;
+      last = place;
+      if (still >= BACK_STILL_FRAMES) wait.rest();
+      else frame = requestAnimationFrame(hold);
+    };
+    frame = requestAnimationFrame(hold);
+    return () => cancelAnimationFrame(frame);
+  }, [backToPlan, isReducedMotion, boxes]);
   const frame = { width: scale.width, height: scale.height };
   const open = openStop === null ? null : openDetailsOf(openStop);
   // Once the open stop's sheet and the room around the day are measured, the side it opens

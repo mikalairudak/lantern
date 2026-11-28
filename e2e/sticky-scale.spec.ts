@@ -1,4 +1,15 @@
-import { expect, test, type Page, waitMs, chooseTheChart } from "./fixtures";
+import {
+  CPU_RATE,
+  expect,
+  test,
+  type Locator,
+  type Page,
+  waitMs,
+  chooseTheChart,
+} from "./fixtures";
+import { seeWrittenDay } from "./live-page";
+import { writtenDayAt } from "../src/lib/days/written/days";
+import { BACK_FOCUS_WAIT_MS } from "../src/features/abacus/back-to-plan";
 
 // These tests drive the chart: each page opens as for a visitor who chose it, since a day
 // opens on its plan otherwise.
@@ -201,3 +212,393 @@ for (const city of ["bologna", "kanazawa", "nafplio"]) {
     },
   );
 }
+
+/** A Pixel 7's window, where a slider "Back to the plan" moves back can rest past its foot. */
+const PIXEL_7 = { width: 412, height: 839 };
+/** How many frames in a row the focused slider stands still before the rows count as at rest. */
+const STILL_FRAMES = 20;
+/** How far a wheel turned while the rows glide scrolls the page up, away from the slider. */
+const WHEEL_PX = 120;
+/** The most Shift+Tab presses from a slider to "Back to the plan", at the chart's top. */
+const MOST_PRESSES_TO_BACK = 12;
+
+/** Waits until an element's box has stood still on screen for `STILL_FRAMES` frames. */
+async function untilStill(element: Locator): Promise<void> {
+  await element.evaluate(
+    (target, stillFrames) =>
+      new Promise<void>((resolve) => {
+        let last = "";
+        let still = 0;
+        const read = () => {
+          const { top, bottom } = target.getBoundingClientRect();
+          const now = `${top.toFixed(1)} ${bottom.toFixed(1)}`;
+          still = now === last ? still + 1 : 0;
+          last = now;
+          if (still >= stillFrames) resolve();
+          else requestAnimationFrame(read);
+        };
+        requestAnimationFrame(read);
+      }),
+    STILL_FRAMES,
+  );
+}
+
+/**
+ * Waits out the longest the page waits for the rows "Back to the plan" moved to rest
+ * (`BACK_FOCUS_WAIT_MS`), then until `slider` stands still: whatever the page brings in, it has
+ * brought in by then.
+ */
+async function untilWaitedOut(page: Page, slider: Locator): Promise<void> {
+  await page.waitForTimeout(BACK_FOCUS_WAIT_MS);
+  await untilStill(slider);
+}
+
+/** Kanazawa's day, seen before so it opens whole, on a Pixel 7's chart. */
+async function openSeenKanazawaChart(page: Page): Promise<void> {
+  await page.setViewportSize(PIXEL_7);
+  await seeWrittenDay(page, "kanazawa", writtenDayAt("kanazawa")!.itinerary);
+  await page.goto("/day/kanazawa");
+  const chart = page.getByRole("group", { name: /The day's energy/ });
+  await expect(chart).toHaveAttribute("aria-busy", "false", { timeout: DAY_TIMEOUT_MS });
+}
+
+/**
+ * Changes one stop from the keys, its slider taken to its liveliest version by End, then
+ * reaches "Back to the plan" by Shift+Tab, as a visitor at the keyboard does.
+ */
+async function changeFromTheKeys(page: Page, time: string): Promise<Locator> {
+  const slider = page.getByRole("slider", { name: `Energy at ${time}` });
+  await slider.focus();
+  await page.keyboard.press("End");
+  const back = page.getByRole("button", { name: "Back to the plan" });
+  await expect(back).toBeVisible();
+  await untilStill(slider);
+  for (let press = 0; press < MOST_PRESSES_TO_BACK; press += 1) {
+    if (await back.evaluate((button) => button === document.activeElement)) break;
+    await page.keyboard.press("Shift+Tab");
+  }
+  await expect(back).toBeFocused();
+  return back;
+}
+
+/**
+ * The focused slider's box with its ring, which its scroll margins hold, the band's foot where
+ * the band is held, and the window's foot.
+ */
+function focusedSliderOf(page: Page) {
+  return page.evaluate((attribute) => {
+    const focused = document.activeElement;
+    const band = document.querySelector(`[${attribute}="held"]`);
+    const { top, bottom } = focused?.getBoundingClientRect() ?? { top: NaN, bottom: NaN };
+    const style = focused ? getComputedStyle(focused) : null;
+    return {
+      role: focused?.getAttribute("role") ?? null,
+      top: top - Number.parseFloat(style?.scrollMarginTop ?? "0"),
+      bottom: bottom + Number.parseFloat(style?.scrollMarginBottom ?? "0"),
+      clearFrom: Math.max(0, band?.getBoundingClientRect().bottom ?? 0),
+      foot: innerHeight,
+    };
+  }, BAND);
+}
+
+// 12:00's slider is on screen at the press and glides past the window's foot as the rows go
+// back; 17:30's stands past it from the press on.
+for (const time of ["12:00", "17:30"]) {
+  for (const motion of ["reduce", "no-preference"] as const) {
+    test(`"Back to the plan" pressed from the keys leaves the focus on a slider in view, ${time}'s changed, with motion ${motion}`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ reducedMotion: motion });
+      await openSeenKanazawaChart(page);
+      await changeFromTheKeys(page, time);
+
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("button", { name: "Back to the plan" })).toHaveCount(0);
+      const focused = page.locator(":focus");
+      await expect(focused).toHaveAttribute("role", "slider");
+      await untilWaitedOut(page, focused);
+
+      const slider = await focusedSliderOf(page);
+      expect(slider.role).toBe("slider");
+      expect(
+        slider.top,
+        "the slider's ring, under anything held at the top",
+      ).toBeGreaterThanOrEqual(slider.clearFrom);
+      expect(slider.bottom, "the slider's ring, over the window's foot").toBeLessThanOrEqual(
+        slider.foot,
+      );
+    });
+  }
+}
+
+/** Presses a button with the mouse where it stands, as a hand does, scrolling nothing first. */
+async function pressWithPointer(page: Page, button: Locator): Promise<void> {
+  const box = await button.boundingBox();
+  if (!box) throw new Error("The button has no box");
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+}
+
+test(`"Back to the plan" pressed with a pointer alone scrolls nothing, its slider at rest in view or past the window's foot`, async ({
+  page,
+}) => {
+  await openSeenKanazawaChart(page);
+  const chart = page.getByRole("group", { name: /The day's energy/ });
+  const back = page.getByRole("button", { name: "Back to the plan" });
+  for (const time of ["12:00", "17:30"]) {
+    await page.reload();
+    await expect(chart).toHaveAttribute("aria-busy", "false", { timeout: DAY_TIMEOUT_MS });
+    await changeFromTheKeys(page, time);
+    // The keys put down, the button is pressed with the pointer alone: its focus shows no ring.
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    const chartTop = (await chart.boundingBox())!.y;
+    await pressWithPointer(page, back);
+    await expect(back).toHaveCount(0);
+    const slider = page.getByRole("slider", { name: `Energy at ${time}` });
+    await expect(slider).toBeFocused();
+    expect(await slider.evaluate((element) => element.matches(":focus-visible"))).toBe(false);
+    await untilWaitedOut(page, slider);
+
+    if (time === "12:00") {
+      // Pressed with the band held, the header above the screen: the chart stays where it stood.
+      expect((await chart.boundingBox())!.y, "the chart where it stood").toBeCloseTo(chartTop, 0);
+    } else {
+      // Pressed with the chart's top on screen, its slider rests past the window's foot.
+      const rest = await focusedSliderOf(page);
+      expect(rest.top, "17:30's slider, left past the window's foot").toBeGreaterThan(rest.foot);
+    }
+  }
+});
+
+test(`"Back to the plan" reached by the keys and pressed with a pointer keeps the ring, and brings its slider in`, async ({
+  page,
+}) => {
+  await openSeenKanazawaChart(page);
+  const back = await changeFromTheKeys(page, "17:30");
+  await pressWithPointer(page, back);
+  await expect(back).toHaveCount(0);
+  const slider = page.getByRole("slider", { name: "Energy at 17:30" });
+  await expect(slider).toBeFocused();
+  expect(await slider.evaluate((element) => element.matches(":focus-visible"))).toBe(true);
+  await untilWaitedOut(page, slider);
+
+  const rest = await focusedSliderOf(page);
+  expect(rest.top).toBeGreaterThanOrEqual(rest.clearFrom);
+  expect(rest.bottom).toBeLessThanOrEqual(rest.foot);
+});
+
+test(`a wheel turned before the rows "Back to the plan" moved rest leaves the page where the wheel took it`, async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await openSeenKanazawaChart(page);
+  await changeFromTheKeys(page, "17:30");
+  await page.keyboard.press("Enter");
+  await page.mouse.move(PIXEL_7.width / 2, PIXEL_7.height / 2);
+  await page.mouse.wheel(0, -WHEEL_PX);
+  const slider = page.getByRole("slider", { name: "Energy at 17:30" });
+  await expect(slider).toBeFocused();
+  await untilWaitedOut(page, slider);
+
+  const rest = await focusedSliderOf(page);
+  expect(rest.top, "17:30's slider, left where the wheel's page put it").toBeGreaterThan(rest.foot);
+});
+
+for (const motion of ["reduce", "no-preference"] as const) {
+  test(`a key pressed before the rows "Back to the plan" moved rest leaves the page where the key took it, with motion ${motion}`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: motion });
+    await openSeenKanazawaChart(page);
+    await changeFromTheKeys(page, "17:30");
+    await page.keyboard.press("Enter");
+    const slider = page.getByRole("slider", { name: "Energy at 17:30" });
+    await expect(slider).toBeFocused();
+    // Page Up scrolls the page up a screen, the slider further past the window's foot.
+    await page.keyboard.press("PageUp");
+    await untilWaitedOut(page, slider);
+
+    const rest = await focusedSliderOf(page);
+    expect(rest.top, "17:30's slider, left where the key's page put it").toBeGreaterThan(rest.foot);
+  });
+}
+
+test(`an arrow pressed on the slider before the rows "Back to the plan" moved rest changes its stop where it stands, and the page stays`, async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await openSeenKanazawaChart(page);
+  await changeFromTheKeys(page, "17:30");
+  await page.keyboard.press("Enter");
+  const slider = page.getByRole("slider", { name: "Energy at 17:30" });
+  await expect(slider).toBeFocused();
+  const planned = await slider.getAttribute("aria-valuetext");
+  await page.keyboard.press("ArrowLeft");
+  await expect(slider).not.toHaveAttribute("aria-valuetext", planned ?? "");
+  await untilWaitedOut(page, slider);
+
+  const rest = await focusedSliderOf(page);
+  expect(rest.top, "17:30's slider, left past the window's foot").toBeGreaterThan(rest.foot);
+});
+
+test(`Page Up pressed while the page brings the slider "Back to the plan" focused in leaves the page where the key took it`, async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await openSeenKanazawaChart(page);
+  await changeFromTheKeys(page, "17:30");
+  await page.keyboard.press("Enter");
+  const slider = page.getByRole("slider", { name: "Energy at 17:30" });
+  // The reveal on its way holds the browser's scroll anchoring off (`revealInView`), read
+  // every frame, so a reveal under a second long is never stepped over.
+  await page.waitForFunction(() => document.documentElement.style.overflowAnchor === "none", null, {
+    polling: "raf",
+  });
+  await page.keyboard.press("PageUp");
+  await expect(slider).toBeFocused();
+  await untilWaitedOut(page, slider);
+
+  const rest = await focusedSliderOf(page);
+  expect(rest.top, "17:30's slider, left where the key's page put it").toBeGreaterThan(rest.foot);
+});
+
+/** How far a slider placed under the held band stands up into it, its knob all but covered. */
+const UNDER_BAND_PX = 28;
+
+/**
+ * Scrolls the page until `time`'s slider stands `UNDER_BAND_PX` up into the held band, in a few
+ * steps, since the band is held only once the chart's top has gone past the screen's.
+ */
+async function placeUnderBand(page: Page, time: string): Promise<void> {
+  for (let step = 0; step < 3; step += 1) {
+    await page.evaluate(
+      ({ attribute, time, under }) => {
+        const slider = document.querySelector(`[role="slider"][aria-label="Energy at ${time}"]`)!;
+        const band = document.querySelector(`[${attribute}]`)!;
+        const bandFoot = band.getBoundingClientRect().bottom;
+        window.scrollBy(0, slider.getBoundingClientRect().top - (bandFoot - under));
+      },
+      { attribute: BAND, time, under: UNDER_BAND_PX },
+    );
+    await untilStill(page.getByRole("slider", { name: `Energy at ${time}` }));
+  }
+}
+
+test(`"Back to the plan" moves the focus once under reduced motion, to a slider under the held band, and brings it in`, async ({
+  page,
+}) => {
+  await openSeenKanazawaChart(page);
+  // 10:30 changed too, to its quietest, its slider under the band at the press, and 12:00's
+  // in view below it.
+  const morning = page.getByRole("slider", { name: "Energy at 10:30" });
+  await morning.focus();
+  const planned = await morning.getAttribute("aria-valuetext");
+  await page.keyboard.press("Home");
+  await expect(morning).not.toHaveAttribute("aria-valuetext", planned ?? "");
+  await untilStill(morning);
+  await changeFromTheKeys(page, "12:00");
+  await placeUnderBand(page, "10:30");
+  expect((await bandOf(page))?.isHeld).toBe(true);
+  await page.evaluate(() => {
+    const moves: string[] = [];
+    (window as unknown as { focusMoves: string[] }).focusMoves = moves;
+    document.addEventListener("focusin", (event) => {
+      moves.push((event.target as Element).getAttribute("aria-label") ?? "");
+    });
+  });
+
+  await page.keyboard.press("Enter");
+  await expect(morning).toBeFocused();
+  await untilWaitedOut(page, morning);
+
+  const moves = await page.evaluate(
+    () => (window as unknown as { focusMoves: string[] }).focusMoves,
+  );
+  expect(moves, "the focus's moves from the button").toEqual(["Energy at 10:30"]);
+  const rest = await focusedSliderOf(page);
+  expect(rest.top, "the slider's ring, under the held band").toBeGreaterThanOrEqual(rest.clearFrom);
+  expect(rest.bottom, "the slider's ring, over the window's foot").toBeLessThanOrEqual(rest.foot);
+});
+
+/**
+ * How soon after the press, under reduced motion, the slider "Back to the plan" focused stands
+ * in the window: once it and the page have stood still four frames, about 90 ms on a laptop and
+ * up to about 160 ms beside other tests, well inside the half second the press waits for a
+ * glide. A page made slower takes as many times longer.
+ */
+const REDUCED_IN_VIEW_MS = 200;
+/** How long Enter is held on "Back to the plan", past a keyboard's repeat delay. */
+const ENTER_HELD_MS = 600;
+/** When a held key starts to repeat, and how often it repeats after that, as a keyboard does. */
+const REPEAT_DELAY_MS = 500;
+const REPEAT_EVERY_MS = 33;
+
+test(`"Back to the plan" pressed from the keys under reduced motion has its slider in the window within ${REDUCED_IN_VIEW_MS} ms`, async ({
+  page,
+}) => {
+  await openSeenKanazawaChart(page);
+  await changeFromTheKeys(page, "17:30");
+  // From the Enter that presses the button, every frame reads whether the focused slider,
+  // ring and all, is wholly in the window under the band, and notes how long that took.
+  await page.evaluate((attribute) => {
+    const timing = window as unknown as { inViewAfterMs?: number };
+    document.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key !== "Enter") return;
+        const pressed = performance.now();
+        const read = () => {
+          const focused = document.activeElement;
+          const band = document.querySelector(`[${attribute}="held"]`);
+          const clearFrom = Math.max(0, band?.getBoundingClientRect().bottom ?? 0);
+          if (focused?.getAttribute("role") === "slider") {
+            const { top, bottom } = focused.getBoundingClientRect();
+            const style = getComputedStyle(focused);
+            const ringTop = top - Number.parseFloat(style.scrollMarginTop);
+            const ringBottom = bottom + Number.parseFloat(style.scrollMarginBottom);
+            if (ringTop >= clearFrom && ringBottom <= innerHeight) {
+              timing.inViewAfterMs = performance.now() - pressed;
+              return;
+            }
+          }
+          requestAnimationFrame(read);
+        };
+        requestAnimationFrame(read);
+      },
+      { capture: true, once: true },
+    );
+  }, BAND);
+
+  await page.keyboard.press("Enter");
+  const inViewAfterMs = await page
+    .waitForFunction(() => (window as unknown as { inViewAfterMs?: number }).inViewAfterMs)
+    .then((handle) => handle.jsonValue());
+
+  expect(inViewAfterMs, "ms from the press to the slider in the window").toBeLessThanOrEqual(
+    REDUCED_IN_VIEW_MS * CPU_RATE,
+  );
+});
+
+test(`Enter held on "Back to the plan" until it repeats still brings its slider into the window`, async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await openSeenKanazawaChart(page);
+  await changeFromTheKeys(page, "17:30");
+  await page.keyboard.down("Enter");
+  await page.waitForTimeout(REPEAT_DELAY_MS);
+  // Each keydown after the first, with the key still down, is a repeat.
+  for (let held = REPEAT_DELAY_MS; held < ENTER_HELD_MS; held += REPEAT_EVERY_MS) {
+    await page.keyboard.down("Enter");
+    await page.waitForTimeout(REPEAT_EVERY_MS);
+  }
+  await page.keyboard.up("Enter");
+  const slider = page.getByRole("slider", { name: "Energy at 17:30" });
+  await expect(slider).toBeFocused();
+  await untilWaitedOut(page, slider);
+
+  const rest = await focusedSliderOf(page);
+  expect(rest.top, "the slider's ring, under anything held at the top").toBeGreaterThanOrEqual(
+    rest.clearFrom,
+  );
+  expect(rest.bottom, "the slider's ring, over the window's foot").toBeLessThanOrEqual(rest.foot);
+});

@@ -344,7 +344,8 @@ function EnergySlider({
       onKeyDown={onKeyDown}
       onFocus={(event) => onFocusChange(true, isFocusVisible(event.currentTarget))}
       onBlur={() => onFocusChange(false, false)}
-      className="group pointer-events-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-curve"
+      // A scroll that brings the slider in brings its ring too, 2 px off its knob and 2 px wide.
+      className="group pointer-events-none scroll-my-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-curve"
     >
       <circle
         cx={x}

@@ -196,7 +196,7 @@ describe("the carousel", () => {
     }
   });
 
-  it("brings the stop's box into view the least way as an arrow pressed hands it the focus", async () => {
+  it("brings the stop's top down to the plan's bar's edge as an arrow pressed hands it the focus", async () => {
     const user = userEvent.setup();
     render(<Renaming />);
     const { after } = neighboursOf(BOTH, 0);
@@ -208,7 +208,9 @@ describe("the carousel", () => {
       // The focus scrolls nothing itself, and the box, which a lean never moves, is what scrolls.
       const stopFocused = focus.mock.calls.filter((_, call) => focus.mock.contexts[call] === stop);
       expect(stopFocused).toEqual([[{ preventScroll: true }]]);
-      expect(scrolledTo).toEqual([{ element: stop.parentElement, options: { block: "nearest" } }]);
+      // By its top, so a stop taller than the window shows its head, where "nearest" would
+      // bring up its foot.
+      expect(scrolledTo).toEqual([{ element: stop.parentElement, options: { block: "start" } }]);
     } finally {
       focus.mockRestore();
     }

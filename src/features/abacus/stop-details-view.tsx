@@ -18,6 +18,7 @@ import { LINK_CLASSES, TARGET_CLASSES } from "@/features/day/link-classes";
 import { BestLightIcon } from "./best-light-icon";
 import { mapActionOf } from "./map-action";
 import { usePlaceCheck } from "./place-check";
+import { heldBandFootIn } from "./sticky-scale";
 import type { BestLight } from "./light";
 import type { SheetSide } from "./sheet-placement";
 import type { StopDetails } from "./stop-details";
@@ -86,7 +87,8 @@ export function DetailsPanel({
   // The sheet takes the focus and comes into view, so a keyboard or a phone lands on it, and
   // again when it comes back. It scrolls two frames on, once the day has made room for a
   // sheet it has room for neither below nor above its stop, and to where it stands each
-  // frame, so anything growing above it on the way moves where it comes to (`revealInView`).
+  // frame, so anything growing above it on the way moves where it comes to (`revealInView`),
+  // clear of the energy scale's band where the band is held at the screen's top then.
   useEffect(() => {
     const element = panel.current;
     if (!element || !isFocusTaken || !isPresent) return undefined;
@@ -94,7 +96,9 @@ export function DetailsPanel({
     let stopReveal: (() => void) | null = null;
     let frame = requestAnimationFrame(() => {
       frame = requestAnimationFrame(() => {
-        stopReveal = revealInView(element, isReducedMotion);
+        stopReveal = revealInView(element, isReducedMotion, {
+          coveredTop: heldBandFootIn(document),
+        });
       });
     });
     return () => {

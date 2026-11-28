@@ -136,6 +136,9 @@ const LIVELIER_GRILLS = "Seafood Grills in Omicho";
 const QUIETER_WORKSHOP = "Utatsuyama Craft Workshop Hill";
 /** How far above the scroll padding's edge a stop's foot is scrolled, its top out of view. */
 const UNDER_BAR_PX = 10;
+/** The scroll padding's edge where the plan's bar takes one row, and two, at the default size. */
+const ONE_ROW_EDGE_PX = 48;
+const TWO_ROWS_EDGE_PX = 80;
 /** How far, rounded, a stop brought to the plan's bar's edge may sit off it. */
 const BAR_EDGE_PX = 2;
 
@@ -211,6 +214,8 @@ for (const viewport of [
       const barEdge = await page.evaluate(() =>
         Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop),
       );
+      // At the browser's default text size the edge stands where the bar's rows put it.
+      expect(barEdge).toBe(viewport.width === 390 ? ONE_ROW_EDGE_PX : TWO_ROWS_EDGE_PX);
       await arrow.evaluate(
         (element, { barEdge, underBar }) => {
           const stop = element.parentElement!.parentElement!.querySelector('[role="group"]')!;
@@ -233,6 +238,127 @@ for (const viewport of [
     });
   });
 }
+
+/** The browser's own text at 200%: Chrome's default font size, 16 px, set to 32. */
+const LARGE_TEXT_PX = 32;
+/** The arrows and stops Tab and Shift+Tab reach at 200%, in the plan's order. */
+const KENROKU_SAME = "Same energy: Oyama Shrine";
+const HIROSAKA_ARROW = `Livelier: ${LIVELIER_COFFEE}`;
+const HIGASHI_CHAYA = "Higashi Chaya District";
+
+/**
+ * Sets the browser's own text size, as Chrome's "Font size" setting does, before the page
+ * loads: `medium`, the root and every rem take it. A full-page screenshot drops it.
+ */
+async function setBrowserTextSize(page: Page, pixels: number): Promise<void> {
+  const session = await page.context().newCDPSession(page);
+  await session.send("Page.setFontSizes", { fontSizes: { standard: pixels } });
+}
+
+/** Where the plan's bar ends once it is stuck at the window's top, the plan scrolled under it. */
+async function stuckBarBottomOf(page: Page): Promise<number> {
+  await page
+    .getByRole("list", { name: "The day, to read" })
+    .evaluate((plan) => window.scrollBy(0, plan.getBoundingClientRect().top + window.innerHeight));
+  return barBottomOf(page);
+}
+
+/** Scrolls the page so `element`'s top stands `top` px down the window, and focuses `from`. */
+async function placeUnderBar(element: Locator, top: number, from: Locator): Promise<void> {
+  await element.evaluate((target, to) => {
+    window.scrollBy(0, target.getBoundingClientRect().top - to);
+  }, top);
+  await from.evaluate((target) => (target as HTMLElement).focus({ preventScroll: true }));
+}
+
+// At 200% on a phone 320 px wide the energy's words wrap again and the bar takes more rows than
+// two. Every stop is taller than the window there: one Tab reaches while partly on screen comes
+// to the scroll padding's edge, by its top, and one wholly off it or under the edge the
+// browser's own focus scroll centres. Each arrow is shorter than the window.
+test.describe("320 px wide, the text at 200%", () => {
+  test.use({ viewport: { width: 320, height: 568 } });
+
+  test.beforeEach(async ({ page }) => {
+    await setBrowserTextSize(page, LARGE_TEXT_PX);
+    await openSeenKanazawa(page);
+  });
+
+  test("Tab brings a stop on screen under the plan's bar to its edge, however many rows it takes", async ({
+    page,
+  }) => {
+    const plan = page.getByRole("list", { name: "The day, to read" });
+    const before = plan.getByRole("button", { name: KENROKU_SAME });
+    const barBottom = await stuckBarBottomOf(page);
+    // The arrow before the stop just under the bar, the stop's top on screen under it.
+    await placeUnderBar(before, barBottom + UNDER_BAR_PX, before);
+    await page.keyboard.press("Tab");
+
+    const stop = plan.getByRole("group", { name: WRITTEN_COFFEE, exact: true });
+    await expect(stop).toBeFocused();
+    expect((await stop.boundingBox())!.y).toBeGreaterThanOrEqual(await barBottomOf(page));
+  });
+
+  test("Tab brings an arrow out from under the plan's bar, however many rows it takes", async ({
+    page,
+  }) => {
+    const plan = page.getByRole("list", { name: "The day, to read" });
+    const arrow = plan.getByRole("button", { name: HIROSAKA_ARROW });
+    const barBottom = await stuckBarBottomOf(page);
+    // The arrow's top under the bar, its stop before it focused.
+    await placeUnderBar(
+      arrow,
+      barBottom - UNDER_BAR_PX,
+      plan.getByRole("group", { name: WRITTEN_COFFEE, exact: true }),
+    );
+    await page.keyboard.press("Tab");
+
+    await expect(arrow).toBeFocused();
+    expect((await arrow.boundingBox())!.y).toBeGreaterThanOrEqual(await barBottomOf(page));
+  });
+
+  test("Shift+Tab brings an arrow out from under the plan's bar, however many rows it takes", async ({
+    page,
+  }) => {
+    const plan = page.getByRole("list", { name: "The day, to read" });
+    const arrow = plan.getByRole("button", { name: HIROSAKA_ARROW });
+    const barBottom = await stuckBarBottomOf(page);
+    // The arrow wholly under the bar, the stop after it focused.
+    const height = (await arrow.boundingBox())!.height;
+    await placeUnderBar(
+      arrow,
+      barBottom - UNDER_BAR_PX - height,
+      plan.getByRole("group", { name: HIGASHI_CHAYA, exact: true }),
+    );
+    await page.keyboard.press("Shift+Tab");
+
+    await expect(arrow).toBeFocused();
+    expect((await arrow.boundingBox())!.y).toBeGreaterThanOrEqual(await barBottomOf(page));
+  });
+
+  test("an arrow pressed brings its stop's top out from under the plan's bar, the stop taller than the window", async ({
+    page,
+  }) => {
+    const plan = page.getByRole("list", { name: "The day, to read" });
+    const arrow = plan.getByRole("button", { name: `Livelier: ${LIVELIER_GRILLS}` });
+    const barBottom = await stuckBarBottomOf(page);
+    // The stop's foot under the bar, its arrow on screen under it.
+    await arrow.evaluate(
+      (element, { barBottom, underBar }) => {
+        const stop = element.parentElement!.parentElement!.querySelector('[role="group"]')!;
+        window.scrollBy(0, stop.getBoundingClientRect().bottom - barBottom + underBar);
+        (element as HTMLElement).focus({ preventScroll: true });
+      },
+      { barBottom, underBar: UNDER_BAR_PX },
+    );
+    await page.keyboard.press("Enter");
+
+    const stop = plan.getByRole("group", { name: LIVELIER_GRILLS });
+    await expect(stop).toBeFocused();
+    await expect
+      .poll(async () => (await stop.boundingBox())!.y)
+      .toBeGreaterThanOrEqual(await barBottomOf(page));
+  });
+});
 
 test("an arrow pressed while the stop leans scrolls nothing sideways", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });

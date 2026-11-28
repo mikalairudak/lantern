@@ -30,6 +30,15 @@ interface StickyScaleProps {
 /** Marks the band, with "held" once it stands at the screen's top, as specs read it. */
 export const SCALE_BAND_ATTRIBUTE = "data-scale-band";
 
+/**
+ * How far down the screen the band inside `root` ends while it is held at the screen's top, the
+ * room it covers there; 0 while it rests where the chart begins, or where there is none.
+ */
+export function heldBandFootIn(root: ParentNode): number {
+  const band = root.querySelector(`[${SCALE_BAND_ATTRIBUTE}="held"]`);
+  return Math.max(0, band?.getBoundingClientRect().bottom ?? 0);
+}
+
 /** One line of the scale's words, as the chart's captions are set, a pointer target tall. */
 const LINE_CLASSES = "flex min-h-6 items-center type-note";
 

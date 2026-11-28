@@ -116,6 +116,22 @@ describe("revealInView", () => {
     expect(scrolled).toBeCloseTo(600, 0);
   });
 
+  it("brings an element under what is held at the screen's top down clear of it", () => {
+    scrolled = 1000;
+    vi.stubGlobal("scrollY", scrolled);
+    // Its top 20 px down the screen, under a band 35 px tall.
+    revealInView(elementAt(1020, 18), true, { coveredTop: 35 });
+
+    expect(scrolled).toBeCloseTo(985, 0);
+  });
+
+  it("ends with the element's foot wholly in, in whole pixels", () => {
+    revealInView(elementAt(900.3, 400), false);
+    scrollsUntilRest();
+
+    expect(scrolled).toBe(501);
+  });
+
   it("holds the browser's own scroll anchoring off while it scrolls, and gives it back", () => {
     document.documentElement.style.overflowAnchor = "auto";
     revealInView(elementAt(900, 400), false);
@@ -141,6 +157,17 @@ describe("revealInView", () => {
 
     expect(isRevealing()).toBe(false);
     expect(scrolled).toBe(before);
+  });
+
+  it("goes on through a key held down repeating, and stops at a key pressed anew", () => {
+    revealInView(elementAt(900, 400), false);
+    drawFrame();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", repeat: true }));
+    drawFrame();
+    expect(isRevealing()).toBe(true);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+    expect(isRevealing()).toBe(false);
   });
 
   it("stops the reveal on its way when another starts", () => {
