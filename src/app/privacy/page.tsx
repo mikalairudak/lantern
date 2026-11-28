@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
 import { cn } from "@/components/ui/cn";
-import { CONTACT_EMAIL, ContactAddress, PRIVACY_PATH } from "@/features/day/foot-line";
+import { ContactLink, PRIVACY_PATH } from "@/features/day/foot-line";
 import { LINK_CLASSES } from "@/features/day/link-classes";
 import { Masthead } from "@/features/day/masthead";
 import { DAY_LINK_DAYS } from "@/lib/days/stored-day";
@@ -50,11 +50,11 @@ const RECIPIENTS = [
 ] as const;
 
 /**
- * A link in the text. In a narrow page (`narrow`), which only a large text size makes of a
- * phone's, it stands whole while it fits a line, and one wider than its line breaks inside
- * itself, the support address after its "@" (`ContactAddress`), rather than widen the page.
+ * A link in the text. One wider than its line breaks inside itself rather than widen the page:
+ * the support address after its "@" (`ContactLink`), and where even a half of it is wider than
+ * the line, anywhere.
  */
-const BODY_LINK_CLASSES = cn(LINK_CLASSES, "text-ink wrap-anywhere @max-narrow:inline-block");
+const BODY_LINK_CLASSES = cn(LINK_CLASSES, "text-ink wrap-anywhere");
 
 /** The term an item of a list starts with, in the ink the text around it is softer than. */
 const TERM_CLASSES = "text-ink";
@@ -68,8 +68,7 @@ const TERM_CLASSES = "text-ink";
  */
 export default function Privacy() {
   return (
-    // A container, so its links read the page's width in the text's own rems (`narrow`).
-    <main className="@container mx-auto flex max-w-page flex-col px-4 pb-16 md:px-10 lg:px-16">
+    <main className="mx-auto flex max-w-page flex-col px-4 pb-16 md:px-10 lg:px-16">
       <header className="flex shrink-0 flex-col pt-5 pb-5">
         <Masthead />
         <h1 className="mt-5 type-voice text-title text-pretty text-ink">{TITLE}</h1>
@@ -91,11 +90,8 @@ export default function Privacy() {
  */
 async function Notice() {
   const isLive = await isLiveNow();
-  const contact = (
-    <a href={`mailto:${CONTACT_EMAIL}`} className={BODY_LINK_CLASSES}>
-      <ContactAddress />
-    </a>
-  );
+  /** The support address, with the mark that ends its sentence kept on its last line. */
+  const contact = (after?: string) => <ContactLink className={BODY_LINK_CLASSES} after={after} />;
   return (
     <>
       {/* A space beside a value or a term stands in a box of its own: as a text beside
@@ -115,7 +111,7 @@ async function Notice() {
                 To keep the free service from being overused, Lantern counts requests by a coded
                 form of your IP address. It never stores the address itself.
               </li>
-              <li>To have your text deleted, write to {contact}.</li>
+              <li>To have your text deleted, write to {contact(".")}</li>
             </>
           ) : (
             <>
@@ -123,7 +119,7 @@ async function Notice() {
                 Lantern isn&apos;t writing new days right now, so what you type is read in your
                 browser and never sent.
               </li>
-              <li>Write to {contact} with any question.</li>
+              <li>Write to {contact()} with any question.</li>
             </>
           )}
         </ul>
@@ -208,7 +204,7 @@ async function Notice() {
           Some of them process data in the United States, relying on the EU&ndash;US Data Privacy
           Framework or the EU&apos;s standard contractual clauses.
         </p>
-        <p>Write to {contact} for the list of them by name.</p>
+        <p>Write to {contact()} for the list of them by name.</p>
       </Section>
 
       <Section heading="How long">
@@ -236,7 +232,7 @@ async function Notice() {
 
       <Section heading="Your rights">
         <p>
-          You can ask for a copy of your text, or for it to be deleted, by writing to {contact}.
+          You can ask for a copy of your text, or for it to be deleted, by writing to {contact(".")}
           Nothing in Lantern ties a text to you, so say roughly when you typed it and what it said.
           You can also complain to your local data protection authority.
         </p>
@@ -269,7 +265,7 @@ async function Notice() {
           >
             LinkedIn
           </a>
-          ). Questions about any of this: {contact}.
+          ). Questions about any of this: {contact(".")}
         </p>
       </Section>
     </>

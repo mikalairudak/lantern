@@ -20,7 +20,7 @@ import { SITE_AUTHOR, SITE_AUTHOR_PROFILE } from "@/lib/site";
  * The page's source and the values it reads, as they stood when its date was last looked at;
  * the date itself is left out.
  */
-const RECORDED = "ebd0ef8069c04bd3e3feba725435f583597c07fafc223c5fb5b11f7e7fec36a1";
+const RECORDED = "78dd1217e9568cdb0a4cb24d9aeecce7a3f5e75cbd9a42420e5e9ae7074e7548";
 
 const CHANGED =
   "The privacy page or a value it reads has changed. If what it says to a visitor changed, set " +

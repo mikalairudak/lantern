@@ -59,6 +59,12 @@ describe("DayEnd", () => {
     ]);
   });
 
+  it("keeps the space after the dot that leads each run unbroken, a narrow line never ending on it", () => {
+    render(<DayEnd {...KANAZAWA} />);
+
+    for (const run of summaryOf().runs) expect(run.startsWith(`·${TIED}`)).toBe(true);
+  });
+
   it("says no distance and keeps no route for a day of one stop", () => {
     const { container } = render(<DayEnd {...exampleOf(/^one stop/)} />);
 

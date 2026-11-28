@@ -17,7 +17,8 @@ import { useReadToEnd } from "./use-read-to-end";
  * The time in the gutter, as the list's rows set theirs, so the day's end reads as its last
  * time; the lines beside it start where a row's words do. In a narrow line (`narrow`), which
  * only a large text size makes of a phone's, the time stands over the lines, which take the
- * line's whole width: beside it they kept 128 px at 320 px with the browser's text at 200%.
+ * line's whole width: beside the time they would have 128 px at 320 px with the browser's text
+ * at 200%.
  */
 const ROW_CLASSES = "flex gap-4 @max-narrow:flex-col @max-narrow:gap-1";
 /**
@@ -28,8 +29,12 @@ const ROW_CLASSES = "flex gap-4 @max-narrow:flex-col @max-narrow:gap-1";
 const TIED_CLASSES = "whitespace-nowrap @max-narrow:whitespace-normal";
 /** The space the summary ties a count or a distance with, which a line never breaks at. */
 const TIED_SPACE = "\u00a0";
-/** Under the chart the time ends where the chart's times do, against its axis. */
-const GUTTER_CLASSES = "w-12 shrink-0 type-time tabular-nums text-muted view-chart:text-right";
+/**
+ * Under the chart the time ends where the chart's times do, against its axis. Over the lines,
+ * in a narrow line, it starts where they do.
+ */
+const GUTTER_CLASSES =
+  "w-12 shrink-0 type-time tabular-nums text-muted view-chart:@narrow:text-right @max-narrow:w-auto";
 const ROUTE_CLASSES = cn(LINK_CLASSES, TARGET_CLASSES, "text-ink");
 
 export interface DayEndProps {

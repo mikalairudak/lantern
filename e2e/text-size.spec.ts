@@ -1,6 +1,14 @@
 import { ALICANTE_REQUEST } from "../src/lib/fixtures/curated/requests";
 import type { StoredDay } from "../src/lib/days/stored-day";
-import { expect, test, type Page, waitMs, chooseTheChart, setBrowserTextSize } from "./fixtures";
+import {
+  expect,
+  test,
+  type Locator,
+  type Page,
+  waitMs,
+  chooseTheChart,
+  setBrowserTextSize,
+} from "./fixtures";
 
 /**
  * The pages with the browser's own text at 200%, Chrome's "Font size" at 32 px over its 16
@@ -215,19 +223,10 @@ test("with the text at 200%, the foot's support address breaks only after its @ 
   expect(lines).toEqual(["support@", "lanternday.com"]);
 });
 
-// The day's end line's summary keeps each dot on the line of the words after it, as it does at
-// the default size, where its runs wrap at 320 px with the text at 200%.
-test("with the text at 200%, no line of Kanazawa's day's end ends with its dot at 320 px", async ({
-  page,
-}) => {
-  await setBrowserTextSize(page, LARGE_TEXT_PX);
-  await page.setViewportSize({ width: 320, height: 844 });
-  await page.goto(DAY);
-  await untilDayEnds(page);
-
-  expect(await rootPxOf(page)).toBe(LARGE_TEXT_PX);
-  const lines = await page.locator("p", { hasText: /^Home by/ }).evaluate((summary) => {
-    const walker = document.createTreeWalker(summary, NodeFilter.SHOW_TEXT);
+/** The lines a part of the page is set in, top to bottom, each trimmed. */
+function linesOf(part: Locator): Promise<string[]> {
+  return part.evaluate((root) => {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const byTop = new Map<number, string>();
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       const text = node.textContent ?? "";
@@ -243,9 +242,134 @@ test("with the text at 200%, no line of Kanazawa's day's end ends with its dot a
     }
     return [...byTop.values()].map((line) => line.trim());
   });
-  expect(lines.length).toBeGreaterThan(1);
-  expect(lines.filter((line) => line.endsWith("·"))).toEqual([]);
+}
+
+// The day's end line's summary keeps each dot on the line of the words after it, as it does at
+// the default size, where its runs wrap with the text at 200%.
+for (const width of [320, 390]) {
+  test(`with the text at 200%, no line of Kanazawa's day's end ends with its dot at ${width} px`, async ({
+    page,
+  }) => {
+    await setBrowserTextSize(page, LARGE_TEXT_PX);
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(DAY);
+    await untilDayEnds(page);
+
+    expect(await rootPxOf(page)).toBe(LARGE_TEXT_PX);
+    const lines = await linesOf(page.locator("p", { hasText: /^Home by/ }));
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines.filter((line) => line.endsWith("·"))).toEqual([]);
+  });
+}
+
+// Over its lines in a narrow line, the day's end time starts where they do, under the chart too,
+// where beside them it ends against the axis.
+test("with the text at 200%, the day's end time starts where its words do at 320 px", async ({
+  page,
+}) => {
+  await chooseTheChart(page);
+  await setBrowserTextSize(page, LARGE_TEXT_PX);
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto(DAY);
+  await untilDayEnds(page);
+
+  expect(await rootPxOf(page)).toBe(LARGE_TEXT_PX);
+  const summary = page.locator("p", { hasText: /^Home by/ });
+  const time = summary.locator("xpath=../preceding-sibling::span[1]");
+  const [timeLeft, wordsLeft] = await Promise.all([
+    time.evaluate((span) => {
+      const range = document.createRange();
+      range.selectNodeContents(span);
+      return range.getBoundingClientRect().left;
+    }),
+    summary.evaluate((words) => words.getBoundingClientRect().left),
+  ]);
+  expect(Math.abs(timeLeft - wordsLeft)).toBeLessThan(1);
 });
+
+/** Where the support address and what follows it stand: every address the page holds. */
+function addressesOf(page: Page): Promise<{ lines: number; mark: boolean }[]> {
+  return page.evaluate(() =>
+    [...document.querySelectorAll("main a[href^='mailto:'], footer a[href^='mailto:']")].map(
+      (link) => {
+        const tops = (node: Node, from: number, to: number) => {
+          const range = document.createRange();
+          range.setStart(node, from);
+          range.setEnd(node, to);
+          return [...range.getClientRects()]
+            .filter((box) => box.width > 0)
+            .map((box) => Math.round(box.top));
+        };
+        const words = document.createRange();
+        words.selectNodeContents(link);
+        const lines = [...words.getClientRects()].filter((box) => box.width > 0);
+        const last = Math.max(...lines.map((box) => Math.round(box.top)));
+        // The mark after it, a full stop, on the line the address ends on.
+        const after = link.nextSibling;
+        const mark =
+          after?.nodeType === Node.TEXT_NODE && (after.textContent ?? "").startsWith(".")
+            ? tops(after, 0, 1)[0] === last
+            : true;
+        return { lines: new Set(lines.map((box) => Math.round(box.top))).size, mark };
+      },
+    ),
+  );
+}
+
+// The support address on /privacy: whole while it fits its line, broken after its "@" where it
+// does not, the full stop after it on its last line.
+for (const { size, label } of [
+  { size: LARGE_TEXT_PX, label: "200%" },
+  { size: 20, label: "125%" },
+]) {
+  test(`with the text at ${label}, the full stop after the support address stands on its last line at 320 px`, async ({
+    page,
+  }) => {
+    await setBrowserTextSize(page, size);
+    await page.setViewportSize({ width: 320, height: 844 });
+    await page.goto("/privacy");
+    await expect(page.getByRole("heading", { name: "Terms", exact: true })).toBeAttached();
+
+    expect(await rootPxOf(page)).toBe(size);
+    const addresses = await addressesOf(page);
+    expect(addresses.length).toBeGreaterThan(0);
+    expect(addresses.filter(({ mark }) => !mark)).toEqual([]);
+  });
+}
+
+for (const width of [320, 340, 360]) {
+  test(`with the text at 125%, the privacy page never scrolls sideways at ${width} px`, async ({
+    page,
+  }) => {
+    await setBrowserTextSize(page, 20);
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/privacy");
+    await expect(page.getByRole("heading", { name: "Terms", exact: true })).toBeAttached();
+
+    expect(await rootPxOf(page)).toBe(20);
+    expect(await overflowOf(page)).toBe(0);
+  });
+}
+
+// At the default size the address breaks nowhere: where it once met a line's end it went whole
+// to the next line, and still does.
+for (const { path, width } of [
+  { path: "/privacy", width: 348 },
+  { path: DAY, width: 588 },
+]) {
+  test(`at the default size, the support address on ${path} stands whole on its line at ${width} px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(path);
+    if (path === DAY) await untilDayEnds(page);
+    else await expect(page.getByRole("heading", { name: "Terms", exact: true })).toBeAttached();
+
+    const addresses = await addressesOf(page);
+    expect(addresses.length).toBeGreaterThan(0);
+    expect(addresses.filter(({ lines }) => lines > 1)).toEqual([]);
+  });
+}
 
 // A phrase of the headline wider than the line wraps inside its box, and a city wider than the
 // line breaks inside its name, and the comma after either stays on the line of the letter before
